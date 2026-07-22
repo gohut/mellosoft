@@ -1,7 +1,7 @@
 # Mellosoft Frontend Website Documentation
 
 ## Overview
-Mellosoft is a premium sleep products e-commerce website built with Next.js. The website showcases and sells mattresses, pillows, bed frames, protectors, and bundles with a focus on luxury, comfort, and quality sleep products.
+Mellosoft is a premium sleep products e-commerce website built with Next.js. The website showcases and sells mattresses, pillows, bed frames, and protectors with a focus on luxury, comfort, and quality sleep products.
 
 ---
 
@@ -22,7 +22,7 @@ Mellosoft is a premium sleep products e-commerce website built with Next.js. The
 **Purpose**: Main landing page introducing the brand and products
 
 **Sections**:
-- **Hero Section**: Large wordmark branding, tagline, product showcase image, and action tiles for quick navigation
+- **Hero Section**: Product-led mattress slider with deal tags and direct shopping actions
 - **Why Mellosoft Features**: Three feature blocks highlighting:
   - 100-Night Trial
   - Free Premium Delivery
@@ -45,7 +45,7 @@ Mellosoft is a premium sleep products e-commerce website built with Next.js. The
 **Sections**:
 - **Banner**: Collection header with description
 - **Filter Bar**: Multi-filter system with:
-  - Category selector (All, Mattresses, Pillows, Bed Frames, Protectors, Bundles)
+  - Category selector (All, Mattresses, Pillows, Bed Frames, Protectors)
   - Firmness filter (All, Soft, Medium, Firm)
   - Size filter (All, Twin, Full, Queen, King)
   - Sort options (Recommended, Price Low-High, Price High-Low, Rating)
@@ -159,7 +159,7 @@ Mellosoft is a premium sleep products e-commerce website built with Next.js. The
 - **Search Results Grid**: Products matching search query
 - **Initial State**: Discovery shortcuts when no search is active:
   - Shop All Mattresses
-  - Explore Bundles
+  - Explore Pillows
 - **Empty State**: No results found message
 
 **Key Features**:
@@ -207,7 +207,7 @@ Mellosoft is a premium sleep products e-commerce website built with Next.js. The
 
 **Desktop Header**:
 - Logo with wordmark
-- Navigation links (Home, Mattresses, Bundles, About, Reviews)
+- Navigation links (Home, Mattresses, Pillows, Bed Frames, About)
 - Icon controls (Search, Wishlist, Cart)
 - Badge indicators for cart and wishlist counts
 
@@ -232,7 +232,7 @@ Mellosoft is a premium sleep products e-commerce website built with Next.js. The
 **Sections**:
 - **Brand Block**: Logo, tagline, and company description
 - **Link Columns**:
-  - Shop (Mattresses, Pillows, Bed Frames, Bundles)
+  - Shop (Mattresses, Pillows, Bed Frames, Protectors)
   - Company (About Us, Sustainability, Press, Careers)
   - Support (100-Night Trial, Warranty Info, FAQs, Contact Us)
 - **Bottom Row**: Copyright and payment method badges
@@ -250,7 +250,7 @@ Mellosoft is a premium sleep products e-commerce website built with Next.js. The
 
 **Features**:
 - Product image
-- Product name and tagline
+- Product name
 - Rating display
 - Price
 - Category badge
@@ -390,7 +390,7 @@ Mellosoft is a premium sleep products e-commerce website built with Next.js. The
 - **Mobile**: ≤ 767px
 
 ### Mobile Adaptations
-- **Header**: Compact top bar with bottom tab navigation
+- **Header**: Compact top bar with back navigation, cart access, and live search
 - **Grids**: Single column or reduced column counts
 - **Typography**: Smaller font sizes
 - **Spacing**: Reduced padding and margins
