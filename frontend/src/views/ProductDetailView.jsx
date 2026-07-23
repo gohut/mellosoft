@@ -1,0 +1,1074 @@
+"use client";
+
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import { useStore } from "../context/StoreContext";
+import { MOCK_PRODUCTS } from "../data/products";
+import RatingStars from "../components/RatingStars";
+import FirmnessSizeSelector from "../components/FirmnessSizeSelector";
+import QuantityStepper from "../components/QuantityStepper";
+import ProductCard from "../components/ProductCard";
+import { formatPrice } from "../utils/currency";
+
+export default function ProductDetailView() {
+  const { 
+    selectedProductId, 
+    getProductById, 
+    addToCart, 
+    wishlist, 
+    toggleWishlist, 
+    navigateTo 
+  } = useStore();
+
+  const product = useMemo(() => getProductById(selectedProductId) || MOCK_PRODUCTS[0], [getProductById, selectedProductId]);
+
+  // Gallery Active Image
+  const [activeImgIndex, setActiveImgIndex] = useState(0);
+  const [touchStartX, setTouchStartX] = useState(null);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const swipeMovedRef = useRef(false);
+
+  // Selector options states
+  const [selectedFirmness, setSelectedFirmness] = useState("");
+  const [selectedSize, setSelectedSize] = useState("");
+  const [quantity, setQuantity] = useState(1);
+
+  // Tab state: "details" | "reviews" | "discussion"
+  const [activeTab, setActiveTab] = useState("reviews");
+
+  // Reset states when product changes
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (!product) return;
+      setSelectedFirmness(product.firmnessOptions[0] || "Standard");
+      setSelectedSize(product.sizeOptions[0] || "Standard");
+      setQuantity(1);
+      setActiveImgIndex(0);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [product]);
+
+  // Calculate dynamic price based on size
+  const currentPrice = useMemo(() => {
+    if (product.sizePrices && product.sizePrices[selectedSize]) {
+      return product.sizePrices[selectedSize];
+    }
+    return product.price;
+  }, [product, selectedSize]);
+
+  // Compute rating stats
+  const ratingStats = useMemo(() => {
+    const reviews = product.reviews || [];
+    const total = reviews.length;
+    const counts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+    
+    reviews.forEach((r) => {
+      counts[r.rating] = (counts[r.rating] || 0) + 1;
+    });
+
+    return {
+      total,
+      breakdown: Object.keys(counts).reduce((acc, rating) => {
+        acc[rating] = total > 0 ? Math.round((counts[rating] / total) * 100) : 0;
+        return acc;
+      }, {}),
+      counts
+    };
+  }, [product]);
+
+  const handleAddToCart = () => {
+    addToCart(product, selectedFirmness, selectedSize, quantity);
+  };
+
+  const handleBuyNow = () => {
+    addToCart(product, selectedFirmness, selectedSize, quantity);
+    navigateTo("cart");
+  };
+
+  const showPreviousImage = () => {
+    setActiveImgIndex((current) => (current - 1 + product.images.length) % product.images.length);
+  };
+
+  const showNextImage = () => {
+    setActiveImgIndex((current) => (current + 1) % product.images.length);
+  };
+
+  const handleImageTouchEnd = (event) => {
+    if (touchStartX === null) return;
+    const deltaX = touchStartX - event.changedTouches[0].clientX;
+    if (Math.abs(deltaX) > 45) {
+      swipeMovedRef.current = true;
+      if (deltaX > 0) {
+        showNextImage();
+      } else {
+        showPreviousImage();
+      }
+      window.setTimeout(() => {
+        swipeMovedRef.current = false;
+      }, 160);
+    }
+    setTouchStartX(null);
+  };
+
+  const handleMainImageClick = () => {
+    if (swipeMovedRef.current) return;
+    setViewerOpen(true);
+  };
+
+  const isWishlisted = wishlist.includes(product.id);
+
+  // Filter out current product for "You may also like"
+  const recommendations = useMemo(() => {
+    return MOCK_PRODUCTS.filter((p) => p.id !== product.id).slice(0, 3);
+  }, [product]);
+
+  return (
+    <div style={detailContainerStyle} className="detail-page">
+      
+      {/* Breadcrumb */}
+      <div style={breadcrumbStyle} className="detail-breadcrumb">
+        <span onClick={() => navigateTo("home")} style={breadcrumbLinkStyle}>Home</span>
+        <span style={breadcrumbDividerStyle}>/</span>
+        <span onClick={() => navigateTo("catalog")} style={breadcrumbLinkStyle}>Catalog</span>
+        <span style={breadcrumbDividerStyle}>/</span>
+        <span style={breadcrumbActiveStyle}>{product.name}</span>
+      </div>
+
+      {/* Main Details Section */}
+      <div style={mainLayoutGridStyle} className="detail-main-grid">
+        
+        {/* Left Column: Image Gallery */}
+        <div style={galleryColStyle}>
+          <div
+            style={mainImageWrapperStyle}
+            className="detail-main-image"
+            onClick={handleMainImageClick}
+            onTouchStart={(event) => setTouchStartX(event.touches[0].clientX)}
+            onTouchEnd={handleImageTouchEnd}
+          >
+            <img 
+              src={product.images[activeImgIndex] || product.images[0]} 
+              alt={product.name} 
+              style={mainImageStyle} 
+              className="detail-gallery-img"
+            />
+          </div>
+          
+          {/* Thumbnail strip */}
+          <div style={thumbnailStripStyle} className="desktop-thumbnails">
+            {product.images.map((img, index) => (
+              <div 
+                key={index} 
+                onClick={() => setActiveImgIndex(index)}
+                style={{
+                  ...thumbnailWrapperStyle,
+                  borderColor: activeImgIndex === index ? "#1B1F8C" : "#E7E7E2",
+                  transform: activeImgIndex === index ? "scale(1.02)" : "scale(1)"
+                }}
+              >
+                <img src={img} alt={`${product.name} View ${index + 1}`} style={thumbnailImageStyle} />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Right Column: Order Configuration */}
+        <div style={configColStyle}>
+          
+          <span style={brandLabelStyle}>Mellosoft Premium Series</span>
+          <h2 style={titleStyle}>{product.name}</h2>
+          
+          {/* Rating summary overlay */}
+          <div style={ratingSummaryLineStyle}>
+            <RatingStars rating={product.rating} count={product.reviewCount} showNumber />
+          </div>
+
+          <div style={priceContainerStyle}>
+            <span style={priceStyle}>{formatPrice(currentPrice)}</span>
+            {product.sizePrices && product.sizePrices[selectedSize] && (
+              <span style={priceNoteStyle}>Price updates by size choice</span>
+            )}
+          </div>
+
+          <p style={descriptionStyle}>{product.description}</p>
+          
+          <div style={dividerStyle} />
+
+          {/* Firmness Selector */}
+          <FirmnessSizeSelector 
+            label="Select Firmness" 
+            options={product.firmnessOptions} 
+            selected={selectedFirmness} 
+            onChange={setSelectedFirmness} 
+          />
+
+          {/* Size Selector */}
+          <FirmnessSizeSelector 
+            label="Select Size" 
+            options={product.sizeOptions} 
+            selected={selectedSize} 
+            onChange={setSelectedSize} 
+          />
+
+          {/* Quantity & CTA buttons block */}
+          <div style={purchaseBlockStyle}>
+            <div style={qtyFieldStyle} className="detail-qty-field">
+              <label style={qtyLabelStyle}>Quantity</label>
+              <QuantityStepper qty={quantity} onChange={setQuantity} />
+            </div>
+
+            <div style={ctaButtonsGridStyle} className="detail-cta-grid">
+              <button 
+                onClick={handleAddToCart}
+                style={addCartBtnStyle}
+              >
+                Add to Cart
+              </button>
+              
+              <button 
+                onClick={handleBuyNow}
+                style={buyNowBtnStyle}
+              >
+                Buy Now
+              </button>
+
+              <button 
+                onClick={() => toggleWishlist(product.id)}
+                style={{
+                  ...wishlistBtnStyle,
+                  borderColor: isWishlisted ? "#16A34A" : "#E7E7E2",
+                  backgroundColor: isWishlisted ? "rgba(22, 163, 74, 0.05)" : "#FFFFFF"
+                }}
+                aria-label="Toggle Wishlist"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill={isWishlisted ? "#16A34A" : "none"} stroke={isWishlisted ? "#16A34A" : "#1B1F8C"} strokeWidth="2">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                </svg>
+                <span>{isWishlisted ? "Saved" : "Save"}</span>
+              </button>
+            </div>
+          </div>
+
+          <div style={deliveryBoxStyle}>
+            <div style={deliveryItemStyle}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5">
+                <rect x="1" y="3" width="15" height="13" />
+                <polygon points="16 8 20 8 23 11 23 16 16 16" />
+                <circle cx="5.5" cy="18.5" r="2.5" />
+                <circle cx="18.5" cy="18.5" r="2.5" />
+              </svg>
+              <span style={deliveryTextStyle}>Free shipping on orders over ₹30</span>
+            </div>
+            <div style={deliveryItemStyle}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              <span style={deliveryTextStyle}>100-night trial with free pickups and full refunds</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      {/* ================= RECOMMENDED CAROUSEL ================= */}
+      <section style={carouselSectionStyle}>
+        <h3 style={carouselHeadingStyle}>You may also like</h3>
+        <div style={recommendationsGridStyle} className="recommendations-row">
+          {recommendations.map((rec) => (
+            <div key={rec.id} style={{ flex: "1 1 280px" }}>
+              <ProductCard product={rec} />
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Tabbed Info & Reviews Section */}
+      <section style={tabbedSectionStyle}>
+        
+        {/* Tab Header Selector */}
+        <div style={tabHeaderStyle} className="detail-tab-header">
+          <button 
+            onClick={() => setActiveTab("details")}
+            style={{ ...tabBtnStyle, borderBottomColor: activeTab === "details" ? "#1B1F8C" : "transparent", color: activeTab === "details" ? "#1B1F8C" : "#6B6B75" }}
+          >
+            Product details
+          </button>
+          <button 
+            onClick={() => setActiveTab("reviews")}
+            style={{ ...tabBtnStyle, borderBottomColor: activeTab === "reviews" ? "#1B1F8C" : "transparent", color: activeTab === "reviews" ? "#1B1F8C" : "#6B6B75" }}
+          >
+            Customer Reviews ({ratingStats.total})
+          </button>
+          <button 
+            onClick={() => setActiveTab("discussion")}
+            style={{ ...tabBtnStyle, borderBottomColor: activeTab === "discussion" ? "#1B1F8C" : "transparent", color: activeTab === "discussion" ? "#1B1F8C" : "#6B6B75" }}
+          >
+            Q&A
+          </button>
+        </div>
+
+        {/* Tab Panels */}
+        <div style={tabPanelWrapperStyle}>
+          
+          {activeTab === "details" && (
+            <div style={detailsPanelStyle}>
+              <h4 style={panelHeaderStyle}>Engineering Specifications</h4>
+              <ul style={featuresListStyle}>
+                {product.features?.map((f, i) => (
+                  <li key={i} style={featureItemStyle}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="3" style={{ marginRight: "10px", flexShrink: 0 }}>
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    <span>{f}</span>
+                  </li>
+                ))}
+              </ul>
+              <p style={{ fontSize: "14.5px", color: "#6B6B75", marginTop: "16px" }}>
+                Specs: {product.specs}
+              </p>
+            </div>
+          )}
+
+          {activeTab === "discussion" && (
+            <div style={{ padding: "10px 0" }}>
+              <h4 style={panelHeaderStyle}>Product Questions & Answers</h4>
+              <p style={{ fontSize: "14.5px", color: "#6B6B75" }}>
+                Have questions about the {product.name}? Ask our community or sleeping engineers.
+              </p>
+              
+              <div style={mockQuestionStyle}>
+                <h5 style={{ fontWeight: "700", color: "#1B1F8C" }}>Q: How long does the mattress take to expand fully?</h5>
+                <p style={{ color: "#6B6B75", marginTop: "4px" }}>A: It expands to 95% of its height within 2 hours. However, we recommend letting it breath for 24 hours to reach full firmness and release any minor compressed packaging scent.</p>
+              </div>
+
+              <div style={mockQuestionStyle}>
+                <h5 style={{ fontWeight: "700", color: "#1B1F8C" }}>Q: Can I use this mattress on an adjustable bed frame?</h5>
+                <p style={{ color: "#6B6B75", marginTop: "4px" }}>A: Yes! All Mellosoft mattress designs are completely compatible with adjustable bases, slatted platforms, and traditional box springs.</p>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "reviews" && (
+            <div style={reviewsGridStyle} className="detail-reviews-grid">
+              
+              {/* Left Column: Reviews List */}
+              <div style={reviewsListColStyle}>
+                {product.reviews && product.reviews.length > 0 ? (
+                  product.reviews.map((rev) => (
+                    <div key={rev.id} style={reviewCardStyle}>
+                      <div style={reviewHeaderStyle}>
+                        <div style={avatarStyle}>
+                          {rev.author.split(" ").map(n => n[0]).join("")}
+                        </div>
+                        <div>
+                          <h5 style={{ fontWeight: "700", color: "#14151A" }}>{rev.author}</h5>
+                          <span style={{ fontSize: "11px", color: "#6B6B75" }}>{rev.date}</span>
+                        </div>
+                        <div style={{ marginLeft: "auto" }}>
+                          <RatingStars rating={rev.rating} />
+                        </div>
+                      </div>
+                      <p style={reviewBodyStyle}>{rev.content}</p>
+                      
+                      <div style={reviewFooterStyle}>
+                        <button style={reviewActionBtnStyle}>
+                          Helpful ({rev.helpfulCount})
+                        </button>
+                        <button style={reviewActionBtnStyle}>
+                          Reply {rev.replyCount > 0 ? `(${rev.replyCount})` : ""}
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p style={{ color: "#6B6B75" }}>No reviews yet. Be the first to sleep and leave feedback!</p>
+                )}
+              </div>
+
+              {/* Right Column: Rating Summary Breakdown Panel */}
+              <div style={summaryPanelColStyle}>
+                <div style={summaryCardStyle}>
+                  <h4 style={summaryHeaderStyle}>Customer Reviews</h4>
+                  
+                  <div style={summaryScoreBlockStyle}>
+                    <span style={bigScoreStyle}>{product.rating}</span>
+                    <RatingStars rating={product.rating} />
+                    <span style={reviewsCountTextStyle}>Based on {ratingStats.total} reviews</span>
+                  </div>
+
+                  <div style={breakdownContainerStyle}>
+                    {[5, 4, 3, 2, 1].map((stars) => {
+                      const pct = ratingStats.breakdown[stars] || 0;
+                      return (
+                        <div key={stars} style={breakdownRowStyle}>
+                          <span style={breakdownLabelStyle}>{stars} ★</span>
+                          <div style={barBgStyle}>
+                            <div 
+                              style={{ 
+                                ...barFillStyle, 
+                                width: `${pct}%`,
+                                backgroundColor: stars >= 4 ? "#16A34A" : "#1B1F8C" 
+                              }} 
+                            />
+                          </div>
+                          <span style={breakdownValueStyle}>{pct}%</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          )}
+
+        </div>
+      </section>
+
+      {viewerOpen && (
+        <div
+          style={viewerOverlayStyle}
+          className="image-viewer"
+          onTouchStart={(event) => setTouchStartX(event.touches[0].clientX)}
+          onTouchEnd={handleImageTouchEnd}
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${product.name} image viewer`}
+        >
+          <button onClick={() => setViewerOpen(false)} style={viewerCloseBtnStyle} aria-label="Close image viewer">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+
+          <button onClick={showPreviousImage} style={{ ...viewerNavBtnStyle, left: "14px" }} aria-label="Previous image">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12" />
+              <polyline points="12 19 5 12 12 5" />
+            </svg>
+          </button>
+
+          <img src={product.images[activeImgIndex] || product.images[0]} alt={product.name} style={viewerImageStyle} />
+
+          <button onClick={showNextImage} style={{ ...viewerNavBtnStyle, right: "14px" }} aria-label="Next image">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12" />
+              <polyline points="12 5 19 12 12 19" />
+            </svg>
+          </button>
+
+          <span style={viewerCountStyle}>{activeImgIndex + 1} / {product.images.length}</span>
+        </div>
+      )}
+
+      <style jsx global>{`
+        @media (max-width: 767px) {
+          .detail-breadcrumb {
+            display: none !important;
+          }
+          .detail-page {
+            padding: 0 16px 64px !important;
+            max-width: none !important;
+            overflow-x: hidden !important;
+          }
+          .detail-main-grid {
+            display: grid !important;
+            grid-template-columns: 1fr !important;
+            width: auto !important;
+            gap: 22px !important;
+            margin: 0 -16px 36px !important;
+            overflow: hidden !important;
+          }
+          .detail-main-grid > * {
+            min-width: 0 !important;
+            max-width: 100% !important;
+          }
+          .detail-main-grid > div:last-child {
+            padding: 0 16px !important;
+          }
+          .detail-main-image {
+            border-radius: 0 !important;
+            border: none !important;
+            height: 80vh !important;
+            min-height: 480px !important;
+            padding-top: 0 !important;
+            background: #f7f7f2 !important;
+          }
+          .detail-gallery-img {
+            height: 100% !important;
+            object-fit: cover !important;
+            object-position: center bottom !important;
+            transform: scale(1.36) !important;
+            transform-origin: center bottom !important;
+          }
+          .desktop-thumbnails {
+            display: none !important;
+          }
+          .recommendations-row {
+            overflow-x: auto !important;
+            display: grid !important;
+            grid-auto-flow: column !important;
+            grid-auto-columns: minmax(220px, 68vw) !important;
+            grid-template-columns: none !important;
+            gap: 14px !important;
+            padding-bottom: 12px !important;
+          }
+          .detail-tab-header {
+            overflow-x: auto !important;
+            gap: 22px !important;
+            white-space: nowrap !important;
+          }
+          .detail-reviews-grid {
+            grid-template-columns: 1fr !important;
+            gap: 26px !important;
+          }
+          .detail-cta-grid {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 12px !important;
+          }
+          .detail-cta-grid button {
+            width: 100% !important;
+          }
+          .detail-qty-field {
+            align-items: flex-start !important;
+            flex-direction: column !important;
+            gap: 10px !important;
+          }
+        }
+      `}</style>
+
+    </div>
+  );
+}
+
+// Styling Object Configurations
+const detailContainerStyle = {
+  maxWidth: "1200px",
+  margin: "0 auto",
+  padding: "30px 24px 80px 24px",
+  width: "100%"
+};
+
+// Breadcrumb
+const breadcrumbStyle = {
+  display: "flex",
+  alignItems: "center",
+  gap: "8px",
+  fontSize: "13px",
+  fontWeight: "500",
+  marginBottom: "36px"
+};
+
+const breadcrumbLinkStyle = {
+  color: "#6B6B75",
+  cursor: "pointer",
+  transition: "color 0.2s ease"
+};
+
+const breadcrumbDividerStyle = {
+  color: "#E7E7E2"
+};
+
+const breadcrumbActiveStyle = {
+  color: "#1B1F8C",
+  fontWeight: "600"
+};
+
+// Main Layout
+const mainLayoutGridStyle = {
+  display: "grid",
+  gridTemplateColumns: "1.1fr 1fr",
+  gap: "48px",
+  alignItems: "flex-start",
+  marginBottom: "60px"
+};
+
+// Gallery
+const galleryColStyle = {
+  display: "flex",
+  flexDirection: "column",
+  gap: "16px"
+};
+
+const mainImageWrapperStyle = {
+  width: "100%",
+  paddingTop: "75%",
+  backgroundColor: "#FFFFFF",
+  borderRadius: 0,
+  position: "relative",
+  overflow: "hidden",
+  cursor: "zoom-in",
+  touchAction: "pan-y"
+};
+
+const mainImageStyle = {
+  position: "absolute",
+  top: 0,
+  left: 0,
+  width: "100%",
+  height: "100%",
+  objectFit: "cover",
+  objectPosition: "center center"
+};
+
+const thumbnailStripStyle = {
+  display: "flex",
+  gap: "12px"
+};
+
+const thumbnailWrapperStyle = {
+  width: "80px",
+  height: "80px",
+  borderRadius: "12px",
+  border: "2px solid",
+  cursor: "pointer",
+  overflow: "hidden",
+  backgroundColor: "#FFFFFF",
+  transition: "all 0.2s cubic-bezier(0.16, 1, 0.3, 1)"
+};
+
+const thumbnailImageStyle = {
+  width: "100%",
+  height: "100%",
+  objectFit: "cover"
+};
+
+// Configuration Column (Right)
+const configColStyle = {
+  display: "flex",
+  flexDirection: "column"
+};
+
+const brandLabelStyle = {
+  fontSize: "11px",
+  fontWeight: "700",
+  textTransform: "uppercase",
+  letterSpacing: "0.08em",
+  color: "#16A34A",
+  marginBottom: "8px"
+};
+
+const titleStyle = {
+  fontSize: "36px",
+  fontWeight: "800",
+  color: "#1B1F8C",
+  marginBottom: "12px",
+  lineHeight: "1.2"
+};
+
+const ratingSummaryLineStyle = {
+  marginBottom: "20px"
+};
+
+const priceContainerStyle = {
+  display: "flex",
+  alignItems: "baseline",
+  gap: "12px",
+  marginBottom: "24px"
+};
+
+const priceStyle = {
+  fontSize: "32px",
+  fontWeight: "800",
+  color: "#1B1F8C"
+};
+
+const priceNoteStyle = {
+  fontSize: "12px",
+  color: "#6B6B75",
+  fontWeight: "500"
+};
+
+const descriptionStyle = {
+  fontSize: "15px",
+  color: "#14151A",
+  lineHeight: "1.6",
+  marginBottom: "24px"
+};
+
+const dividerStyle = {
+  height: "1px",
+  backgroundColor: "#E7E7E2",
+  width: "100%",
+  marginBottom: "24px"
+};
+
+// Purchase Block
+const purchaseBlockStyle = {
+  display: "flex",
+  flexDirection: "column",
+  gap: "18px",
+  padding: "18px 0 20px",
+  marginBottom: "20px"
+};
+
+const qtyFieldStyle = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between"
+};
+
+const qtyLabelStyle = {
+  fontSize: "13px",
+  fontWeight: "700",
+  textTransform: "uppercase",
+  letterSpacing: "0.05em",
+  color: "#6B6B75"
+};
+
+const ctaButtonsGridStyle = {
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr",
+  gap: "12px"
+};
+
+const addCartBtnStyle = {
+  backgroundColor: "transparent",
+  color: "#1B1F8C",
+  border: "1px solid #1B1F8C",
+  borderRadius: "999px",
+  padding: "15px 20px",
+  fontSize: "15px",
+  fontWeight: "700",
+  cursor: "pointer",
+  transition: "all 0.2s ease"
+};
+
+const buyNowBtnStyle = {
+  backgroundColor: "#16A34A",
+  color: "#FFFFFF",
+  border: "none",
+  borderRadius: "999px",
+  padding: "15px 20px",
+  fontSize: "15px",
+  fontWeight: "700",
+  cursor: "pointer",
+  transition: "all 0.2s ease"
+};
+
+const wishlistBtnStyle = {
+  minHeight: "52px",
+  borderRadius: "999px",
+  border: "1px solid",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  cursor: "pointer",
+  transition: "all 0.2s ease",
+  outline: "none"
+};
+
+const deliveryBoxStyle = {
+  display: "flex",
+  flexDirection: "column",
+  gap: "12px"
+};
+
+const deliveryItemStyle = {
+  display: "flex",
+  alignItems: "center",
+  gap: "10px"
+};
+
+const deliveryTextStyle = {
+  fontSize: "13px",
+  color: "#6B6B75",
+  fontWeight: "500"
+};
+
+// Tabs section
+const tabbedSectionStyle = {
+  marginTop: "20px",
+  borderTop: "1px solid #E7E7E2",
+  paddingTop: "40px"
+};
+
+const tabHeaderStyle = {
+  display: "flex",
+  gap: "36px",
+  borderBottom: "1px solid #E7E7E2",
+  paddingBottom: "1px"
+};
+
+const tabBtnStyle = {
+  border: "none",
+  background: "none",
+  borderBottom: "3px solid transparent",
+  fontSize: "15px",
+  fontWeight: "600",
+  padding: "0 0 16px 0",
+  cursor: "pointer",
+  transition: "all 0.2s ease",
+  outline: "none"
+};
+
+const tabPanelWrapperStyle = {
+  padding: "30px 0"
+};
+
+const detailsPanelStyle = {
+  display: "flex",
+  flexDirection: "column",
+  gap: "16px"
+};
+
+const panelHeaderStyle = {
+  fontSize: "18px",
+  fontWeight: "700",
+  color: "#1B1F8C",
+  marginBottom: "16px"
+};
+
+const featuresListStyle = {
+  listStyle: "none",
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+  gap: "16px"
+};
+
+const featureItemStyle = {
+  display: "flex",
+  alignItems: "flex-start",
+  fontSize: "14px",
+  color: "#14151A",
+  lineHeight: "1.5"
+};
+
+// Reviews list & summary layout
+const reviewsGridStyle = {
+  display: "grid",
+  gridTemplateColumns: "1.6fr 1fr",
+  gap: "48px",
+  alignItems: "flex-start"
+};
+
+const reviewsListColStyle = {
+  display: "flex",
+  flexDirection: "column",
+  gap: "24px"
+};
+
+const reviewCardStyle = {
+  backgroundColor: "transparent",
+  borderBottom: "1px solid #E7E7E2",
+  padding: "0 0 22px"
+};
+
+const reviewHeaderStyle = {
+  display: "flex",
+  alignItems: "center",
+  gap: "12px",
+  marginBottom: "14px"
+};
+
+const avatarStyle = {
+  width: "40px",
+  height: "40px",
+  borderRadius: "50%",
+  backgroundColor: "#F7F7F2",
+  color: "#1B1F8C",
+  fontWeight: "700",
+  fontSize: "14px",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  border: "1px solid #E7E7E2"
+};
+
+const reviewBodyStyle = {
+  fontSize: "14px",
+  color: "#14151A",
+  lineHeight: "1.5",
+  marginBottom: "16px"
+};
+
+const reviewFooterStyle = {
+  display: "flex",
+  gap: "16px"
+};
+
+const reviewActionBtnStyle = {
+  border: "none",
+  background: "none",
+  fontSize: "12px",
+  fontWeight: "600",
+  color: "#6B6B75",
+  cursor: "pointer",
+  textDecoration: "underline",
+  padding: "2px 0"
+};
+
+const summaryPanelColStyle = {
+  position: "sticky",
+  top: "100px"
+};
+
+const summaryCardStyle = {
+  backgroundColor: "transparent",
+  borderTop: "1px solid #E7E7E2",
+  borderBottom: "1px solid #E7E7E2",
+  padding: "26px 0"
+};
+
+const summaryHeaderStyle = {
+  fontSize: "16px",
+  fontWeight: "700",
+  color: "#1B1F8C",
+  marginBottom: "20px",
+  textTransform: "uppercase",
+  letterSpacing: "0.05em"
+};
+
+const summaryScoreBlockStyle = {
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  textAlign: "center",
+  gap: "8px",
+  marginBottom: "28px"
+};
+
+const bigScoreStyle = {
+  fontSize: "56px",
+  fontWeight: "800",
+  color: "#1B1F8C",
+  lineHeight: "1"
+};
+
+const reviewsCountTextStyle = {
+  fontSize: "12px",
+  color: "#6B6B75"
+};
+
+const breakdownContainerStyle = {
+  display: "flex",
+  flexDirection: "column",
+  gap: "12px"
+};
+
+const breakdownRowStyle = {
+  display: "flex",
+  alignItems: "center",
+  gap: "10px"
+};
+
+const breakdownLabelStyle = {
+  fontSize: "12px",
+  fontWeight: "600",
+  color: "#14151A",
+  width: "30px",
+  textAlign: "right"
+};
+
+const barBgStyle = {
+  flexGrow: 1,
+  height: "8px",
+  backgroundColor: "#F7F7F2",
+  borderRadius: "4px",
+  overflow: "hidden",
+  border: "1px solid #E7E7E2"
+};
+
+const barFillStyle = {
+  height: "100%",
+  borderRadius: "4px"
+};
+
+const breakdownValueStyle = {
+  fontSize: "12px",
+  fontWeight: "600",
+  color: "#6B6B75",
+  width: "35px"
+};
+
+// Carousel section
+const carouselSectionStyle = {
+  marginTop: "60px",
+  borderTop: "1px solid #E7E7E2",
+  paddingTop: "60px"
+};
+
+const carouselHeadingStyle = {
+  fontSize: "24px",
+  fontWeight: "800",
+  color: "#1B1F8C",
+  marginBottom: "30px",
+  textAlign: "center"
+};
+
+const recommendationsGridStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+  gap: "30px"
+};
+
+const mockQuestionStyle = {
+  borderTop: "1px solid #E7E7E2",
+  padding: "18px 0",
+  marginTop: "16px"
+};
+
+const viewerOverlayStyle = {
+  position: "fixed",
+  inset: 0,
+  zIndex: 3000,
+  backgroundColor: "rgba(0, 0, 0, 0.94)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  touchAction: "pan-y"
+};
+
+const viewerImageStyle = {
+  width: "100%",
+  height: "100%",
+  objectFit: "contain",
+  display: "block"
+};
+
+const viewerCloseBtnStyle = {
+  position: "absolute",
+  top: "calc(env(safe-area-inset-top) + 16px)",
+  right: "16px",
+  width: "44px",
+  height: "44px",
+  border: "none",
+  borderRadius: "999px",
+  backgroundColor: "rgba(255, 255, 255, 0.14)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  cursor: "pointer",
+  zIndex: 2
+};
+
+const viewerNavBtnStyle = {
+  position: "absolute",
+  top: "50%",
+  transform: "translateY(-50%)",
+  width: "44px",
+  height: "44px",
+  border: "none",
+  borderRadius: "999px",
+  backgroundColor: "rgba(255, 255, 255, 0.14)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  cursor: "pointer",
+  zIndex: 2
+};
+
+const viewerCountStyle = {
+  position: "absolute",
+  left: "50%",
+  bottom: "calc(env(safe-area-inset-bottom) + 18px)",
+  transform: "translateX(-50%)",
+  color: "#FFFFFF",
+  fontSize: "13px",
+  fontWeight: "700",
+  backgroundColor: "rgba(255, 255, 255, 0.14)",
+  borderRadius: "999px",
+  padding: "7px 12px"
+};

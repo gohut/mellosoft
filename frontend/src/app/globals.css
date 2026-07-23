@@ -1,0 +1,125 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+  --navy-900: #1B1F8C;
+  --navy-700: #2E33A6;
+  --green-500: #16A34A;
+  --cream-50: #F7F7F2;
+  --white: #FFFFFF;
+  --ink-900: #14151A;
+  --ink-500: #6B6B75;
+  --line-200: #E7E7E2;
+  
+  --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  
+  --shadow-sm: 0 2px 8px rgba(27, 31, 140, 0.04);
+  --shadow-md: 0 8px 24px rgba(27, 31, 140, 0.06);
+  --shadow-lg: 0 16px 40px rgba(27, 31, 140, 0.08);
+  
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  
+  --transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+  background-color: var(--cream-50);
+  color: var(--ink-900);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* Custom Scrollbar for premium feel */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--cream-50);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--line-200);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ink-500);
+}
+
+/* Typography Utilities */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--navy-900);
+}
+
+p {
+  color: var(--ink-900);
+  line-height: 1.6;
+}
+
+/* Interactive elements transitions */
+button, a, input, select, textarea {
+  font-family: inherit;
+  outline: none;
+}
+
+/* Global hover effect for cards and CTA buttons */
+.hover-lift {
+  transition: var(--transition);
+}
+.hover-lift:hover {
+  transform: translateY(-3px);
+}
+
+/* Active links and animations */
+.active-nav-link {
+  color: var(--navy-900);
+  position: relative;
+}
+.active-nav-link::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background-color: var(--navy-900);
+  border-radius: 2px;
+}
+
+/* Utility layout grids */
+.grid-desktop {
+  display: grid;
+  gap: 24px;
+}
+
+/* Custom styles for checkout modal, overlays and layout wrappers */
+.layout-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+@media (max-width: 767px) {
+  .layout-container {
+    padding: 0 16px;
+  }
+}
