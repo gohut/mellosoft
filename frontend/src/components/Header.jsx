@@ -13,7 +13,6 @@ export default function Header() {
     wishlist,
     searchQuery,
     setSearchQuery,
-    activeFilters,
     setActiveFilters
   } = useStore();
 
@@ -22,37 +21,11 @@ export default function Header() {
   const [desktopFocused, setDesktopFocused] = useState(false);
   const [mobileFocused, setMobileFocused] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   const cartCount = cart.reduce((acc, item) => acc + item.qty, 0);
   const wishlistCount = wishlist.length;
   const isNestedMobileView = view !== "home";
   const isDetailView = view === "detail";
-  const showFilters = view === "catalog" || view === "search";
-
-  const activeFilterCount = [
-    activeFilters?.category && activeFilters.category !== "All",
-    activeFilters?.firmness && activeFilters.firmness !== "All",
-    activeFilters?.size && activeFilters.size !== "All",
-    activeFilters?.sort && activeFilters.sort !== "Recommended"
-  ].filter(Boolean).length;
-
-  const handleFilterChange = (key, value) => {
-    setActiveFilters((prev) => ({
-      ...prev,
-      [key]: value
-    }));
-  };
-
-  const resetFilters = () => {
-    setActiveFilters({
-      category: "All",
-      firmness: "All",
-      size: "All",
-      sort: "Recommended"
-    });
-    setSearchQuery("");
-  };
 
   const searchActive = mobileFocused || mobileSearch.trim().length > 0;
   const showMobileLogo = !searchActive && !isNestedMobileView;
@@ -129,27 +102,13 @@ export default function Header() {
     <>
       <header style={desktopHeaderStyle} className="desktop-only">
         <div style={headerContainerStyle}>
-          <div style={leftGroupStyle}>
-            <button onClick={() => navigateTo("home")} style={logoContainerStyle} aria-label="Go home">
-              <img src="/asset/logo.png" alt="Mellosoft" style={logoImageStyle} />
-            </button>
-
-            {showFilters && (
-              <button
-                type="button"
-                onClick={() => setIsFilterOpen(true)}
-                style={filterTriggerStyle}
-                aria-haspopup="dialog"
-                aria-expanded={isFilterOpen}
-              >
-                <FilterIcon />
-                <span>Filters</span>
-                {activeFilterCount > 0 && (
-                  <span style={filterCountBadgeStyle}>{activeFilterCount}</span>
-                )}
-              </button>
-            )}
-          </div>
+          <button onClick={() => navigateTo("home")} style={logoContainerStyle} aria-label="Go home">
+            <img src="/asset/logo.png" alt="" style={logoImageStyle} />
+            <span style={logoTextStyle}>
+              <span style={{ color: "#16A34A" }}>m</span>
+              <span style={{ color: "#1B1F8C" }}>ellosoft</span>
+            </span>
+          </button>
 
           <nav style={navLinksStyle} aria-label="Primary navigation">
             <button onClick={() => navigateTo("home")} style={{ ...navLinkButtonStyle, color: view === "home" ? "#1B1F8C" : "#6B6B75", fontWeight: view === "home" ? "700" : "500" }}>
@@ -196,51 +155,36 @@ export default function Header() {
         </div>
       </header>
 
-      <header style={isDetailView ? mobileDetailHeaderStyle : mobileHeaderStyle} className="mobile-only">
-        <div style={mobileTopRowStyle}>
-          <div
-            style={{
-              ...mobileLeftSlotStyle,
-              maxWidth: showMobileLogo ? "160px" : "0px",
-              opacity: showMobileLogo ? 1 : 0,
-              marginRight: showMobileLogo ? "10px" : "0px"
-            }}
-          >
-            <button onClick={() => setMobileMenuOpen((open) => !open)} style={mobileLogoStyle} aria-label="Open menu">
-              <img src="/asset/logo.png" alt="Mellosoft" style={mobileLogoImageStyle} />
-            </button>
-          </div>
-
-          <div
-            style={{
-              ...mobileBackSlotStyle,
-              maxWidth: showMobileLogo ? "0px" : "40px",
-              opacity: showMobileLogo ? 0 : 1,
-              marginRight: showMobileLogo ? "0px" : "10px"
-            }}
-          >
-            <button onClick={handleMobileBack} style={mobileIconButtonStyle} aria-label="Go back">
-              <ArrowLeftIcon />
-            </button>
-          </div>
-
-          {showFilters && !isDetailView && (
-            <button
-              type="button"
-              onClick={() => setIsFilterOpen(true)}
-              style={mobileIconButtonStyle}
-              aria-label="Open filters"
-              aria-haspopup="dialog"
-              aria-expanded={isFilterOpen}
+      {!isDetailView && (
+        <header style={mobileHeaderStyle} className="mobile-only">
+          <div style={mobileTopRowStyle}>
+            <div
+              style={{
+                ...mobileLeftSlotStyle,
+                maxWidth: showMobileLogo ? "160px" : "0px",
+                opacity: showMobileLogo ? 1 : 0,
+                marginRight: showMobileLogo ? "10px" : "0px"
+              }}
             >
-              <span style={{ position: "relative", display: "flex" }}>
-                <FilterIcon size={19} />
-                {activeFilterCount > 0 && <span style={badgeStyle}>{activeFilterCount}</span>}
-              </span>
-            </button>
-          )}
+              <button onClick={() => setMobileMenuOpen((open) => !open)} style={mobileLogoStyle} aria-label="Open menu">
+                <span style={{ color: "#16A34A" }}>m</span>
+                <span style={{ color: "#1B1F8C" }}>ellosoft</span>
+              </button>
+            </div>
 
-          {!isDetailView && (
+            <div
+              style={{
+                ...mobileBackSlotStyle,
+                maxWidth: showMobileLogo ? "0px" : "40px",
+                opacity: showMobileLogo ? 0 : 1,
+                marginRight: showMobileLogo ? "0px" : "10px"
+              }}
+            >
+              <button onClick={handleMobileBack} style={mobileIconButtonStyle} aria-label="Go back">
+                <ArrowLeftIcon />
+              </button>
+            </div>
+
             <SearchBox
               value={mobileSearch}
               onChange={setMobileSearch}
@@ -251,134 +195,25 @@ export default function Header() {
               onSubmitSearch={goToSearchResults}
               formStyle={mobileSearchFormStyle}
             />
-          )}
 
-          <button onClick={() => navigateTo("cart")} style={{ ...mobileIconButtonStyle, marginLeft: isDetailView ? "auto" : "10px" }} aria-label="Open cart">
-            <span style={{ position: "relative", display: "flex" }}>
-              <CartIcon />
-              {cartCount > 0 && <span style={mobileCartBadgeStyle}>{cartCount}</span>}
-            </span>
-          </button>
-        </div>
-
-        {!isDetailView && mobileMenuOpen && (
-          <nav style={mobileMenuStyle} aria-label="Mobile category navigation">
-            <button onClick={() => goToCategory("mattress")} style={mobileMenuItemStyle}>Mattresses</button>
-            <button onClick={() => goToCategory("pillows")} style={mobileMenuItemStyle}>Pillows</button>
-            <button onClick={() => goToCategory("bed frames")} style={mobileMenuItemStyle}>Bed Frames</button>
-            <button onClick={() => goToCategory("protectors")} style={mobileMenuItemStyle}>Protectors</button>
-          </nav>
-        )}
-      </header>
-
-      {/* Filter overlay backdrop */}
-      {isFilterOpen && (
-        <div
-          style={filterBackdropStyle}
-          onClick={() => setIsFilterOpen(false)}
-          aria-hidden="true"
-        />
-      )}
-
-      {/* Slide-in filter sidebar */}
-      <div
-        style={{
-          ...filterSidebarStyle,
-          transform: isFilterOpen ? "translateX(0)" : "translateX(-100%)"
-        }}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Filter products"
-      >
-        <div style={sidebarHeaderStyle}>
-          <span style={sidebarTitleStyle}>Filters</span>
-          <button
-            type="button"
-            onClick={() => setIsFilterOpen(false)}
-            style={sidebarCloseBtnStyle}
-            aria-label="Close filters"
-          >
-            &#10005;
-          </button>
-        </div>
-
-        <div style={sidebarBodyStyle}>
-          <div style={filterFieldStyle}>
-            <label htmlFor="category-filter" style={filterLabelStyle}>Category</label>
-            <select
-              id="category-filter"
-              value={activeFilters?.category || "All"}
-              onChange={(e) => handleFilterChange("category", e.target.value)}
-              style={filterSelectStyle}
-            >
-              <option value="All">All Categories</option>
-              <option value="mattress">Mattresses</option>
-              <option value="pillows">Pillows</option>
-              <option value="bed frames">Bed Frames</option>
-              <option value="protectors">Protectors</option>
-            </select>
-          </div>
-
-          <div style={filterFieldStyle}>
-            <label htmlFor="firmness-filter" style={filterLabelStyle}>Firmness</label>
-            <select
-              id="firmness-filter"
-              value={activeFilters?.firmness || "All"}
-              onChange={(e) => handleFilterChange("firmness", e.target.value)}
-              style={filterSelectStyle}
-            >
-              <option value="All">All Levels</option>
-              <option value="Soft">Soft</option>
-              <option value="Medium">Medium</option>
-              <option value="Firm">Firm</option>
-            </select>
-          </div>
-
-          <div style={filterFieldStyle}>
-            <label htmlFor="size-filter" style={filterLabelStyle}>Size</label>
-            <select
-              id="size-filter"
-              value={activeFilters?.size || "All"}
-              onChange={(e) => handleFilterChange("size", e.target.value)}
-              style={filterSelectStyle}
-            >
-              <option value="All">All Sizes</option>
-              <option value="Twin">Twin</option>
-              <option value="Full">Full</option>
-              <option value="Queen">Queen</option>
-              <option value="King">King</option>
-            </select>
-          </div>
-
-          <div style={filterFieldStyle}>
-            <label htmlFor="sort-filter" style={filterLabelStyle}>Sort By</label>
-            <select
-              id="sort-filter"
-              value={activeFilters?.sort || "Recommended"}
-              onChange={(e) => handleFilterChange("sort", e.target.value)}
-              style={filterSelectStyle}
-            >
-              <option value="Recommended">Recommended</option>
-              <option value="Price: Low to High">Price: Low to High</option>
-              <option value="Price: High to Low">Price: High to Low</option>
-              <option value="Rating">Rating</option>
-            </select>
-          </div>
-        </div>
-
-        <div style={sidebarFooterStyle}>
-          {activeFilterCount > 0 || searchQuery ? (
-            <button type="button" onClick={resetFilters} style={sidebarResetBtnStyle}>
-              Reset Filters
+            <button onClick={() => navigateTo("cart")} style={{ ...mobileIconButtonStyle, marginLeft: "10px" }} aria-label="Open cart">
+              <span style={{ position: "relative", display: "flex" }}>
+                <CartIcon />
+                {cartCount > 0 && <span style={mobileCartBadgeStyle}>{cartCount}</span>}
+              </span>
             </button>
-          ) : (
-            <span />
+          </div>
+
+          {mobileMenuOpen && (
+            <nav style={mobileMenuStyle} aria-label="Mobile category navigation">
+              <button onClick={() => goToCategory("mattress")} style={mobileMenuItemStyle}>Mattresses</button>
+              <button onClick={() => goToCategory("pillows")} style={mobileMenuItemStyle}>Pillows</button>
+              <button onClick={() => goToCategory("bed frames")} style={mobileMenuItemStyle}>Bed Frames</button>
+              <button onClick={() => goToCategory("protectors")} style={mobileMenuItemStyle}>Protectors</button>
+            </nav>
           )}
-          <button type="button" onClick={() => setIsFilterOpen(false)} style={sidebarApplyBtnStyle}>
-            Apply
-          </button>
-        </div>
-      </div>
+        </header>
+      )}
 
       <style jsx global>{`
         .desktop-only { display: block; }
@@ -467,14 +302,6 @@ function HeartIcon({ filled }) {
   );
 }
 
-function FilterIcon({ size = 16 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M4 6h16M7 12h10M10 18h4" stroke="#1B1F8C" strokeWidth="2.2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
 function ArrowLeftIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1B1F8C" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
@@ -510,20 +337,21 @@ const logoContainerStyle = {
   background: "none",
   display: "flex",
   alignItems: "center",
+  gap: "10px",
   cursor: "pointer",
   padding: 0
 };
 
-const leftGroupStyle = {
-  display: "flex",
-  alignItems: "center",
-  gap: "18px"
-};
-
 const logoImageStyle = {
-  height: "48px",
+  height: "32px",
   width: "auto",
   objectFit: "contain"
+};
+
+const logoTextStyle = {
+  fontSize: "22px",
+  fontWeight: "800",
+  letterSpacing: "0"
 };
 
 const navLinksStyle = {
@@ -679,16 +507,6 @@ const mobileHeaderStyle = {
   zIndex: 1000
 };
 
-const mobileDetailHeaderStyle = {
-  position: "fixed",
-  top: 0,
-  left: 0,
-  right: 0,
-  backgroundColor: "transparent",
-  zIndex: 1000,
-  pointerEvents: "none"
-};
-
 const mobileTopRowStyle = {
   height: "60px",
   padding: "0 14px",
@@ -701,16 +519,12 @@ const mobileTopRowStyle = {
 const mobileLogoStyle = {
   border: "none",
   background: "transparent",
+  fontSize: "21px",
+  fontWeight: "800",
   display: "flex",
   alignItems: "center",
   cursor: "pointer",
   padding: 0
-};
-
-const mobileLogoImageStyle = {
-  height: "34px",
-  width: "auto",
-  objectFit: "contain"
 };
 
 const mobileLeftSlotStyle = {
@@ -764,148 +578,4 @@ const mobileMenuItemStyle = {
   fontSize: "13px",
   fontWeight: "700",
   cursor: "pointer"
-};
-
-// Filter trigger (top-left of navbar)
-const filterTriggerStyle = {
-  display: "inline-flex",
-  alignItems: "center",
-  gap: "8px",
-  backgroundColor: "#F7F7F2",
-  border: "1px solid #E7E7E2",
-  borderRadius: "999px",
-  padding: "9px 16px",
-  fontSize: "14px",
-  fontWeight: "700",
-  color: "#1B1F8C",
-  cursor: "pointer"
-};
-
-const filterCountBadgeStyle = {
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  minWidth: "18px",
-  height: "18px",
-  padding: "0 5px",
-  borderRadius: "999px",
-  backgroundColor: "#1B1F8C",
-  color: "#FFFFFF",
-  fontSize: "11px",
-  fontWeight: "700"
-};
-
-const filterBackdropStyle = {
-  position: "fixed",
-  inset: 0,
-  backgroundColor: "rgba(20, 21, 26, 0.4)",
-  zIndex: 1200
-};
-
-const filterSidebarStyle = {
-  position: "fixed",
-  top: 0,
-  left: 0,
-  height: "100%",
-  width: "320px",
-  maxWidth: "85vw",
-  backgroundColor: "#FFFFFF",
-  zIndex: 1300,
-  boxShadow: "4px 0 24px rgba(20, 21, 26, 0.15)",
-  display: "flex",
-  flexDirection: "column",
-  transition: "transform 0.28s ease"
-};
-
-const sidebarHeaderStyle = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  padding: "20px 24px",
-  borderBottom: "1px solid #E7E7E2"
-};
-
-const sidebarTitleStyle = {
-  fontSize: "18px",
-  fontWeight: "800",
-  color: "#1B1F8C"
-};
-
-const sidebarCloseBtnStyle = {
-  background: "none",
-  border: "none",
-  fontSize: "16px",
-  color: "#6B6B75",
-  cursor: "pointer",
-  padding: "4px 8px",
-  lineHeight: 1
-};
-
-const sidebarBodyStyle = {
-  display: "flex",
-  flexDirection: "column",
-  gap: "22px",
-  padding: "24px",
-  overflowY: "auto",
-  flex: 1
-};
-
-const sidebarFooterStyle = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  gap: "12px",
-  padding: "16px 24px",
-  borderTop: "1px solid #E7E7E2"
-};
-
-const sidebarResetBtnStyle = {
-  backgroundColor: "transparent",
-  color: "#1B1F8C",
-  border: "none",
-  fontSize: "14px",
-  fontWeight: "700",
-  cursor: "pointer",
-  textDecoration: "underline",
-  padding: "8px 12px"
-};
-
-const sidebarApplyBtnStyle = {
-  backgroundColor: "#1B1F8C",
-  color: "#FFFFFF",
-  border: "none",
-  borderRadius: "8px",
-  fontSize: "14px",
-  fontWeight: "700",
-  cursor: "pointer",
-  padding: "10px 20px",
-  flex: 1
-};
-
-const filterFieldStyle = {
-  display: "flex",
-  flexDirection: "column",
-  gap: "6px"
-};
-
-const filterLabelStyle = {
-  fontSize: "11px",
-  fontWeight: "700",
-  textTransform: "uppercase",
-  letterSpacing: "0.05em",
-  color: "#6B6B75"
-};
-
-const filterSelectStyle = {
-  border: "1px solid #E7E7E2",
-  borderRadius: "8px",
-  backgroundColor: "#FFFFFF",
-  color: "#14151A",
-  fontSize: "14px",
-  fontWeight: "600",
-  padding: "10px 12px",
-  width: "100%",
-  cursor: "pointer",
-  outline: "none",
-  transition: "border-color 0.2s ease"
 };

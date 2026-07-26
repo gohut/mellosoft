@@ -16,8 +16,11 @@ export default function ProductDetailView() {
     addToCart, 
     wishlist, 
     toggleWishlist, 
-    navigateTo 
+    navigateTo,
+    cart
   } = useStore();
+
+  const cartCount = cart.reduce((acc, item) => acc + item.qty, 0);
 
   const product = useMemo(() => getProductById(selectedProductId) || MOCK_PRODUCTS[0], [getProductById, selectedProductId]);
 
@@ -78,6 +81,10 @@ export default function ProductDetailView() {
 
   const handleAddToCart = () => {
     addToCart(product, selectedFirmness, selectedSize, quantity);
+  };
+
+  const goBackToCatalog = () => {
+    navigateTo("catalog");
   };
 
   const handleBuyNow = () => {
@@ -152,6 +159,33 @@ export default function ProductDetailView() {
               style={mainImageStyle} 
               className="detail-gallery-img"
             />
+
+            <div style={floatingActionsWrapStyle} className="detail-floating-actions">
+              <button
+                onClick={(event) => {
+                  event.stopPropagation();
+                  goBackToCatalog();
+                }}
+                style={floatingIconBtnStyle}
+                aria-label="Go back"
+              >
+                <ArrowLeftIcon />
+              </button>
+
+              <button
+                onClick={(event) => {
+                  event.stopPropagation();
+                  navigateTo("cart");
+                }}
+                style={floatingIconBtnStyle}
+                aria-label="Open cart"
+              >
+                <span style={{ position: "relative", display: "flex" }}>
+                  <CartIcon />
+                  {cartCount > 0 && <span style={floatingCartBadgeStyle}>{cartCount}</span>}
+                </span>
+              </button>
+            </div>
           </div>
           
           {/* Thumbnail strip */}
@@ -495,11 +529,17 @@ export default function ProductDetailView() {
             padding-top: 0 !important;
             background: #f7f7f2 !important;
           }
+          .detail-floating-actions {
+            display: flex !important;
+            align-items: flex-start !important;
+            justify-content: space-between !important;
+            padding: calc(env(safe-area-inset-top) + 14px) 14px 0 !important;
+          }
           .detail-gallery-img {
             height: 100% !important;
             object-fit: cover !important;
             object-position: center bottom !important;
-            transform: scale(1.36) !important;
+            transform: scale(1.65) !important;
             transform-origin: center bottom !important;
           }
           .desktop-thumbnails {
@@ -540,6 +580,26 @@ export default function ProductDetailView() {
       `}</style>
 
     </div>
+  );
+}
+
+// Icons for the floating gallery overlay (back + cart)
+function ArrowLeftIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1B1F8C" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="19" y1="12" x2="5" y2="12" />
+      <polyline points="12 19 5 12 12 5" />
+    </svg>
+  );
+}
+
+function CartIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1B1F8C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="9" cy="21" r="1" />
+      <circle cx="20" cy="21" r="1" />
+      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+    </svg>
   );
 }
 
@@ -611,6 +671,44 @@ const mainImageStyle = {
   height: "100%",
   objectFit: "cover",
   objectPosition: "center center"
+};
+
+const floatingActionsWrapStyle = {
+  position: "absolute",
+  inset: 0,
+  display: "none",
+  pointerEvents: "none",
+  zIndex: 5
+};
+
+const floatingIconBtnStyle = {
+  width: "40px",
+  height: "40px",
+  flexShrink: 0,
+  border: "1px solid rgba(231, 231, 226, 0.85)",
+  backgroundColor: "rgba(255, 255, 255, 0.86)",
+  borderRadius: "999px",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  cursor: "pointer",
+  pointerEvents: "auto"
+};
+
+const floatingCartBadgeStyle = {
+  position: "absolute",
+  top: "-7px",
+  right: "-7px",
+  backgroundColor: "#16A34A",
+  color: "#FFFFFF",
+  fontSize: "10px",
+  fontWeight: "700",
+  borderRadius: "50%",
+  width: "16px",
+  height: "16px",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center"
 };
 
 const thumbnailStripStyle = {

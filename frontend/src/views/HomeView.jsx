@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { useStore } from "../context/StoreContext";
 import { MOCK_PRODUCTS } from "../data/products";
 import ProductCard from "../components/ProductCard";
@@ -17,50 +17,19 @@ const categories = [
 
 export default function HomeView() {
   const { navigateTo, setActiveFilters, setSearchQuery } = useStore();
+  const sliderTrackRef = useRef(null);
   const [activeSlide, setActiveSlide] = useState(0);
-  const touchStartXRef = useRef(0);
-  const touchDeltaXRef = useRef(0);
 
   const mattresses = useMemo(() => MOCK_PRODUCTS.filter((product) => product.category === "mattress"), []);
   const heroSlides = useMemo(() => mattresses.slice(0, 5).map((product, index) => ({
     product,
+    badge: index === 0 ? "Limited time!" : index === 1 ? "Ends soon" : index === 2 ? "New" : index === 3 ? "Best seller" : "Just dropped",
     headline: ["Classic Comfort", "Hybrid Luxury", "Natural Latex", "Firm Support", "Cooling Plush"][index] || "Sleep Better",
     deal: index === 0 ? `From ${formatPrice(product.sizePrices?.Twin || product.price)}` : index === 1 ? "Save more on hybrid" : index === 2 ? "Organic pick" : index === 3 ? "Firm favorite" : "New arrival"
   })), [mattresses]);
   const bestSellers = useMemo(() => [...MOCK_PRODUCTS].sort((a, b) => b.reviewCount - a.reviewCount).slice(0, 5), []);
   const newArrivals = useMemo(() => MOCK_PRODUCTS.filter((product) => ["New", "Premium", "Eco-Friendly", "Essential"].includes(product.badge)).slice(0, 5), []);
   const topRated = useMemo(() => [...MOCK_PRODUCTS].sort((a, b) => b.rating - a.rating).slice(0, 5), []);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setActiveSlide((current) => (current + 1) % heroSlides.length);
-    }, 4500);
-
-    return () => window.clearInterval(timer);
-  }, [heroSlides.length]);
-
-  const goToNextSlide = () => setActiveSlide((current) => (current + 1) % heroSlides.length);
-  const goToPrevSlide = () => setActiveSlide((current) => (current - 1 + heroSlides.length) % heroSlides.length);
-
-  const handleSlideTouchStart = (event) => {
-    touchStartXRef.current = event.touches[0].clientX;
-    touchDeltaXRef.current = 0;
-  };
-
-  const handleSlideTouchMove = (event) => {
-    touchDeltaXRef.current = event.touches[0].clientX - touchStartXRef.current;
-  };
-
-  const handleSlideTouchEnd = () => {
-    const delta = touchDeltaXRef.current;
-    const swipeThreshold = 40;
-    if (delta > swipeThreshold) {
-      goToPrevSlide();
-    } else if (delta < -swipeThreshold) {
-      goToNextSlide();
-    }
-    touchDeltaXRef.current = 0;
-  };
 
   const goToCatalog = (category = "All", firmness = "All") => {
     setSearchQuery("");
@@ -77,56 +46,64 @@ export default function HomeView() {
     navigateTo("detail", productId);
   };
 
+  const handleSliderScroll = () => {
+    const track = sliderTrackRef.current;
+    if (!track) return;
+    const { scrollLeft, children } = track;
+    let closestIndex = 0;
+    let closestDistance = Infinity;
+    Array.from(children).forEach((child, index) => {
+      const distance = Math.abs(child.offsetLeft - scrollLeft);
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestIndex = index;
+      }
+    });
+    setActiveSlide(closestIndex);
+  };
+
+  const scrollToSlide = (index) => {
+    const track = sliderTrackRef.current;
+    if (!track) return;
+    const child = track.children[index];
+    if (child) {
+      track.scrollTo({ left: child.offsetLeft, behavior: "smooth" });
+    }
+  };
+
   return (
     <div style={pageWrapperStyle}>
+      <div className="row-scanner" aria-hidden="true" style={rowScannerStyle} />
+      <div className="quilt-shine" aria-hidden="true" />
+
       <section style={sliderSectionStyle} aria-label="Featured mattresses">
-        <div
-          className="hero-slider"
-          style={heroTrackStyle}
-          onTouchStart={handleSlideTouchStart}
-          onTouchMove={handleSlideTouchMove}
-          onTouchEnd={handleSlideTouchEnd}
-        >
-          {heroSlides.map((slide, index) => (
-            <article
+        <div className="peek-slider" style={peekSliderTrackStyle} ref={sliderTrackRef} onScroll={handleSliderScroll}>
+          {heroSlides.map((slide) => (
+            <button
               key={slide.product.id}
-              style={{
-                ...heroSlideStyle,
-                transform: `translateX(${(index - activeSlide) * 100}%)`,
-                opacity: index === activeSlide ? 1 : 0
-              }}
-              aria-hidden={index !== activeSlide}
+              className="peek-slide"
+              style={peekSlideCardStyle}
+              onClick={() => goToProduct(slide.product.id)}
             >
-              <img src={slide.product.images[0]} alt={slide.product.name} style={heroSlideImageStyle} />
-              <div style={heroOverlayStyle} />
-              <div style={heroContentStyle}>
-                <span style={dealTagStyle}>{slide.deal}</span>
-                <h1 style={heroHeadlineStyle}>{slide.headline}</h1>
-                <button onClick={() => goToProduct(slide.product.id)} style={shopNowBtnStyle}>
-                  Shop Now
-                </button>
+              <img src={slide.product.images[0]} alt={slide.product.name} style={peekSlideImageStyle} />
+              <div style={peekSlideOverlayStyle} />
+              <span style={peekBadgeStyle} className="peek-badge">{slide.badge}</span>
+              <div style={peekSlideContentStyle} className="peek-slide-content">
+                <span style={peekDealTextStyle} className="peek-deal-text">{slide.deal}</span>
+                <h3 style={peekHeadlineStyle} className="peek-headline">{slide.headline}</h3>
               </div>
-            </article>
+              <span style={peekShopBtnStyle} className="peek-shop-btn">Shop Now</span>
+            </button>
           ))}
-
-          <button onClick={goToPrevSlide} style={{ ...heroArrowStyle, left: "24px" }} className="desktop-arrow" aria-label="Previous slide">
-            <Arrow direction="left" />
-          </button>
-          <button onClick={goToNextSlide} style={{ ...heroArrowStyle, right: "24px" }} className="desktop-arrow" aria-label="Next slide">
-            <Arrow />
-          </button>
         </div>
-
-        <div style={dotsContainerStyle}>
+        <div style={peekDotsRowStyle} className="peek-dots">
           {heroSlides.map((slide, index) => (
             <button
               key={slide.product.id}
-              onClick={() => setActiveSlide(index)}
-              style={{
-                ...dotButtonStyle,
-                backgroundColor: activeSlide === index ? "#16A34A" : "rgba(255, 255, 255, 0.72)"
-              }}
-              aria-label={`Show ${slide.product.name}`}
+              type="button"
+              aria-label={`Go to slide ${index + 1}`}
+              onClick={() => scrollToSlide(index)}
+              style={index === activeSlide ? { ...peekDotStyle, ...peekDotActiveStyle } : peekDotStyle}
             />
           ))}
         </div>
@@ -148,6 +125,8 @@ export default function HomeView() {
         </div>
       </section>
 
+      <ProductRow title="Featured Mattresses" products={mattresses} onAction={() => goToCatalog("mattress")} />
+
       <section style={promoSectionStyle}>
         <div style={singlePromoGridStyle} className="promo-grid">
           <PromoCard
@@ -159,7 +138,6 @@ export default function HomeView() {
         </div>
       </section>
 
-      <ProductRow title="Featured Mattresses" products={mattresses} onAction={() => goToCatalog("mattress")} />
       <ProductRow title="Best Sellers" products={bestSellers} onAction={() => goToCatalog("All")} />
 
       <section style={promoSectionStyle}>
@@ -218,12 +196,98 @@ export default function HomeView() {
       </section>
 
       <style jsx global>{`
-        @media (max-width: 767px) {
-          .hero-slider {
-            height: 460px !important;
+        .row-scanner {
+          animation: rowScanTravel 12s linear infinite;
+        }
+        @keyframes rowScanTravel {
+          0% {
+            top: 0%;
+            opacity: 0;
           }
-          .desktop-arrow {
-            display: none !important;
+          4% {
+            opacity: 1;
+          }
+          92% {
+            opacity: 1;
+          }
+          100% {
+            top: 100%;
+            opacity: 0;
+          }
+        }
+        .quilt-shine {
+          position: fixed;
+          inset: 0;
+          z-index: 1;
+          pointer-events: none;
+          background-image: linear-gradient(
+            180deg,
+            rgba(22, 163, 74, 0) 0%,
+            rgba(22, 163, 74, 0.16) 42%,
+            rgba(22, 163, 74, 0.26) 50%,
+            rgba(22, 163, 74, 0.16) 58%,
+            rgba(22, 163, 74, 0) 100%
+          );
+          background-repeat: no-repeat;
+          background-size: 100% 38%;
+          background-position: 0% -40%;
+          mix-blend-mode: soft-light;
+          animation: quiltShineSweep 3s linear infinite;
+        }
+        @keyframes quiltShineSweep {
+          0% {
+            background-position: 0% -40%;
+          }
+          100% {
+            background-position: 0% 140%;
+          }
+        }
+        .peek-slider::-webkit-scrollbar,
+        .category-row::-webkit-scrollbar,
+        .product-row::-webkit-scrollbar {
+          display: none;
+          width: 0;
+          height: 0;
+        }
+        .peek-slider,
+        .category-row,
+        .product-row {
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+        }
+        @media (max-width: 767px) {
+          .peek-slider {
+            gap: 10px !important;
+            padding: 14px 16px 18px 24px !important;
+          }
+          .peek-slide {
+            width: 82vw !important;
+            height: 150px !important;
+            border-radius: 16px !important;
+          }
+          .peek-badge {
+            top: 10px !important;
+            left: 10px !important;
+            padding: 4px 9px !important;
+            font-size: 10px !important;
+          }
+          .peek-slide-content {
+            left: 12px !important;
+            right: 76px !important;
+            bottom: 12px !important;
+            gap: 2px !important;
+          }
+          .peek-deal-text {
+            font-size: 11px !important;
+          }
+          .peek-headline {
+            font-size: 16px !important;
+          }
+          .peek-shop-btn {
+            right: 10px !important;
+            bottom: 10px !important;
+            padding: 7px 12px !important;
+            font-size: 11px !important;
           }
           .category-row,
           .product-row {
@@ -344,27 +408,33 @@ function Feature({ icon, title }) {
   );
 }
 
-function Arrow({ direction = "right" }) {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1B1F8C" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-      {direction === "left" ? (
-        <>
-          <line x1="19" y1="12" x2="5" y2="12" />
-          <polyline points="12 19 5 12 12 5" />
-        </>
-      ) : (
-        <>
-          <line x1="5" y1="12" x2="19" y2="12" />
-          <polyline points="12 5 19 12 12 19" />
-        </>
-      )}
-    </svg>
-  );
-}
+const quiltTileSVG =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Cdefs%3E%3CradialGradient id='p' cx='50%25' cy='42%25' r='65%25'%3E%3Cstop offset='0%25' stop-color='%23FDFDFB'/%3E%3Cstop offset='70%25' stop-color='%23FAF9F5'/%3E%3Cstop offset='100%25' stop-color='%23F6F5F0'/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect width='64' height='64' fill='%23F7F7F2'/%3E%3Cpath d='M34.828,2.828 L61.172,29.172 Q64,32 61.172,34.828 L34.828,61.172 Q32,64 29.172,61.172 L2.828,34.828 Q0,32 2.828,29.172 L29.172,2.828 Q32,0 34.828,2.828 Z' fill='url(%23p)' stroke='%23EDEBE3' stroke-width='1' stroke-dasharray='1 3' stroke-linecap='round'/%3E%3C/svg%3E";
+
+const quiltRowGreenSVG =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Cpath d='M34.828,2.828 L61.172,29.172 Q64,32 61.172,34.828 L34.828,61.172 Q32,64 29.172,61.172 L2.828,34.828 Q0,32 2.828,29.172 L29.172,2.828 Q32,0 34.828,2.828 Z' fill='none' stroke='%2316A34A' stroke-width='1.5' stroke-dasharray='1 3' stroke-linecap='round'/%3E%3C/svg%3E";
 
 const pageWrapperStyle = {
   width: "100%",
-  backgroundColor: "#F7F7F2"
+  backgroundColor: "#F7F7F2",
+  backgroundImage: `url("${quiltTileSVG}")`,
+  backgroundSize: "64px 64px",
+  backgroundRepeat: "repeat",
+  position: "relative",
+  zIndex: 0
+};
+
+const rowScannerStyle = {
+  position: "absolute",
+  left: 0,
+  width: "100%",
+  height: "64px",
+  backgroundImage: `url("${quiltRowGreenSVG}")`,
+  backgroundSize: "64px 64px",
+  backgroundRepeat: "repeat-x",
+  filter: "drop-shadow(0 0 3px rgba(22, 163, 74, 0.55))",
+  zIndex: -1,
+  pointerEvents: "none"
 };
 
 const containerStyle = {
@@ -378,109 +448,127 @@ const sliderSectionStyle = {
   position: "relative"
 };
 
-const heroTrackStyle = {
-  position: "relative",
-  height: "520px",
-  overflow: "hidden",
-  backgroundColor: "#F7F7F2",
-  touchAction: "pan-y"
+/* Small, peeking, horizontally-scrollable slider.
+   Mobile: tiny rounded "container" cards, next card peeking on the edge.
+   Desktop: identical shape/behavior, scaled up. */
+const peekSliderTrackStyle = {
+  display: "flex",
+  gap: "16px",
+  overflowX: "auto",
+  scrollSnapType: "x mandatory",
+  WebkitOverflowScrolling: "touch",
+  padding: "20px 24px 24px 40px",
+  scrollbarWidth: "none"
 };
 
-const heroSlideStyle = {
+const peekDotsRowStyle = {
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+  gap: "8px",
+  padding: "0 0 20px",
+  backgroundColor: "#FFFFFF"
+};
+
+const peekDotStyle = {
+  width: "8px",
+  height: "8px",
+  borderRadius: "999px",
+  border: "none",
+  backgroundColor: "#E7E7E2",
+  cursor: "pointer",
+  padding: 0,
+  transition: "all 0.2s ease"
+};
+
+const peekDotActiveStyle = {
+  width: "22px",
+  backgroundColor: "#16A34A"
+};
+
+const peekSlideCardStyle = {
+  position: "relative",
+  flex: "0 0 auto",
+  width: "560px",
+  height: "260px",
+  borderRadius: "22px",
+  overflow: "hidden",
+  border: "none",
+  cursor: "pointer",
+  padding: 0,
+  textAlign: "left",
+  scrollSnapAlign: "start",
+  backgroundColor: "#14151A"
+};
+
+const peekSlideImageStyle = {
   position: "absolute",
   inset: 0,
-  transition: "transform 0.55s ease, opacity 0.35s ease"
-};
-
-const heroSlideImageStyle = {
   width: "100%",
   height: "100%",
   objectFit: "cover",
   display: "block"
 };
 
-const heroOverlayStyle = {
+const peekSlideOverlayStyle = {
   position: "absolute",
   inset: 0,
-  background: "linear-gradient(90deg, rgba(27, 31, 140, 0.70), rgba(27, 31, 140, 0.10) 62%, rgba(20, 21, 26, 0.12))"
+  background: "linear-gradient(180deg, rgba(20,21,26,0.05) 40%, rgba(20,21,26,0.62) 100%)"
 };
 
-const heroContentStyle = {
+const peekBadgeStyle = {
   position: "absolute",
-  left: "clamp(22px, 8vw, 96px)",
-  bottom: "clamp(34px, 7vw, 74px)",
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "flex-start",
-  gap: "13px",
-  maxWidth: "min(520px, calc(100% - 44px))"
-};
-
-const dealTagStyle = {
-  backgroundColor: "#16A34A",
+  top: "16px",
+  left: "16px",
+  backgroundColor: "rgba(20, 21, 26, 0.55)",
   color: "#FFFFFF",
   borderRadius: "999px",
-  padding: "8px 14px",
-  fontSize: "13px",
-  fontWeight: "800",
+  padding: "6px 12px",
+  fontSize: "12px",
+  fontWeight: "700",
+  backdropFilter: "blur(2px)"
 };
 
-const heroHeadlineStyle = {
+const peekSlideContentStyle = {
+  position: "absolute",
+  left: "18px",
+  right: "110px",
+  bottom: "18px",
+  display: "flex",
+  flexDirection: "column",
+  gap: "4px"
+};
+
+const peekDealTextStyle = {
   color: "#FFFFFF",
-  fontSize: "clamp(34px, 7vw, 74px)",
-  lineHeight: "0.98",
+  fontSize: "13px",
+  fontWeight: "600",
+  opacity: 0.9
+};
+
+const peekHeadlineStyle = {
+  color: "#FFFFFF",
+  fontSize: "22px",
   fontWeight: "800",
-  textShadow: "0 4px 18px rgba(0, 0, 0, 0.22)",
+  lineHeight: "1.1",
   letterSpacing: "0"
 };
 
-const shopNowBtnStyle = {
-  backgroundColor: "#1B1F8C",
-  color: "#FFFFFF",
-  border: "none",
-  borderRadius: "999px",
-  padding: "13px 26px",
-  fontSize: "14px",
-  fontWeight: "800",
-  cursor: "pointer",
-};
-
-const heroArrowStyle = {
+const peekShopBtnStyle = {
   position: "absolute",
-  top: "50%",
-  transform: "translateY(-50%)",
-  width: "44px",
-  height: "44px",
-  borderRadius: "999px",
-  border: "1px solid #E7E7E2",
-  backgroundColor: "rgba(255, 255, 255, 0.86)",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  cursor: "pointer"
-};
-
-const dotsContainerStyle = {
-  position: "absolute",
-  left: "50%",
+  right: "16px",
   bottom: "16px",
-  transform: "translateX(-50%)",
-  display: "flex",
-  gap: "8px"
-};
-
-const dotButtonStyle = {
-  width: "8px",
-  height: "8px",
-  border: "none",
+  backgroundColor: "#16A34A",
+  color: "#FFFFFF",
   borderRadius: "999px",
-  cursor: "pointer"
+  padding: "9px 16px",
+  fontSize: "12px",
+  fontWeight: "800"
 };
 
 const categorySectionStyle = {
   padding: "30px 0",
-  backgroundColor: "#FFFFFF",
-  borderBottom: "1px solid #E7E7E2"
+  backgroundColor: "#FFFFFF"
 };
 
 const categoryRowStyle = {
@@ -596,8 +684,7 @@ const outlineBtnStyle = {
 };
 
 const promoSectionStyle = {
-  padding: "8px 4px",
-  backgroundColor: "#FFFFFF"
+  padding: "24px 4px"
 };
 
 const promoGridStyle = {
@@ -675,9 +762,7 @@ const promoButtonStyle = {
 };
 
 const productSectionStyle = {
-  padding: "52px 0",
-  backgroundColor: "#F7F7F2",
-  borderTop: "1px solid #E7E7E2"
+  padding: "52px 0"
 };
 
 const sectionHeaderStyle = {
@@ -717,9 +802,7 @@ const productItemStyle = {
 
 const whySectionStyle = {
   padding: "14px 16px",
-  backgroundColor: "#FFFFFF",
-  borderTop: "1px solid #E7E7E2",
-  borderBottom: "1px solid #E7E7E2"
+  backgroundColor: "#FFFFFF"
 };
 
 const whyStripStyle = {
