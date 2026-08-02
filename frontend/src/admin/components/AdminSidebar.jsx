@@ -1,0 +1,244 @@
+"use client";
+
+import React, { useState } from "react";
+import { useAdmin } from "../context/AdminContext";
+import {
+  LayoutDashboard, Package, PlusCircle, FolderOpen, Warehouse,
+  ShoppingCart, Users, Star, Ticket, Settings, LogOut,
+  ChevronDown, ChevronRight, X,
+} from "lucide-react";
+
+const navItems = [
+  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  {
+    id: "products-group",
+    label: "Products",
+    icon: Package,
+    children: [
+      { id: "products", label: "All Products" },
+      { id: "add-product", label: "Add Product" },
+      { id: "categories", label: "Categories" },
+      { id: "inventory", label: "Inventory" },
+    ],
+  },
+  { id: "orders", label: "Orders", icon: ShoppingCart },
+  { id: "customers", label: "Customers", icon: Users },
+  { id: "reviews", label: "Reviews", icon: Star },
+  { id: "coupons", label: "Coupons", icon: Ticket },
+  { id: "settings", label: "Settings", icon: Settings },
+];
+
+export default function AdminSidebar() {
+  const { adminView, navigateTo, sidebarCollapsed, sidebarMobileOpen, toggleMobileSidebar } = useAdmin();
+  const [productsOpen, setProductsOpen] = useState(true);
+
+  const isActive = (id) => adminView === id;
+  const isProductChild = (id) => ["products", "add-product", "categories", "inventory"].includes(id);
+  const isProductsActive = isProductChild(adminView);
+
+  const renderNavItem = (item) => {
+    if (item.children) {
+      const open = productsOpen;
+      return (
+        <div key={item.id}>
+          <button
+            onClick={() => setProductsOpen(!open)}
+            style={{
+              ...navBtnStyle,
+              backgroundColor: isProductsActive && !sidebarCollapsed ? "#E8E9F8" : "transparent",
+              color: isProductsActive ? "#1B1F8C" : "#6B6B75",
+              fontWeight: isProductsActive ? 600 : 500,
+            }}
+            onMouseEnter={(e) => { if (!isProductsActive) e.currentTarget.style.backgroundColor = "#F7F7F2"; }}
+            onMouseLeave={(e) => { if (!isProductsActive) e.currentTarget.style.backgroundColor = isProductsActive && !sidebarCollapsed ? "#E8E9F8" : "transparent"; }}
+          >
+            <item.icon size={20} style={{ flexShrink: 0 }} />
+            {!sidebarCollapsed && (
+              <>
+                <span style={{ flex: 1, textAlign: "left" }}>{item.label}</span>
+                {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              </>
+            )}
+          </button>
+          {open && !sidebarCollapsed && (
+            <div style={{ marginLeft: "20px", borderLeft: "2px solid #E7E7E2", paddingLeft: "12px", marginTop: "2px", marginBottom: "4px" }}>
+              {item.children.map((child) => (
+                <button
+                  key={child.id}
+                  onClick={() => navigateTo(child.id)}
+                  style={{
+                    ...subNavBtnStyle,
+                    color: isActive(child.id) ? "#1B1F8C" : "#6B6B75",
+                    fontWeight: isActive(child.id) ? 600 : 400,
+                    backgroundColor: isActive(child.id) ? "#E8E9F8" : "transparent",
+                  }}
+                  onMouseEnter={(e) => { if (!isActive(child.id)) e.currentTarget.style.backgroundColor = "#F7F7F2"; }}
+                  onMouseLeave={(e) => { if (!isActive(child.id)) e.currentTarget.style.backgroundColor = isActive(child.id) ? "#E8E9F8" : "transparent"; }}
+                >
+                  {child.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <button
+        key={item.id}
+        onClick={() => navigateTo(item.id)}
+        style={{
+          ...navBtnStyle,
+          backgroundColor: isActive(item.id) ? "#E8E9F8" : "transparent",
+          color: isActive(item.id) ? "#1B1F8C" : "#6B6B75",
+          fontWeight: isActive(item.id) ? 600 : 500,
+        }}
+        onMouseEnter={(e) => { if (!isActive(item.id)) e.currentTarget.style.backgroundColor = "#F7F7F2"; }}
+        onMouseLeave={(e) => { if (!isActive(item.id)) e.currentTarget.style.backgroundColor = isActive(item.id) ? "#E8E9F8" : "transparent"; }}
+      >
+        <item.icon size={20} style={{ flexShrink: 0 }} />
+        {!sidebarCollapsed && <span style={{ flex: 1, textAlign: "left" }}>{item.label}</span>}
+      </button>
+    );
+  };
+
+  const sidebarContent = (
+    <>
+      {/* Logo */}
+      <div style={{
+        padding: sidebarCollapsed ? "20px 12px" : "20px 20px",
+        borderBottom: "1px solid #E7E7E2",
+        display: "flex",
+        alignItems: "center",
+        gap: "10px",
+        minHeight: "64px",
+        justifyContent: sidebarCollapsed ? "center" : "flex-start",
+      }}>
+
+        {!sidebarCollapsed && (
+          <span style={{ fontSize: "20px", fontWeight: 800, letterSpacing: "-0.02em" }}>
+            <span style={{ color: "#16A34A" }}>m</span>
+            <span style={{ color: "#1B1F8C" }}>ellosoft</span>
+          </span>
+        )}
+      </div>
+
+      {/* Navigation */}
+      <nav style={{ padding: "12px 10px", flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "2px" }}>
+        {navItems.map(renderNavItem)}
+      </nav>
+
+      {/* Logout */}
+      <div style={{ padding: "12px 10px", borderTop: "1px solid #E7E7E2" }}>
+        <button
+          onClick={() => { window.location.href = "/"; }}
+          style={{
+            ...navBtnStyle,
+            color: "#DC2626",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#FEE2E2"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+        >
+          <LogOut size={20} style={{ flexShrink: 0 }} />
+          {!sidebarCollapsed && <span style={{ flex: 1, textAlign: "left" }}>Logout</span>}
+        </button>
+      </div>
+    </>
+  );
+
+  return (
+    <>
+      {/* Desktop sidebar */}
+      <aside className="admin-sidebar-desktop" style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        bottom: 0,
+        width: sidebarCollapsed ? "72px" : "260px",
+        backgroundColor: "#FFFFFF",
+        borderRight: "1px solid #E7E7E2",
+        display: "flex",
+        flexDirection: "column",
+        zIndex: 900,
+        transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+        overflowX: "hidden",
+      }}>
+        {sidebarContent}
+      </aside>
+
+      {/* Mobile overlay sidebar */}
+      {sidebarMobileOpen && (
+        <>
+          <div className="admin-overlay" onClick={toggleMobileSidebar} style={{ zIndex: 998 }} />
+          <aside style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            bottom: 0,
+            width: "280px",
+            backgroundColor: "#FFFFFF",
+            zIndex: 1001,
+            display: "flex",
+            flexDirection: "column",
+            boxShadow: "4px 0 24px rgba(0,0,0,0.1)",
+            animation: "adminSlideIn 0.3s ease-out",
+          }}>
+            <button
+              onClick={toggleMobileSidebar}
+              style={{
+                position: "absolute",
+                top: "16px",
+                right: "16px",
+                width: "32px",
+                height: "32px",
+                border: "none",
+                borderRadius: "8px",
+                backgroundColor: "#F7F7F2",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                zIndex: 10,
+              }}
+            >
+              <X size={18} color="#6B6B75" />
+            </button>
+            {sidebarContent}
+          </aside>
+        </>
+      )}
+
+
+    </>
+  );
+}
+
+const navBtnStyle = {
+  width: "100%",
+  display: "flex",
+  alignItems: "center",
+  gap: "12px",
+  padding: "10px 14px",
+  border: "none",
+  borderRadius: "10px",
+  fontSize: "14px",
+  cursor: "pointer",
+  transition: "all 0.15s ease",
+  fontFamily: "inherit",
+  background: "transparent",
+};
+
+const subNavBtnStyle = {
+  width: "100%",
+  display: "block",
+  textAlign: "left",
+  padding: "8px 14px",
+  border: "none",
+  borderRadius: "8px",
+  fontSize: "13px",
+  cursor: "pointer",
+  transition: "all 0.15s ease",
+  fontFamily: "inherit",
+  background: "transparent",
+};

@@ -1,536 +1,193 @@
-# Mellosoft Frontend Website Documentation
+# Mellosoft Website Documentation
 
-## Overview
-Mellosoft is a premium sleep products e-commerce website built with Next.js. The website showcases and sells mattresses, pillows, bed frames, and protectors with a focus on luxury, comfort, and quality sleep products.
-
----
-
-## Website Structure
-
-### Technology Stack
-- **Framework**: Next.js (React-based)
-- **Styling**: Inline JavaScript objects with CSS-in-JS approach
-- **State Management**: React Context API (StoreContext)
-- **Navigation**: View-based routing system
-- **Responsive Design**: Mobile-first with desktop adaptations
+Welcome to the official developer and architecture documentation for the **Mellosoft** frontend website. This document provides a complete breakdown of the technology stack, site architecture, state management, components, views, and styling design system.
 
 ---
 
-## Pages & Views
+## 1. Technology Stack
 
-### 1. Home Page (`HomeView.jsx`)
-**Purpose**: Main landing page introducing the brand and products
-
-**Sections**:
-- **Hero Section**: Product-led mattress slider with deal tags and direct shopping actions
-- **Why Mellosoft Features**: Three feature blocks highlighting:
-  - 100-Night Trial
-  - Free Premium Delivery
-  - 10-Year Warranty
-- **About Section**: Brand story with asymmetrical image tiles and company philosophy
-- **Fresh Collection**: Dark navy section showcasing featured products (first 3 products)
-- **Testimonials Strip**: Customer reviews with 5-star ratings and testimonials
-
-**Key Features**:
-- Responsive grid layouts
-- Interactive action tiles for category navigation
-- Product card integration
-- Smooth scroll navigation to sections
+*   **Framework**: [Next.js](https://nextjs.org/) (Version `16.2.10`)
+*   **Library**: [React](https://react.dev/) (Version `19.2.4`)
+*   **React Compiler**: Enabled (`reactCompiler: true` in `next.config.mjs`) for automated compile-time performance optimizations.
+*   **State Management**: React Context API (`StoreContext.js`) with synchronized local storage persistence.
+*   **Styling**: Pure CSS-in-JS (inline JavaScript style objects) paired with scoped/global HTML styling via `<style jsx>` for micro-interactions and media queries.
+*   **Routing**: View-based client-side routing (driven by global React state).
 
 ---
 
-### 2. Catalog Page (`CatalogView.jsx`)
-**Purpose**: Browse and filter all available products
+## 2. Directory & File Structure
 
-**Sections**:
-- **Banner**: Collection header with description
-- **Filter Bar**: Multi-filter system with:
-  - Category selector (All, Mattresses, Pillows, Bed Frames, Protectors)
-  - Firmness filter (All, Soft, Medium, Firm)
-  - Size filter (All, Twin, Full, Queen, King)
-  - Sort options (Recommended, Price Low-High, Price High-Low, Rating)
-- **Product Grid**: Responsive grid of filtered products
-- **Empty State**: Displayed when no products match filters
-
-**Key Features**:
-- Real-time filtering and sorting
-- Search query integration
-- Reset filters functionality
-- Search status summary
-- Empty state with action buttons
-
----
-
-### 3. Product Detail Page (`ProductDetailView.jsx`)
-**Purpose**: Comprehensive product information and purchase configuration
-
-**Sections**:
-- **Breadcrumb Navigation**: Home > Catalog > Product Name
-- **Image Gallery**: Main product image with thumbnail strip for multiple views
-- **Product Configuration**:
-  - Brand label and product name
-  - Rating summary with star display
-  - Dynamic pricing (varies by size)
-  - Product description
-  - Firmness selector
-  - Size selector
-  - Quantity stepper
-  - Add to Cart / Buy Now buttons
-  - Wishlist toggle button
-  - Delivery information box
-- **Tabbed Information**:
-  - **Product Details**: Engineering specifications and features list
-  - **Customer Reviews**: Review list with rating breakdown panel
-  - **Q&A**: Product questions and answers section
-- **Recommendations**: "You may also like" product carousel
-
-**Key Features**:
-- Multi-image gallery with thumbnail navigation
-- Dynamic pricing based on size selection
-- Comprehensive review system with rating breakdown
-- Sticky order summary panel
-- Product recommendations
-- Tab-based content organization
+```
+Mellosoft/
+└── mellosoft/
+    ├── README.md                 # Basic repository indicator
+    ├── WEBSITE_DOCUMENTATION.md  # This documentation file
+    └── frontend/                 # Next.js frontend project
+        ├── package.json          # Dependencies & scripts
+        ├── next.config.mjs       # Next.js config (React Compiler enabled)
+        ├── eslint.config.mjs     # ESLint rules & ignoring rules
+        ├── public/
+        │   ├── asset/            # Image resources (logo, mattresses, texture)
+        │   └── favicon.ico       # Browser shortcut icon
+        └── src/
+            ├── app/
+            │   ├── layout.js     # Global metadata & StoreProvider wrapper
+            │   ├── page.js       # App entry point & client-side view routing
+            │   ├── globals.css   # Base document styling rules
+            │   └── page.module.css # Scoped landing styles
+            ├── components/       # Reusable user interface components
+            │   ├── Header.jsx    # Sticky responsive navigation header
+            │   ├── Footer.jsx    # Global footer with categoric navigation & payment details
+            │   ├── ProductCard.jsx # Premium product presentation card
+            │   ├── EmptyState.jsx # Fallback messages with action hooks
+            │   ├── FirmnessSizeSelector.jsx # Selection chips wrapper
+            │   ├── QuantityStepper.jsx # Item counter with minimum boundary locks
+            │   └── RatingStars.jsx # Star visual builder with review aggregates
+            ├── context/
+            │   └── StoreContext.js # Global state, actions, and LocalStorage sync
+            ├── data/
+            │   └── products.js   # Mock product database
+            ├── utils/
+            │   └── currency.js   # Indian Rupee (₹) price formatting utilities
+            └── views/            # Screen views rendered dynamically
+                ├── HomeView.jsx  # Main landing view
+                ├── CatalogView.jsx # Product collections grid
+                ├── ProductDetailView.jsx # Product layout config & information tabs
+                ├── CartView.jsx  # Shopping cart list & checkout flow simulator
+                ├── WishlistView.jsx # Wishlisted products manager with bulk actions
+                ├── SearchView.jsx # Discovery search engine
+                └── ProfileView.jsx # Sleep preference editor & mock order history
+```
 
 ---
 
-### 4. Cart Page (`CartView.jsx`)
-**Purpose**: Shopping cart management and checkout
+## 3. Data & State Management
 
-**Sections**:
-- **Cart Items List**: Each item displays:
-  - Product image
-  - Product name
-  - Selected firmness and size
-  - Quantity stepper
-  - Individual and total price
-  - Remove button
-- **Order Summary Panel**:
-  - Subtotal calculation
-  - Delivery fee (free over $150)
-  - Total amount
-  - Checkout button
-  - Security guarantee text
-- **Checkout Success Screen**:
-  - Order confirmation with order ID
-  - Sleep tip of the day
-  - Return to home button
+### Global Context Provider (`StoreContext.js`)
+All primary states are stored in a centralized React context to facilitate reactive state sharing between components and views:
 
-**Key Features**:
-- Quantity modification
-- Item removal
-- Dynamic delivery fee calculation
-- Mock checkout process
-- Success state with random sleep tips
-- Empty cart state with navigation
+*   **State Fields**:
+    *   `view` (String): The active view name (`home`, `catalog`, `detail`, `cart`, `wishlist`, `search`, `profile`).
+    *   `selectedProductId` (String): ID of the product currently loaded in `ProductDetailView` (defaults to `"classic-mattress"`).
+    *   `searchQuery` (String): Current search input query.
+    *   `activeFilters` (Object): Filter variables (`category`, `firmness`, `size`, `sort`).
+    *   `cart` (Array): Shopping items. Hydrates from local storage (`mellosoft_cart`).
+    *   `wishlist` (Array): Saved product ID array. Hydrates from local storage (`mellosoft_wishlist`).
+
+*   **Key Action Methods**:
+    *   `navigateTo(viewName, [productId])`: Smooth scrolls the window to the top and navigates to the specified view. Sets the selected product if provided.
+    *   `addToCart(product, firmness, size, qty)`: Bundles configured products into unique cart items (`id-firmness-size`), dynamically calculates size-specific prices, and updates quantities for existing matches.
+    *   `removeFromCart(cartItemId)`: Deletes configurations from the cart.
+    *   `updateQty(cartItemId, newQty)`: Updates item quantity (removes the item if quantity drops to `0`).
+    *   `clearCart()`: Empties cart state.
+    *   `toggleWishlist(productId)`: Toggles saving a product.
+    *   `moveToCart(productId, firmness, size)`: Pushes a wishlisted item to the cart using specified or default parameters and automatically removes it from the wishlist.
+
+### Price Utility (`utils/currency.js`)
+All prices are formatted using Indian Rupee localized formatting:
+*   **Code**: `return \`₹\${Number(amount).toLocaleString("en-IN")}\`;`
+*   **Effect**: A base price of `899` translates visually to `₹899`, and `1099` formats correctly to `₹1,099`.
 
 ---
 
-### 5. Wishlist Page (`WishlistView.jsx`)
-**Purpose**: Save and manage favorite products
+## 4. Architectural Pages & Views Detail
 
-**Sections**:
-- **Header Bar**: 
-  - Saved products count
-  - Clear Wishlist button
-  - Move All to Cart button
-- **Product Grid**: Saved products with overlay actions:
-  - Move to Cart button
-  - Remove button
-- **Empty State**: Displayed when wishlist is empty
+### 1. Home View (`HomeView.jsx`)
+*   **Hero Peek Slider**: Slides through up to 5 featured mattresses with deal indicators, custom titles, and click-to-shop action hooks.
+*   **Shop by Category**: Large interactive chips (Memory Foam, Hybrid, Firm, Pillows, Bed Frames, Protectors) setting catalog filters and navigating users to the catalog.
+*   **Dynamic Product Rows**: Interleaved rows displaying "Featured Mattresses", "Best Sellers" (sorted by review count), "New Arrivals" (based on badges), and "Top Rated" (sorted by rating).
+*   **Interstitial Promo Cards**: Prominent callouts highlighting special discounts (60% off mattresses, 30% off pillows/protectors, free bed frame assembly) that direct to related collections.
+*   **About Block**: Meticulous brand statement displaying asymmetrical image grids.
 
-**Key Features**:
-- Bulk actions (clear all, move all to cart)
-- Individual item actions
-- Product card integration
-- Empty state with navigation
+### 2. Catalog View (`CatalogView.jsx`)
+*   **Render Logic**: Loads products from `products.js` filtered programmatically based on `activeFilters` (category, firmness, size) and `searchQuery`.
+*   **Sorting**: Programmatically orders products by "Price: Low to High", "Price: High to Low", "Rating", or "Recommended" (original list order).
+*   *Architecture Note*: In the current implementation, filter variables are set via external triggers (like the header or search pages). The catalog layout does not render visible manual filter buttons or sort selectors on the page; filtering and sorting are controlled programmatically by state configuration.
+*   **Empty state handler**: Renders a custom search retry box if no products match selected filter sets.
 
----
+### 3. Product Detail View (`ProductDetailView.jsx`)
+*   **Image Gallery Carousel**: Large active frame with thumbnail buttons supporting custom touch swiping triggers (`onTouchStart`/`onTouchEnd`) and full-screen preview overlays.
+*   **Product Settings Configurator**:
+    *   Dynamic size selector that changes prices based on standard sizing arrays (`Twin`, `Full`, `Queen`, `King`).
+    *   Firmness toggles (`Soft`, `Medium`, `Firm`).
+    *   Integrated quantity stepper and direct checkout triggers ("Add to Cart", "Buy Now").
+*   **Information Tabs**:
+    *   **Details**: Specification lists and engineering highlights.
+    *   **Customer Reviews**: Dynamic ratings overview display showing percentages of 5-star down to 1-star reviews paired with user reviews lists.
+    *   **Discussion**: Customer Q&A block.
+*   **Recommendations**: Displays a three-column carousel showing alternative products.
 
-### 6. Search Page (`SearchView.jsx`)
-**Purpose**: Product search functionality
+### 4. Cart View (`CartView.jsx`)
+*   **Cart Items**: Displays line items with configurations (firmness, size, and individual price vs. combined subtotal), and supports removal or direct quantity updates.
+*   **Summary Panel**: Calculates subtotal, applies free shipping on orders over `₹150` (otherwise `₹30` flat rate), and showcases a simulated secure checkout process.
+*   **Checkout Success Screen**: Clears global cart data, generates a randomized order identifier (`MS-XXXXXX`), and displays a randomized "Sleep Tip of the Day" to provide user delight.
 
-**Sections**:
-- **Search Header**:
-  - Search input with icon
-  - Clear search button
-  - Recent search chips
-- **Results Header**: Search query and result count
-- **Search Results Grid**: Products matching search query
-- **Initial State**: Discovery shortcuts when no search is active:
-  - Shop All Mattresses
-  - Explore Pillows
-- **Empty State**: No results found message
+### 5. Wishlist View (`WishlistView.jsx`)
+*   **Grid layout**: Showcases user-favorited products.
+*   **Bulk Controls**: "Clear Wishlist" and "Move All to Cart" buttons to speed up shopping actions.
+*   **Quick Card Actions**: Move individual items directly into the cart or remove them from favorites.
 
-**Key Features**:
-- Real-time search across product names, taglines, categories, badges, and specs
-- Recent search suggestions
-- Search result counting
-- Empty state handling
-- Quick navigation shortcuts
+### 6. Search View (`SearchView.jsx`)
+*   **Live Input Bar**: Large auto-focus search field returning matching results across names, taglines, categories, badges, and technical specs.
+*   **Recent Search Chips**: Clickable history tags (e.g., "Classic Mattress", "Cooling", "Luxe Hybrid") to re-trigger frequent searches.
+*   **Shortcut Discovery Cards**: Visible links helping users browse mattresses or pillows quickly if they haven't typed a query yet.
 
----
-
-### 7. Profile Page (`ProfileView.jsx`)
-**Purpose**: User profile and sleep preferences
-
-**Sections**:
-- **Profile Header**:
-  - User avatar
-  - User name
-  - Membership status
-  - Sleep streak badge
-- **Sleep Profile & Preferences**:
-  - Preferred sleeping position (Side, Back, Stomach, Combination)
-  - Preferred sleep temperature (Cool, Neutral, Warm)
-  - Save preferences button
-  - Success message display
-- **Sleep Advisor Recommendation**: AI-powered product suggestions based on preferences
-- **Order History**:
-  - Order list with IDs, dates, and status
-  - Product details per order
-  - Order totals
-
-**Key Features**:
-- Interactive preference selection with chip buttons
-- Dynamic sleep recommendations
-- Order history display
-- Mock order data
-- Success feedback on save
+### 7. Profile View (`ProfileView.jsx`)
+*   **Sleep Profile Questionnaire**: Interactive selectors for preferred sleep positions (Side, Back, Stomach, Combination) and temperatures (Cool, Neutral, Warm).
+*   **AI Sleep Advisor**: Dynamic logic displaying personalized sleep tips and mattress configurations based on active questionnaire values.
+*   **Order History**: Mock display of past delivered items (ordered by user "Gowtham" under membership number `MS-XXXXX`).
+*   *Architecture Note*: This view is integrated in `page.js` view routing but is currently an **orphaned route** — there are no navigation links pointing to the profile in the desktop header, mobile header, or footer. It is accessible for testing by manually forcing the context view state to `"profile"`.
 
 ---
 
-## Components
+## 5. Components
 
-### Header Component (`Header.jsx`)
-**Purpose**: Site navigation and user actions
+### `Header.jsx`
+*   **Desktop layout**: Sticky, blurred backdrop containing logos, shopping navigation links, integrated live search input, and cart/wishlist badge counts.
+*   **Mobile layout**: Fixed top header which replaces text links with a slide-down mobile menu selector containing categories.
 
-**Desktop Header**:
-- Logo with wordmark
-- Navigation links (Home, Mattresses, Pillows, Bed Frames, About)
-- Icon controls (Search, Wishlist, Cart)
-- Badge indicators for cart and wishlist counts
+### `Footer.jsx`
+*   Responsive multi-column link grid (Shop, Company, Support) showcasing payment support badges (Visa, Mastercard, Amex, Apple Pay, Shop Pay) and a dynamic copyright year builder.
 
-**Mobile Header**:
-- Compact logo
-- Search trigger bar
-- Cart and notification icons
-- Bottom tab bar navigation (Home, Discover, Wishlist, Cart, Profile)
+### `ProductCard.jsx`
+*   Features a category tag, rating overlay, title, base price, and instant wishlist addition button. Navigates to product detail pages on click.
 
-**Key Features**:
-- Responsive design with breakpoint at 767px
-- Sticky positioning with blur effect
-- Active state indicators
-- Badge counters
-- Smooth scroll to sections
+### `EmptyState.jsx`, `FirmnessSizeSelector.jsx`, `QuantityStepper.jsx`, `RatingStars.jsx`
+*   Standard UI widgets built with semantic elements, custom controls, and ARIA labels.
 
 ---
 
-### Footer Component (`Footer.jsx`)
-**Purpose**: Site footer with navigation and brand information
+## 6. Design System & Aesthetics
 
-**Sections**:
-- **Brand Block**: Logo, tagline, and company description
-- **Link Columns**:
-  - Shop (Mattresses, Pillows, Bed Frames, Protectors)
-  - Company (About Us, Sustainability, Press, Careers)
-  - Support (100-Night Trial, Warranty Info, FAQs, Contact Us)
-- **Bottom Row**: Copyright and payment method badges
+### Visual Color Palette
+The brand colors evoke relaxation, quality, and a luxury feel:
 
-**Key Features**:
-- Responsive grid layout
-- Navigation integration
-- Payment method display
-- Dynamic year in copyright
-
----
-
-### Product Card Component (`ProductCard.jsx`)
-**Purpose**: Display product information in grid layouts
-
-**Features**:
-- Product image
-- Product name
-- Rating display
-- Price
-- Category badge
-- Hover lift effect
-- Click navigation to product detail
-
----
-
-### Empty State Component (`EmptyState.jsx`)
-**Purpose**: Display empty state messages with actions
-
-**Features**:
-- Icon display (cart, wishlist, search)
-- Title and description
-- Action button
-- Consistent styling across views
-
----
-
-### Firmness Size Selector Component (`FirmnessSizeSelector.jsx`)
-**Purpose**: Select product options (firmness/size)
-
-**Features**:
-- Label display
-- Option buttons with active state
-- Visual feedback for selection
-
----
-
-### Quantity Stepper Component (`QuantityStepper.jsx`)
-**Purpose**: Adjust product quantity
-
-**Features**:
-- Decrement button
-- Quantity display
-- Increment button
-- Minimum quantity enforcement
-
----
-
-### Rating Stars Component (`RatingStars.jsx`)
-**Purpose**: Display star ratings
-
-**Features**:
-- Star rendering based on rating
-- Optional numeric display
-- Review count display
-
----
-
-## Data & State Management
-
-### Store Context (`StoreContext`)
-**Purpose**: Global state management for the application
-
-**State**:
-- `view`: Current active view/page
-- `cart`: Shopping cart items
-- `wishlist`: Saved product IDs
-- `searchQuery`: Current search term
-- `activeFilters`: Filter selections (category, firmness, size, sort)
-- `selectedProductId`: Currently selected product
-
-**Actions**:
-- `navigateTo`: Change current view
-- `addToCart`: Add item to cart
-- `updateQty`: Update cart item quantity
-- `removeFromCart`: Remove item from cart
-- `clearCart`: Empty the cart
-- `toggleWishlist`: Add/remove from wishlist
-- `moveToCart`: Move wishlist item to cart
-- `setSearchQuery`: Update search term
-- `setActiveFilters`: Update filter selections
-- `getProductById`: Retrieve product by ID
-
----
-
-### Products Data (`products.js`)
-**Purpose**: Mock product data for the catalog
-
-**Product Structure**:
-- `id`: Unique identifier
-- `name`: Product name
-- `tagline`: Marketing tagline
-- `category`: Product category
-- `price`: Base price
-- `sizePrices`: Price variations by size
-- `rating`: Average rating (1-5)
-- `reviewCount`: Number of reviews
-- `badge`: Product badge (e.g., "Best Seller")
-- `firmnessOptions`: Available firmness levels
-- `sizeOptions`: Available sizes
-- `images`: Product image URLs
-- `description`: Product description
-- `features`: Feature list
-- `specs`: Technical specifications
-- `reviews`: Customer review array
-
----
-
-## Design System
-
-### Color Palette
-- **Primary Navy**: `#1B1F8C` - Brand primary, headings, buttons
-- **Primary Green**: `#16A34A` - Accents, success states, badges
-- **Background Cream**: `#F7F7F2` - Page background
-- **Text Dark**: `#14151A` - Primary text
-- **Text Gray**: `#6B6B75` - Secondary text
-- **Border Light**: `#E7E7E2` - Borders and dividers
-- **White**: `#FFFFFF` - Cards and sections
+| Color Token | Hex Code | Visual Application |
+| :--- | :--- | :--- |
+| **Primary Navy** | `#1B1F8C` | Brand typography, prominent headings, main action buttons |
+| **Accent Green** | `#16A34A` | Success messages, checkout badges, ratings stars, trial taglines |
+| **Background Cream** | `#F7F7F2` | Page background, inputs, search boxes, details tab strips |
+| **Text Dark** | `#14151A` | Main page typography |
+| **Text Gray** | `#6B6B75` | Product specs, secondary labels, description text |
+| **Border Light** | `#E7E7E2` | Thin grid boundaries, line separators |
+| **White** | `#FFFFFF` | Cards, header backdrops, promo sections |
 
 ### Typography
-- **Headings**: Bold weights (700-800), tight letter spacing
-- **Body**: Regular weights (400-500), comfortable line heights
-- **Labels**: Uppercase, wide letter spacing (0.05-0.08em)
-- **Responsive sizing**: Uses clamp() for fluid typography
+*   **Headings**: Bold/Extra-Bold weights (700-800) with compact letter-spacing.
+*   **Responsive Scaling**: Fluid typography scales using CSS `clamp()` rules for clean resizing across viewports.
+*   **Labels**: Upper-case styling with expanded letter-spacing (`0.05em` to `0.08em`).
 
-### Spacing & Layout
-- **Container Max Width**: 1200px
-- **Section Padding**: 40-80px vertical
-- **Grid Gaps**: 24-48px
-- **Border Radius**: 16-24px for cards and sections
-- **Shadows**: Subtle, layered shadows for depth
-
-### Interactions
-- **Hover Lift**: Subtle transform on hover
-- **Transitions**: 0.2s ease for smooth state changes
-- **Active States**: Color changes and border highlights
-- **Badge Indicators**: Circular badges for counts
+### Borders and Spacing
+*   **Sharp Edges (`0px` border-radius)**: Main content cards, headers, checkout panels, and image frames are set to zero border-radius for a premium, architectural block aesthetic.
+*   **Rounded Badges/Buttons**: Small active elements (wishlist icons, category selectors, quantities, search bars) use rounded styling (`12px`, `24px`, `999px`) to emphasize touch-friendly interactiveness.
+*   **Shadows**: Multi-layered, soft blur filters create depth under active items.
 
 ---
 
-## Responsive Design
+## 7. Developer Guidelines & Roadmap
 
-### Breakpoints
-- **Desktop**: > 767px
-- **Mobile**: ≤ 767px
-
-### Mobile Adaptations
-- **Header**: Compact top bar with back navigation, cart access, and live search
-- **Grids**: Single column or reduced column counts
-- **Typography**: Smaller font sizes
-- **Spacing**: Reduced padding and margins
-- **Navigation**: Bottom tab bar replaces desktop header
-
----
-
-## Navigation Flow
-
-### Main Navigation Paths
-1. **Home** → Catalog (via "Go to catalog" or navigation)
-2. **Home** → Product Detail (via product cards)
-3. **Catalog** → Product Detail (via product cards)
-4. **Search** → Product Detail (via search results)
-5. **Product Detail** → Cart (via "Add to Cart" or "Buy Now")
-6. **Cart** → Checkout Success (via "Proceed to Checkout")
-7. **Wishlist** → Cart (via "Move to Cart")
-8. **Profile** → Various sections (via internal links)
-
-### Filter & Search Integration
-- Search results integrate with catalog filters
-- Category navigation from home auto-filters catalog
-- Recent searches provide quick access to common terms
-
----
-
-## Key Features Summary
-
-### E-commerce Functionality
-- Product browsing and filtering
-- Product detail pages with configuration
-- Shopping cart management
-- Wishlist functionality
-- Mock checkout process
-- Order history display
-
-### User Experience
-- Responsive design for all devices
-- Intuitive navigation system
-- Empty state handling
-- Loading states and transitions
-- Search functionality
-- Product recommendations
-
-### Brand Elements
-- Consistent color scheme
-- Premium aesthetic
-- Sleep-focused content
-- Customer testimonials
-- Trust indicators (trial, warranty, delivery)
-
----
-
-## File Structure
-
-```
-frontend/
-├── src/
-│   ├── app/
-│   │   ├── layout.js          # Root layout with metadata
-│   │   ├── page.js            # Main entry point with view routing
-│   │   ├── globals.css        # Global styles
-│   │   └── favicon.ico        # Site icon
-│   ├── components/
-│   │   ├── Header.jsx         # Navigation header
-│   │   ├── Footer.jsx         # Site footer
-│   │   ├── ProductCard.jsx    # Product display card
-│   │   ├── EmptyState.jsx     # Empty state component
-│   │   ├── FirmnessSizeSelector.jsx  # Option selector
-│   │   ├── QuantityStepper.jsx      # Quantity control
-│   │   └── RatingStars.jsx    # Rating display
-│   ├── views/
-│   │   ├── HomeView.jsx       # Home page
-│   │   ├── CatalogView.jsx    # Product catalog
-│   │   ├── ProductDetailView.jsx  # Product details
-│   │   ├── CartView.jsx       # Shopping cart
-│   │   ├── WishlistView.jsx   # Wishlist page
-│   │   ├── SearchView.jsx     # Search page
-│   │   └── ProfileView.jsx    # User profile
-│   ├── context/
-│   │   └── StoreContext.jsx   # Global state management
-│   └── data/
-│       └── products.js        # Mock product data
-├── public/
-│   └── asset/                 # Images and assets
-└── package.json              # Dependencies
-```
-
----
-
-## Development Notes
-
-### State Management
-- Uses React Context API for global state
-- View-based routing instead of traditional URL routing
-- State persists across view changes
-
-### Styling Approach
-- Inline JavaScript objects for component styles
-- CSS-in-JS with styled-jsx for responsive breakpoints
-- Consistent design tokens throughout
-
-### Performance Considerations
-- useMemo for expensive computations (filtering, sorting)
-- Lazy loading of views through conditional rendering
-- Optimized re-renders through context structure
-
-### Accessibility
-- Semantic HTML elements
-- ARIA labels on interactive elements
-- Keyboard navigation support
-- Focus management on view changes
-
----
-
-## Future Enhancement Opportunities
-
-### Potential Additions
-- URL-based routing for better SEO
-- Real backend integration
-- User authentication
-- Payment processing
-- Advanced filtering options
-- Product comparison feature
-- Image zoom functionality
-- Video product demonstrations
-- Live chat support
-- Email marketing integration
-- Analytics tracking
-
-### Technical Improvements
-- TypeScript migration
-- Component library extraction
-- Automated testing
-- CI/CD pipeline
-- Performance monitoring
-- Error boundary implementation
-- Service worker for offline support
-
----
-
-*Documentation generated for Mellosoft Frontend Website*
-*Last Updated: July 2026*
+### Recommended Improvements
+1.  **Add Profile Navigation**: Integrate a profile icon or link in the `Header` or `Footer` to expose the built-in `ProfileView`.
+2.  **Add Filter Controls inside Catalog**: Build standard dropdown selectors or checkbox lists inside `CatalogView.jsx` to let users adjust firmness, sizes, and sorting configurations directly on the catalog page.
+3.  **URL-Based Routing**: Migrate the view-based custom routing (`navigateTo` states) to native Next.js file-system routing (App Router directories) to enable browser back-button navigation and direct links for search engine indexing (SEO optimization).
+4.  **Backend Hook-ups**: Swap the localized localStorage mock state loops with API endpoint calls targeting database models (e.g., PostgreSQL or MongoDB) for actual user profiles and shopping carts.

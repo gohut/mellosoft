@@ -1,0 +1,234 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+  --admin-primary: #1B1F8C;
+  --admin-primary-light: #E8E9F8;
+  --admin-primary-hover: #15186E;
+  --admin-success: #16A34A;
+  --admin-success-light: #DCFCE7;
+  --admin-danger: #DC2626;
+  --admin-danger-light: #FEE2E2;
+  --admin-warning: #F59E0B;
+  --admin-warning-light: #FEF3C7;
+  --admin-bg: #F7F7F2;
+  --admin-card: #FFFFFF;
+  --admin-border: #E7E7E2;
+  --admin-text: #14151A;
+  --admin-text-secondary: #6B6B75;
+  --admin-sidebar-width: 260px;
+  --admin-sidebar-collapsed: 72px;
+  --admin-header-height: 64px;
+  --admin-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --admin-radius: 12px;
+  --admin-radius-sm: 8px;
+  --admin-radius-lg: 16px;
+  --admin-shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --admin-shadow-md: 0 4px 12px rgba(0,0,0,0.07);
+  --admin-shadow-lg: 0 10px 30px rgba(0,0,0,0.1);
+  --admin-transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Admin-scoped resets */
+.admin-root {
+  font-family: var(--admin-font);
+  background: var(--admin-bg);
+  color: var(--admin-text);
+  min-height: 100vh;
+  display: flex;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.admin-root *,
+.admin-root *::before,
+.admin-root *::after {
+  box-sizing: border-box;
+}
+
+.admin-root button {
+  font-family: var(--admin-font);
+  cursor: pointer;
+}
+
+.admin-root input,
+.admin-root select,
+.admin-root textarea {
+  font-family: var(--admin-font);
+}
+
+/* Animations */
+@keyframes adminFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes adminSlideIn {
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes adminScaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes adminShimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes adminPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.admin-fade-in {
+  animation: adminFadeIn 0.35s ease-out forwards;
+}
+
+.admin-slide-in {
+  animation: adminSlideIn 0.3s ease-out forwards;
+}
+
+.admin-scale-in {
+  animation: adminScaleIn 0.25s ease-out forwards;
+}
+
+/* Card hover */
+.admin-card-hover {
+  transition: var(--admin-transition);
+}
+.admin-card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--admin-shadow-md);
+}
+
+/* Button hover */
+.admin-btn-hover {
+  transition: var(--admin-transition);
+}
+.admin-btn-hover:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--admin-shadow-sm);
+}
+
+/* Row hover */
+.admin-row-hover {
+  transition: background-color 0.15s ease;
+}
+.admin-row-hover:hover {
+  background-color: #FAFAF7;
+}
+
+/* Scrollbar for admin */
+.admin-root ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.admin-root ::-webkit-scrollbar-track {
+  background: transparent;
+}
+.admin-root ::-webkit-scrollbar-thumb {
+  background: var(--admin-border);
+  border-radius: 3px;
+}
+.admin-root ::-webkit-scrollbar-thumb:hover {
+  background: var(--admin-text-secondary);
+}
+
+/* Overlay backdrop */
+.admin-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 21, 26, 0.5);
+  z-index: 999;
+  animation: adminFadeIn 0.2s ease-out;
+}
+
+/* ─── Responsive & utility classes (formerly inline styled-jsx) ──────────── */
+
+/* Sidebar desktop visibility */
+.admin-sidebar-desktop {
+  display: flex;
+}
+
+/* Header visibility helpers */
+.admin-desktop-only { display: flex; }
+.admin-mobile-only  { display: none;  }
+
+/* Analytics mini-card hover */
+.analytics-mini-card:hover {
+  box-shadow: 0 4px 16px rgba(27, 31, 140, 0.09) !important;
+  transform: translateY(-2px);
+}
+
+/* ─── Breakpoint: 1200px ─────────────────────────────────── */
+@media (max-width: 1200px) {
+  .analytics-mini-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+/* ─── Breakpoint: 1024px ─────────────────────────────────── */
+@media (max-width: 1024px) {
+  :root {
+    --admin-sidebar-width: 0px;
+  }
+  .admin-sidebar-desktop {
+    display: none !important;
+  }
+  .admin-desktop-only {
+    display: none !important;
+  }
+  .admin-mobile-only {
+    display: flex !important;
+  }
+  .admin-main-area {
+    margin-left: 0 !important;
+  }
+  .admin-stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .admin-categories-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .analytics-mini-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+/* ─── Breakpoint: 768px ──────────────────────────────────── */
+@media (max-width: 768px) {
+  .admin-root {
+    font-size: 14px;
+  }
+  .admin-add-product-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .admin-products-topbar {
+    flex-direction: column;
+    align-items: stretch !important;
+  }
+  .admin-settings-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .admin-main-area main {
+    padding: 16px 14px 32px !important;
+  }
+}
+
+/* ─── Breakpoint: 640px ──────────────────────────────────── */
+@media (max-width: 640px) {
+  .admin-stats-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .admin-categories-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .analytics-mini-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  .analytics-bottom-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
