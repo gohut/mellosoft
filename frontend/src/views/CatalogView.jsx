@@ -113,21 +113,6 @@ export default function CatalogView() {
           />
         </div>
       )}
-
-      <style jsx global>{`
-        @media (max-width: 767px) {
-          .catalog-grid {
-            display: grid !important;
-            grid-template-columns: repeat(2, 1fr) !important;
-            gap: 12px !important;
-          }
-        }
-        @media (max-width: 420px) {
-          .catalog-grid {
-            gap: 10px !important;
-          }
-        }
-      `}</style>
     </div>
   );
 }

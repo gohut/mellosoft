@@ -98,21 +98,6 @@ export default function WishlistView() {
           </div>
         ))}
       </div>
-
-      <style jsx>{`
-        @media (max-width: 767px) {
-          .wishlist-grid {
-            overflow-x: auto !important;
-            display: grid !important;
-            grid-auto-flow: column !important;
-            grid-auto-columns: minmax(220px, 68vw) !important;
-            grid-template-columns: none !important;
-            gap: 14px !important;
-            padding-bottom: 12px !important;
-          }
-        }
-      `}</style>
-
     </div>
   );
 }

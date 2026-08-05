@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAdmin } from "../context/AdminContext";
+import { useAdminAuth } from "../../context/AdminAuthContext";
 import {
   LayoutDashboard, Package, PlusCircle, FolderOpen, Warehouse,
   ShoppingCart, Users, Star, Ticket, Settings, LogOut,
@@ -30,7 +32,14 @@ const navItems = [
 
 export default function AdminSidebar() {
   const { adminView, navigateTo, sidebarCollapsed, sidebarMobileOpen, toggleMobileSidebar } = useAdmin();
+  const { logout } = useAdminAuth();
+  const router = useRouter();
   const [productsOpen, setProductsOpen] = useState(true);
+
+  const handleLogout = () => {
+    logout();
+    router.replace("/admin/login");
+  };
 
   const isActive = (id) => adminView === id;
   const isProductChild = (id) => ["products", "add-product", "categories", "inventory"].includes(id);
@@ -132,7 +141,7 @@ export default function AdminSidebar() {
       {/* Logout */}
       <div style={{ padding: "12px 10px", borderTop: "1px solid #E7E7E2" }}>
         <button
-          onClick={() => { window.location.href = "/"; }}
+          onClick={handleLogout}
           style={{
             ...navBtnStyle,
             color: "#DC2626",

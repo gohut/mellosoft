@@ -1,19 +1,19 @@
 "use client";
 
 import React from "react";
-import { useAdmin } from "../../admin/context/AdminContext";
-import AdminSidebar from "../../admin/components/AdminSidebar";
-import AdminHeader from "../../admin/components/AdminHeader";
-import DashboardView from "../../admin/views/DashboardView";
-import ProductsView from "../../admin/views/ProductsView";
-import AddProductView from "../../admin/views/AddProductView";
-import CategoriesView from "../../admin/views/CategoriesView";
-import InventoryView from "../../admin/views/InventoryView";
-import OrdersView from "../../admin/views/OrdersView";
-import CustomersView from "../../admin/views/CustomersView";
-import ReviewsView from "../../admin/views/ReviewsView";
-import CouponsView from "../../admin/views/CouponsView";
-import SettingsView from "../../admin/views/SettingsView";
+import { useAdmin } from "../../../admin/context/AdminContext";
+import AdminSidebar from "../../../admin/components/AdminSidebar";
+import AdminHeader from "../../../admin/components/AdminHeader";
+import DashboardView from "../../../admin/views/DashboardView";
+import ProductsView from "../../../admin/views/ProductsView";
+import AddProductView from "../../../admin/views/AddProductView";
+import CategoriesView from "../../../admin/views/CategoriesView";
+import InventoryView from "../../../admin/views/InventoryView";
+import OrdersView from "../../../admin/views/OrdersView";
+import CustomersView from "../../../admin/views/CustomersView";
+import ReviewsView from "../../../admin/views/ReviewsView";
+import CouponsView from "../../../admin/views/CouponsView";
+import SettingsView from "../../../admin/views/SettingsView";
 
 export default function AdminPage() {
   const { adminView, sidebarCollapsed } = useAdmin();

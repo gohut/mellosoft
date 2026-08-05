@@ -1,3 +1,5 @@
+"use client";
+
 import React from "react";
 import { useStore } from "../context/StoreContext";
 import { formatPrice } from "../utils/currency";
@@ -56,38 +58,6 @@ export default function ProductCard({ product }) {
           </span>
         </div>
       </div>
-
-      <style jsx>{`
-        @media (max-width: 767px) {
-          .product-card {
-            min-width: 0;
-          }
-          .product-card h4 {
-            font-size: 13px !important;
-            min-height: 0 !important;
-          }
-          .product-card .pc-category {
-            font-size: 9px !important;
-            padding: 2px 6px !important;
-          }
-          .product-card .pc-price {
-            font-size: 14px !important;
-          }
-          .product-card .pc-rating {
-            font-size: 10px !important;
-          }
-          .product-card .pc-info {
-            padding: 10px 10px 12px !important;
-            gap: 6px !important;
-          }
-          .product-card .pc-wishlist-btn {
-            width: 26px !important;
-            height: 26px !important;
-            top: 8px !important;
-            right: 8px !important;
-          }
-        }
-      `}</style>
     </article>
   );
 }

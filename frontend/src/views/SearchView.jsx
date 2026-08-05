@@ -137,18 +137,6 @@ export default function SearchView() {
           </div>
         </div>
       )}
-
-      <style jsx global>{`
-        @media (max-width: 767px) {
-          .search-grid {
-            display: grid !important;
-            grid-template-columns: repeat(2, 1fr) !important;
-            gap: 14px !important;
-            overflow-x: visible !important;
-          }
-        }
-      `}</style>
-
     </div>
   );
 }

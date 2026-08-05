@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useStore } from "../context/StoreContext";
 import { MOCK_PRODUCTS } from "../data/products";
 import { formatPrice } from "../utils/currency";
@@ -26,6 +26,28 @@ export default function Header() {
   const wishlistCount = wishlist.length;
   const isNestedMobileView = view !== "home";
   const isDetailView = view === "detail";
+
+  // Dynamic body padding for mobile sticky header vs. detail view
+  useEffect(() => {
+    const style = document.body.style;
+    const mq = window.matchMedia("(max-width: 767px)");
+    const apply = () => {
+      if (mq.matches) {
+        style.paddingTop = isDetailView ? "0" : "60px";
+        style.paddingBottom = "0";
+      } else {
+        style.paddingTop = "";
+        style.paddingBottom = "";
+      }
+    };
+    apply();
+    mq.addEventListener("change", apply);
+    return () => {
+      mq.removeEventListener("change", apply);
+      style.paddingTop = "";
+      style.paddingBottom = "";
+    };
+  }, [isDetailView]);
 
   const searchActive = mobileFocused || mobileSearch.trim().length > 0;
   const showMobileLogo = !searchActive && !isNestedMobileView;
@@ -215,18 +237,6 @@ export default function Header() {
         </header>
       )}
 
-      <style jsx global>{`
-        .desktop-only { display: block; }
-        .mobile-only { display: none; }
-        @media (max-width: 767px) {
-          .desktop-only { display: none !important; }
-          .mobile-only { display: block !important; }
-          body {
-            padding-top: ${isDetailView ? "0" : "60px"} !important;
-            padding-bottom: 0 !important;
-          }
-        }
-      `}</style>
     </>
   );
 }
