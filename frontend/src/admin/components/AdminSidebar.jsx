@@ -30,7 +30,7 @@ const navItems = [
 ];
 
 export default function AdminSidebar() {
-  const { adminView, navigateTo, sidebarCollapsed, sidebarMobileOpen, toggleMobileSidebar, hasPermission } = useAdmin();
+  const { adminView, navigateTo, sidebarCollapsed, sidebarMobileOpen, toggleMobileSidebar, toggleSidebar, hasPermission } = useAdmin();
   const { logout } = useAdminAuth();
   const router = useRouter();
   const [productsOpen, setProductsOpen] = useState(true);
@@ -140,23 +140,45 @@ export default function AdminSidebar() {
 
   const sidebarContent = (
     <>
-      {/* Logo */}
+      {/* Logo & Toggle */}
       <div style={{
-        padding: sidebarCollapsed ? "20px 12px" : "20px 20px",
+        padding: sidebarCollapsed ? "0 12px" : "0 16px 0 20px",
         borderBottom: "1px solid #E7E7E2",
         display: "flex",
         alignItems: "center",
-        gap: "10px",
-        minHeight: "64px",
-        justifyContent: sidebarCollapsed ? "center" : "flex-start",
+        justifyContent: sidebarCollapsed ? "center" : "space-between",
+        height: "64px",
       }}>
-
         {!sidebarCollapsed && (
           <span style={{ fontSize: "20px", fontWeight: 800, letterSpacing: "-0.02em" }}>
             <span style={{ color: "#16A34A" }}>m</span>
             <span style={{ color: "#1B1F8C" }}>ellosoft</span>
           </span>
         )}
+        <button
+          onClick={toggleSidebar}
+          className="admin-desktop-only"
+          style={{
+            width: "36px",
+            height: "36px",
+            border: "1px solid #E7E7E2",
+            borderRadius: "10px",
+            backgroundColor: "#FFFFFF",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            transition: "transform 0.3s ease, background-color 0.15s ease",
+            transform: sidebarCollapsed ? "rotate(180deg)" : "none",
+            flexShrink: 0,
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#F7F7F2"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "#FFFFFF"; }}
+          aria-label="Toggle sidebar"
+          title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          <ChevronRight size={18} color="#6B6B75" style={{ transform: "rotate(180deg)" }} />
+        </button>
       </div>
 
       {/* Navigation */}

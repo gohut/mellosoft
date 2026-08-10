@@ -54,31 +54,26 @@ export default function AdminHeader() {
       zIndex: 800,
       gap: "14px",
     }}>
-      {/* Left: back arrow + breadcrumb */}
+      {/* Left: mobile menu + breadcrumb */}
       <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0 }}>
         {/* Mobile hamburger – hidden on desktop (≥1024px), visible on mobile/tablet */}
         <button
           className="admin-mobile-only"
           onClick={toggleMobileSidebar}
-          style={{ ...backBtnStyle, display: "none" }}
+          style={{
+            width: "36px",
+            height: "36px",
+            border: "1px solid #E7E7E2",
+            borderRadius: "10px",
+            backgroundColor: "#FFFFFF",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            flexShrink: 0,
+          }}
           aria-label="Open sidebar"
         >
           <Menu size={20} color="#14151A" />
-        </button>
-
-        {/* Back arrow / collapse toggle button – positioned at left boundary close to sidebar */}
-        <button
-          onClick={toggleSidebar}
-          style={{
-            ...backBtnStyle,
-            transform: sidebarCollapsed ? "rotate(180deg)" : "none",
-            transition: "transform 0.3s ease, background-color 0.15s ease",
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#F7F7F2"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "#FFFFFF"; }}
-          aria-label="Toggle sidebar"
-        >
-          <ChevronRight size={18} color="#6B6B75" style={{ transform: "rotate(180deg)" }} />
         </button>
 
         {/* Breadcrumb */}
