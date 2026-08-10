@@ -1,0 +1,48 @@
+import { hashPassword } from "../utils/security";
+
+export const DEFAULT_USERS = [
+  {
+    id: "user-001",
+    name: "Rahul Sharma",
+    email: "admin@mellosoft.com",
+    phone: "+91 98765 43210",
+    passwordHash: hashPassword("Admin@123"),
+    roleId: "role-super-admin",
+    status: "Active",
+    lastLogin: "2026-08-10 14:32",
+    createdAt: "2026-01-15",
+  },
+  {
+    id: "user-002",
+    name: "Priya Patel",
+    email: "priya@mellosoft.com",
+    phone: "+91 98765 12345",
+    passwordHash: hashPassword("Priya@123"),
+    roleId: "role-admin",
+    status: "Active",
+    lastLogin: "2026-08-09 11:20",
+    createdAt: "2026-02-01",
+  },
+  {
+    id: "user-003",
+    name: "Ankit Gupta",
+    email: "ankit@mellosoft.com",
+    phone: "+91 98123 45678",
+    passwordHash: hashPassword("Ankit@123"),
+    roleId: "role-manager",
+    status: "Active",
+    lastLogin: "2026-08-08 16:45",
+    createdAt: "2026-03-10",
+  },
+  {
+    id: "user-004",
+    name: "Sneha Reddy",
+    email: "sneha@mellosoft.com",
+    phone: "+91 97890 12345",
+    passwordHash: hashPassword("Sneha@123"),
+    roleId: "role-staff",
+    status: "Inactive",
+    lastLogin: "2026-07-25 09:15",
+    createdAt: "2026-04-12",
+  },
+];

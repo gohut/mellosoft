@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { useAdmin } from "../context/AdminContext";
 import { useAdminAuth } from "../../context/AdminAuthContext";
 import {
-  LayoutDashboard, Package, PlusCircle, FolderOpen, Warehouse,
-  ShoppingCart, Users, Star, Ticket, Settings, LogOut,
-  ChevronDown, ChevronRight, X,
+  LayoutDashboard, Package,
+  ShoppingCart, Users, Star, Settings, LogOut,
+  ChevronDown, ChevronRight, X, ShieldCheck
 } from "lucide-react";
 
 const navItems = [
@@ -20,18 +20,17 @@ const navItems = [
       { id: "products", label: "All Products" },
       { id: "add-product", label: "Add Product" },
       { id: "categories", label: "Categories" },
-      { id: "inventory", label: "Inventory" },
     ],
   },
   { id: "orders", label: "Orders", icon: ShoppingCart },
   { id: "customers", label: "Customers", icon: Users },
   { id: "reviews", label: "Reviews", icon: Star },
-  { id: "coupons", label: "Coupons", icon: Ticket },
+  { id: "users-roles", label: "Users & Roles", icon: ShieldCheck },
   { id: "settings", label: "Settings", icon: Settings },
 ];
 
 export default function AdminSidebar() {
-  const { adminView, navigateTo, sidebarCollapsed, sidebarMobileOpen, toggleMobileSidebar } = useAdmin();
+  const { adminView, navigateTo, sidebarCollapsed, sidebarMobileOpen, toggleMobileSidebar, hasPermission } = useAdmin();
   const { logout } = useAdminAuth();
   const router = useRouter();
   const [productsOpen, setProductsOpen] = useState(true);
@@ -42,12 +41,39 @@ export default function AdminSidebar() {
   };
 
   const isActive = (id) => adminView === id;
-  const isProductChild = (id) => ["products", "add-product", "categories", "inventory"].includes(id);
+  const isProductChild = (id) => ["products", "add-product", "categories", "product-details", "edit-product"].includes(id);
   const isProductsActive = isProductChild(adminView);
 
+  const isNavVisible = (id) => {
+    switch (id) {
+      case "dashboard": return hasPermission("dashboard", "view");
+      case "products-group": return hasPermission("products", "view");
+      case "orders": return hasPermission("orders", "view");
+      case "customers": return hasPermission("customers", "view");
+      case "reviews": return hasPermission("reviews", "view");
+      case "users-roles": return hasPermission("users", "view") || hasPermission("roles", "view");
+      case "settings": return hasPermission("settings", "view");
+      default: return true;
+    }
+  };
+
+  const isChildVisible = (id) => {
+    switch (id) {
+      case "products": return hasPermission("products", "view");
+      case "add-product": return hasPermission("products", "create");
+      case "categories": return hasPermission("products", "view");
+      default: return true;
+    }
+  };
+
   const renderNavItem = (item) => {
+    if (!isNavVisible(item.id)) return null;
+
     if (item.children) {
       const open = productsOpen;
+      const visibleChildren = item.children.filter((child) => isChildVisible(child.id));
+      if (visibleChildren.length === 0) return null;
+
       return (
         <div key={item.id}>
           <button
@@ -71,7 +97,7 @@ export default function AdminSidebar() {
           </button>
           {open && !sidebarCollapsed && (
             <div style={{ marginLeft: "20px", borderLeft: "2px solid #E7E7E2", paddingLeft: "12px", marginTop: "2px", marginBottom: "4px" }}>
-              {item.children.map((child) => (
+              {visibleChildren.map((child) => (
                 <button
                   key={child.id}
                   onClick={() => navigateTo(child.id)}

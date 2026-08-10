@@ -7,12 +7,13 @@ import AdminHeader from "../../../admin/components/AdminHeader";
 import DashboardView from "../../../admin/views/DashboardView";
 import ProductsView from "../../../admin/views/ProductsView";
 import AddProductView from "../../../admin/views/AddProductView";
+import AdminProductDetailView from "../../../admin/views/AdminProductDetailView";
+import EditProductView from "../../../admin/views/EditProductView";
 import CategoriesView from "../../../admin/views/CategoriesView";
-import InventoryView from "../../../admin/views/InventoryView";
 import OrdersView from "../../../admin/views/OrdersView";
 import CustomersView from "../../../admin/views/CustomersView";
 import ReviewsView from "../../../admin/views/ReviewsView";
-import CouponsView from "../../../admin/views/CouponsView";
+import UsersAndRolesView from "../../../admin/views/UsersAndRolesView";
 import SettingsView from "../../../admin/views/SettingsView";
 
 export default function AdminPage() {
@@ -23,12 +24,13 @@ export default function AdminPage() {
       case "dashboard": return <DashboardView />;
       case "products": return <ProductsView />;
       case "add-product": return <AddProductView />;
+      case "product-details": return <AdminProductDetailView />;
+      case "edit-product": return <EditProductView />;
       case "categories": return <CategoriesView />;
-      case "inventory": return <InventoryView />;
       case "orders": return <OrdersView />;
       case "customers": return <CustomersView />;
       case "reviews": return <ReviewsView />;
-      case "coupons": return <CouponsView />;
+      case "users-roles": return <UsersAndRolesView />;
       case "settings": return <SettingsView />;
       default: return <DashboardView />;
     }
@@ -60,8 +62,6 @@ export default function AdminPage() {
           {renderView()}
         </main>
       </div>
-
-
     </div>
   );
 }

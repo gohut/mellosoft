@@ -2,10 +2,12 @@
 
 import React from "react";
 import { MOCK_REVIEWS } from "../data/adminMockData";
+import { useAdmin } from "../context/AdminContext";
 import StatusBadge from "../components/StatusBadge";
 import { CheckCircle, XCircle, Trash2, Star } from "lucide-react";
 
 export default function ReviewsView() {
+  const { hasPermission } = useAdmin();
   const renderStars = (rating) => {
     return (
       <div style={{ display: "flex", gap: "2px" }}>
@@ -50,9 +52,11 @@ export default function ReviewsView() {
                   <button style={{ ...actionBtnStyle, borderColor: "#FEF3C7" }} title="Reject">
                     <XCircle size={16} color="#F59E0B" />
                   </button>
-                  <button style={{ ...actionBtnStyle, borderColor: "#FEE2E2" }} title="Delete">
-                    <Trash2 size={16} color="#DC2626" />
-                  </button>
+                  {hasPermission("reviews", "delete") && (
+                    <button style={{ ...actionBtnStyle, borderColor: "#FEE2E2" }} title="Delete">
+                      <Trash2 size={16} color="#DC2626" />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

@@ -2,6 +2,8 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { MOCK_PRODUCTS } from "../data/products";
+import { calculateDiscountedPrice } from "../utils/currency";
+import { getVariantForSelection } from "../utils/variantHelpers";
 
 const StoreContext = createContext();
 
@@ -19,53 +21,54 @@ export function StoreProvider({ children }) {
     sort: "Recommended"
   });
 
-  // Cart & Wishlist State
+  // User Commerce State
   const [cart, setCart] = useState([]);
-  const [wishlist, setWishlist] = useState([]);
-  const [isHydrated, setIsHydrated] = useState(false);
+  const [wishlist, setWishlist] = useState(["luxe-hybrid"]);
+  const [products, setProducts] = useState(MOCK_PRODUCTS);
 
-  // Load cart and wishlist from localStorage on mount (hydration-safe)
+  // Sync with localStorage on client load
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      try {
-        const savedCart = localStorage.getItem("mellosoft_cart");
-        if (savedCart) setCart(JSON.parse(savedCart));
+    try {
+      const savedCart = localStorage.getItem("mellosoft_cart");
+      if (savedCart) setCart(JSON.parse(savedCart));
 
-        const savedWishlist = localStorage.getItem("mellosoft_wishlist");
-        if (savedWishlist) setWishlist(JSON.parse(savedWishlist));
-      } catch (e) {
-        console.error("Failed to load store state from localStorage", e);
-      }
-      setIsHydrated(true);
-    }, 0);
-
-    return () => window.clearTimeout(timer);
+      const savedWishlist = localStorage.getItem("mellosoft_wishlist");
+      if (savedWishlist) setWishlist(JSON.parse(savedWishlist));
+    } catch (e) {
+      console.error("Failed to load state from localStorage:", e);
+    }
   }, []);
 
-  // Save to localStorage whenever cart changes
+  // Save changes to localStorage
   useEffect(() => {
-    if (!isHydrated) return;
     try {
       localStorage.setItem("mellosoft_cart", JSON.stringify(cart));
     } catch (e) {
-      console.error("Failed to save cart to localStorage", e);
+      console.error("Failed to save cart:", e);
     }
-  }, [cart, isHydrated]);
+  }, [cart]);
 
-  // Save to localStorage whenever wishlist changes
   useEffect(() => {
-    if (!isHydrated) return;
     try {
       localStorage.setItem("mellosoft_wishlist", JSON.stringify(wishlist));
     } catch (e) {
-      console.error("Failed to save wishlist to localStorage", e);
+      console.error("Failed to save wishlist:", e);
     }
-  }, [wishlist, isHydrated]);
+  }, [wishlist]);
 
-  // Helper: Get product details by ID
-  const getProductById = (id) => MOCK_PRODUCTS.find((p) => p.id === id);
+  // Actions & Handlers
+  const navigateTo = (newView, productId = null) => {
+    if (productId) {
+      setSelectedProductId(productId);
+    }
+    setView(newView);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
-  // Cart Actions
+  const getProductById = (id) => {
+    return products.find((p) => p.id === id);
+  };
+
   const addToCart = (product, firmness, size, qty = 1) => {
     setCart((prevCart) => {
       // Find index of item with same id, firmness, and size
@@ -76,10 +79,16 @@ export function StoreProvider({ children }) {
           item.size === size
       );
 
-      // Determine price for the selected size
-      const price = product.sizePrices && product.sizePrices[size] 
-        ? product.sizePrices[size] 
-        : product.price;
+      const variant = getVariantForSelection(product, size, firmness);
+      const discountPercent = product?.discountPercent ?? product?.Discount_Percentage ?? 10;
+      const rawPrice = Number(
+        (variant && variant.Actual_Price) ??
+        (product.firmnessPrices && product.firmnessPrices[firmness]) ??
+        (product.sizePrices && product.sizePrices[size]) ??
+        (product.Actual_Price ?? product.price) ??
+        0
+      );
+      const price = calculateDiscountedPrice(rawPrice, discountPercent);
 
       if (existingItemIndex > -1) {
         // Increment quantity
@@ -154,15 +163,6 @@ export function StoreProvider({ children }) {
     
     // Remove from wishlist
     toggleWishlist(productId);
-  };
-
-  // View helper
-  const navigateTo = (newView, productId = null) => {
-    setView(newView);
-    if (productId) {
-      setSelectedProductId(productId);
-    }
-    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   return (

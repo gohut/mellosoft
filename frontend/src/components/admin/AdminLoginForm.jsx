@@ -254,18 +254,28 @@ export default function AdminLoginForm() {
             </div>
           </div>
 
-          {/* Remember Me */}
-          <label className="login-remember">
-            <input
-              type="checkbox"
-              checked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
-              disabled={isLoading}
-            />
-            <span style={{ fontSize: "13px", color: "#6B6B75", fontFamily: "Inter, sans-serif" }}>
-              Remember me
-            </span>
-          </label>
+          {/* Remember Me & Forgot Password */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px" }}>
+            <label className="login-remember">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                disabled={isLoading}
+              />
+              <span style={{ color: "#6B6B75", fontFamily: "Inter, sans-serif" }}>
+                Remember me
+              </span>
+            </label>
+
+            <button
+              type="button"
+              onClick={() => setError("Forgot password functionality is not configured yet. Contact your Super Admin.")}
+              style={{ background: "none", border: "none", color: "#1B1F8C", fontWeight: 600, cursor: "pointer", fontSize: "13px", padding: 0, fontFamily: "inherit" }}
+            >
+              Forgot password?
+            </button>
+          </div>
 
           {/* Login Button */}
           <button
@@ -303,43 +313,46 @@ export default function AdminLoginForm() {
                 <span>Signing in…</span>
               </>
             ) : (
-              "Sign In to Dashboard"
+              "Login"
             )}
           </button>
         </form>
 
-        {/* ── Demo Credentials ── */}
+        {/* ── Quick Role Selector Demo Cards ── */}
         <div className="demo-card">
-          <p style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#1B1F8C", marginBottom: "10px" }}>
-            Demo Credentials
+          <p style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#1B1F8C", marginBottom: "8px" }}>
+            Select Demo Account to Test:
           </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-            <div style={demoRowStyle}>
-              <span style={demoLabelStyle}>Email</span>
-              <button
-                type="button"
-                onClick={() => { setEmail("admin@mellosoft.com"); setError(""); }}
-                style={demoValueStyle}
-                title="Click to fill"
-              >
-                admin@mellosoft.com
-              </button>
-            </div>
-            <div style={demoRowStyle}>
-              <span style={demoLabelStyle}>Password</span>
-              <button
-                type="button"
-                onClick={() => { setPassword("Admin@123"); setError(""); }}
-                style={demoValueStyle}
-                title="Click to fill"
-              >
-                Admin@123
-              </button>
-            </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+            <button
+              type="button"
+              onClick={() => { setEmail("admin@mellosoft.com"); setPassword("Admin@123"); setError(""); }}
+              style={demoBadgeStyle}
+            >
+              🔑 <strong>Super Admin</strong>
+            </button>
+            <button
+              type="button"
+              onClick={() => { setEmail("priya@mellosoft.com"); setPassword("Priya@123"); setError(""); }}
+              style={demoBadgeStyle}
+            >
+              🛡️ <strong>Admin</strong>
+            </button>
+            <button
+              type="button"
+              onClick={() => { setEmail("ankit@mellosoft.com"); setPassword("Ankit@123"); setError(""); }}
+              style={demoBadgeStyle}
+            >
+              📦 <strong>Manager</strong>
+            </button>
+            <button
+              type="button"
+              onClick={() => { setEmail("sneha@mellosoft.com"); setPassword("Sneha@123"); setError(""); }}
+              style={demoBadgeStyle}
+            >
+              👤 <strong>Staff</strong>
+            </button>
           </div>
-          <p style={{ fontSize: "11px", color: "#6B6B75", marginTop: "8px", marginBottom: 0 }}>
-            Click email or password above to auto-fill.
-          </p>
         </div>
       </div>
 
@@ -401,34 +414,17 @@ const errorStyle = {
   fontFamily: "Inter, sans-serif",
 };
 
-const demoRowStyle = {
-  display: "flex",
-  alignItems: "center",
-  gap: "10px",
-};
-
-const demoLabelStyle = {
-  fontSize: "12px",
-  color: "#6B6B75",
-  fontWeight: 500,
-  width: "52px",
-  flexShrink: 0,
-  fontFamily: "Inter, sans-serif",
-};
-
-const demoValueStyle = {
-  fontSize: "12px",
+const demoBadgeStyle = {
+  fontSize: "11px",
   color: "#1B1F8C",
-  fontWeight: 600,
-  fontFamily: "'Courier New', monospace",
-  background: "none",
-  border: "none",
+  backgroundColor: "#FFFFFF",
+  border: "1px solid #C7D2FE",
+  borderRadius: "6px",
+  padding: "6px 8px",
   cursor: "pointer",
-  padding: "2px 6px",
-  borderRadius: "4px",
-  transition: "background 0.15s",
-  textDecoration: "underline",
-  textDecorationStyle: "dotted",
+  fontFamily: "Inter, sans-serif",
+  textAlign: "center",
+  transition: "all 0.15s ease",
 };
 
 const blobTopRight = {

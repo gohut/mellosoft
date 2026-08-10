@@ -1,29 +1,65 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { AlertTriangle } from "lucide-react";
 
-export default function ConfirmDialog({ isOpen, onClose, onConfirm, title = "Are you sure?", message = "This action cannot be undone.", confirmLabel = "Delete", confirmColor = "#DC2626" }) {
+export default function ConfirmDialog({
+  isOpen,
+  onClose,
+  onConfirm,
+  title = "Are you sure?",
+  message = "This action cannot be undone.",
+  confirmLabel = "Delete",
+  confirmColor = "#DC2626",
+}) {
+  // Lock body scroll while open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
-  return (
-    <>
-      <div className="admin-overlay" onClick={onClose} />
-      <div style={{
+  // Render via portal so no parent container affects positioning
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
+    <div
+      style={{
         position: "fixed",
-        top: "50%",
-        left: "50%",
-        transform: "translate(-50%, -50%)",
-        zIndex: 1000,
-        width: "90%",
-        maxWidth: "420px",
-        backgroundColor: "#FFFFFF",
-        borderRadius: "16px",
-        boxShadow: "0 20px 60px rgba(0,0,0,0.15)",
-        padding: "32px",
-        textAlign: "center",
-        animation: "adminScaleIn 0.25s ease-out",
-      }}>
+        inset: 0,
+        zIndex: 99999,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        // No backdrop — transparent
+        backgroundColor: "transparent",
+        pointerEvents: "none",
+      }}
+    >
+      {/* Modal card — re-enable pointer events for the card itself */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          pointerEvents: "all",
+          width: "min(90vw, 420px)",
+          backgroundColor: "#FFFFFF",
+          borderRadius: "16px",
+          boxShadow: "0 24px 80px rgba(0,0,0,0.22), 0 4px 16px rgba(0,0,0,0.10)",
+          padding: "32px",
+          textAlign: "center",
+          animation: "adminScaleIn 0.25s ease-out",
+          position: "relative",
+        }}
+      >
+        {/* Warning icon */}
         <div style={{
           width: "56px",
           height: "56px",
@@ -36,8 +72,14 @@ export default function ConfirmDialog({ isOpen, onClose, onConfirm, title = "Are
         }}>
           <AlertTriangle size={28} color="#DC2626" />
         </div>
-        <h3 style={{ fontSize: "18px", fontWeight: 700, color: "#14151A", marginBottom: "8px" }}>{title}</h3>
-        <p style={{ fontSize: "14px", color: "#6B6B75", lineHeight: 1.6, marginBottom: "28px" }}>{message}</p>
+
+        <h3 style={{ fontSize: "18px", fontWeight: 700, color: "#14151A", marginBottom: "8px" }}>
+          {title}
+        </h3>
+        <p style={{ fontSize: "14px", color: "#6B6B75", lineHeight: 1.6, marginBottom: "28px" }}>
+          {message}
+        </p>
+
         <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
           <button
             onClick={onClose}
@@ -51,7 +93,7 @@ export default function ConfirmDialog({ isOpen, onClose, onConfirm, title = "Are
               fontSize: "14px",
               fontWeight: 600,
               cursor: "pointer",
-              transition: "all 0.15s ease",
+              transition: "background-color 0.15s ease",
             }}
             onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#F7F7F2"; }}
             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "#FFFFFF"; }}
@@ -70,15 +112,16 @@ export default function ConfirmDialog({ isOpen, onClose, onConfirm, title = "Are
               fontSize: "14px",
               fontWeight: 600,
               cursor: "pointer",
-              transition: "all 0.15s ease",
+              transition: "opacity 0.15s ease",
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.9"; }}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.88"; }}
             onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; }}
           >
             {confirmLabel}
           </button>
         </div>
       </div>
-    </>
+    </div>,
+    document.body
   );
 }

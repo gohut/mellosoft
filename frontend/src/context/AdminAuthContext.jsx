@@ -7,33 +7,36 @@ import React, {
   useEffect,
   useCallback,
 } from "react";
+import { DEFAULT_USERS } from "../data/usersData";
+import { DEFAULT_ROLES } from "../data/rolesData";
+import { verifyPassword } from "../utils/security";
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-const STORAGE_KEY = "mellosoft_admin_authenticated";
+const SESSION_KEY = "mellosoft_admin_session";
+const CURRENT_USER_ID_KEY = "mellosoft_current_user_id";
 
-// ─── Mock credentials — swap for a real API call in the future ───────────────
-const MOCK_CREDENTIALS = {
-  email: "admin@mellosoft.com",
-  password: "Admin@123",
-};
-
-// ─── Context ──────────────────────────────────────────────────────────────────
 const AdminAuthContext = createContext(null);
 
-// ─── Provider ─────────────────────────────────────────────────────────────────
 export function AdminAuthProvider({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  // loading = true while we hydrate from localStorage (prevents flash)
+  const [currentUserId, setCurrentUserId] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Hydrate session from localStorage on first mount
+  // Hydrate session from localStorage on mount
   useEffect(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      setIsAuthenticated(stored === "true");
+      const sessionToken = localStorage.getItem(SESSION_KEY);
+      const storedUserId = localStorage.getItem(CURRENT_USER_ID_KEY);
+
+      if (sessionToken && storedUserId) {
+        setIsAuthenticated(true);
+        setCurrentUserId(storedUserId);
+      } else {
+        setIsAuthenticated(false);
+        setCurrentUserId(null);
+      }
     } catch {
-      // localStorage unavailable (SSR / private browsing edge cases)
       setIsAuthenticated(false);
+      setCurrentUserId(null);
     } finally {
       setLoading(false);
     }
@@ -41,58 +44,94 @@ export function AdminAuthProvider({ children }) {
 
   /**
    * login(email, password)
-   * Returns { success: true } on success, or { success: false, error: string }.
-   *
-   * Future: Replace the mock check with:
-   *   const res = await fetch("/api/auth/login", { method:"POST", body: JSON.stringify({email,password}) });
-   *   const { token } = await res.json();
-   *   localStorage.setItem("mellosoft_admin_token", token);
+   * Authenticates user, checks status, and creates session.
    */
   const login = useCallback(async (email, password) => {
-    // Simulate network latency for realistic UX
-    await new Promise((r) => setTimeout(r, 800));
+    // Simulate realistic network delay
+    await new Promise((r) => setTimeout(r, 600));
 
-    if (
-      email.trim().toLowerCase() === MOCK_CREDENTIALS.email &&
-      password === MOCK_CREDENTIALS.password
-    ) {
-      try {
-        localStorage.setItem(STORAGE_KEY, "true");
-      } catch {
-        // ignore — session will still work in-memory for this tab
+    const emailTrimmed = email.trim().toLowerCase();
+
+    // Read stored users from localStorage or default
+    let usersList = DEFAULT_USERS;
+    try {
+      const savedUsers = localStorage.getItem("mellosoft_users");
+      if (savedUsers) {
+        const parsed = JSON.parse(savedUsers);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          usersList = parsed;
+        }
       }
-      setIsAuthenticated(true);
-      return { success: true };
+    } catch (e) {
+      console.error("Failed to read users from storage during login:", e);
     }
 
-    return { success: false, error: "Invalid email or password." };
+    const user = usersList.find((u) => u.email.toLowerCase() === emailTrimmed);
+
+    if (!user) {
+      return { success: false, error: "Invalid email or password." };
+    }
+
+    // Verify password hash
+    const isValid = verifyPassword(password, user.passwordHash);
+    if (!isValid) {
+      return { success: false, error: "Invalid email or password." };
+    }
+
+    // Check account status
+    if (user.status !== "Active") {
+      return {
+        success: false,
+        error: "Your account is inactive. Please contact the administrator.",
+      };
+    }
+
+    // Create authenticated session
+    const token = `ms_session_${Date.now()}_${user.id}`;
+    try {
+      localStorage.setItem(SESSION_KEY, token);
+      localStorage.setItem(CURRENT_USER_ID_KEY, user.id);
+    } catch (e) {
+      console.error("Failed to save session to localStorage:", e);
+    }
+
+    setCurrentUserId(user.id);
+    setIsAuthenticated(true);
+
+    return { success: true, user };
   }, []);
 
   /**
    * logout()
-   * Clears auth state and localStorage.
-   *
-   * Future: Also call POST /api/auth/logout to invalidate JWT on server.
+   * Clears auth session and storage.
    */
   const logout = useCallback(() => {
     try {
-      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(SESSION_KEY);
+      localStorage.removeItem(CURRENT_USER_ID_KEY);
     } catch {
       // ignore
     }
     setIsAuthenticated(false);
+    setCurrentUserId(null);
   }, []);
 
   return (
     <AdminAuthContext.Provider
-      value={{ isAuthenticated, loading, login, logout }}
+      value={{
+        isAuthenticated,
+        currentUserId,
+        loading,
+        login,
+        logout,
+        setCurrentUserId,
+      }}
     >
       {children}
     </AdminAuthContext.Provider>
   );
 }
 
-// ─── Hook ─────────────────────────────────────────────────────────────────────
 export function useAdminAuth() {
   const ctx = useContext(AdminAuthContext);
   if (!ctx) {
@@ -100,3 +139,4 @@ export function useAdminAuth() {
   }
   return ctx;
 }
+

@@ -13,10 +13,10 @@ import {
 import {
   ShoppingCart,
   DollarSign,
+  Users,
+  Package,
   TrendingUp,
   TrendingDown,
-  Percent,
-  BarChart2,
   AlertTriangle,
 } from "lucide-react";
 import { PERIOD_DATA_MAP, TIME_FILTERS } from "../../data/dashboardAnalytics";
@@ -69,10 +69,10 @@ function useAnimatedNumber(target, duration = 500) {
 // KPI card config (static meta – values come from dashboardData)
 // ─────────────────────────────────────────────────────────────────────────────
 const KPI_CONFIG = [
-  { key: "totalOrders",    label: "Total Orders",    icon: ShoppingCart, color: "#1B1F8C", bg: "#E8E9F8", prefix: "",  suffix: "",   decimals: 0 },
-  { key: "totalRevenue",   label: "Total Revenue",   icon: DollarSign,   color: "#16A34A", bg: "#DCFCE7", prefix: "₹", suffix: "",   decimals: 0 },
-  { key: "avgOrderValue",  label: "Avg Order Value", icon: BarChart2,    color: "#F59E0B", bg: "#FEF3C7", prefix: "₹", suffix: "",   decimals: 0 },
-  { key: "conversionRate", label: "Conversion Rate", icon: Percent,      color: "#8B5CF6", bg: "#EDE9FE", prefix: "",  suffix: "%",  decimals: 2 },
+  { key: "totalRevenue",   label: "Total Revenue",   icon: DollarSign,   color: "#16A34A", bg: "#DCFCE7", prefix: "₹", suffix: "",  decimals: 0 },
+  { key: "totalOrders",   label: "Total Orders",    icon: ShoppingCart, color: "#1B1F8C", bg: "#E8E9F8", prefix: "",  suffix: "",  decimals: 0 },
+  { key: "totalCustomers", label: "Total Customers", icon: Users,        color: "#F59E0B", bg: "#FEF3C7", prefix: "",  suffix: "",  decimals: 0 },
+  { key: "totalProducts",  label: "Total Products",  icon: Package,      color: "#8B5CF6", bg: "#EDE9FE", prefix: "",  suffix: "",  decimals: 0 },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -117,12 +117,6 @@ function KpiCard({ icon: Icon, label, value, display, change, color, bg, prefix,
     if (label === "Total Revenue") {
       return `₹${Math.round(animatedValue).toLocaleString("en-IN")}`;
     }
-    if (label === "Avg Order Value") {
-      return `₹${Math.round(animatedValue).toLocaleString("en-IN")}`;
-    }
-    if (label === "Conversion Rate") {
-      return `${animatedValue.toFixed(2)}%`;
-    }
     return Math.round(animatedValue).toLocaleString("en-IN");
   })();
 
@@ -137,35 +131,37 @@ function KpiCard({ icon: Icon, label, value, display, change, color, bg, prefix,
       gap: "12px",
       flex: 1,
       minWidth: 0,
+      boxSizing: "border-box",
       transition: "box-shadow 0.2s ease, transform 0.2s ease",
     }}>
       {/* Icon + badge row */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ width: 38, height: 38, borderRadius: 10, backgroundColor: bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <Icon size={18} color={color} />
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "4px" }}>
+        <div style={{ width: 34, height: 34, borderRadius: 8, backgroundColor: bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <Icon size={16} color={color} />
         </div>
-        <div style={{
+        <div className="analytics-mini-badge" style={{
           display: "flex", alignItems: "center", gap: 3,
           fontSize: "12px", fontWeight: 700,
           color: isPositive ? "#16A34A" : "#DC2626",
           backgroundColor: isPositive ? "#DCFCE7" : "#FEE2E2",
-          padding: "3px 9px", borderRadius: 999,
+          padding: "3px 8px", borderRadius: 999,
+          whiteSpace: "nowrap",
         }}>
-          {isPositive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+          {isPositive ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
           {Math.abs(change)}%
         </div>
       </div>
 
       {/* Value */}
       <div>
-        <p style={{ fontSize: "22px", fontWeight: 800, color: "#14151A", letterSpacing: "-0.02em", lineHeight: 1.1, margin: 0 }}>
+        <p className="analytics-mini-value" style={{ fontSize: "22px", fontWeight: 800, color: "#14151A", letterSpacing: "-0.02em", lineHeight: 1.1, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {formatted}
         </p>
-        <p style={{ fontSize: "12px", color: "#6B6B75", marginTop: 4, fontWeight: 500 }}>{label}</p>
+        <p className="analytics-mini-label" style={{ fontSize: "12px", color: "#6B6B75", marginTop: 4, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</p>
       </div>
 
       {/* Trend line */}
-      <p style={{ fontSize: "11px", color: isPositive ? "#16A34A" : "#DC2626", fontWeight: 600, margin: 0 }}>
+      <p className="analytics-mini-trend" style={{ fontSize: "11px", color: isPositive ? "#16A34A" : "#DC2626", fontWeight: 600, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
         {isPositive ? "↑" : "↓"} {Math.abs(change)}% vs last period
       </p>
     </div>
@@ -178,7 +174,7 @@ function KpiCard({ icon: Icon, label, value, display, change, color, bg, prefix,
 function RecentOrdersPanel({ navigateTo }) {
   const orders = MOCK_ORDERS.slice(0, 5);
   return (
-    <div style={panelStyle}>
+    <div className="analytics-panel" style={panelStyle}>
       <div style={panelHeaderStyle}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <ShoppingCart size={16} color="#1B1F8C" />
@@ -188,7 +184,9 @@ function RecentOrdersPanel({ navigateTo }) {
           <button onClick={() => navigateTo("orders")} style={viewAllStyle}>View All</button>
         )}
       </div>
-      <div style={{ overflowX: "auto" }}>
+
+      {/* Desktop Table View */}
+      <div className="admin-desktop-only" style={{ overflowX: "auto", width: "100%" }}>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr>
@@ -210,6 +208,31 @@ function RecentOrdersPanel({ navigateTo }) {
           </tbody>
         </table>
       </div>
+
+      {/* Mobile Compact View */}
+      <div className="admin-mobile-only" style={{ display: "none", flexDirection: "column", gap: "8px" }}>
+        {orders.map((order) => (
+          <div key={order.id} style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "4px",
+            padding: "10px 12px",
+            backgroundColor: "#FFFFFF",
+            borderRadius: "8px",
+            border: "1px solid #EEEEE9",
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontWeight: 700, color: "#1B1F8C", fontSize: "13px" }}>{order.id}</span>
+              <StatusBadge status={order.orderStatus} />
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px" }}>
+              <span style={{ color: "#14151A", fontWeight: 600 }}>{order.customer}</span>
+              <span style={{ fontWeight: 700, color: "#14151A" }}>{formatPrice(order.amount)}</span>
+            </div>
+            <div style={{ fontSize: "11px", color: "#6B6B75" }}>{order.date}</div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -228,17 +251,19 @@ function LowStockPanel({ navigateTo }) {
   };
 
   return (
-    <div style={panelStyle}>
+    <div className="analytics-panel" style={panelStyle}>
       <div style={panelHeaderStyle}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <AlertTriangle size={16} color="#F59E0B" />
           <span style={panelTitleStyle}>Low Stock Products</span>
         </div>
         {navigateTo && (
-          <button onClick={() => navigateTo("inventory")} style={viewAllStyle}>View All</button>
+          <button onClick={() => navigateTo("products")} style={viewAllStyle}>View All</button>
         )}
       </div>
-      <div style={{ display: "flex", flexDirection: "column" }}>
+
+      {/* Desktop List View */}
+      <div className="admin-desktop-only" style={{ display: "flex", flexDirection: "column" }}>
         {lowStock.map((item, idx) => {
           const c = stockColors[item.status] || { bg: "#F3F4F6", text: "#374151" };
           return (
@@ -268,6 +293,51 @@ function LowStockPanel({ navigateTo }) {
               >
                 Restock
               </button>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Mobile Card List View */}
+      <div className="admin-mobile-only" style={{ display: "none", flexDirection: "column", gap: "8px" }}>
+        {lowStock.map((item) => {
+          const c = stockColors[item.status] || { bg: "#F3F4F6", text: "#374151" };
+          return (
+            <div key={item.id} style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "6px",
+              padding: "10px 12px",
+              backgroundColor: "#FFFFFF",
+              borderRadius: "8px",
+              border: "1px solid #EEEEE9",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: "#F7F7F2", border: "1px solid #E7E7E2", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 14 }}>
+                  🛏️
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: "13px", fontWeight: 600, color: "#14151A", margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {item.product}
+                  </p>
+                  <p style={{ fontSize: "11px", color: "#6B6B75", margin: "1px 0 0" }}>{item.variant}</p>
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: "6px", borderTop: "1px dashed #F4F4F0" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span style={{ fontSize: "12px", fontWeight: 800, color: item.available === 0 ? "#DC2626" : "#14151A" }}>
+                    {item.available} units left
+                  </span>
+                  <span style={{ fontSize: "10px", fontWeight: 700, color: c.text, backgroundColor: c.bg, padding: "2px 6px", borderRadius: 999, whiteSpace: "nowrap" }}>
+                    {item.status}
+                  </span>
+                </div>
+                <button
+                  style={{ border: "1px solid #1B1F8C", backgroundColor: "transparent", color: "#1B1F8C", fontSize: "11px", fontWeight: 700, padding: "3px 8px", borderRadius: 6, cursor: "pointer", fontFamily: "inherit" }}
+                >
+                  Restock
+                </button>
+              </div>
             </div>
           );
         })}
@@ -304,10 +374,10 @@ export default function SalesAnalyticsCard({ navigateTo }) {
   }, []);
 
   return (
-    <div style={cardStyle}>
+    <div className="analytics-card-container" style={cardStyle}>
 
       {/* ── Card Header ───────────────────────────────────────────────────── */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
             <div style={{ width: 32, height: 32, borderRadius: 9, backgroundColor: "#E8E9F8", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -317,19 +387,20 @@ export default function SalesAnalyticsCard({ navigateTo }) {
               Sales &amp; Orders Overview
             </h2>
           </div>
-          <p style={{ fontSize: "13px", color: "#6B6B75", margin: "0 0 0 42px" }}>
+          <p className="analytics-header-subtitle" style={{ fontSize: "13px", color: "#6B6B75", margin: "0 0 0 42px" }}>
             Track daily sales performance and customer orders.
           </p>
         </div>
 
         {/* ── Time Filter Buttons ── */}
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        <div className="analytics-time-filters" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {TIME_FILTERS.map((f) => {
             const isActive = selectedPeriod === f.id;
             return (
               <button
                 key={f.id}
                 onClick={() => handleFilterChange(f.id)}
+                className="analytics-time-filter-btn"
                 style={{
                   border: isActive ? "none" : "1px solid #E7E7E2",
                   backgroundColor: isActive ? "#1B1F8C" : "#FFFFFF",
@@ -375,10 +446,10 @@ export default function SalesAnalyticsCard({ navigateTo }) {
       </div>
 
       {/* ── Recharts Area Chart ───────────────────────────────────────────── */}
-      <div style={{ backgroundColor: "#FAFAF8", borderRadius: 12, border: "1px solid #EEEEE9", padding: "20px 8px 8px 4px" }}>
+      <div className="analytics-chart-box" style={{ backgroundColor: "#FAFAF8", borderRadius: 12, border: "1px solid #EEEEE9", padding: "20px 8px 8px 4px", minWidth: 0, overflow: "hidden" }}>
 
         {/* Legend toggle */}
-        <div style={{ display: "flex", gap: 20, paddingLeft: 12, marginBottom: 12 }}>
+        <div style={{ display: "flex", gap: 16, paddingLeft: 12, marginBottom: 12 }}>
           {[{ key: "orders", color: "#1B1F8C", label: "Orders" }, { key: "revenue", color: "#16A34A", label: "Revenue" }].map(({ key, color, label }) => (
             <button
               key={key}
@@ -387,93 +458,95 @@ export default function SalesAnalyticsCard({ navigateTo }) {
               style={{
                 display: "flex", alignItems: "center", gap: 7,
                 background: "none", border: "none", cursor: "pointer",
-                padding: "4px 10px", borderRadius: 7,
+                padding: "4px 8px", borderRadius: 7,
                 opacity: hiddenLines[key] ? 0.35 : 1,
                 transition: "opacity 0.2s",
                 fontFamily: "inherit",
               }}
             >
-              <span style={{ width: 28, height: 3, borderRadius: 999, backgroundColor: color, display: "inline-block" }} />
+              <span style={{ width: 24, height: 3, borderRadius: 999, backgroundColor: color, display: "inline-block" }} />
               <span style={{ fontSize: "12px", fontWeight: 600, color: "#14151A" }}>{label}</span>
             </button>
           ))}
         </div>
 
         {/* The chart – key change forces remount + entry animation */}
-        <ResponsiveContainer width="100%" height={280}>
-          <AreaChart key={chartKey} data={chartData} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
-            <defs>
-              <linearGradient id="analyticsOrdersGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%"  stopColor="#1B1F8C" stopOpacity={0.18} />
-                <stop offset="95%" stopColor="#1B1F8C" stopOpacity={0}    />
-              </linearGradient>
-              <linearGradient id="analyticsRevenueGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%"  stopColor="#16A34A" stopOpacity={0.15} />
-                <stop offset="95%" stopColor="#16A34A" stopOpacity={0}    />
-              </linearGradient>
-            </defs>
+        <div className="analytics-chart-container" style={{ width: "100%", height: "280px", minWidth: 0 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart key={chartKey} data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+              <defs>
+                <linearGradient id="analyticsOrdersGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%"  stopColor="#1B1F8C" stopOpacity={0.18} />
+                  <stop offset="95%" stopColor="#1B1F8C" stopOpacity={0}    />
+                </linearGradient>
+                <linearGradient id="analyticsRevenueGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%"  stopColor="#16A34A" stopOpacity={0.15} />
+                  <stop offset="95%" stopColor="#16A34A" stopOpacity={0}    />
+                </linearGradient>
+              </defs>
 
-            <CartesianGrid strokeDasharray="3 3" stroke="#E7E7E2" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#E7E7E2" vertical={false} />
 
-            <XAxis
-              dataKey="label"
-              tick={{ fontSize: 12, fill: "#9CA3AF", fontFamily: "inherit" }}
-              axisLine={false}
-              tickLine={false}
-              dy={8}
-            />
-            <YAxis
-              yAxisId="orders"
-              orientation="left"
-              tick={{ fontSize: 11, fill: "#9CA3AF", fontFamily: "inherit" }}
-              axisLine={false}
-              tickLine={false}
-              width={36}
-            />
-            <YAxis
-              yAxisId="revenue"
-              orientation="right"
-              tick={{ fontSize: 11, fill: "#9CA3AF", fontFamily: "inherit" }}
-              axisLine={false}
-              tickLine={false}
-              width={58}
-              tickFormatter={(v) => `₹${v >= 100000 ? `${(v / 100000).toFixed(1)}L` : v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`}
-            />
-
-            <Tooltip content={<CustomTooltip />} />
-
-            {!hiddenLines.orders && (
-              <Area
+              <XAxis
+                dataKey="label"
+                tick={{ fontSize: 11, fill: "#9CA3AF", fontFamily: "inherit" }}
+                axisLine={false}
+                tickLine={false}
+                dy={6}
+              />
+              <YAxis
                 yAxisId="orders"
-                type="monotone"
-                dataKey="orders"
-                name="orders"
-                stroke="#1B1F8C"
-                strokeWidth={2.5}
-                fill="url(#analyticsOrdersGrad)"
-                dot={false}
-                activeDot={{ r: 5, strokeWidth: 2, stroke: "#fff", fill: "#1B1F8C" }}
-                animationDuration={750}
-                animationEasing="ease-out"
+                orientation="left"
+                tick={{ fontSize: 10, fill: "#9CA3AF", fontFamily: "inherit" }}
+                axisLine={false}
+                tickLine={false}
+                width={28}
               />
-            )}
-            {!hiddenLines.revenue && (
-              <Area
+              <YAxis
                 yAxisId="revenue"
-                type="monotone"
-                dataKey="revenue"
-                name="revenue"
-                stroke="#16A34A"
-                strokeWidth={2.5}
-                fill="url(#analyticsRevenueGrad)"
-                dot={false}
-                activeDot={{ r: 5, strokeWidth: 2, stroke: "#fff", fill: "#16A34A" }}
-                animationDuration={750}
-                animationEasing="ease-out"
+                orientation="right"
+                tick={{ fontSize: 10, fill: "#9CA3AF", fontFamily: "inherit" }}
+                axisLine={false}
+                tickLine={false}
+                width={48}
+                tickFormatter={(v) => `₹${v >= 100000 ? `${(v / 100000).toFixed(1)}L` : v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`}
               />
-            )}
-          </AreaChart>
-        </ResponsiveContainer>
+
+              <Tooltip content={<CustomTooltip />} />
+
+              {!hiddenLines.orders && (
+                <Area
+                  yAxisId="orders"
+                  type="monotone"
+                  dataKey="orders"
+                  name="orders"
+                  stroke="#1B1F8C"
+                  strokeWidth={2.5}
+                  fill="url(#analyticsOrdersGrad)"
+                  dot={false}
+                  activeDot={{ r: 5, strokeWidth: 2, stroke: "#fff", fill: "#1B1F8C" }}
+                  animationDuration={750}
+                  animationEasing="ease-out"
+                />
+              )}
+              {!hiddenLines.revenue && (
+                <Area
+                  yAxisId="revenue"
+                  type="monotone"
+                  dataKey="revenue"
+                  name="revenue"
+                  stroke="#16A34A"
+                  strokeWidth={2.5}
+                  fill="url(#analyticsRevenueGrad)"
+                  dot={false}
+                  activeDot={{ r: 5, strokeWidth: 2, stroke: "#fff", fill: "#16A34A" }}
+                  animationDuration={750}
+                  animationEasing="ease-out"
+                />
+              )}
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
       </div>
 
       {/* ── Two-column: Recent Orders + Low Stock ─────────────────────────── */}

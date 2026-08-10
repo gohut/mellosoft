@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useStore } from "../context/StoreContext";
-import { formatPrice } from "../utils/currency";
+import { formatPrice, calculateDiscountedPrice } from "../utils/currency";
 
 export default function ProductCard({ product }) {
   const { wishlist, toggleWishlist, navigateTo } = useStore();
@@ -12,6 +12,8 @@ export default function ProductCard({ product }) {
     event.stopPropagation();
     toggleWishlist(product.id);
   };
+
+  const discPrice = calculateDiscountedPrice(product.price, product.discountPercent);
 
   return (
     <article
@@ -49,7 +51,7 @@ export default function ProductCard({ product }) {
           {product.category && <span style={categoryStyle} className="pc-category">{product.category}</span>}
         </div>
         <div style={metaRowStyle}>
-          <span style={priceStyle} className="pc-price">{formatPrice(product.price)}</span>
+          <span style={priceStyle} className="pc-price">{formatPrice(discPrice)}</span>
           <span style={compactRatingStyle} className="pc-rating">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="#16A34A" stroke="#16A34A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />

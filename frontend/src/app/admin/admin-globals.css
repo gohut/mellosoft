@@ -197,38 +197,167 @@
   }
 }
 
-/* ─── Breakpoint: 768px ──────────────────────────────────── */
+/* ─── Breakpoint: 768px (Mobile & Small Tablets) ─────────── */
 @media (max-width: 768px) {
+  html, body, .admin-root {
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
+  }
+
   .admin-root {
     font-size: 14px;
   }
+
+  .admin-main-area {
+    margin-left: 0 !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+  }
+
+  .admin-main-area main {
+    padding: 12px 12px 24px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+  }
+
+  .admin-header {
+    padding: 0 12px !important;
+    gap: 8px !important;
+  }
+
   .admin-add-product-grid {
     grid-template-columns: 1fr !important;
   }
+
   .admin-products-topbar {
     flex-direction: column;
     align-items: stretch !important;
   }
+
+  .admin-categories-actions {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    width: 100% !important;
+  }
+
+  .admin-categories-search {
+    width: 100% !important;
+  }
+
   .admin-settings-grid {
     grid-template-columns: 1fr !important;
   }
-  .admin-main-area main {
-    padding: 16px 14px 32px !important;
+
+  /* Analytics card container */
+  .analytics-card-container {
+    padding: 14px 12px !important;
+    gap: 14px !important;
+    border-radius: 10px !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+  }
+
+  .analytics-header-subtitle {
+    margin-left: 0 !important;
+    margin-top: 4px !important;
+  }
+
+  .analytics-time-filters {
+    width: 100% !important;
+    gap: 6px !important;
+  }
+
+  .analytics-time-filter-btn {
+    padding: 5px 10px !important;
+    font-size: 11px !important;
+  }
+
+  /* Statistic Cards */
+  .analytics-mini-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  .analytics-mini-card {
+    padding: 12px 10px !important;
+    gap: 6px !important;
+    min-width: 0 !important;
+  }
+
+  .analytics-mini-value {
+    font-size: 18px !important;
+  }
+
+  .analytics-mini-label {
+    font-size: 11px !important;
+  }
+
+  .analytics-mini-badge {
+    font-size: 10px !important;
+    padding: 2px 6px !important;
+  }
+
+  .analytics-mini-trend {
+    font-size: 10px !important;
+  }
+
+  /* Chart box */
+  .analytics-chart-box {
+    padding: 12px 4px 4px 0px !important;
+  }
+
+  .analytics-chart-container {
+    height: 250px !important;
+  }
+
+  /* Panels */
+  .analytics-panel {
+    padding: 12px !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .analytics-bottom-grid {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
   }
 }
 
-/* ─── Breakpoint: 640px ──────────────────────────────────── */
-@media (max-width: 640px) {
+/* ─── Breakpoint: 480px ──────────────────────────────────── */
+@media (max-width: 480px) {
+  .analytics-mini-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  .analytics-mini-card {
+    padding: 10px 8px !important;
+  }
+
+  .analytics-mini-value {
+    font-size: 16px !important;
+  }
+
+  .analytics-chart-container {
+    height: 230px !important;
+  }
+
   .admin-stats-grid {
     grid-template-columns: 1fr !important;
   }
+
   .admin-categories-grid {
     grid-template-columns: 1fr !important;
   }
+}
+
+/* ─── Breakpoint: 360px ──────────────────────────────────── */
+@media (max-width: 360px) {
   .analytics-mini-grid {
-    grid-template-columns: 1fr 1fr !important;
-  }
-  .analytics-bottom-grid {
     grid-template-columns: 1fr !important;
   }
 }

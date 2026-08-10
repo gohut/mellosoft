@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from "react";
 import { useAdmin } from "../context/AdminContext";
-import { Upload, X, Plus, Save, ChevronLeft, Tag, Percent } from "lucide-react";
+import { Upload, X, Plus, Image as ImageIcon, Save, ChevronLeft, Tag, Percent } from "lucide-react";
 import { formatPrice, calculateDiscountedPrice } from "../../utils/currency";
 import { reconcileVariants } from "../../utils/variantHelpers";
 
@@ -11,44 +11,58 @@ const sizeOptions = ["Twin", "Full", "Queen", "King", "Standard"];
 const firmnessOptions = ["Soft", "Medium", "Firm", "Standard"];
 const statusOptions = ["Active", "Inactive", "Low Stock", "Out of Stock"];
 
-function buildInitialForm() {
-  const generatedId = `PROD-${Math.floor(100 + Math.random() * 900)}`;
+function buildInitialForm(product) {
+  const baseActualPrice = Number(product.Actual_Price ?? product.price ?? 999);
+
+  const sizes = product.availableSizes
+    ? [...product.availableSizes]
+    : (product.sizeOptions ? [...product.sizeOptions] : (product.sizes ? [...product.sizes] : ["Queen"]));
+
+  const firmness = product.availableFirmness
+    ? [...product.availableFirmness]
+    : (product.firmnessOptions ? [...product.firmnessOptions] : (product.firmness ? [...product.firmness] : ["Medium"]));
+
+  const reconciled = reconcileVariants(
+    sizes,
+    firmness,
+    product.variants || [],
+    baseActualPrice,
+    product.sizePrices || {},
+    product.firmnessPrices || {}
+  );
+
+  const d = product?.discountPercent ?? product?.Discount_Percentage;
 
   return {
-    id: "",
-    Product_Id: generatedId,
-    Product_Name: "",
-    name: "",
-    description: "",
-    category: "mattress",
-    brand: "",
-    material: "",
-    specs: "",
-    tagline: "",
-    status: "Active",
-    rating: "5.0",
-    discountPercent: "0",
-    basePrice: 999,
-    sizes: [],
-    firmness: [],
-    images: [],
-    features: [],
-    sizePrices: {},
-    firmnessPrices: {},
-    variants: [],
+    id: product.id ?? "",
+    Product_Id: product.Product_Id ?? product.id ?? "",
+    Product_Name: product.Product_Name ?? product.name ?? "",
+    name: product.name ?? "",
+    description: product.description ?? "",
+    category: product.category ?? "mattress",
+    brand: product.brand ?? "",
+    material: product.material ?? "",
+    specs: product.specs ?? "",
+    tagline: product.tagline ?? "",
+    status: product.status ?? "Active",
+    rating: String(product.rating ?? "4.8"),
+    discountPercent: typeof d === "number" ? String(d) : "10",
+    basePrice: baseActualPrice,
+    sizes,
+    firmness,
+    images: product.images ? [...product.images] : (product.image ? [product.image] : []),
+    features: product.features ? [...product.features] : [],
+    sizePrices: product.sizePrices ? { ...product.sizePrices } : {},
+    firmnessPrices: product.firmnessPrices ? { ...product.firmnessPrices } : {},
+    variants: reconciled,
   };
 }
 
-export default function AddProductView() {
-  const { navigateTo, addProduct, products, categories } = useAdmin();
+export default function EditProductView() {
+  const { products, selectedProductId, navigateTo, updateProduct, categories } = useAdmin();
+  const product = products.find((p) => p.id === selectedProductId) || products[0];
 
-  const [form, setForm] = useState(() => {
-    const nextNum = (products?.length || 8) + 1;
-    const generatedId = `PROD-${String(nextNum).padStart(3, "0")}`;
-    const initial = buildInitialForm();
-    initial.Product_Id = generatedId;
-    return initial;
-  });
+  const [form, setForm] = useState(() => buildInitialForm(product));
   const [errors, setErrors] = useState({});
   const [toast, setToast] = useState(null);
   const [dragOver, setDragOver] = useState(false);
@@ -60,6 +74,10 @@ export default function AddProductView() {
   const toggleSize = (size) => {
     setForm((prev) => {
       const isSelected = prev.sizes.includes(size);
+      if (isSelected && prev.sizes.length <= 1) {
+        alert("Product must have at least one Size option selected.");
+        return prev;
+      }
       const newSizes = isSelected ? prev.sizes.filter((s) => s !== size) : [...prev.sizes, size];
       const newVariants = reconcileVariants(
         newSizes,
@@ -68,22 +86,7 @@ export default function AddProductView() {
         prev.basePrice,
         prev.sizePrices,
         prev.firmnessPrices
-      ).map((v) => {
-        const exists = prev.variants.some(
-          (existing) => (existing.Size || existing.size) === v.Size && (existing.Firmness || existing.firmness) === v.Firmness
-        );
-        if (!exists) {
-          return {
-            ...v,
-            Actual_Price: prev.basePrice || 999,
-            Stock: 15,
-            Threshold: 2,
-            Status: "Active",
-          };
-        }
-        return v;
-      });
-
+      );
       return {
         ...prev,
         sizes: newSizes,
@@ -95,6 +98,10 @@ export default function AddProductView() {
   const toggleFirmness = (firmnessItem) => {
     setForm((prev) => {
       const isSelected = prev.firmness.includes(firmnessItem);
+      if (isSelected && prev.firmness.length <= 1) {
+        alert("Product must have at least one Firmness option selected.");
+        return prev;
+      }
       const newFirmness = isSelected ? prev.firmness.filter((f) => f !== firmnessItem) : [...prev.firmness, firmnessItem];
       const newVariants = reconcileVariants(
         prev.sizes,
@@ -103,22 +110,7 @@ export default function AddProductView() {
         prev.basePrice,
         prev.sizePrices,
         prev.firmnessPrices
-      ).map((v) => {
-        const exists = prev.variants.some(
-          (existing) => (existing.Size || existing.size) === v.Size && (existing.Firmness || existing.firmness) === v.Firmness
-        );
-        if (!exists) {
-          return {
-            ...v,
-            Actual_Price: prev.basePrice || 999,
-            Stock: 15,
-            Threshold: 2,
-            Status: "Active",
-          };
-        }
-        return v;
-      });
-
+      );
       return {
         ...prev,
         firmness: newFirmness,
@@ -147,7 +139,13 @@ export default function AddProductView() {
   };
 
   const removeImage = (idx) => {
-    setForm((prev) => ({ ...prev, images: prev.images.filter((_, i) => i !== idx) }));
+    setForm((prev) => {
+      if (prev.images.length <= 1) {
+        alert("Product must have at least one image.");
+        return prev;
+      }
+      return { ...prev, images: prev.images.filter((_, i) => i !== idx) };
+    });
   };
 
   const handleDrop = (e) => {
@@ -172,6 +170,7 @@ export default function AddProductView() {
     if (!form.description.trim()) e.description = "Description is required.";
     if (!form.category) e.category = "Category is required.";
     if (!form.status) e.status = "Status is required.";
+    if (form.images.length === 0) e.images = "At least one product image is required.";
     if (form.sizes.length === 0) e.sizes = "At least one size option must be selected.";
     if (form.firmness.length === 0) e.firmness = "At least one firmness option must be selected.";
 
@@ -180,111 +179,77 @@ export default function AddProductView() {
       e.discountPercent = "Discount percentage must be a number between 0 and 100.";
     }
 
-    const invalidVariantPrice = form.variants.find((v) => isNaN(Number(v.Actual_Price)) || Number(v.Actual_Price) < 0);
+    const invalidVariantPrice = form.variants.find((v) => isNaN(v.Actual_Price) || v.Actual_Price < 0);
     if (invalidVariantPrice) {
       e.variantPrice = `Variant ${invalidVariantPrice.Size} + ${invalidVariantPrice.Firmness} must have a price >= 0.`;
     }
 
-    const invalidVariantStock = form.variants.find((v) => isNaN(Number(v.Stock)) || Number(v.Stock) < 0);
+    const invalidVariantStock = form.variants.find((v) => isNaN(v.Stock) || v.Stock < 0);
     if (invalidVariantStock) {
       e.variantStock = `Variant ${invalidVariantStock.Size} + ${invalidVariantStock.Firmness} must have stock >= 0.`;
-    }
-
-    const invalidVariantThreshold = form.variants.find((v) => isNaN(Number(v.Threshold)) || Number(v.Threshold) < 0);
-    if (invalidVariantThreshold) {
-      e.variantThreshold = `Variant ${invalidVariantThreshold.Size} + ${invalidVariantThreshold.Firmness} must have threshold >= 0.`;
     }
 
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  // ─── Submit ───────────────────────────────────────────────────────
-  const handleSubmit = (e) => {
+  // ─── Save ─────────────────────────────────────────────────────────
+  const handleSave = (e) => {
     e.preventDefault();
     if (!validate()) return;
 
     const discNum = Number(form.discountPercent) || 0;
     const totalCalculatedStock = form.variants.reduce((sum, v) => sum + Number(v.Stock || 0), 0);
-    const baseActualPrice = form.variants.length > 0 ? Number(form.variants[0].Actual_Price) : 999;
-    const generatedSlugId = form.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || `prod-${Date.now()}`;
-    const prodCode = form.Product_Id || `PROD-${String((products?.length || 0) + 1).padStart(3, "0")}`;
+    const baseActualPrice = form.variants.length > 0 ? form.variants[0].Actual_Price : Number(product.price || 999);
 
-    const processedVariants = form.variants.map((v) => {
-      const sz = v.Size || v.size;
-      const fm = v.Firmness || v.firmness;
-      const actualP = Number(v.Actual_Price ?? v.price ?? baseActualPrice);
-      const discP = calculateDiscountedPrice(actualP, discNum);
-      const stk = Number(v.Stock ?? v.stock ?? 0);
-      const thres = Number(v.Threshold ?? v.threshold ?? 10);
-      const stat = v.Status || v.status || (stk === 0 ? "Out of Stock" : (stk <= thres ? "Low Stock" : "Active"));
-
-      return {
-        Variant_Id: v.Variant_Id || v.id || `VAR-${sz.toUpperCase()}-${fm.toUpperCase()}`,
-        SKU: v.SKU || v.sku || `MEL-${sz.toUpperCase()}-${fm.toUpperCase()}`,
-        Size: sz,
-        size: sz,
-        Firmness: fm,
-        firmness: fm,
-        Actual_Price: actualP,
-        price: actualP,
-        Discounted_Price: discP,
-        discountedPrice: discP,
-        Stock: stk,
-        stock: stk,
-        Threshold: thres,
-        threshold: thres,
-        Status: stat,
-        status: stat,
-      };
-    });
-
-    const newProduct = {
-      id: generatedSlugId,
-      Product_Id: prodCode,
+    const updated = {
+      ...product,
+      Product_Id: form.Product_Id || product.Product_Id || product.id,
       Product_Name: form.name.trim(),
       name: form.name.trim(),
-      tagline: form.tagline.trim(),
       description: form.description.trim(),
+      tagline: form.tagline.trim(),
       category: form.category,
-      status: form.status,
       price: baseActualPrice,
       Actual_Price: baseActualPrice,
       discountPercent: discNum,
       Discount_Percentage: discNum,
-      discountPercentage: discNum,
-      discountPrice: calculateDiscountedPrice(baseActualPrice, discNum),
-      Discounted_Price: calculateDiscountedPrice(baseActualPrice, discNum),
       stock: totalCalculatedStock,
-      Stock: totalCalculatedStock,
-      threshold: 10,
-      Threshold: 10,
-      brand: form.brand.trim() || "Mellosoft",
+      threshold: Number(product.threshold ?? 10),
+      brand: form.brand.trim() || undefined,
       material: form.material.trim() || undefined,
       specs: form.specs.trim() || undefined,
-      specifications: form.specs.trim() || undefined,
-      rating: Number(form.rating) || 5.0,
+      status: form.status,
+      rating: form.rating ? Number(form.rating) : product.rating,
       sizeOptions: form.sizes,
       availableSizes: form.sizes,
       sizes: form.sizes,
       firmnessOptions: form.firmness,
       availableFirmness: form.firmness,
       firmness: form.firmness,
-      images: form.images.length > 0 ? form.images : ["/asset/img1.jpg"],
+      images: form.images.length > 0 ? form.images : product.images,
       features: form.features.filter((f) => f.trim() !== ""),
-      keyFeatures: form.features.filter((f) => f.trim() !== ""),
-      variants: processedVariants,
+      variants: form.variants,
     };
 
-    addProduct(newProduct);
-    setForm(buildInitialForm());
-    setToast({ msg: `Product "${newProduct.name}" created successfully!` });
-
+    updateProduct(updated);
+    setToast({ msg: `Product "${updated.name}" saved successfully.` });
     setTimeout(() => {
       setToast(null);
-      navigateTo("products");
-    }, 1200);
+      navigateTo("product-details", product.id);
+    }, 1500);
   };
+
+  if (!product) {
+    return (
+      <div style={{ padding: "48px", textAlign: "center", color: "#6B6B75" }}>
+        Product not found.{" "}
+        <button onClick={() => navigateTo("products")} style={{ color: "#1B1F8C", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>
+          ← Back to Products
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="admin-fade-in">
@@ -300,7 +265,7 @@ export default function AddProductView() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSave}>
         <div className="admin-add-product-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
 
           {/* ── LEFT COLUMN: Basic Information & Available Variants & Options ── */}
@@ -310,25 +275,25 @@ export default function AddProductView() {
             <div style={cardStyle}>
               <h4 style={cardTitleStyle}>Basic Information</h4>
 
-              {/* Product ID – auto generated */}
+              {/* Product ID – read only */}
               <div style={fieldGroup}>
-                <label style={labelStyle}>Product ID <span style={{ color: "#9CA3AF", fontWeight: 400 }}>(auto-generated)</span></label>
+                <label style={labelStyle}>Product ID <span style={{ color: "#9CA3AF", fontWeight: 400 }}>(read-only)</span></label>
                 <input
-                  value={form.Product_Id}
-                  onChange={(e) => update("Product_Id", e.target.value)}
-                  style={{ ...inputStyle, backgroundColor: "#F7F7F2", color: "#6B6B75" }}
+                  value={form.Product_Id || form.id}
+                  readOnly
+                  style={{ ...inputStyle, backgroundColor: "#F7F7F2", color: "#6B6B75", cursor: "default" }}
                 />
               </div>
 
               <div style={fieldGroup}>
                 <label style={labelStyle}>Product Name *</label>
-                <input value={form.name} onChange={(e) => update("name", e.target.value)} style={inputStyle} placeholder="Enter product name" required />
+                <input value={form.name} onChange={(e) => update("name", e.target.value)} style={inputStyle} placeholder="e.g. Mellosoft Classic Mattress" />
                 {errors.name && <span style={errStyle}>{errors.name}</span>}
               </div>
 
               <div style={fieldGroup}>
                 <label style={labelStyle}>Tagline / Subtitle</label>
-                <input value={form.tagline} onChange={(e) => update("tagline", e.target.value)} style={inputStyle} placeholder="Enter tagline" />
+                <input value={form.tagline} onChange={(e) => update("tagline", e.target.value)} style={inputStyle} placeholder="e.g. The perfect balance of comfort and support." />
               </div>
 
               <div style={fieldGroup}>
@@ -337,9 +302,8 @@ export default function AddProductView() {
                   value={form.description}
                   onChange={(e) => update("description", e.target.value)}
                   rows={4}
-                  style={{ ...inputStyle, height: "auto", padding: "10px 14px", resize: "vertical", minHeight: "100px" }}
+                  style={{ ...inputStyle, resize: "vertical", minHeight: "100px" }}
                   placeholder="Describe the product features and benefits..."
-                  required
                 />
                 {errors.description && <span style={errStyle}>{errors.description}</span>}
               </div>
@@ -424,7 +388,7 @@ export default function AddProductView() {
           {/* ── RIGHT COLUMN: Product Details, Images & Key Features ────────── */}
           <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
 
-            {/* Product Details (Top-right) */}
+            {/* Product Details (Moved to top-right) */}
             <div style={cardStyle}>
               <h4 style={cardTitleStyle}>Product Details</h4>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
@@ -443,8 +407,8 @@ export default function AddProductView() {
                   value={form.specs}
                   onChange={(e) => update("specs", e.target.value)}
                   rows={2}
-                  style={{ ...inputStyle, height: "auto", padding: "10px 14px", resize: "vertical" }}
-                  placeholder="Enter product specifications"
+                  style={{ ...inputStyle, resize: "vertical" }}
+                  placeholder='e.g. 10" Height • 3 Foam Layers • Cool-to-the-touch Cover'
                 />
               </div>
             </div>
@@ -533,7 +497,7 @@ export default function AddProductView() {
                     value={f}
                     onChange={(e) => updateFeature(i, e.target.value)}
                     rows={2}
-                    style={{ ...inputStyle, height: "auto", padding: "10px 14px", resize: "vertical", flex: 1 }}
+                    style={{ ...inputStyle, resize: "vertical", flex: 1 }}
                     placeholder="Describe a key product feature..."
                   />
                   <button type="button" onClick={() => removeFeature(i)} style={{ ...iconBtn, marginTop: "2px" }}>
@@ -550,9 +514,9 @@ export default function AddProductView() {
         <div style={{ marginTop: "24px", display: "flex", flexDirection: "column", gap: "20px" }}>
 
           {/* Validation Banner for Price/Stock */}
-          {(errors.variantPrice || errors.variantStock || errors.variantThreshold || errors.discountPercent) && (
+          {(errors.variantPrice || errors.variantStock || errors.discountPercent) && (
             <div style={{ backgroundColor: "#FEE2E2", border: "1px solid #FCA5A5", color: "#DC2626", padding: "12px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: 600 }}>
-              {errors.variantPrice || errors.variantStock || errors.variantThreshold || errors.discountPercent}
+              {errors.variantPrice || errors.variantStock || errors.discountPercent}
             </div>
           )}
 
@@ -619,8 +583,8 @@ export default function AddProductView() {
                     {form.variants.map((v) => {
                       const sizeName = v.Size || v.size;
                       const firmnessName = v.Firmness || v.firmness;
-                      const priceVal = v.Actual_Price;
-                      const discPrice = priceVal === "" ? "" : calculateDiscountedPrice(Number(priceVal), Number(form.discountPercent) || 0);
+                      const priceVal = v.Actual_Price !== undefined ? v.Actual_Price : (v.price ?? 0);
+                      const discPrice = calculateDiscountedPrice(priceVal, Number(form.discountPercent) || 0);
 
                       return (
                         <tr key={`${sizeName}__${firmnessName}`} style={{ borderBottom: "1px solid #F0F0EC" }}>
@@ -632,7 +596,7 @@ export default function AddProductView() {
                               value={priceVal}
                               onChange={(e) => updateVariant(sizeName, firmnessName, "Actual_Price", e.target.value)}
                               style={{ ...inputStyle, height: "36px", padding: "0 10px", fontWeight: 700, color: "#14151A" }}
-                              placeholder="Enter price"
+                              placeholder="699"
                               min="0"
                               required
                             />
@@ -643,10 +607,9 @@ export default function AddProductView() {
                           <td style={{ padding: "8px 10px", width: "90px" }}>
                             <input
                               type="number"
-                              value={v.Stock}
+                              value={v.Stock !== undefined ? v.Stock : (v.stock ?? 0)}
                               onChange={(e) => updateVariant(sizeName, firmnessName, "Stock", e.target.value)}
                               style={{ ...inputStyle, height: "36px", padding: "0 8px" }}
-                              placeholder="Enter stock"
                               min="0"
                               required
                             />
@@ -654,17 +617,15 @@ export default function AddProductView() {
                           <td style={{ padding: "8px 10px", width: "80px" }}>
                             <input
                               type="number"
-                              value={v.Threshold}
+                              value={v.Threshold !== undefined ? v.Threshold : (v.threshold ?? 0)}
                               onChange={(e) => updateVariant(sizeName, firmnessName, "Threshold", e.target.value)}
                               style={{ ...inputStyle, height: "36px", padding: "0 8px" }}
-                              placeholder="Enter threshold"
                               min="0"
-                              required
                             />
                           </td>
                           <td style={{ padding: "8px 10px", width: "120px" }}>
                             <select
-                              value={v.Status || "Active"}
+                              value={v.Status || v.status || "Active"}
                               onChange={(e) => updateVariant(sizeName, firmnessName, "Status", e.target.value)}
                               style={{ ...inputStyle, height: "36px", padding: "0 6px", fontSize: "12px" }}
                             >
@@ -687,13 +648,13 @@ export default function AddProductView() {
         <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", marginTop: "24px" }}>
           <button
             type="button"
-            onClick={() => navigateTo("products")}
+            onClick={() => navigateTo("product-details", product.id)}
             style={cancelBtnStyle}
           >
             <ChevronLeft size={16} /> Cancel
           </button>
           <button type="submit" className="admin-btn-hover" style={saveBtnStyle}>
-            <Save size={16} /> Add Product
+            <Save size={16} /> Save Changes
           </button>
         </div>
       </form>
@@ -715,7 +676,7 @@ const cardStyle = { backgroundColor: "#FFFFFF", borderRadius: "12px", border: "1
 const cardTitleStyle = { fontSize: "16px", fontWeight: 700, color: "#14151A", margin: 0 };
 const fieldGroup = { display: "flex", flexDirection: "column", gap: "6px" };
 const labelStyle = { fontSize: "13px", fontWeight: 600, color: "#6B6B75" };
-const inputStyle = { height: "42px", padding: "0 14px", border: "1px solid #E7E7E2", borderRadius: "10px", fontSize: "14px", color: "#14151A", backgroundColor: "#FFFFFF", fontFamily: "inherit", outline: "none", transition: "border-color 0.2s ease", width: "100%", boxSizing: "border-box", lineHeight: "1.5" };
+const inputStyle = { height: "42px", padding: "0 14px", border: "1px solid #E7E7E2", borderRadius: "10px", fontSize: "14px", color: "#14151A", backgroundColor: "#FFFFFF", fontFamily: "inherit", outline: "none", transition: "border-color 0.2s ease", width: "100%", boxSizing: "border-box" };
 const errStyle = { fontSize: "12px", color: "#DC2626", fontWeight: 500 };
 const chipGroup = { display: "flex", gap: "8px", flexWrap: "wrap" };
 const chipBtnStyle = { height: "36px", padding: "0 16px", border: "1px solid", borderRadius: "999px", fontSize: "13px", fontWeight: 500, cursor: "pointer", transition: "all 0.15s ease", fontFamily: "inherit" };
