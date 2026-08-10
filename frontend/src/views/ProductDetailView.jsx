@@ -201,19 +201,32 @@ export default function ProductDetailView() {
                 <ArrowLeftIcon />
               </button>
 
-              <button
-                onClick={(event) => {
-                  event.stopPropagation();
-                  navigateTo("cart");
-                }}
-                style={floatingIconBtnStyle}
-                aria-label="Open cart"
-              >
-                <span style={{ position: "relative", display: "flex" }}>
-                  <CartIcon />
-                  {cartCount > 0 && <span style={floatingCartBadgeStyle}>{cartCount}</span>}
-                </span>
-              </button>
+              <div style={floatingRightActionsStyle}>
+                <button
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    toggleWishlist(product.id);
+                  }}
+                  style={floatingIconBtnStyle}
+                  aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+                >
+                  <HeartIcon filled={isWishlisted} />
+                </button>
+
+                <button
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    navigateTo("cart");
+                  }}
+                  style={floatingIconBtnStyle}
+                  aria-label="Open cart"
+                >
+                  <span style={{ position: "relative", display: "flex" }}>
+                    <CartIcon />
+                    {cartCount > 0 && <span style={floatingCartBadgeStyle}>{cartCount}</span>}
+                  </span>
+                </button>
+              </div>
             </div>
           </div>
           
@@ -243,7 +256,7 @@ export default function ProductDetailView() {
           
           {/* Rating summary overlay */}
           <div style={ratingSummaryLineStyle}>
-            <RatingStars rating={product.rating} count={product.reviewCount} showNumber />
+            <RatingStars rating={product.rating} count={product.reviewCount} />
           </div>
 
           <div style={priceContainerStyle}>
@@ -259,34 +272,32 @@ export default function ProductDetailView() {
               </span>
             )}
           </div>
-
-          <p style={descriptionStyle}>{product.description}</p>
           
           <div style={dividerStyle} />
 
-          {/* Firmness Selector */}
-          <FirmnessSizeSelector 
-            label="Select Firmness" 
-            options={product.firmnessOptions} 
-            selected={selectedFirmness} 
-            onChange={setSelectedFirmness} 
-          />
+          <div style={optionControlsRowStyle} className="detail-option-row">
+            <FirmnessSizeSelector
+              label="Firmness"
+              options={product.firmnessOptions}
+              selected={selectedFirmness}
+              onChange={setSelectedFirmness}
+            />
 
-          {/* Size Selector */}
-          <FirmnessSizeSelector 
-            label="Select Size" 
-            options={product.sizeOptions} 
-            selected={selectedSize} 
-            onChange={setSelectedSize} 
-          />
+            <FirmnessSizeSelector
+              label="Size"
+              options={product.sizeOptions}
+              selected={selectedSize}
+              onChange={setSelectedSize}
+            />
 
-          {/* Quantity & CTA buttons block */}
-          <div style={purchaseBlockStyle}>
-            <div style={qtyFieldStyle} className="detail-qty-field">
+            <div style={qtyFieldStyle} className="detail-option-control detail-qty-field">
               <label style={qtyLabelStyle}>Quantity</label>
               <QuantityStepper qty={quantity} onChange={setQuantity} />
             </div>
+          </div>
 
+          {/* Quantity & CTA buttons block */}
+          <div style={purchaseBlockStyle}>
             <div style={ctaButtonsGridStyle} className="detail-cta-grid">
               <button 
                 onClick={handleAddToCart}
@@ -311,22 +322,9 @@ export default function ProductDetailView() {
               >
                 Buy Now
               </button>
-
-              <button 
-                onClick={() => toggleWishlist(product.id)}
-                style={{
-                  ...wishlistBtnStyle,
-                  borderColor: isWishlisted ? "#16A34A" : "#E7E7E2",
-                  backgroundColor: isWishlisted ? "rgba(22, 163, 74, 0.05)" : "#FFFFFF"
-                }}
-                aria-label="Toggle Wishlist"
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill={isWishlisted ? "#16A34A" : "none"} stroke={isWishlisted ? "#16A34A" : "#1B1F8C"} strokeWidth="2">
-                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                </svg>
-                <span>{isWishlisted ? "Saved" : "Save"}</span>
-              </button>
             </div>
+
+            <p style={descriptionStyle}>{product.description}</p>
           </div>
 
           <div style={deliveryBoxStyle}>
@@ -540,8 +538,145 @@ export default function ProductDetailView() {
 
           <span style={viewerCountStyle}>{activeImgIndex + 1} / {product.images.length}</span>
         </div>
-      )}
-
+      )}      <style>{`
+        @media (max-width: 767px) {
+          .detail-breadcrumb {
+            display: none !important;
+          }
+          .detail-page {
+            padding: 0 16px 56px !important;
+            max-width: none !important;
+            overflow-x: hidden !important;
+            background: #f7f7f2 !important;
+          }
+          .detail-main-grid {
+            display: grid !important;
+            grid-template-columns: 1fr !important;
+            width: auto !important;
+            gap: 22px !important;
+            margin: 0 -16px 28px !important;
+            overflow: hidden !important;
+          }
+          .detail-main-grid > * {
+            min-width: 0 !important;
+            max-width: 100% !important;
+          }
+          .detail-main-grid > div:last-child {
+            padding: 0 16px !important;
+          }
+          .detail-main-image {
+            border-radius: 0 !important;
+            border: none !important;
+            height: 72vh !important;
+            min-height: 480px !important;
+            padding-top: 0 !important;
+            background: #f7f7f2 !important;
+          }
+          .detail-floating-actions {
+            display: flex !important;
+            align-items: flex-start !important;
+            justify-content: space-between !important;
+            padding: calc(env(safe-area-inset-top) + 14px) 14px 0 !important;
+          }
+          .detail-gallery-img {
+            height: 100% !important;
+            object-fit: cover !important;
+            object-position: center bottom !important;
+            transform: scale(1.52) !important;
+            transform-origin: center bottom !important;
+          }
+          .desktop-thumbnails {
+            display: none !important;
+          }
+          .detail-page h2 {
+            font-size: 24px !important;
+            line-height: 1.16 !important;
+            margin-bottom: 8px !important;
+          }
+          .detail-page h3 {
+            font-size: 18px !important;
+            text-align: left !important;
+            margin-bottom: 18px !important;
+          }
+          .recommendations-row {
+            overflow-x: auto !important;
+            display: grid !important;
+            grid-auto-flow: column !important;
+            grid-auto-columns: minmax(220px, 68vw) !important;
+            grid-template-columns: none !important;
+            gap: 14px !important;
+            padding-bottom: 12px !important;
+          }
+          .detail-option-row {
+            display: grid !important;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(92px, 0.85fr) !important;
+            gap: 8px !important;
+            align-items: end !important;
+            margin-bottom: 14px !important;
+          }
+          .detail-option-control {
+            min-width: 0 !important;
+            gap: 6px !important;
+            margin-bottom: 0 !important;
+          }
+          .detail-option-control > span,
+          .detail-option-control > label {
+            font-size: 10px !important;
+            letter-spacing: 0.04em !important;
+            white-space: nowrap !important;
+          }
+          .detail-option-select {
+            display: block !important;
+            height: 38px !important;
+            border-radius: 12px !important;
+            font-size: 12px !important;
+            padding-left: 9px !important;
+            padding-right: 20px !important;
+          }
+          .detail-option-chips {
+            display: none !important;
+          }
+          .detail-tab-header {
+            overflow-x: auto !important;
+            gap: 22px !important;
+            white-space: nowrap !important;
+          }
+          .detail-reviews-grid {
+            grid-template-columns: 1fr !important;
+            gap: 26px !important;
+          }
+          .detail-cta-grid {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important;
+            gap: 10px !important;
+          }
+          .detail-cta-grid button {
+            width: 100% !important;
+            min-height: 46px !important;
+            padding: 12px 10px !important;
+            font-size: 13px !important;
+          }
+          .detail-qty-field {
+            flex-direction: column !important;
+            align-items: stretch !important;
+          }
+          .detail-qty-field > div {
+            min-width: 0 !important;
+            width: 100% !important;
+            height: 38px !important;
+            border-radius: 12px !important;
+            padding: 3px !important;
+          }
+          .detail-qty-field button {
+            width: 25px !important;
+            height: 30px !important;
+          }
+          .detail-qty-field span {
+            min-width: 16px !important;
+            font-size: 12px !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
@@ -562,6 +697,14 @@ function CartIcon() {
       <circle cx="9" cy="21" r="1" />
       <circle cx="20" cy="21" r="1" />
       <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+    </svg>
+  );
+}
+
+function HeartIcon({ filled }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill={filled ? "#16A34A" : "none"} stroke={filled ? "#16A34A" : "#1B1F8C"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
     </svg>
   );
 }
@@ -658,6 +801,13 @@ const floatingIconBtnStyle = {
   pointerEvents: "auto"
 };
 
+const floatingRightActionsStyle = {
+  display: "flex",
+  alignItems: "center",
+  gap: "10px",
+  pointerEvents: "auto"
+};
+
 const floatingCartBadgeStyle = {
   position: "absolute",
   top: "-7px",
@@ -712,7 +862,7 @@ const brandLabelStyle = {
 };
 
 const titleStyle = {
-  fontSize: "36px",
+  fontSize: "30px",
   fontWeight: "800",
   color: "#1B1F8C",
   marginBottom: "12px",
@@ -731,15 +881,9 @@ const priceContainerStyle = {
 };
 
 const priceStyle = {
-  fontSize: "32px",
+  fontSize: "30px",
   fontWeight: "800",
   color: "#1B1F8C"
-};
-
-const priceNoteStyle = {
-  fontSize: "12px",
-  color: "#6B6B75",
-  fontWeight: "500"
 };
 
 const descriptionStyle = {
@@ -756,19 +900,26 @@ const dividerStyle = {
   marginBottom: "24px"
 };
 
+const optionControlsRowStyle = {
+  display: "flex",
+  flexDirection: "column"
+};
+
 // Purchase Block
 const purchaseBlockStyle = {
   display: "flex",
   flexDirection: "column",
-  gap: "18px",
-  padding: "18px 0 20px",
+  gap: "12px",
+  padding: "2px 0 20px",
   marginBottom: "20px"
 };
 
 const qtyFieldStyle = {
   display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between"
+  flexDirection: "column",
+  alignItems: "flex-start",
+  gap: "8px",
+  marginBottom: "16px"
 };
 
 const qtyLabelStyle = {
@@ -807,18 +958,6 @@ const buyNowBtnStyle = {
   fontWeight: "700",
   cursor: "pointer",
   transition: "all 0.2s ease"
-};
-
-const wishlistBtnStyle = {
-  minHeight: "52px",
-  borderRadius: "999px",
-  border: "1px solid",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  cursor: "pointer",
-  transition: "all 0.2s ease",
-  outline: "none"
 };
 
 const deliveryBoxStyle = {
@@ -1052,7 +1191,7 @@ const carouselSectionStyle = {
 };
 
 const carouselHeadingStyle = {
-  fontSize: "24px",
+  fontSize: "22px",
   fontWeight: "800",
   color: "#1B1F8C",
   marginBottom: "30px",

@@ -1,12 +1,25 @@
 import React from "react";
 
-export default function FirmnessSizeSelector({ label, options, selected, onChange }) {
-  if (!options || options.length <= 1) return null;
+export default function FirmnessSizeSelector({ label, options, selected, onChange, className = "" }) {
+  if (!options || options.length === 0) return null;
 
   return (
-    <div style={containerStyle}>
+    <div style={containerStyle} className={`detail-option-control ${className}`}>
       <span style={labelStyle}>{label}</span>
-      <div style={optionsGridStyle}>
+      <select
+        value={selected}
+        onChange={(event) => onChange(event.target.value)}
+        style={selectStyle}
+        className="detail-option-select"
+        aria-label={label}
+      >
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+      <div style={optionsGridStyle} className="detail-option-chips">
         {options.map((option) => {
           const isActive = selected === option;
           return (
@@ -48,6 +61,19 @@ const optionsGridStyle = {
   display: "flex",
   flexWrap: "wrap",
   gap: "8px"
+};
+
+const selectStyle = {
+  display: "none",
+  width: "100%",
+  height: "42px",
+  border: "1px solid #E7E7E2",
+  borderRadius: "14px",
+  backgroundColor: "#FFFFFF",
+  color: "#14151A",
+  fontSize: "13px",
+  fontWeight: "600",
+  padding: "0 30px 0 10px"
 };
 
 const chipStyle = {

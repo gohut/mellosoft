@@ -7,6 +7,9 @@ import { formatPrice, calculateDiscountedPrice } from "../utils/currency";
 export default function ProductCard({ product }) {
   const { wishlist, toggleWishlist, navigateTo } = useStore();
   const isWishlisted = wishlist.includes(product.id);
+  const specHighlights = getSpecHighlights(product.specs);
+  const optionSummary = getOptionSummary(product);
+  const primaryFeature = product.features?.[0];
 
   const handleWishlistClick = (event) => {
     event.stopPropagation();
@@ -23,6 +26,7 @@ export default function ProductCard({ product }) {
     >
       <div style={imageWrapperStyle}>
         <img src={product.images[0]} alt={product.name} style={imageStyle} />
+        {product.badge && <span style={badgeStyle} className="pc-badge">{product.badge}</span>}
 
         <button
           onClick={handleWishlistClick}
@@ -46,12 +50,29 @@ export default function ProductCard({ product }) {
       </div>
 
       <div style={infoWrapperStyle} className="pc-info">
-        <div style={titleRowStyle}>
-          <h4 style={titleStyle}>{product.name}</h4>
+        <div style={titleBlockStyle}>
           {product.category && <span style={categoryStyle} className="pc-category">{product.category}</span>}
+          <h4 style={titleStyle}>{product.name}</h4>
+          {product.tagline && <p style={taglineStyle} className="pc-tagline">{product.tagline}</p>}
         </div>
+
+        {specHighlights.length > 0 && (
+          <div style={specGridStyle} className="pc-spec-grid">
+            {specHighlights.map((spec) => (
+              <span key={spec} style={specChipStyle} className="pc-spec-chip">{spec}</span>
+            ))}
+          </div>
+        )}
+
+        {primaryFeature && <p style={featureStyle} className="pc-feature">{primaryFeature}</p>}
+
+        <div style={detailsRowStyle} className="pc-details-row">
+          <span style={detailPillStyle} className="pc-detail-pill">{optionSummary.sizes}</span>
+          <span style={detailPillStyle} className="pc-detail-pill">{optionSummary.firmness}</span>
+        </div>
+
         <div style={metaRowStyle}>
-          <span style={priceStyle} className="pc-price">{formatPrice(discPrice)}</span>
+          <span style={priceStyle} className="pc-price">{formatPrice(product.price)}</span>
           <span style={compactRatingStyle} className="pc-rating">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="#16A34A" stroke="#16A34A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
@@ -60,8 +81,58 @@ export default function ProductCard({ product }) {
           </span>
         </div>
       </div>
+
+      <style jsx>{`
+        @media (max-width: 767px) {
+          .product-card {
+            min-width: 0;
+          }
+          .product-card h4 {
+            font-size: 13px !important;
+            min-height: 0 !important;
+          }
+          .product-card .pc-category {
+            font-size: 9px !important;
+            padding: 2px 6px !important;
+          }
+          .product-card .pc-price {
+            font-size: 14px !important;
+          }
+          .product-card .pc-rating {
+            font-size: 10px !important;
+          }
+          .product-card .pc-info {
+            padding: 10px 10px 12px !important;
+            gap: 6px !important;
+          }
+          .product-card .pc-wishlist-btn {
+            width: 26px !important;
+            height: 26px !important;
+            top: 8px !important;
+            right: 8px !important;
+          }
+        }
+      `}</style>
     </article>
   );
+}
+
+function getSpecHighlights(specs) {
+  if (!specs) return [];
+  return specs
+    .split(/\s*(?:•|â€¢)\s*/)
+    .map((spec) => spec.trim())
+    .filter(Boolean)
+    .slice(0, 3);
+}
+
+function getOptionSummary(product) {
+  const sizeCount = product.sizeOptions?.length || 0;
+  const firmnessCount = product.firmnessOptions?.length || 0;
+  return {
+    sizes: sizeCount > 1 ? `${sizeCount} sizes` : product.sizeOptions?.[0] || "Standard size",
+    firmness: firmnessCount > 1 ? `${firmnessCount} feels` : product.firmnessOptions?.[0] || "Standard feel"
+  };
 }
 
 const cardStyle = {
@@ -81,6 +152,24 @@ const imageWrapperStyle = {
   aspectRatio: "1 / 0.82",
   backgroundColor: "#F3F3F0",
   overflow: "hidden"
+};
+
+const badgeStyle = {
+  position: "absolute",
+  top: "10px",
+  left: "10px",
+  maxWidth: "calc(100% - 56px)",
+  backgroundColor: "rgba(27, 31, 140, 0.9)",
+  color: "#FFFFFF",
+  borderRadius: "999px",
+  padding: "5px 9px",
+  fontSize: "10px",
+  fontWeight: "800",
+  textTransform: "uppercase",
+  letterSpacing: "0.04em",
+  whiteSpace: "nowrap",
+  overflow: "hidden",
+  textOverflow: "ellipsis"
 };
 
 const imageStyle = {
@@ -114,11 +203,11 @@ const infoWrapperStyle = {
   flex: 1
 };
 
-const titleRowStyle = {
+const titleBlockStyle = {
   display: "flex",
-  alignItems: "center",
-  gap: "8px",
-  flexWrap: "wrap"
+  flexDirection: "column",
+  alignItems: "flex-start",
+  gap: "6px"
 };
 
 const titleStyle = {
@@ -126,6 +215,17 @@ const titleStyle = {
   fontWeight: "700",
   color: "#1B1F8C",
   lineHeight: "1.3"
+};
+
+const taglineStyle = {
+  fontSize: "12px",
+  color: "#6B6B75",
+  lineHeight: "1.45",
+  margin: 0,
+  display: "-webkit-box",
+  WebkitLineClamp: 2,
+  WebkitBoxOrient: "vertical",
+  overflow: "hidden"
 };
 
 const categoryStyle = {
@@ -139,12 +239,64 @@ const categoryStyle = {
   borderRadius: "999px"
 };
 
+const specGridStyle = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: "6px"
+};
+
+const specChipStyle = {
+  fontSize: "10px",
+  fontWeight: "700",
+  color: "#1B1F8C",
+  backgroundColor: "#F7F7F2",
+  border: "1px solid #E7E7E2",
+  borderRadius: "999px",
+  padding: "5px 8px",
+  lineHeight: 1.1
+};
+
+const featureStyle = {
+  fontSize: "11px",
+  color: "#14151A",
+  lineHeight: "1.45",
+  margin: 0,
+  display: "-webkit-box",
+  WebkitLineClamp: 2,
+  WebkitBoxOrient: "vertical",
+  overflow: "hidden"
+};
+
+const detailsRowStyle = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: "6px"
+};
+
+const detailPillStyle = {
+  fontSize: "10px",
+  fontWeight: "800",
+  color: "#16A34A",
+  backgroundColor: "rgba(22, 163, 74, 0.08)",
+  borderRadius: "999px",
+  padding: "5px 8px",
+  lineHeight: 1.1
+};
+
 const metaRowStyle = {
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
   gap: "10px",
   marginTop: "auto"
+};
+
+const ratingClusterStyle = {
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "flex-end",
+  gap: "2px",
+  flexShrink: 0
 };
 
 const compactRatingStyle = {
@@ -155,6 +307,13 @@ const compactRatingStyle = {
   fontSize: "11px",
   fontWeight: "800",
   flexShrink: 0
+};
+
+const reviewCountStyle = {
+  fontSize: "10px",
+  color: "#6B6B75",
+  fontWeight: "600",
+  whiteSpace: "nowrap"
 };
 
 const priceStyle = {
