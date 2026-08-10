@@ -103,11 +103,7 @@ export default function Header() {
       <header style={desktopHeaderStyle} className="desktop-only">
         <div style={headerContainerStyle}>
           <button onClick={() => navigateTo("home")} style={logoContainerStyle} aria-label="Go home">
-            <img src="/asset/logo.png" alt="" style={logoImageStyle} />
-            <span style={logoTextStyle}>
-              <span style={{ color: "#16A34A" }}>m</span>
-              <span style={{ color: "#1B1F8C" }}>ellosoft</span>
-            </span>
+            <img src="/asset/logo.png" alt="Mellosoft" style={logoImageStyle} />
           </button>
 
           <nav style={navLinksStyle} aria-label="Primary navigation">
@@ -167,8 +163,7 @@ export default function Header() {
               }}
             >
               <button onClick={() => setMobileMenuOpen((open) => !open)} style={mobileLogoStyle} aria-label="Open menu">
-                <span style={{ color: "#16A34A" }}>m</span>
-                <span style={{ color: "#1B1F8C" }}>ellosoft</span>
+                <img src="/asset/logo.png" alt="Mellosoft" style={mobileLogoImageStyle} />
               </button>
             </div>
 
@@ -215,7 +210,7 @@ export default function Header() {
         </header>
       )}
 
-      <style jsx global>{`
+      <style>{`
         .desktop-only { display: block; }
         .mobile-only { display: none; }
         @media (max-width: 767px) {
@@ -346,12 +341,6 @@ const logoImageStyle = {
   height: "32px",
   width: "auto",
   objectFit: "contain"
-};
-
-const logoTextStyle = {
-  fontSize: "22px",
-  fontWeight: "800",
-  letterSpacing: "0"
 };
 
 const navLinksStyle = {
@@ -519,12 +508,16 @@ const mobileTopRowStyle = {
 const mobileLogoStyle = {
   border: "none",
   background: "transparent",
-  fontSize: "21px",
-  fontWeight: "800",
   display: "flex",
   alignItems: "center",
   cursor: "pointer",
   padding: 0
+};
+
+const mobileLogoImageStyle = {
+  height: "32px",
+  width: "auto",
+  objectFit: "contain"
 };
 
 const mobileLeftSlotStyle = {

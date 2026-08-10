@@ -114,7 +114,7 @@ export default function CatalogView() {
         </div>
       )}
 
-      <style jsx global>{`
+      <style>{`
         @media (max-width: 767px) {
           .catalog-grid {
             display: grid !important;

@@ -27,9 +27,9 @@ export default function HomeView() {
     headline: ["Classic Comfort", "Hybrid Luxury", "Natural Latex", "Firm Support", "Cooling Plush"][index] || "Sleep Better",
     deal: index === 0 ? `From ${formatPrice(product.sizePrices?.Twin || product.price)}` : index === 1 ? "Save more on hybrid" : index === 2 ? "Organic pick" : index === 3 ? "Firm favorite" : "New arrival"
   })), [mattresses]);
-  const bestSellers = useMemo(() => [...MOCK_PRODUCTS].sort((a, b) => b.reviewCount - a.reviewCount).slice(0, 5), []);
-  const newArrivals = useMemo(() => MOCK_PRODUCTS.filter((product) => ["New", "Premium", "Eco-Friendly", "Essential"].includes(product.badge)).slice(0, 5), []);
-  const topRated = useMemo(() => [...MOCK_PRODUCTS].sort((a, b) => b.rating - a.rating).slice(0, 5), []);
+  const featuredMattresses = useMemo(() => mattresses.slice(0, 4), [mattresses]);
+  const bestSellers = useMemo(() => [...MOCK_PRODUCTS].sort((a, b) => b.reviewCount - a.reviewCount).slice(0, 8), []);
+  const newArrivals = useMemo(() => MOCK_PRODUCTS.filter((product) => ["New", "Premium", "Eco-Friendly", "Essential"].includes(product.badge)).slice(0, 4), []);
 
   const goToCatalog = (category = "All", firmness = "All") => {
     setSearchQuery("");
@@ -73,8 +73,11 @@ export default function HomeView() {
 
   return (
     <div style={pageWrapperStyle}>
-      <div className="row-scanner" aria-hidden="true" style={rowScannerStyle} />
-      <div className="quilt-shine" aria-hidden="true" />
+      <div className="background-pattern-layer" style={backgroundPatternLayerStyle}>
+        <div className="diamond-pattern-layer" aria-hidden="true" style={diamondPatternLayerStyle} />
+      </div>
+
+      <div className="content-layer" style={contentLayerStyle}>
 
       <section style={sliderSectionStyle} aria-label="Featured mattresses">
         <div className="peek-slider" style={peekSliderTrackStyle} ref={sliderTrackRef} onScroll={handleSliderScroll}>
@@ -125,7 +128,7 @@ export default function HomeView() {
         </div>
       </section>
 
-      <ProductRow title="Featured Mattresses" products={mattresses} onAction={() => goToCatalog("mattress")} />
+      <ProductRow title="Featured Mattresses" tagline="Handpicked comfort, ready to ship." products={featuredMattresses} onAction={() => goToCatalog("mattress")} />
 
       <section style={promoSectionStyle}>
         <div style={singlePromoGridStyle} className="promo-grid">
@@ -138,7 +141,15 @@ export default function HomeView() {
         </div>
       </section>
 
-      <ProductRow title="Best Sellers" products={bestSellers} onAction={() => goToCatalog("All")} />
+      <ProductRow
+        title="Best Sellers"
+        tagline="Loved by thousands of happy sleepers."
+        products={bestSellers}
+        background="#1B1F8C"
+        titleColor="#00B138"
+        taglineColor="#C7CBEF"
+        scrollable
+      />
 
       <section style={promoSectionStyle}>
         <div style={singlePromoGridStyle} className="promo-grid">
@@ -151,7 +162,7 @@ export default function HomeView() {
         </div>
       </section>
 
-      <ProductRow title="New Arrivals" products={newArrivals} onAction={() => goToCatalog("All")} />
+      <ProductRow title="New Arrivals" tagline="Fresh drops, fresh comfort." products={newArrivals} onAction={() => goToCatalog("All")} />
 
       <section style={promoSectionStyle}>
         <div style={singlePromoGridStyle} className="promo-grid">
@@ -164,83 +175,66 @@ export default function HomeView() {
         </div>
       </section>
 
-      <ProductRow title="Top Rated" products={topRated} onAction={() => goToCatalog("All")} />
-
-      <section style={whySectionStyle}>
-        <div style={whyStripStyle} className="why-strip">
-          <Feature icon="shield" title="100-Night Trial" />
-          <Feature icon="truck" title="Free Delivery" />
-          <Feature icon="star" title="10-Year Warranty" />
-        </div>
-      </section>
-
       <section id="about-section" style={aboutSectionStyle}>
         <div style={containerStyle}>
-          <div style={aboutGridStyle} className="about-grid">
-            <div style={aboutImagesStyle}>
-              <img src="/asset/img2.jpg" alt="Mellosoft bedroom setting" style={aboutImageLargeStyle} />
-              <img src="/asset/texture.png" alt="Mellosoft textile texture" style={aboutImageSmallStyle} />
+          <div style={aboutHeaderWrapStyle}>
+            <span style={aboutTagStyle}>About Us</span>
+            <h2 style={aboutBigHeadingStyle}>Why sleep lovers choose Mellosoft</h2>
+            <p style={aboutSubheadingStyle}>
+              Thoughtful engineering and unhurried craftsmanship that set the standard for a genuinely restful night.
+            </p>
+          </div>
+
+          <div style={bentoGridStyle} className="about-bento-grid">
+            <div style={bentoCardStyle} className="bento-card">
+              <img src="/asset/img1.jpg" alt="Mellosoft craftsmanship" style={bentoCardImageStyle} />
+              <div style={bentoCardBodyStyle}>
+                <p style={bentoCardTextStyle}>
+                  Handcrafted by master upholsterers to deliver timeless comfort and unmatched build quality.
+                </p>
+                <button type="button" onClick={() => goToCatalog("All")} style={bentoExploreBtnStyle}>
+                  Explore Collection
+                  <span aria-hidden="true">&rarr;</span>
+                </button>
+              </div>
             </div>
-            <div style={aboutCopyStyle}>
-              <span style={eyebrowStyle}>About Us</span>
-              <h2 style={aboutHeadingStyle}>Elegant sleep products for sophisticated lifestyles</h2>
-              <p style={aboutParagraphStyle}>
-                We create sleep products with thoughtful architecture, clean lines, and meticulous attention to detail for those who choose comfort as a core part of daily life.
-              </p>
-              <p style={aboutParagraphStyle}>
-                Mellosoft mattresses are built to feel naturally cooling, look tailored, and support the body with premium foam, natural latex, bamboo, and pocketed coil systems.
-              </p>
+
+            <div style={bentoCardStyle} className="bento-card">
+              <img src="/asset/img2.jpg" alt="Trusted by sleep specialists" style={bentoCardImageStyle} />
+              <div style={bentoCardBodyStyle}>
+                <p style={bentoCardTextStyle}>
+                  Trusted by sleep specialists worldwide for consistent quality and care.
+                </p>
+              </div>
+            </div>
+
+            <div style={bentoCardStyle} className="bento-card">
+              <div style={bentoStatPanelStyle}>
+                <strong style={bentoStatNumberStyle}>10+</strong>
+              </div>
+              <div style={bentoCardBodyStyle}>
+                <p style={bentoCardTextStyle}>Years of heritage craftsmanship.</p>
+              </div>
+            </div>
+
+            <div style={bentoCardStyle} className="bento-card">
+              <img src="/asset/bedframe.png" alt="Mellosoft bedroom lifestyle" style={bentoCardImageStyle} />
+              <div style={bentoCardBodyStyle}>
+                <p style={bentoCardTextStyle}>
+                  Elevates your sleep and transforms your bedroom into a retreat of comfort.
+                </p>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      <style jsx global>{`
-        .row-scanner {
-          animation: rowScanTravel 12s linear infinite;
-        }
-        @keyframes rowScanTravel {
-          0% {
-            top: 0%;
-            opacity: 0;
-          }
-          4% {
-            opacity: 1;
-          }
-          92% {
-            opacity: 1;
-          }
-          100% {
-            top: 100%;
-            opacity: 0;
-          }
-        }
-        .quilt-shine {
-          position: fixed;
-          inset: 0;
-          z-index: 1;
-          pointer-events: none;
-          background-image: linear-gradient(
-            180deg,
-            rgba(22, 163, 74, 0) 0%,
-            rgba(22, 163, 74, 0.16) 42%,
-            rgba(22, 163, 74, 0.26) 50%,
-            rgba(22, 163, 74, 0.16) 58%,
-            rgba(22, 163, 74, 0) 100%
-          );
-          background-repeat: no-repeat;
-          background-size: 100% 38%;
-          background-position: 0% -40%;
-          mix-blend-mode: soft-light;
-          animation: quiltShineSweep 3s linear infinite;
-        }
-        @keyframes quiltShineSweep {
-          0% {
-            background-position: 0% -40%;
-          }
-          100% {
-            background-position: 0% 140%;
-          }
+      </div>
+
+      <style>{`
+        .view-more-btn:hover {
+          background-color: #1B1F8C;
+          color: #FFFFFF;
         }
         .peek-slider::-webkit-scrollbar,
         .category-row::-webkit-scrollbar,
@@ -254,6 +248,63 @@ export default function HomeView() {
         .product-row {
           scrollbar-width: none;
           -ms-overflow-style: none;
+        }
+        .peek-slider {
+          padding-left: 24px !important;
+          scroll-padding-left: 24px !important;
+        }
+        @media (min-width: 640px) {
+          .peek-slider {
+            padding-left: 40px !important;
+            scroll-padding-left: 40px !important;
+          }
+        }
+        @media (min-width: 1024px) {
+          .peek-slider {
+            padding-left: 72px !important;
+            scroll-padding-left: 72px !important;
+          }
+        }
+        .product-row-scroll-wrap {
+          position: relative;
+        }
+        .row-fade {
+          position: absolute;
+          top: 0;
+          bottom: 10px;
+          width: 64px;
+          pointer-events: none;
+          z-index: 2;
+          display: none;
+        }
+        .row-fade-left {
+          left: 0;
+          background: linear-gradient(90deg, var(--row-fade-color, #FFFFFF), rgba(255, 255, 255, 0));
+        }
+        .row-fade-right {
+          right: 0;
+          background: linear-gradient(270deg, var(--row-fade-color, #FFFFFF), rgba(255, 255, 255, 0));
+        }
+        @media (min-width: 768px) {
+          .product-row-scroll {
+            display: flex !important;
+            grid-template-columns: none !important;
+            overflow-x: auto;
+            scroll-snap-type: x mandatory;
+            padding-bottom: 10px;
+            padding-left: 64px;
+            padding-right: 64px;
+            scroll-padding-left: 64px;
+            scroll-padding-right: 64px;
+          }
+          .product-row-scroll .product-item-scroll {
+            flex: 0 0 260px;
+            min-width: 260px;
+            scroll-snap-align: start;
+          }
+          .row-fade {
+            display: block;
+          }
         }
         @media (max-width: 767px) {
           .peek-slider {
@@ -297,9 +348,10 @@ export default function HomeView() {
             grid-auto-columns: minmax(220px, 68vw) !important;
             grid-template-columns: none !important;
             gap: 14px !important;
-            padding: 2px 16px 14px !important;
+            padding: 2px 24px 14px !important;
             margin: 0 -16px !important;
             scroll-snap-type: x mandatory;
+            scroll-padding-left: 24px !important;
           }
           .category-row {
             grid-auto-columns: 92px !important;
@@ -307,27 +359,25 @@ export default function HomeView() {
           .product-row > * {
             scroll-snap-align: start;
           }
+          .peek-dots {
+            padding-bottom: 10px !important;
+          }
+          .category-section {
+            padding: 12px 0 !important;
+          }
           .home-product-section {
-            padding: 36px 0 !important;
+            padding: 20px 0 !important;
           }
           .home-product-section > div,
           .category-section > div {
             padding: 0 16px !important;
           }
           .brand-grid,
-          .promo-grid,
-          .about-grid {
+          .promo-grid {
             grid-template-columns: 1fr !important;
           }
-          .why-strip {
-            gap: 4px !important;
-          }
-          .why-strip .feature-icon svg {
-            width: 16px !important;
-            height: 16px !important;
-          }
-          .why-strip .feature-title {
-            font-size: 11px !important;
+          .about-bento-grid {
+            grid-template-columns: 1fr !important;
           }
           .promo-grid {
             gap: 14px !important;
@@ -350,27 +400,58 @@ export default function HomeView() {
   );
 }
 
-function SectionHeader({ title, action, onAction }) {
+function SectionHeader({ title, tagline, action, onAction, titleColor, taglineColor }) {
   return (
     <div style={sectionHeaderStyle}>
-      <h2 style={sectionTitleStyle}>{title}</h2>
+      <div style={sectionHeaderTextWrapStyle}>
+        <h2 style={titleColor ? { ...sectionTitleStyle, color: titleColor } : sectionTitleStyle}>{title}</h2>
+        {tagline && (
+          <p style={taglineColor ? { ...sectionTaglineStyle, color: taglineColor } : sectionTaglineStyle}>
+            {tagline}
+          </p>
+        )}
+      </div>
       {action && <button onClick={onAction} style={textActionStyle}>{action}</button>}
     </div>
   );
 }
 
-function ProductRow({ title, products, onAction }) {
+function ProductRow({ title, tagline, products, onAction, background, scrollable, titleColor, taglineColor }) {
+  const sectionStyle = background ? { ...productSectionStyle, backgroundColor: background } : productSectionStyle;
+  const rowClassName = scrollable ? "product-row product-row-scroll" : "product-row";
+  const wrapStyle = { "--row-fade-color": background || "#FFFFFF" };
   return (
-    <section style={productSectionStyle} className="home-product-section">
+    <section style={sectionStyle} className="home-product-section">
       <div style={containerStyle}>
-        <SectionHeader title={title} action="View all" onAction={onAction} />
-        <div className="product-row" style={productRowStyle}>
-          {products.map((product) => (
-            <div key={product.id} style={productItemStyle}>
-              <ProductCard product={product} />
+        <SectionHeader title={title} tagline={tagline} titleColor={titleColor} taglineColor={taglineColor} />
+        {scrollable ? (
+          <div className="product-row-scroll-wrap" style={wrapStyle}>
+            <div className={rowClassName} style={productRowStyle}>
+              {products.map((product) => (
+                <div key={product.id} className="product-item-scroll" style={productItemStyle}>
+                  <ProductCard product={product} />
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+            <span className="row-fade row-fade-left" aria-hidden="true" />
+            <span className="row-fade row-fade-right" aria-hidden="true" />
+          </div>
+        ) : (
+          <>
+            <div className="product-row" style={productRowStyle}>
+              {products.map((product) => (
+                <div key={product.id} style={productItemStyle}>
+                  <ProductCard product={product} />
+                </div>
+              ))}
+            </div>
+            <div style={viewMoreRowStyle}>
+              <button type="button" onClick={onAction} style={viewMoreBtnStyle} className="view-more-btn">
+                View More
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </section>
   );
@@ -389,51 +470,38 @@ function PromoCard({ image, title, label, onClick }) {
   );
 }
 
-function Feature({ icon, title }) {
-  return (
-    <div style={featureItemStyle}>
-      <span style={featureIconStyle} className="feature-icon">
-        {icon === "truck" && (
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.4"><rect x="1" y="3" width="15" height="13" /><polygon points="16 8 20 8 23 11 23 16 16 16 16 8" /><circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" /></svg>
-        )}
-        {icon === "shield" && (
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.4"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
-        )}
-        {icon === "star" && (
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.4"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
-        )}
-      </span>
-      <strong style={featureTitleStyle} className="feature-title">{title}</strong>
-    </div>
-  );
-}
-
 const quiltTileSVG =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Cdefs%3E%3CradialGradient id='p' cx='50%25' cy='42%25' r='65%25'%3E%3Cstop offset='0%25' stop-color='%23FDFDFB'/%3E%3Cstop offset='70%25' stop-color='%23FAF9F5'/%3E%3Cstop offset='100%25' stop-color='%23F6F5F0'/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect width='64' height='64' fill='%23F7F7F2'/%3E%3Cpath d='M34.828,2.828 L61.172,29.172 Q64,32 61.172,34.828 L34.828,61.172 Q32,64 29.172,61.172 L2.828,34.828 Q0,32 2.828,29.172 L29.172,2.828 Q32,0 34.828,2.828 Z' fill='url(%23p)' stroke='%23EDEBE3' stroke-width='1' stroke-dasharray='1 3' stroke-linecap='round'/%3E%3C/svg%3E";
-
-const quiltRowGreenSVG =
-  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Cpath d='M34.828,2.828 L61.172,29.172 Q64,32 61.172,34.828 L34.828,61.172 Q32,64 29.172,61.172 L2.828,34.828 Q0,32 2.828,29.172 L29.172,2.828 Q32,0 34.828,2.828 Z' fill='none' stroke='%2316A34A' stroke-width='1.5' stroke-dasharray='1 3' stroke-linecap='round'/%3E%3C/svg%3E";
 
 const pageWrapperStyle = {
   width: "100%",
   backgroundColor: "#F7F7F2",
-  backgroundImage: `url("${quiltTileSVG}")`,
-  backgroundSize: "64px 64px",
-  backgroundRepeat: "repeat",
   position: "relative",
+  overflow: "hidden",
   zIndex: 0
 };
 
-const rowScannerStyle = {
+const backgroundPatternLayerStyle = {
   position: "absolute",
-  left: 0,
-  width: "100%",
-  height: "64px",
-  backgroundImage: `url("${quiltRowGreenSVG}")`,
+  inset: 0,
+  zIndex: 0,
+  overflow: "hidden",
+  pointerEvents: "none"
+};
+
+const contentLayerStyle = {
+  position: "relative",
+  zIndex: 1
+};
+
+const diamondPatternLayerStyle = {
+  position: "absolute",
+  inset: 0,
+  backgroundImage: `url("${quiltTileSVG}")`,
   backgroundSize: "64px 64px",
-  backgroundRepeat: "repeat-x",
-  filter: "drop-shadow(0 0 3px rgba(22, 163, 74, 0.55))",
-  zIndex: -1,
+  backgroundRepeat: "repeat",
+  opacity: 1,
+  zIndex: 1,
   pointerEvents: "none"
 };
 
@@ -457,7 +525,10 @@ const peekSliderTrackStyle = {
   overflowX: "auto",
   scrollSnapType: "x mandatory",
   WebkitOverflowScrolling: "touch",
-  padding: "20px 24px 24px 40px",
+  paddingTop: "20px",
+  paddingRight: "24px",
+  paddingBottom: "24px",
+  paddingLeft: "24px",
   scrollbarWidth: "none"
 };
 
@@ -768,9 +839,15 @@ const productSectionStyle = {
 const sectionHeaderStyle = {
   display: "flex",
   justifyContent: "space-between",
-  alignItems: "center",
+  alignItems: "flex-start",
   gap: "16px",
   marginBottom: "20px"
+};
+
+const sectionHeaderTextWrapStyle = {
+  display: "flex",
+  flexDirection: "column",
+  gap: "4px"
 };
 
 const sectionTitleStyle = {
@@ -778,6 +855,13 @@ const sectionTitleStyle = {
   fontWeight: "800",
   color: "#1B1F8C",
   letterSpacing: "0"
+};
+
+const sectionTaglineStyle = {
+  fontSize: "13px",
+  color: "#6B6B75",
+  fontWeight: "500",
+  margin: 0
 };
 
 const textActionStyle = {
@@ -800,35 +884,23 @@ const productItemStyle = {
   minWidth: 0
 };
 
-const whySectionStyle = {
-  padding: "14px 16px",
-  backgroundColor: "#FFFFFF"
-};
-
-const whyStripStyle = {
-  maxWidth: "900px",
-  margin: "0 auto",
-  display: "grid",
-  gridTemplateColumns: "repeat(3, 1fr)",
-  gap: "12px"
-};
-
-const featureItemStyle = {
+const viewMoreRowStyle = {
   display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  gap: "6px",
-  padding: "4px"
+  justifyContent: "flex-end",
+  marginTop: "24px"
 };
 
-const featureIconStyle = {
-  display: "flex",
-  alignItems: "center"
-};
-
-const featureTitleStyle = {
-  fontSize: "14px",
-  color: "#1B1F8C"
+const viewMoreBtnStyle = {
+  border: "1px solid #1B1F8C",
+  backgroundColor: "transparent",
+  color: "#1B1F8C",
+  borderRadius: "999px",
+  padding: "11px 24px",
+  fontSize: "13px",
+  fontWeight: "800",
+  letterSpacing: "0.02em",
+  cursor: "pointer",
+  transition: "background-color 0.2s ease, color 0.2s ease"
 };
 
 const aboutSectionStyle = {
@@ -836,57 +908,110 @@ const aboutSectionStyle = {
   backgroundColor: "#FFFFFF"
 };
 
-const aboutGridStyle = {
-  display: "grid",
-  gridTemplateColumns: "1.05fr 0.95fr",
-  gap: "48px",
-  alignItems: "center"
-};
+/* ---- About Us / "Why sleep lovers choose Mellosoft" bento section ---- */
 
-const aboutImagesStyle = {
-  display: "grid",
-  gridTemplateColumns: "1.25fr 0.75fr",
-  gap: "18px",
-  alignItems: "center"
-};
-
-const aboutImageLargeStyle = {
-  width: "100%",
-  height: "390px",
-  objectFit: "cover",
-  borderRadius: "18px"
-};
-
-const aboutImageSmallStyle = {
-  width: "100%",
-  height: "270px",
-  objectFit: "cover",
-  borderRadius: "18px"
-};
-
-const aboutCopyStyle = {
+const aboutHeaderWrapStyle = {
+  maxWidth: "640px",
+  margin: "0 auto 44px",
+  textAlign: "center",
   display: "flex",
   flexDirection: "column",
-  gap: "16px"
+  alignItems: "center",
+  gap: "14px"
 };
 
-const eyebrowStyle = {
-  fontSize: "12px",
+const aboutTagStyle = {
+  display: "inline-block",
+  fontSize: "11px",
   fontWeight: "800",
-  color: "#16A34A",
+  color: "#6B6B75",
   textTransform: "uppercase",
-  letterSpacing: "0"
+  letterSpacing: "0.08em",
+  backgroundColor: "#FFFFFF",
+  border: "1px solid #E7E7E2",
+  borderRadius: "999px",
+  padding: "6px 14px"
 };
 
-const aboutHeadingStyle = {
+const aboutBigHeadingStyle = {
   fontSize: "clamp(28px, 4vw, 42px)",
-  lineHeight: "1.1",
+  lineHeight: "1.15",
   color: "#1B1F8C",
   letterSpacing: "0"
 };
 
-const aboutParagraphStyle = {
+const aboutSubheadingStyle = {
   fontSize: "15px",
   color: "#6B6B75",
   lineHeight: "1.65"
+};
+
+const bentoGridStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(2, 1fr)",
+  gap: "20px"
+};
+
+const bentoCardStyle = {
+  backgroundColor: "#FFFFFF",
+  border: "1px solid #E7E7E2",
+  borderRadius: "20px",
+  overflow: "hidden",
+  display: "flex",
+  flexDirection: "column"
+};
+
+const bentoCardImageStyle = {
+  width: "100%",
+  height: "220px",
+  objectFit: "cover",
+  display: "block"
+};
+
+const bentoCardBodyStyle = {
+  padding: "22px 24px 26px",
+  display: "flex",
+  flexDirection: "column",
+  gap: "14px",
+  flex: 1,
+  justifyContent: "space-between"
+};
+
+const bentoCardTextStyle = {
+  fontSize: "15px",
+  color: "#14151A",
+  lineHeight: "1.6",
+  fontWeight: "500",
+  margin: 0
+};
+
+const bentoExploreBtnStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "8px",
+  border: "none",
+  backgroundColor: "#14151A",
+  color: "#FFFFFF",
+  borderRadius: "999px",
+  padding: "13px 20px",
+  fontSize: "13px",
+  fontWeight: "700",
+  cursor: "pointer",
+  width: "fit-content"
+};
+
+const bentoStatPanelStyle = {
+  width: "100%",
+  height: "220px",
+  backgroundColor: "#D9F5E4",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center"
+};
+
+const bentoStatNumberStyle = {
+  fontSize: "clamp(40px, 5vw, 56px)",
+  fontWeight: "800",
+  color: "#00B138"
 };

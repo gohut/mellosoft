@@ -99,7 +99,7 @@ export default function WishlistView() {
         ))}
       </div>
 
-      <style jsx>{`
+      <style>{`
         @media (max-width: 767px) {
           .wishlist-grid {
             overflow-x: auto !important;

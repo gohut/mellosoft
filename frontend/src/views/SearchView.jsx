@@ -138,7 +138,7 @@ export default function SearchView() {
         </div>
       )}
 
-      <style jsx global>{`
+      <style>{`
         @media (max-width: 767px) {
           .search-grid {
             display: grid !important;
