@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { PERIOD_DATA_MAP, TIME_FILTERS } from "../../data/dashboardAnalytics";
 import { MOCK_ORDERS, MOCK_INVENTORY } from "../data/adminMockData";
+import { useAdmin } from "../context/AdminContext";
 import StatusBadge from "./StatusBadge";
 import { formatPrice } from "../../utils/currency";
 
@@ -172,7 +173,9 @@ function KpiCard({ icon: Icon, label, value, display, change, color, bg, prefix,
 // Recent Orders panel
 // ─────────────────────────────────────────────────────────────────────────────
 function RecentOrdersPanel({ navigateTo }) {
-  const orders = MOCK_ORDERS.slice(0, 5);
+  const { orders, customers } = useAdmin();
+  const recentOrders = useMemo(() => (orders || []).slice(0, 5), [orders]);
+
   return (
     <div className="analytics-panel" style={panelStyle}>
       <div style={panelHeaderStyle}>
@@ -196,42 +199,48 @@ function RecentOrdersPanel({ navigateTo }) {
             </tr>
           </thead>
           <tbody>
-            {orders.map((order, idx) => (
-              <tr key={order.id} style={{ borderBottom: idx < orders.length - 1 ? "1px solid #F4F4F0" : "none" }}>
-                <td style={{ ...tdStyle, fontWeight: 700, color: "#1B1F8C" }}>{order.id}</td>
-                <td style={tdStyle}>{order.customer}</td>
-                <td style={{ ...tdStyle, fontWeight: 600 }}>{formatPrice(order.amount)}</td>
-                <td style={tdStyle}><StatusBadge status={order.orderStatus} /></td>
-                <td style={{ ...tdStyle, color: "#6B6B75", fontSize: "12px" }}>{order.date}</td>
-              </tr>
-            ))}
+            {recentOrders.map((order, idx) => {
+              const cust = (customers || []).find((c) => c.id === order.customerId) || { name: order.customer || "Customer" };
+              return (
+                <tr key={order.id} style={{ borderBottom: idx < recentOrders.length - 1 ? "1px solid #F4F4F0" : "none" }}>
+                  <td style={{ ...tdStyle, fontWeight: 700, color: "#1B1F8C" }}>{order.id}</td>
+                  <td style={tdStyle}>{cust.name}</td>
+                  <td style={{ ...tdStyle, fontWeight: 600 }}>{formatPrice(order.totalAmount ?? order.amount)}</td>
+                  <td style={tdStyle}><StatusBadge status={order.orderStatus} /></td>
+                  <td style={{ ...tdStyle, color: "#6B6B75", fontSize: "12px" }}>{order.createdAt || order.date}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
 
       {/* Mobile Compact View */}
       <div className="admin-mobile-only" style={{ display: "none", flexDirection: "column", gap: "8px" }}>
-        {orders.map((order) => (
-          <div key={order.id} style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "4px",
-            padding: "10px 12px",
-            backgroundColor: "#FFFFFF",
-            borderRadius: "8px",
-            border: "1px solid #EEEEE9",
-          }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontWeight: 700, color: "#1B1F8C", fontSize: "13px" }}>{order.id}</span>
-              <StatusBadge status={order.orderStatus} />
+        {recentOrders.map((order) => {
+          const cust = (customers || []).find((c) => c.id === order.customerId) || { name: order.customer || "Customer" };
+          return (
+            <div key={order.id} style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "4px",
+              padding: "10px 12px",
+              backgroundColor: "#FFFFFF",
+              borderRadius: "8px",
+              border: "1px solid #EEEEE9",
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontWeight: 700, color: "#1B1F8C", fontSize: "13px" }}>{order.id}</span>
+                <StatusBadge status={order.orderStatus} />
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px" }}>
+                <span style={{ color: "#14151A", fontWeight: 600 }}>{cust.name}</span>
+                <span style={{ fontWeight: 700, color: "#14151A" }}>{formatPrice(order.totalAmount ?? order.amount)}</span>
+              </div>
+              <div style={{ fontSize: "11px", color: "#6B6B75" }}>{order.createdAt || order.date}</div>
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px" }}>
-              <span style={{ color: "#14151A", fontWeight: 600 }}>{order.customer}</span>
-              <span style={{ fontWeight: 700, color: "#14151A" }}>{formatPrice(order.amount)}</span>
-            </div>
-            <div style={{ fontSize: "11px", color: "#6B6B75" }}>{order.date}</div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

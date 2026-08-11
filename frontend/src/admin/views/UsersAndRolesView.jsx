@@ -86,6 +86,23 @@ function getPermissionCount(role) {
   return count;
 }
 
+// Helper to format date strings cleanly (e.g. 2026-08-10 14:32 -> 10 Aug 2026, 14:32)
+function formatDateString(dateStr) {
+  if (!dateStr) return "N/A";
+  const parts = dateStr.trim().split(" ");
+  const datePart = parts[0];
+  const timePart = parts[1] || "";
+  const datePieces = datePart.split("-");
+  if (datePieces.length !== 3) return dateStr;
+
+  const [year, month, day] = datePieces;
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const monthIdx = parseInt(month, 10) - 1;
+  const monthName = months[monthIdx] || month;
+  const formattedDate = `${parseInt(day, 10)} ${monthName} ${year}`;
+  return timePart ? `${formattedDate}, ${timePart}` : formattedDate;
+}
+
 export default function UsersAndRolesView() {
   const {
     users,
@@ -233,14 +250,14 @@ export default function UsersAndRolesView() {
       </div>
 
       {/* Tab Switcher */}
-      <div style={{ display: "flex", borderBottom: "1px solid #E7E7E2", gap: "24px" }}>
+      <div style={{ display: "flex", borderBottom: "1px solid #E7E7E2", gap: "24px", overflowX: "auto" }}>
         <button
           onClick={() => setActiveTab("users")}
           style={{
             padding: "10px 4px", fontSize: "14px", fontWeight: 600, background: "none", border: "none", cursor: "pointer",
             color: activeTab === "users" ? "#1B1F8C" : "#6B6B75",
             borderBottom: activeTab === "users" ? "2px solid #1B1F8C" : "2px solid transparent",
-            display: "flex", alignItems: "center", gap: "8px", fontFamily: "inherit",
+            display: "flex", alignItems: "center", gap: "8px", fontFamily: "inherit", whiteSpace: "nowrap",
           }}
         >
           <UsersIcon size={18} /> Users ({users.length})
@@ -251,7 +268,7 @@ export default function UsersAndRolesView() {
             padding: "10px 4px", fontSize: "14px", fontWeight: 600, background: "none", border: "none", cursor: "pointer",
             color: activeTab === "roles" ? "#1B1F8C" : "#6B6B75",
             borderBottom: activeTab === "roles" ? "2px solid #1B1F8C" : "2px solid transparent",
-            display: "flex", alignItems: "center", gap: "8px", fontFamily: "inherit",
+            display: "flex", alignItems: "center", gap: "8px", fontFamily: "inherit", whiteSpace: "nowrap",
           }}
         >
           <Shield size={18} /> Roles & Permissions ({roles.length})
@@ -262,9 +279,9 @@ export default function UsersAndRolesView() {
       {activeTab === "users" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
           {/* Filters Bar */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "16px", flexWrap: "wrap", backgroundColor: "#FFFFFF", padding: "16px", borderRadius: "12px", border: "1px solid #E7E7E2" }}>
+          <div className="users-filters-bar">
             {/* Search Input */}
-            <div style={{ position: "relative", width: "300px", minWidth: 0, flex: 1 }}>
+            <div className="users-search-box">
               <Search size={18} color="#6B6B75" style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)" }} />
               <input
                 type="text"
@@ -281,10 +298,10 @@ export default function UsersAndRolesView() {
             </div>
 
             {/* Role & Status Filter Dropdowns */}
-            <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <div className="users-filter-dropdowns">
+              <div className="users-filter-item">
                 <span style={{ fontSize: "13px", color: "#6B6B75", fontWeight: 500 }}>Role:</span>
-                <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} style={selectFilterStyle}>
+                <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className="users-filter-select" style={selectFilterStyle}>
                   <option value="all">All Roles</option>
                   {roles.map((r) => (
                     <option key={r.id} value={r.id}>{r.name}</option>
@@ -292,9 +309,9 @@ export default function UsersAndRolesView() {
                 </select>
               </div>
 
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <div className="users-filter-item">
                 <span style={{ fontSize: "13px", color: "#6B6B75", fontWeight: 500 }}>Status:</span>
-                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={selectFilterStyle}>
+                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="users-filter-select" style={selectFilterStyle}>
                   <option value="all">All Status</option>
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
@@ -303,71 +320,198 @@ export default function UsersAndRolesView() {
             </div>
           </div>
 
-          {/* Users Data Table */}
-          <div style={{ backgroundColor: "#FFFFFF", borderRadius: "12px", border: "1px solid #E7E7E2", overflowX: "auto" }}>
-            {filteredUsers.length === 0 ? (
-              <div style={{ padding: "48px 24px", textAlign: "center", color: "#6B6B75" }}>
-                <UsersIcon size={36} color="#9CA3AF" style={{ marginBottom: "12px" }} />
-                <h4 style={{ fontSize: "15px", fontWeight: 600, color: "#14151A", margin: 0 }}>No users found</h4>
-                <p style={{ fontSize: "13px", margin: "4px 0 0" }}>Try adjusting your search query or filters.</p>
-              </div>
-            ) : (
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
-                <thead>
-                  <tr style={{ backgroundColor: "#FAFAF7", borderBottom: "1px solid #E7E7E2" }}>
-                    <th style={thStyle}>User</th>
-                    <th style={thStyle}>Email</th>
-                    <th style={thStyle}>Role</th>
-                    <th style={thStyle}>Status</th>
-                    <th style={thStyle}>Last Login</th>
-                    <th style={thStyle}>Created</th>
-                    <th style={{ ...thStyle, textAlign: "right" }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredUsers.map((u) => {
-                    const roleObj = roles.find((r) => r.id === u.roleId) || { name: "User" };
-                    const badge = getRoleBadgeStyle(u.roleId);
-                    const isSelf = u.id === currentUser?.id;
+          {filteredUsers.length === 0 ? (
+            <div style={{ backgroundColor: "#FFFFFF", borderRadius: "12px", border: "1px solid #E7E7E2", padding: "48px 24px", textAlign: "center", color: "#6B6B75" }}>
+              <UsersIcon size={36} color="#9CA3AF" style={{ marginBottom: "12px" }} />
+              <h4 style={{ fontSize: "15px", fontWeight: 600, color: "#14151A", margin: 0 }}>No users found</h4>
+              <p style={{ fontSize: "13px", margin: "4px 0 0" }}>Try adjusting your search query or filters.</p>
+            </div>
+          ) : (
+            <>
+              {/* Desktop Users Data Table */}
+              <div className="users-desktop-table-wrapper">
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+                  <thead>
+                    <tr style={{ backgroundColor: "#FAFAF7", borderBottom: "1px solid #E7E7E2" }}>
+                      <th style={thStyle}>User</th>
+                      <th style={thStyle}>Email</th>
+                      <th style={thStyle}>Role</th>
+                      <th style={thStyle}>Status</th>
+                      <th style={thStyle}>Last Login</th>
+                      <th style={thStyle}>Created</th>
+                      <th style={{ ...thStyle, textAlign: "right" }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredUsers.map((u) => {
+                      const roleObj = roles.find((r) => r.id === u.roleId) || { name: "User" };
+                      const badge = getRoleBadgeStyle(u.roleId);
+                      const isSelf = u.id === currentUser?.id;
 
-                    return (
-                      <tr key={u.id} style={{ borderBottom: "1px solid #F0F0EC" }}>
-                        {/* User avatar + name */}
-                        <td style={{ padding: "14px 16px" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                            <div style={{
-                              width: "36px", height: "36px", borderRadius: "50%",
-                              backgroundColor: badge.bg, color: badge.color,
-                              display: "flex", alignItems: "center", justifyContent: "center",
-                              fontSize: "14px", fontWeight: 700, flexShrink: 0,
-                              border: `1px solid ${badge.border}`,
-                            }}>
-                              {u.name.charAt(0).toUpperCase()}
-                            </div>
-                            <div>
-                              <div style={{ fontWeight: 600, color: "#14151A" }}>
-                                {u.name} {isSelf && <span style={{ fontSize: "11px", color: "#16A34A", fontWeight: 700, marginLeft: "4px" }}>(You)</span>}
+                      return (
+                        <tr key={u.id} style={{ borderBottom: "1px solid #F0F0EC" }}>
+                          {/* User avatar + name */}
+                          <td style={{ padding: "14px 16px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                              <div style={{
+                                width: "36px", height: "36px", borderRadius: "50%",
+                                backgroundColor: badge.bg, color: badge.color,
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                                fontSize: "14px", fontWeight: 700, flexShrink: 0,
+                                border: `1px solid ${badge.border}`,
+                              }}>
+                                {u.name.charAt(0).toUpperCase()}
                               </div>
-                              <div style={{ fontSize: "11px", color: "#6B6B75" }}>{u.phone || "No phone"}</div>
+                              <div>
+                                <div style={{ fontWeight: 600, color: "#14151A" }}>
+                                  {u.name} {isSelf && <span style={{ fontSize: "11px", color: "#16A34A", fontWeight: 700, marginLeft: "4px" }}>(You)</span>}
+                                </div>
+                                <div style={{ fontSize: "11px", color: "#6B6B75" }}>{u.phone || "No phone"}</div>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Email */}
+                          <td style={{ padding: "14px 16px", color: "#4B5563", fontWeight: 500 }}>{u.email}</td>
+
+                          {/* Role Badge */}
+                          <td style={{ padding: "14px 16px" }}>
+                            <span style={{
+                              fontSize: "12px", fontWeight: 600, padding: "4px 10px", borderRadius: "999px",
+                              backgroundColor: badge.bg, color: badge.color, border: `1px solid ${badge.border}`,
+                            }}>
+                              {roleObj.name}
+                            </span>
+                          </td>
+
+                          {/* Status Badge */}
+                          <td style={{ padding: "14px 16px" }}>
+                            <span style={{
+                              fontSize: "12px", fontWeight: 600, padding: "3px 10px", borderRadius: "999px",
+                              backgroundColor: u.status === "Active" ? "#DCFCE7" : "#FEE2E2",
+                              color: u.status === "Active" ? "#16A34A" : "#DC2626",
+                              display: "inline-flex", alignItems: "center", gap: "6px",
+                            }}>
+                              <span style={{ width: "6px", height: "6px", borderRadius: "50%", backgroundColor: u.status === "Active" ? "#16A34A" : "#DC2626" }} />
+                              {u.status}
+                            </span>
+                          </td>
+
+                          {/* Last Login */}
+                          <td style={{ padding: "14px 16px", color: "#6B6B75", whiteSpace: "nowrap" }}>{formatDateString(u.lastLogin)}</td>
+
+                          {/* Created */}
+                          <td style={{ padding: "14px 16px", color: "#6B6B75", whiteSpace: "nowrap" }}>{formatDateString(u.createdAt)}</td>
+
+                          {/* Actions */}
+                          <td style={{ padding: "14px 16px", textAlign: "right" }}>
+                            <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>
+                              {/* View */}
+                              <button onClick={() => setViewUserTarget(u)} style={iconBtnStyle} title="View Details">
+                                <Eye size={15} color="#1B1F8C" />
+                              </button>
+
+                              {/* Edit */}
+                              {hasPermission("users", "edit") && (
+                                <button onClick={() => setEditUserTarget(u)} style={iconBtnStyle} title="Edit User">
+                                  <Pencil size={15} color="#F59E0B" />
+                                </button>
+                              )}
+
+                              {/* Toggle Status */}
+                              {hasPermission("users", "edit") && !isSelf && (
+                                <button
+                                  onClick={() => {
+                                    toggleUserStatus(u.id);
+                                    showToast(`User "${u.name}" status changed to ${u.status === "Active" ? "Inactive" : "Active"}.`);
+                                  }}
+                                  style={{ ...iconBtnStyle, backgroundColor: u.status === "Active" ? "#FFF5F5" : "#F0FDF4" }}
+                                  title={u.status === "Active" ? "Deactivate User" : "Activate User"}
+                                >
+                                  <Power size={15} color={u.status === "Active" ? "#DC2626" : "#16A34A"} />
+                                </button>
+                              )}
+
+                              {/* Delete */}
+                              {hasPermission("users", "delete") && !isSelf && (
+                                <button onClick={() => setDeleteUserTarget(u)} style={iconBtnStyle} title="Delete User">
+                                  <Trash2 size={15} color="#DC2626" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile User Cards */}
+              <div className="users-mobile-cards-wrapper">
+                {filteredUsers.map((u) => {
+                  const roleObj = roles.find((r) => r.id === u.roleId) || { name: "User" };
+                  const badge = getRoleBadgeStyle(u.roleId);
+                  const isSelf = u.id === currentUser?.id;
+
+                  return (
+                    <div key={u.id} className="admin-user-card">
+                      {/* Card Header: Avatar + User Info + Role Badge */}
+                      <div className="admin-user-card-header">
+                        <div style={{ display: "flex", alignItems: "flex-start", gap: "12px", flex: 1, minWidth: 0 }}>
+                          <div style={{
+                            width: "40px", height: "40px", borderRadius: "50%",
+                            backgroundColor: badge.bg, color: badge.color,
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            fontSize: "15px", fontWeight: 700, flexShrink: 0,
+                            border: `1px solid ${badge.border}`,
+                          }}>
+                            {u.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: "15px", fontWeight: 700, color: "#14151A", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                              <span>{u.name}</span>
+                              {isSelf && <span style={{ fontSize: "11px", color: "#16A34A", fontWeight: 700 }}>(You)</span>}
+                            </div>
+                            <div style={{ fontSize: "12px", color: "#6B6B75", marginTop: "2px" }}>
+                              {u.phone || "No phone"}
+                            </div>
+                            <div
+                              style={{
+                                fontSize: "12px",
+                                color: "#4B5563",
+                                fontWeight: 500,
+                                marginTop: "2px",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                                maxWidth: "100%",
+                              }}
+                              title={u.email}
+                            >
+                              {u.email}
                             </div>
                           </div>
-                        </td>
+                        </div>
 
-                        {/* Email */}
-                        <td style={{ padding: "14px 16px", color: "#4B5563", fontWeight: 500 }}>{u.email}</td>
-
-                        {/* Role Badge */}
-                        <td style={{ padding: "14px 16px" }}>
+                        <div style={{ flexShrink: 0 }}>
                           <span style={{
-                            fontSize: "12px", fontWeight: 600, padding: "4px 10px", borderRadius: "999px",
+                            fontSize: "11px", fontWeight: 600, padding: "4px 10px", borderRadius: "999px",
                             backgroundColor: badge.bg, color: badge.color, border: `1px solid ${badge.border}`,
+                            whiteSpace: "nowrap", display: "inline-block"
                           }}>
                             {roleObj.name}
                           </span>
-                        </td>
+                        </div>
+                      </div>
 
-                        {/* Status Badge */}
-                        <td style={{ padding: "14px 16px" }}>
+                      {/* Divider */}
+                      <div style={{ height: "1px", backgroundColor: "#F0F0EC", margin: "12px 0" }} />
+
+                      {/* Card Details: Status, Last Login, Created */}
+                      <div style={{ display: "flex", flexDirection: "column", gap: "8px", fontSize: "12px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ color: "#6B6B75", fontWeight: 500 }}>Status:</span>
                           <span style={{
                             fontSize: "12px", fontWeight: 600, padding: "3px 10px", borderRadius: "999px",
                             backgroundColor: u.status === "Active" ? "#DCFCE7" : "#FEE2E2",
@@ -377,58 +521,65 @@ export default function UsersAndRolesView() {
                             <span style={{ width: "6px", height: "6px", borderRadius: "50%", backgroundColor: u.status === "Active" ? "#16A34A" : "#DC2626" }} />
                             {u.status}
                           </span>
-                        </td>
+                        </div>
 
-                        {/* Last Login */}
-                        <td style={{ padding: "14px 16px", color: "#6B6B75" }}>{u.lastLogin}</td>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ color: "#6B6B75", fontWeight: 500 }}>Last Login:</span>
+                          <span style={{ color: "#14151A", fontWeight: 500 }}>{formatDateString(u.lastLogin)}</span>
+                        </div>
 
-                        {/* Created */}
-                        <td style={{ padding: "14px 16px", color: "#6B6B75" }}>{u.createdAt}</td>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ color: "#6B6B75", fontWeight: 500 }}>Created:</span>
+                          <span style={{ color: "#14151A", fontWeight: 500 }}>{formatDateString(u.createdAt)}</span>
+                        </div>
+                      </div>
 
-                        {/* Actions */}
-                        <td style={{ padding: "14px 16px", textAlign: "right" }}>
-                          <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>
-                            {/* View */}
-                            <button onClick={() => setViewUserTarget(u)} style={iconBtnStyle} title="View Details">
-                              <Eye size={15} color="#1B1F8C" />
-                            </button>
+                      {/* Divider */}
+                      <div style={{ height: "1px", backgroundColor: "#F0F0EC", margin: "12px 0" }} />
 
-                            {/* Edit */}
-                            {hasPermission("users", "edit") && (
-                              <button onClick={() => setEditUserTarget(u)} style={iconBtnStyle} title="Edit User">
-                                <Pencil size={15} color="#F59E0B" />
-                              </button>
-                            )}
+                      {/* Card Actions */}
+                      <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end", alignItems: "center", flexWrap: "wrap" }}>
+                        <button onClick={() => setViewUserTarget(u)} style={mobileActionBtnStyle} title="View Details">
+                          <Eye size={15} color="#1B1F8C" />
+                          <span style={{ color: "#1B1F8C" }}>View</span>
+                        </button>
 
-                            {/* Toggle Status */}
-                            {hasPermission("users", "edit") && !isSelf && (
-                              <button
-                                onClick={() => {
-                                  toggleUserStatus(u.id);
-                                  showToast(`User "${u.name}" status changed to ${u.status === "Active" ? "Inactive" : "Active"}.`);
-                                }}
-                                style={{ ...iconBtnStyle, backgroundColor: u.status === "Active" ? "#FFF5F5" : "#F0FDF4" }}
-                                title={u.status === "Active" ? "Deactivate User" : "Activate User"}
-                              >
-                                <Power size={15} color={u.status === "Active" ? "#DC2626" : "#16A34A"} />
-                              </button>
-                            )}
+                        {hasPermission("users", "edit") && (
+                          <button onClick={() => setEditUserTarget(u)} style={mobileActionBtnStyle} title="Edit User">
+                            <Pencil size={15} color="#D97706" />
+                            <span style={{ color: "#D97706" }}>Edit</span>
+                          </button>
+                        )}
 
-                            {/* Delete */}
-                            {hasPermission("users", "delete") && !isSelf && (
-                              <button onClick={() => setDeleteUserTarget(u)} style={iconBtnStyle} title="Delete User">
-                                <Trash2 size={15} color="#DC2626" />
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-          </div>
+                        {hasPermission("users", "edit") && !isSelf && (
+                          <button
+                            onClick={() => {
+                              toggleUserStatus(u.id);
+                              showToast(`User "${u.name}" status changed to ${u.status === "Active" ? "Inactive" : "Active"}.`);
+                            }}
+                            style={{ ...mobileActionBtnStyle, backgroundColor: u.status === "Active" ? "#FFF5F5" : "#F0FDF4" }}
+                            title={u.status === "Active" ? "Deactivate User" : "Activate User"}
+                          >
+                            <Power size={15} color={u.status === "Active" ? "#DC2626" : "#16A34A"} />
+                            <span style={{ color: u.status === "Active" ? "#DC2626" : "#16A34A" }}>
+                              {u.status === "Active" ? "Disable" : "Enable"}
+                            </span>
+                          </button>
+                        )}
+
+                        {hasPermission("users", "delete") && !isSelf && (
+                          <button onClick={() => setDeleteUserTarget(u)} style={mobileActionBtnStyle} title="Delete User">
+                            <Trash2 size={15} color="#DC2626" />
+                            <span style={{ color: "#DC2626" }}>Delete</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -1144,6 +1295,12 @@ const iconBtnStyle = {
   width: "32px", height: "32px", border: "1px solid #E7E7E2", borderRadius: "8px",
   backgroundColor: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center",
   cursor: "pointer", transition: "all 0.15s ease",
+};
+
+const mobileActionBtnStyle = {
+  display: "inline-flex", alignItems: "center", gap: "6px", height: "34px", padding: "0 12px",
+  border: "1px solid #E7E7E2", borderRadius: "8px", backgroundColor: "#FFFFFF",
+  fontSize: "12px", fontWeight: 600, color: "#14151A", cursor: "pointer", transition: "all 0.15s ease",
 };
 
 const fieldGroup = { display: "flex", flexDirection: "column", gap: "6px" };

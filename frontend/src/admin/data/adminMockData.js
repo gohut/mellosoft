@@ -68,100 +68,323 @@ export const DASHBOARD_STATS = {
   productsChange: 2.1,
 };
 
-// Mock orders
+// Mock orders referencing customerId & productId
 export const MOCK_ORDERS = [
+  // Rahul Sharma (C001) - 5 Orders, Total: ₹4,250
   {
     id: "MS-92841",
-    customer: "Rahul Sharma",
-    email: "rahul@example.com",
-    products: ["Mellosoft Classic Mattress", "Organic Mattress Protector"],
-    amount: 968,
+    customerId: "C001",
+    items: [
+      { productId: "classic-mattress", variantSize: "Queen", variantFirmness: "Medium", quantity: 1, price: 899 },
+      { productId: "organic-protector", variantSize: "Queen", variantFirmness: "Standard", quantity: 1, price: 69 },
+    ],
+    totalAmount: 968,
     paymentStatus: "Paid",
     orderStatus: "Delivered",
-    date: "2026-08-01",
+    createdAt: "2026-08-01",
   },
+  {
+    id: "MS-92830",
+    customerId: "C001",
+    items: [
+      { productId: "classic-mattress", variantSize: "Queen", variantFirmness: "Medium", quantity: 1, price: 899 },
+    ],
+    totalAmount: 899,
+    paymentStatus: "Paid",
+    orderStatus: "Delivered",
+    createdAt: "2026-07-15",
+  },
+  {
+    id: "MS-92815",
+    customerId: "C001",
+    items: [
+      { productId: "luxury-pillow", variantSize: "Standard", variantFirmness: "Soft", quantity: 2, price: 89 },
+    ],
+    totalAmount: 178,
+    paymentStatus: "Paid",
+    orderStatus: "Delivered",
+    createdAt: "2026-06-20",
+  },
+  {
+    id: "MS-92802",
+    customerId: "C001",
+    items: [
+      { productId: "luxe-hybrid", variantSize: "Queen", variantFirmness: "Medium", quantity: 1, price: 1299 },
+    ],
+    totalAmount: 1299,
+    paymentStatus: "Paid",
+    orderStatus: "Delivered",
+    createdAt: "2026-05-10",
+  },
+  {
+    id: "MS-92790",
+    customerId: "C001",
+    items: [
+      { productId: "classic-mattress", variantSize: "Twin", variantFirmness: "Soft", quantity: 1, price: 699 },
+      { productId: "luxury-pillow", variantSize: "Standard", variantFirmness: "Medium", quantity: 1, price: 89 },
+      { productId: "organic-protector", variantSize: "Twin", variantFirmness: "Standard", quantity: 1, price: 118 },
+    ],
+    totalAmount: 906,
+    paymentStatus: "Paid",
+    orderStatus: "Delivered",
+    createdAt: "2026-04-01",
+  },
+
+  // Priya Patel (C002) - 3 Orders, Total: ₹2,890
   {
     id: "MS-92840",
-    customer: "Priya Patel",
-    email: "priya@example.com",
-    products: ["Mellosoft Luxe Hybrid"],
-    amount: 1299,
+    customerId: "C002",
+    items: [
+      { productId: "luxe-hybrid", variantSize: "Queen", variantFirmness: "Medium", quantity: 1, price: 1299 },
+    ],
+    totalAmount: 1299,
     paymentStatus: "Paid",
     orderStatus: "Processing",
-    date: "2026-08-01",
+    createdAt: "2026-08-01",
   },
+  {
+    id: "MS-92825",
+    customerId: "C002",
+    items: [
+      { productId: "oak-bedframe", variantSize: "Queen", variantFirmness: "Standard", quantity: 1, price: 799 },
+    ],
+    totalAmount: 799,
+    paymentStatus: "Paid",
+    orderStatus: "Delivered",
+    createdAt: "2026-07-10",
+  },
+  {
+    id: "MS-92810",
+    customerId: "C002",
+    items: [
+      { productId: "classic-mattress", variantSize: "Twin", variantFirmness: "Soft", quantity: 1, price: 699 },
+      { productId: "luxury-pillow", variantSize: "Standard", variantFirmness: "Soft", quantity: 1, price: 93 },
+    ],
+    totalAmount: 792,
+    paymentStatus: "Paid",
+    orderStatus: "Delivered",
+    createdAt: "2026-06-05",
+  },
+
+  // Ankit Gupta (C003) - 2 Orders, Total: ₹1,780
   {
     id: "MS-92839",
-    customer: "Ankit Gupta",
-    email: "ankit@example.com",
-    products: ["Luxury Down Pillow", "Luxury Down Pillow"],
-    amount: 178,
+    customerId: "C003",
+    items: [
+      { productId: "luxury-pillow", variantSize: "Standard", variantFirmness: "Soft", quantity: 2, price: 89 },
+    ],
+    totalAmount: 178,
     paymentStatus: "Paid",
     orderStatus: "Pending",
-    date: "2026-07-31",
+    createdAt: "2026-07-31",
   },
+  {
+    id: "MS-92820",
+    customerId: "C003",
+    items: [
+      { productId: "latex-serene", variantSize: "Queen", variantFirmness: "Medium", quantity: 1, price: 1099 },
+      { productId: "classic-mattress", variantSize: "Twin", variantFirmness: "Soft", quantity: 1, price: 503 },
+    ],
+    totalAmount: 1602,
+    paymentStatus: "Paid",
+    orderStatus: "Delivered",
+    createdAt: "2026-06-15",
+  },
+
+  // Sneha Reddy (C004) - 4 Orders, Total: ₹3,560
   {
     id: "MS-92838",
-    customer: "Sneha Reddy",
-    email: "sneha@example.com",
-    products: ["Solid Oak Bed Frame"],
-    amount: 799,
+    customerId: "C004",
+    items: [
+      { productId: "oak-bedframe", variantSize: "Queen", variantFirmness: "Standard", quantity: 1, price: 799 },
+    ],
+    totalAmount: 799,
     paymentStatus: "Paid",
     orderStatus: "Delivered",
-    date: "2026-07-30",
+    createdAt: "2026-07-30",
   },
+  {
+    id: "MS-92828",
+    customerId: "C004",
+    items: [
+      { productId: "luxe-hybrid", variantSize: "Queen", variantFirmness: "Medium", quantity: 1, price: 1299 },
+    ],
+    totalAmount: 1299,
+    paymentStatus: "Paid",
+    orderStatus: "Delivered",
+    createdAt: "2026-07-01",
+  },
+  {
+    id: "MS-92812",
+    customerId: "C004",
+    items: [
+      { productId: "ortho-support", variantSize: "Queen", variantFirmness: "Firm", quantity: 1, price: 949 },
+    ],
+    totalAmount: 949,
+    paymentStatus: "Paid",
+    orderStatus: "Delivered",
+    createdAt: "2026-05-25",
+  },
+  {
+    id: "MS-92798",
+    customerId: "C004",
+    items: [
+      { productId: "luxury-pillow", variantSize: "King", variantFirmness: "Medium", quantity: 3, price: 109 },
+      { productId: "organic-protector", variantSize: "Queen", variantFirmness: "Standard", quantity: 2, price: 93 },
+    ],
+    totalAmount: 513,
+    paymentStatus: "Paid",
+    orderStatus: "Delivered",
+    createdAt: "2026-04-15",
+  },
+
+  // Vikram Singh (C005) - 1 Order
   {
     id: "MS-92837",
-    customer: "Vikram Singh",
-    email: "vikram@example.com",
-    products: ["Mellosoft Ergo Air", "Organic Mattress Protector"],
-    amount: 1068,
+    customerId: "C005",
+    items: [
+      { productId: "ergo-air", variantSize: "Queen", variantFirmness: "Soft", quantity: 1, price: 999 },
+      { productId: "organic-protector", variantSize: "Queen", variantFirmness: "Standard", quantity: 1, price: 69 },
+    ],
+    totalAmount: 1068,
     paymentStatus: "Pending",
     orderStatus: "Pending",
-    date: "2026-07-30",
+    createdAt: "2026-07-30",
   },
+
+  // Meera Joshi (C006) - 6 Orders, Total: ₹5,340
   {
     id: "MS-92836",
-    customer: "Meera Joshi",
-    email: "meera@example.com",
-    products: ["Mellosoft Ortho Support"],
-    amount: 949,
+    customerId: "C006",
+    items: [
+      { productId: "ortho-support", variantSize: "Queen", variantFirmness: "Firm", quantity: 1, price: 949 },
+    ],
+    totalAmount: 949,
     paymentStatus: "Paid",
     orderStatus: "Delivered",
-    date: "2026-07-29",
+    createdAt: "2026-07-29",
   },
+  {
+    id: "MS-92832",
+    customerId: "C006",
+    items: [
+      { productId: "luxe-hybrid", variantSize: "Queen", variantFirmness: "Medium", quantity: 1, price: 1299 },
+    ],
+    totalAmount: 1299,
+    paymentStatus: "Paid",
+    orderStatus: "Delivered",
+    createdAt: "2026-07-20",
+  },
+  {
+    id: "MS-92822",
+    customerId: "C006",
+    items: [
+      { productId: "classic-mattress", variantSize: "Queen", variantFirmness: "Medium", quantity: 1, price: 899 },
+    ],
+    totalAmount: 899,
+    paymentStatus: "Paid",
+    orderStatus: "Delivered",
+    createdAt: "2026-06-28",
+  },
+  {
+    id: "MS-92816",
+    customerId: "C006",
+    items: [
+      { productId: "latex-serene", variantSize: "Queen", variantFirmness: "Medium", quantity: 1, price: 1099 },
+    ],
+    totalAmount: 1099,
+    paymentStatus: "Paid",
+    orderStatus: "Delivered",
+    createdAt: "2026-06-01",
+  },
+  {
+    id: "MS-92805",
+    customerId: "C006",
+    items: [
+      { productId: "oak-bedframe", variantSize: "Queen", variantFirmness: "Standard", quantity: 1, price: 799 },
+    ],
+    totalAmount: 799,
+    paymentStatus: "Paid",
+    orderStatus: "Delivered",
+    createdAt: "2026-05-15",
+  },
+  {
+    id: "MS-92792",
+    customerId: "C006",
+    items: [
+      { productId: "luxury-pillow", variantSize: "Standard", variantFirmness: "Medium", quantity: 2, price: 89 },
+      { productId: "organic-protector", variantSize: "Full", variantFirmness: "Standard", quantity: 1, price: 117 },
+    ],
+    totalAmount: 295,
+    paymentStatus: "Paid",
+    orderStatus: "Delivered",
+    createdAt: "2026-04-20",
+  },
+
+  // Arjun Nair (C007) - 1 Order (Cancelled)
   {
     id: "MS-92835",
-    customer: "Arjun Nair",
-    email: "arjun@example.com",
-    products: ["Mellosoft Latex Serene"],
-    amount: 1099,
+    customerId: "C007",
+    items: [
+      { productId: "latex-serene", variantSize: "Queen", variantFirmness: "Medium", quantity: 1, price: 1099 },
+    ],
+    totalAmount: 1099,
     paymentStatus: "Failed",
     orderStatus: "Cancelled",
-    date: "2026-07-28",
+    createdAt: "2026-07-28",
   },
+
+  // Kavitha Menon (C008) - 2 Orders, Total: ₹1,580
   {
     id: "MS-92834",
-    customer: "Kavitha Menon",
-    email: "kavitha@example.com",
-    products: ["Luxury Down Pillow"],
-    amount: 89,
+    customerId: "C008",
+    items: [
+      { productId: "luxury-pillow", variantSize: "Standard", variantFirmness: "Medium", quantity: 1, price: 89 },
+    ],
+    totalAmount: 89,
     paymentStatus: "Paid",
     orderStatus: "Delivered",
-    date: "2026-07-27",
+    createdAt: "2026-07-27",
+  },
+  {
+    id: "MS-92818",
+    customerId: "C008",
+    items: [
+      { productId: "classic-mattress", variantSize: "King", variantFirmness: "Firm", quantity: 1, price: 1099 },
+      { productId: "luxury-pillow", variantSize: "King", variantFirmness: "Soft", quantity: 2, price: 109 },
+      { productId: "organic-protector", variantSize: "King", variantFirmness: "Standard", quantity: 2, price: 87 },
+    ],
+    totalAmount: 1491,
+    paymentStatus: "Paid",
+    orderStatus: "Delivered",
+    createdAt: "2026-06-10",
   },
 ];
 
-// Mock customers
+// Normalized Mock Customers
 export const MOCK_CUSTOMERS = [
-  { id: "C001", name: "Rahul Sharma", email: "rahul@example.com", phone: "+91 98765 43210", totalOrders: 5, totalSpending: 4250, status: "Active", avatar: "R" },
-  { id: "C002", name: "Priya Patel", email: "priya@example.com", phone: "+91 87654 32109", totalOrders: 3, totalSpending: 2890, status: "Active", avatar: "P" },
-  { id: "C003", name: "Ankit Gupta", email: "ankit@example.com", phone: "+91 76543 21098", totalOrders: 2, totalSpending: 1780, status: "Active", avatar: "A" },
-  { id: "C004", name: "Sneha Reddy", email: "sneha@example.com", phone: "+91 65432 10987", totalOrders: 4, totalSpending: 3560, status: "Active", avatar: "S" },
-  { id: "C005", name: "Vikram Singh", email: "vikram@example.com", phone: "+91 54321 09876", totalOrders: 1, totalSpending: 1068, status: "Active", avatar: "V" },
-  { id: "C006", name: "Meera Joshi", email: "meera@example.com", phone: "+91 43210 98765", totalOrders: 6, totalSpending: 5340, status: "Active", avatar: "M" },
-  { id: "C007", name: "Arjun Nair", email: "arjun@example.com", phone: "+91 32109 87654", totalOrders: 1, totalSpending: 0, status: "Inactive", avatar: "A" },
-  { id: "C008", name: "Kavitha Menon", email: "kavitha@example.com", phone: "+91 21098 76543", totalOrders: 2, totalSpending: 1580, status: "Active", avatar: "K" },
+  { id: "C001", name: "Rahul Sharma", email: "rahul@example.com", phone: "+91 98765 43210", status: "Active", avatar: "R", createdAt: "2026-01-15", lastLogin: "2026-08-10 14:32" },
+  { id: "C002", name: "Priya Patel", email: "priya@example.com", phone: "+91 87654 32109", status: "Active", avatar: "P", createdAt: "2026-02-01", lastLogin: "2026-08-09 11:20" },
+  { id: "C003", name: "Ankit Gupta", email: "ankit@example.com", phone: "+91 76543 21098", status: "Active", avatar: "A", createdAt: "2026-03-10", lastLogin: "2026-08-08 16:45" },
+  { id: "C004", name: "Sneha Reddy", email: "sneha@example.com", phone: "+91 65432 10987", status: "Active", avatar: "S", createdAt: "2026-04-12", lastLogin: "2026-07-30 09:15" },
+  { id: "C005", name: "Vikram Singh", email: "vikram@example.com", phone: "+91 54321 09876", status: "Active", avatar: "V", createdAt: "2026-05-20", lastLogin: "2026-07-30 18:22" },
+  { id: "C006", name: "Meera Joshi", email: "meera@example.com", phone: "+91 43210 98765", status: "Active", avatar: "M", createdAt: "2026-06-05", lastLogin: "2026-07-29 12:10" },
+  { id: "C007", name: "Arjun Nair", email: "arjun@example.com", phone: "+91 32109 87654", status: "Inactive", avatar: "A", createdAt: "2026-06-18", lastLogin: "2026-07-25 14:05" },
+  { id: "C008", name: "Kavitha Menon", email: "kavitha@example.com", phone: "+91 21098 76543", status: "Active", avatar: "K", createdAt: "2026-07-01", lastLogin: "2026-07-27 10:30" },
+];
+
+// Normalized Mock Wishlists
+export const MOCK_WISHLISTS = [
+  { customerId: "C001", productId: "classic-mattress", addedAt: "2026-07-20" },
+  { customerId: "C001", productId: "luxe-hybrid", addedAt: "2026-07-25" },
+  { customerId: "C002", productId: "luxe-hybrid", addedAt: "2026-07-28" },
+  { customerId: "C003", productId: "luxury-pillow", addedAt: "2026-07-15" },
+  { customerId: "C004", productId: "oak-bedframe", addedAt: "2026-06-10" },
+  { customerId: "C004", productId: "organic-protector", addedAt: "2026-06-12" },
+  { customerId: "C005", productId: "ergo-air", addedAt: "2026-07-01" },
+  { customerId: "C006", productId: "ortho-support", addedAt: "2026-05-30" },
+  { customerId: "C006", productId: "luxury-pillow", addedAt: "2026-06-02" },
+  { customerId: "C008", productId: "luxury-pillow", addedAt: "2026-07-10" },
 ];
 
 // Mock reviews for moderation

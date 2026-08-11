@@ -11,6 +11,7 @@ const statusConfig = {
   // Payment statuses
   "Paid": { bg: "#DCFCE7", color: "#15803D", dot: "#16A34A" },
   "Failed": { bg: "#FEE2E2", color: "#991B1B", dot: "#DC2626" },
+  "Refunded": { bg: "#F3E8FF", color: "#6B21A8", dot: "#9333EA" },
   // Stock statuses
   "In Stock": { bg: "#DCFCE7", color: "#15803D", dot: "#16A34A" },
   "Low Stock": { bg: "#FEF3C7", color: "#92400E", dot: "#F59E0B" },

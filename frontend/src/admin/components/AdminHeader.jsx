@@ -32,12 +32,32 @@ const viewBreadcrumbs = {
   settings: [{ label: "Settings" }],
 };
 
+const getRoleColor = (roleObj, userObj) => {
+  const roleName = (roleObj?.name || userObj?.role || "").toLowerCase();
+  const roleId = (roleObj?.id || userObj?.roleId || "").toLowerCase();
+
+  if (roleName.includes("super admin") || roleId.includes("super-admin") || roleId.includes("super_admin")) {
+    return "#7C3AED"; // purple
+  }
+  if (roleName.includes("admin") || roleId.includes("admin")) {
+    return "#2563EB"; // blue
+  }
+  if (roleName.includes("manager") || roleId.includes("manager")) {
+    return "#D97706"; // yellow/gold
+  }
+  if (roleName.includes("staff") || roleId.includes("staff")) {
+    return "#6B7280"; // grey
+  }
+  return "#7C3AED";
+};
+
 export default function AdminHeader() {
   const { adminView, navigateTo, sidebarCollapsed, toggleSidebar, toggleMobileSidebar, notifications, currentUser, currentUserRole } = useAdmin();
   const [showNotifications, setShowNotifications] = useState(false);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
   const crumbs = viewBreadcrumbs[adminView] || [{ label: "Dashboard" }];
+  const roleColor = getRoleColor(currentUserRole, currentUser);
 
   return (
     <header className="admin-header" style={{
@@ -220,7 +240,7 @@ export default function AdminHeader() {
           }}
           onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#F7F7F2"; }}
           onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
-          title={`${currentUser?.name || "Admin"} (${currentUserRole?.name || "Super Admin"})`}
+          title={currentUser?.name || "Admin"}
         >
           <div style={{
             width: "36px",
@@ -238,17 +258,12 @@ export default function AdminHeader() {
             {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : "A"}
           </div>
           <div className="admin-desktop-only" style={{ textAlign: "left", lineHeight: 1.2 }}>
-            <div style={{ fontSize: "13px", fontWeight: 700, color: "#14151A", whiteSpace: "nowrap" }}>
+            <div style={{ fontSize: "13px", fontWeight: 700, color: roleColor, whiteSpace: "nowrap" }}>
               {currentUser?.name || "Admin"}
-            </div>
-            <div style={{ fontSize: "11px", color: "#6B6B75", whiteSpace: "nowrap" }}>
-              {currentUserRole?.name || "Super Admin"}
             </div>
           </div>
         </button>
       </div>
-
-
     </header>
   );
 }

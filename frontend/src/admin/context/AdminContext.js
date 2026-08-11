@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { MOCK_PRODUCTS } from "../../data/products";
-import { MOCK_CATEGORIES } from "../data/adminMockData";
+import { MOCK_CATEGORIES, MOCK_ORDERS, MOCK_CUSTOMERS, MOCK_WISHLISTS } from "../data/adminMockData";
 import { DEFAULT_ROLES } from "../../data/rolesData";
 import { DEFAULT_USERS } from "../../data/usersData";
 import { hashPassword, checkPermission } from "../../utils/security";
@@ -14,6 +14,9 @@ const PRODUCTS_STORAGE_KEY = "mellosoft_products";
 const CATEGORIES_STORAGE_KEY = "mellosoft_categories";
 const USERS_STORAGE_KEY = "mellosoft_users";
 const ROLES_STORAGE_KEY = "mellosoft_roles";
+const ORDERS_STORAGE_KEY = "mellosoft_orders";
+const CUSTOMERS_STORAGE_KEY = "mellosoft_customers";
+const WISHLISTS_STORAGE_KEY = "mellosoft_wishlists";
 
 export function AdminProvider({ children }) {
   const [adminView, setAdminView] = useState("dashboard");
@@ -99,6 +102,60 @@ export function AdminProvider({ children }) {
     return DEFAULT_USERS;
   });
 
+  // Hydrate orders from localStorage
+  const [orders, setOrders] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem(ORDERS_STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed;
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load orders from localStorage:", e);
+      }
+    }
+    return MOCK_ORDERS;
+  });
+
+  // Hydrate customers from localStorage
+  const [customers, setCustomers] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem(CUSTOMERS_STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed;
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load customers from localStorage:", e);
+      }
+    }
+    return MOCK_CUSTOMERS;
+  });
+
+  // Hydrate wishlists from localStorage
+  const [wishlists, setWishlists] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem(WISHLISTS_STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed;
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load wishlists from localStorage:", e);
+      }
+    }
+    return MOCK_WISHLISTS;
+  });
+
   const auth = useAdminAuth();
   const currentUserId = auth?.currentUserId || (typeof window !== "undefined" ? localStorage.getItem("mellosoft_current_user_id") : null) || "user-001";
   const currentUser = users.find((u) => u.id === currentUserId) || users[0];
@@ -154,6 +211,79 @@ export function AdminProvider({ children }) {
       }
     }
   }, [users]);
+
+  // Persist orders to localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(orders));
+      } catch (e) {
+        console.error("Failed to save orders to localStorage:", e);
+      }
+    }
+  }, [orders]);
+
+  // Persist customers to localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(CUSTOMERS_STORAGE_KEY, JSON.stringify(customers));
+      } catch (e) {
+        console.error("Failed to save customers to localStorage:", e);
+      }
+    }
+  }, [customers]);
+
+  // Persist wishlists to localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(WISHLISTS_STORAGE_KEY, JSON.stringify(wishlists));
+      } catch (e) {
+        console.error("Failed to save wishlists to localStorage:", e);
+      }
+    }
+  }, [wishlists]);
+
+  /** Customer Handlers */
+  const updateCustomerStatus = useCallback((customerId, status) => {
+    setCustomers((prev) =>
+      prev.map((c) => (c.id === customerId ? { ...c, status } : c))
+    );
+  }, []);
+
+  /** Order Handlers */
+  const updateOrder = useCallback(
+    (orderId, updatedFields) => {
+      let updatedOrderObj = null;
+      setOrders((prev) =>
+        prev.map((o) => {
+          if (o.id === orderId) {
+            updatedOrderObj = { ...o, ...updatedFields };
+            return updatedOrderObj;
+          }
+          return o;
+        })
+      );
+
+      // Sync with backend API
+      try {
+        fetch(`/api/admin/orders/${orderId}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "x-user-id": currentUserId,
+          },
+          body: JSON.stringify(updatedFields),
+        }).catch((err) => console.warn("Background API order sync warning:", err));
+      } catch {
+        // Ignore
+      }
+
+      return { success: true, order: updatedOrderObj };
+    },
+    [currentUserId]
+  );
 
   // Check if current user has permission
   const hasPermission = useCallback(
@@ -458,6 +588,11 @@ export function AdminProvider({ children }) {
         addRole,
         updateRole,
         deleteRole,
+        orders,
+        updateOrder,
+        customers,
+        updateCustomerStatus,
+        wishlists,
         currentUser,
         currentUserRole,
         hasPermission,
