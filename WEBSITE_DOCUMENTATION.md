@@ -1,193 +1,479 @@
-# Mellosoft Website Documentation
+# Mellosoft Website (Storefront) Documentation
 
-Welcome to the official developer and architecture documentation for the **Mellosoft** frontend website. This document provides a complete breakdown of the technology stack, site architecture, state management, components, views, and styling design system.
+Welcome to the official developer and architecture documentation for the **Mellosoft** consumer storefront. This document provides a complete and up-to-date breakdown of the technology stack, directory structure, state management, components, views, utilities, and design system.
 
 ---
 
 ## 1. Technology Stack
 
-*   **Framework**: [Next.js](https://nextjs.org/) (Version `16.2.10`)
-*   **Library**: [React](https://react.dev/) (Version `19.2.4`)
-*   **React Compiler**: Enabled (`reactCompiler: true` in `next.config.mjs`) for automated compile-time performance optimizations.
-*   **State Management**: React Context API (`StoreContext.js`) with synchronized local storage persistence.
-*   **Styling**: Pure CSS-in-JS (inline JavaScript style objects) paired with scoped/global HTML styling via `<style jsx>` for micro-interactions and media queries.
-*   **Routing**: View-based client-side routing (driven by global React state).
+| Technology | Version / Detail |
+| :--- | :--- |
+| **Framework** | [Next.js](https://nextjs.org/) `16.2.10` with App Router (`src/app`) |
+| **UI Library** | [React](https://react.dev/) `19.2.4` |
+| **React Compiler** | Enabled (`reactCompiler: true` in `next.config.mjs`) for automated compile-time performance optimization |
+| **Icons** | [Lucide React](https://lucide.dev/) |
+| **State Management** | React Context API (`StoreContext.js`) with synchronized `localStorage` persistence |
+| **Styling** | Vanilla CSS (`src/app/globals.css`) combined with CSS-in-JS inline style objects in each component |
+| **Routing** | View-based client-side routing driven by global React state (`view` field in `StoreContext`) |
+| **Price Formatting** | Custom Indian Rupee (₹) utilities in `src/utils/currency.js` |
+| **Product Variants** | Custom variant resolution helpers in `src/utils/variantHelpers.js` |
 
 ---
 
 ## 2. Directory & File Structure
 
 ```
-Mellosoft/
-└── mellosoft/
-    ├── README.md                 # Basic repository indicator
-    ├── WEBSITE_DOCUMENTATION.md  # This documentation file
-    └── frontend/                 # Next.js frontend project
-        ├── package.json          # Dependencies & scripts
-        ├── next.config.mjs       # Next.js config (React Compiler enabled)
-        ├── eslint.config.mjs     # ESLint rules & ignoring rules
-        ├── public/
-        │   ├── asset/            # Image resources (logo, mattresses, texture)
-        │   └── favicon.ico       # Browser shortcut icon
-        └── src/
-            ├── app/
-            │   ├── layout.js     # Global metadata & StoreProvider wrapper
-            │   ├── page.js       # App entry point & client-side view routing
-            │   ├── globals.css   # Base document styling rules
-            │   └── page.module.css # Scoped landing styles
-            ├── components/       # Reusable user interface components
-            │   ├── Header.jsx    # Sticky responsive navigation header
-            │   ├── Footer.jsx    # Global footer with categoric navigation & payment details
-            │   ├── ProductCard.jsx # Premium product presentation card
-            │   ├── EmptyState.jsx # Fallback messages with action hooks
-            │   ├── FirmnessSizeSelector.jsx # Selection chips wrapper
-            │   ├── QuantityStepper.jsx # Item counter with minimum boundary locks
-            │   └── RatingStars.jsx # Star visual builder with review aggregates
-            ├── context/
-            │   └── StoreContext.js # Global state, actions, and LocalStorage sync
-            ├── data/
-            │   └── products.js   # Mock product database
-            ├── utils/
-            │   └── currency.js   # Indian Rupee (₹) price formatting utilities
-            └── views/            # Screen views rendered dynamically
-                ├── HomeView.jsx  # Main landing view
-                ├── CatalogView.jsx # Product collections grid
-                ├── ProductDetailView.jsx # Product layout config & information tabs
-                ├── CartView.jsx  # Shopping cart list & checkout flow simulator
-                ├── WishlistView.jsx # Wishlisted products manager with bulk actions
-                ├── SearchView.jsx # Discovery search engine
-                └── ProfileView.jsx # Sleep preference editor & mock order history
+frontend/
+├── package.json                   # Dependencies & scripts
+├── next.config.mjs                # Next.js config (React Compiler ON)
+├── eslint.config.mjs              # ESLint rules
+├── public/
+│   ├── asset/                     # Product images (img1.jpg, img2.jpg, pillow.png, bedframe.png, texture.png, etc.)
+│   └── favicon.ico                # Browser shortcut icon
+└── src/
+    ├── app/
+    │   ├── layout.js              # Root layout — global metadata & StoreProvider wrapper
+    │   ├── page.js                # Storefront entry — view router switching all 7 views
+    │   ├── globals.css            # Global base styles, resets, shared utility classes
+    │   └── page.module.css        # Scoped landing page styles (legacy, minimal usage)
+    ├── components/                # Reusable storefront UI components
+    │   ├── Header.jsx             # Sticky responsive navigation header (desktop + mobile)
+    │   ├── Footer.jsx             # Multi-column footer with payment badges
+    │   ├── ProductCard.jsx        # Product tile: image, rating, wishlist toggle, price
+    │   ├── EmptyState.jsx         # Configurable empty/fallback message with action button
+    │   ├── FirmnessSizeSelector.jsx # Toggle chip group for firmness/size selection
+    │   ├── QuantityStepper.jsx    # +/– quantity counter with minimum boundary enforcement
+    │   └── RatingStars.jsx        # Star icon builder from numeric rating values
+    ├── context/
+    │   └── StoreContext.js        # Central global state provider: cart, wishlist, navigation, filters
+    ├── data/
+    │   └── products.js            # MOCK_PRODUCTS array — master product catalog
+    ├── utils/
+    │   ├── currency.js            # formatPrice(), calculateDiscountedPrice(), getProductPrices()
+    │   ├── variantHelpers.js      # generateVariantId(), reconcileVariants(), getVariantForSelection()
+    │   ├── security.js            # hashPassword(), verifyPassword(), checkPermission() [used by admin]
+    │   ├── rolesStore.js          # In-memory role/user CRUD store (server-side, admin auth)
+    │   └── apiAuth.js             # verifyApiAuthAndPermission() — API route RBAC middleware
+    └── views/                     # Full-page screen views (rendered by page.js)
+        ├── HomeView.jsx           # Landing page: hero slider, categories, product rows, promos
+        ├── CatalogView.jsx        # Filtered & sorted product collection grid
+        ├── ProductDetailView.jsx  # Full product page: gallery, configurator, reviews, tabs
+        ├── CartView.jsx           # Cart management, order summary, simulated checkout
+        ├── WishlistView.jsx       # Saved favorites grid with bulk cart actions
+        ├── SearchView.jsx         # Live search engine with results & quick-access chips
+        └── ProfileView.jsx        # Sleep questionnaire, AI Sleep Advisor & order history
 ```
 
 ---
 
-## 3. Data & State Management
+## 3. Global State Management (`StoreContext.js`)
 
-### Global Context Provider (`StoreContext.js`)
-All primary states are stored in a centralized React context to facilitate reactive state sharing between components and views:
+All storefront state is centralized in a single React Context Provider. It hydrates from and persists to `localStorage` so state survives page refreshes.
 
-*   **State Fields**:
-    *   `view` (String): The active view name (`home`, `catalog`, `detail`, `cart`, `wishlist`, `search`, `profile`).
-    *   `selectedProductId` (String): ID of the product currently loaded in `ProductDetailView` (defaults to `"classic-mattress"`).
-    *   `searchQuery` (String): Current search input query.
-    *   `activeFilters` (Object): Filter variables (`category`, `firmness`, `size`, `sort`).
-    *   `cart` (Array): Shopping items. Hydrates from local storage (`mellosoft_cart`).
-    *   `wishlist` (Array): Saved product ID array. Hydrates from local storage (`mellosoft_wishlist`).
+### State Fields
 
-*   **Key Action Methods**:
-    *   `navigateTo(viewName, [productId])`: Smooth scrolls the window to the top and navigates to the specified view. Sets the selected product if provided.
-    *   `addToCart(product, firmness, size, qty)`: Bundles configured products into unique cart items (`id-firmness-size`), dynamically calculates size-specific prices, and updates quantities for existing matches.
-    *   `removeFromCart(cartItemId)`: Deletes configurations from the cart.
-    *   `updateQty(cartItemId, newQty)`: Updates item quantity (removes the item if quantity drops to `0`).
-    *   `clearCart()`: Empties cart state.
-    *   `toggleWishlist(productId)`: Toggles saving a product.
-    *   `moveToCart(productId, firmness, size)`: Pushes a wishlisted item to the cart using specified or default parameters and automatically removes it from the wishlist.
+| Field | Type | Default | Persisted | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `view` | String | `"home"` | No | Active view name |
+| `selectedProductId` | String | `"classic-mattress"` | No | Product ID for `ProductDetailView` |
+| `searchQuery` | String | `""` | No | Current search input value |
+| `activeFilters` | Object | `{category:"All", firmness:"All", size:"All", sort:"Recommended"}` | No | Active filter state for `CatalogView` |
+| `cart` | Array | `[]` | ✅ `mellosoft_cart` | Shopping cart items |
+| `wishlist` | Array | `["luxe-hybrid"]` | ✅ `mellosoft_wishlist` | Saved product IDs |
+| `products` | Array | `MOCK_PRODUCTS` | No | Full product catalog reference |
 
-### Price Utility (`utils/currency.js`)
-All prices are formatted using Indian Rupee localized formatting:
-*   **Code**: `return \`₹\${Number(amount).toLocaleString("en-IN")}\`;`
-*   **Effect**: A base price of `899` translates visually to `₹899`, and `1099` formats correctly to `₹1,099`.
+### Action Methods
+
+| Method | Signature | Description |
+| :--- | :--- | :--- |
+| `navigateTo` | `(viewName, productId?)` | Scrolls to top and sets active view. Optionally sets `selectedProductId`. |
+| `getProductById` | `(id)` | Finds and returns a product from the catalog by its ID. |
+| `addToCart` | `(product, firmness, size, qty)` | Resolves the exact variant price using `getVariantForSelection()` + `calculateDiscountedPrice()`. Creates a unique cart item keyed by `{id}-{firmness}-{size}`. Increments quantity if duplicate. |
+| `removeFromCart` | `(cartItemId)` | Removes a specific cart item by its composite key. |
+| `updateQty` | `(cartItemId, newQty)` | Updates an item's quantity. Removes if `newQty <= 0`. |
+| `clearCart` | `()` | Empties the entire cart array. |
+| `toggleWishlist` | `(productId)` | Adds a product to the wishlist if not present; removes it if already saved. |
+| `moveToCart` | `(productId, firmness, size)` | Resolves the product, falls back to first available firmness/size options, calls `addToCart`, then removes from wishlist. |
+
+### localStorage Keys
+* **`mellosoft_cart`** — Persists cart item array. Auto-hydrated on first client load.
+* **`mellosoft_wishlist`** — Persists wishlist product ID array. Auto-hydrated on first client load.
 
 ---
 
-## 4. Architectural Pages & Views Detail
+## 4. Product Data Model (`data/products.js`)
+
+The `MOCK_PRODUCTS` array is the master product catalog. Each product entry follows this schema:
+
+```javascript
+{
+  id: "classic-mattress",           // Unique URL-safe identifier (slug)
+  Product_Id: "PROD-001",           // Admin-facing product ID
+  name: "Mellosoft Classic Mattress",
+  tagline: "The perfect balance of pressure relief and deep support.",
+  category: "mattress",            // "mattress" | "pillows" | "bed frames" | "protectors"
+  badge: "Bestseller",             // "Bestseller" | "New" | "Premium" | "Eco-Friendly" | "Essential"
+  price: 999,                      // Base display price
+  Actual_Price: 999,               // Authoritative price for variant resolution
+  discountPercent: 10,             // Discount % applied by calculateDiscountedPrice()
+  rating: 4.8,
+  reviewCount: 142,
+  images: ["/asset/img1.jpg", "/asset/texture.png", "/asset/img2.jpg"],
+  description: "...",
+  specs: "10\" Height • 3 Foam Layers • Cool-to-the-touch Cover",
+  features: ["...", "...", "..."],
+  firmnessOptions: ["Soft", "Medium", "Firm"],
+  sizeOptions: ["Twin", "Full", "Queen", "King"],
+  sizePrices: { Twin: 699, Full: 799, Queen: 899, King: 1099 },
+  firmnessPrices: { Soft: 699, Medium: 799, Firm: 899 },
+  variants: [
+    { Variant_Id: "VAR-TWIN-SOFT", SKU: "MEL-TWIN-SOFT", Size: "Twin", Firmness: "Soft",
+      Actual_Price: 699, Stock: 10, Threshold: 2, Status: "Active" },
+    // ... all Size × Firmness combinations
+  ],
+  reviews: [
+    { id: "r1", author: "Helen M.", rating: 5, date: "Yesterday",
+      content: "...", helpfulCount: 42, replyCount: 0 },
+    // ...
+  ],
+  discussion: [
+    { id: "q1", author: "...", question: "...", answer: "..." }
+  ]
+}
+```
+
+**Product Categories in Catalog:**
+* `mattress` — Main product range (Memory Foam, Hybrid, Latex, Firm, Cooling)
+* `pillows` — Luxury down, memory foam, and cooling pillows
+* `bed frames` — Minimal and platform bed frame designs
+* `protectors` — Organic cotton and waterproof mattress protectors
+
+---
+
+## 5. Utility Functions
+
+### `currency.js`
+| Function | Signature | Description |
+| :--- | :--- | :--- |
+| `formatPrice` | `(amount) → String` | Formats a number to Indian Rupee string: `899` → `"₹899"`, `1099` → `"₹1,099"`. |
+| `calculateDiscountedPrice` | `(actualPrice, discountPercent) → Number` | Computes discounted price: `(price * (1 - discount/100))`, rounded to 2 decimal places. |
+| `getProductPrices` | `(product, selectedSize?) → {actualPrice, discountPercent, discountedPrice}` | Resolves the display price triplet for any product given an optional selected size. |
+
+### `variantHelpers.js`
+| Function | Signature | Description |
+| :--- | :--- | :--- |
+| `generateVariantId` | `(size, firmness) → String` | Generates `VAR-QUEEN-MEDIUM` style IDs. |
+| `generateSKU` | `(productCode, size, firmness) → String` | Generates `MEL-QUEEN-MEDIUM` style SKUs. |
+| `reconcileVariants` | `(sizes, firmnessList, existingVariants, basePrice, ...)` | Reconciles an existing variant list against size × firmness matrix, preserving existing data and filling gaps with defaults. |
+| `buildVariants` | `(sizes, firmnessList, existingVariants, ...)` | Alias for `reconcileVariants` with additional `variantOverrides` map support. |
+| `getVariantForSelection` | `(product, selectedSize, selectedFirmness) → variant\|null` | Finds the exact matching variant from a product's `variants[]` array. Falls back to size-only match. |
+
+### `security.js` _(Admin — also exported from src/utils)_
+| Function | Description |
+| :--- | :--- |
+| `hashPassword(password, salt)` | SHA-256 HMAC hash in Node.js, or a JS djb2-based fallback in browser environments. |
+| `verifyPassword(password, storedHash)` | Direct match, hash match, or Node crypto verification. |
+| `checkPermission(role, moduleName, action)` | Returns `true` if `role.permissions[moduleName]` includes `action`. |
+
+### `rolesStore.js` _(Admin — server-side in-memory store)_
+Provides CRUD operations for the in-memory `activeRoles` and `activeUsers` arrays that seed from `rolesData.js` and `usersData.js`:
+* `getStoredRoles()`, `getStoredRoleById()`, `updateStoredRole()`, `createStoredRole()`, `deleteStoredRole()`
+* `getStoredUsers()`, `getStoredUserById()`, `updateStoredUser()`, `createStoredUser()`, `deleteStoredUser()`
+
+### `apiAuth.js` _(Admin — API middleware)_
+`verifyApiAuthAndPermission(request, moduleName, actionName)` — Reads `authorization` / `x-session-token` / `x-user-id` headers, resolves the user from the role store, checks active status, and validates the required permission. Returns `{ authorized: true, user, role }` or a `NextResponse` error object.
+
+---
+
+## 6. Views In Detail
 
 ### 1. Home View (`HomeView.jsx`)
-*   **Hero Peek Slider**: Slides through up to 5 featured mattresses with deal indicators, custom titles, and click-to-shop action hooks.
-*   **Shop by Category**: Large interactive chips (Memory Foam, Hybrid, Firm, Pillows, Bed Frames, Protectors) setting catalog filters and navigating users to the catalog.
-*   **Dynamic Product Rows**: Interleaved rows displaying "Featured Mattresses", "Best Sellers" (sorted by review count), "New Arrivals" (based on badges), and "Top Rated" (sorted by rating).
-*   **Interstitial Promo Cards**: Prominent callouts highlighting special discounts (60% off mattresses, 30% off pillows/protectors, free bed frame assembly) that direct to related collections.
-*   **About Block**: Meticulous brand statement displaying asymmetrical image grids.
+
+**Purpose**: Primary landing page and discovery hub.
+
+**Sections:**
+* **Hero Peek Slider** — A horizontally scrollable slider of up to 5 featured mattresses. Each slide shows:
+  * Category badge (e.g., `"Limited time!"`, `"Best seller"`)
+  * Custom headline (e.g., `"Classic Comfort"`, `"Hybrid Luxury"`)
+  * Deal label linking to the product
+  * Dot navigation indicators synced to scroll position via `handleSliderScroll`
+* **Shop by Category Grid** — Six interactive chip cards (`Memory Foam`, `Hybrid`, `Firm`, `Pillows`, `Bed Frames`, `Protectors`), each calling `goToCatalog(category, firmness)` to pre-filter the catalog.
+* **Featured Mattresses Row** — First 4 mattress products (standard `ProductCard` grid).
+* **Promo Interstitials** — Two full-width promotional callout banners (e.g., `"60% off mattresses"`, `"30% off pillows & protectors"`).
+* **Best Sellers Row** — Products sorted by `reviewCount` descending, first 8 results.
+* **New Arrivals Row** — Products filtered by badges `["New", "Premium", "Eco-Friendly", "Essential"]`, first 4.
+* **About Block** — Brand positioning section with asymmetric image layout.
+
+**State interactions:**
+* Uses `useMemo` to memoize `mattresses`, `heroSlides`, `featuredMattresses`, `bestSellers`, `newArrivals` — all derived from `MOCK_PRODUCTS`.
+* Calls `setActiveFilters` + `navigateTo("catalog")` for category navigation.
+* Calls `navigateTo("detail", productId)` for product navigation.
+
+---
 
 ### 2. Catalog View (`CatalogView.jsx`)
-*   **Render Logic**: Loads products from `products.js` filtered programmatically based on `activeFilters` (category, firmness, size) and `searchQuery`.
-*   **Sorting**: Programmatically orders products by "Price: Low to High", "Price: High to Low", "Rating", or "Recommended" (original list order).
-*   *Architecture Note*: In the current implementation, filter variables are set via external triggers (like the header or search pages). The catalog layout does not render visible manual filter buttons or sort selectors on the page; filtering and sorting are controlled programmatically by state configuration.
-*   **Empty state handler**: Renders a custom search retry box if no products match selected filter sets.
+
+**Purpose**: Filtered and sorted product collection grid.
+
+**Render Logic:**
+* Reads `searchQuery` and `activeFilters` from context.
+* Filters `MOCK_PRODUCTS` through a 4-step pipeline:
+  1. **Search Query** — Matches `name`, `tagline`, and `category` (case-insensitive).
+  2. **Category** — Exact category match (or `"All"` to skip).
+  3. **Firmness** — Checks `product.firmnessOptions.includes(filter.firmness)`.
+  4. **Size** — Checks `product.sizeOptions.includes(filter.size)`.
+* Sorts using `activeFilters.sort`:
+  * `"Price: Low to High"` / `"Price: High to Low"` — by `price`.
+  * `"Rating"` — by `rating` descending.
+  * `"Recommended"` — original catalog order (no sort).
+* Renders a responsive product grid via `ProductCard`.
+* Shows `EmptyState` fallback with "Reset Filters" action if no products match.
+
+> **Architecture Note:** Filter controls are set externally (via `Header`, `HomeView`, or `SearchView`). The catalog page does not render its own filter UI — all filtering is driven by shared global state.
+
+---
 
 ### 3. Product Detail View (`ProductDetailView.jsx`)
-*   **Image Gallery Carousel**: Large active frame with thumbnail buttons supporting custom touch swiping triggers (`onTouchStart`/`onTouchEnd`) and full-screen preview overlays.
-*   **Product Settings Configurator**:
-    *   Dynamic size selector that changes prices based on standard sizing arrays (`Twin`, `Full`, `Queen`, `King`).
-    *   Firmness toggles (`Soft`, `Medium`, `Firm`).
-    *   Integrated quantity stepper and direct checkout triggers ("Add to Cart", "Buy Now").
-*   **Information Tabs**:
-    *   **Details**: Specification lists and engineering highlights.
-    *   **Customer Reviews**: Dynamic ratings overview display showing percentages of 5-star down to 1-star reviews paired with user reviews lists.
-    *   **Discussion**: Customer Q&A block.
-*   **Recommendations**: Displays a three-column carousel showing alternative products.
+
+**Purpose**: Complete single-product page with configuration and purchase options.
+
+**Sub-sections:**
+
+#### Image Gallery
+* Multi-image carousel with thumbnail strip.
+* Touch swipe support (`onTouchStart` / `onTouchEnd`) for mobile.
+* Full-screen overlay viewer on image click.
+* Active image index tracks via `activeImgIndex` state.
+
+#### Product Configurator
+* **Size Selector** (`FirmnessSizeSelector`) — Renders size chips (`Twin`, `Full`, `Queen`, `King`) from `product.sizeOptions`.
+* **Firmness Selector** — Renders firmness chips from `product.firmnessOptions`.
+* **Variant Price Resolution** — On each size/firmness change, `getVariantForSelection()` finds the exact `variants[]` entry. Falls back to `firmnessPrices[firmness]` → `sizePrices[size]` → `Actual_Price` in order.
+* **Price Display** — Shows both struck-through `actualPriceForSize` and discounted price `discountedPriceForSize` (via `calculateDiscountedPrice()`).
+* **Quantity Stepper** — `QuantityStepper` component bound to `quantity` state.
+* **Add to Cart / Buy Now** — Calls `addToCart(product, firmness, size, qty)`. "Buy Now" also calls `navigateTo("cart")`.
+* **Wishlist Toggle** — Heart icon reads `wishlist.includes(product.id)` to toggle fill state.
+
+#### Information Tabs
+* **Details** — Specification list (`product.specs`, `product.features`), engineering highlights.
+* **Reviews** — Aggregated star rating bar chart (5★–1★ percentages), followed by individual review cards with helpful counts and reply counts.
+* **Discussion** — Customer Q&A pairs rendered from `product.discussion`.
+
+#### Recommendations
+* Three `ProductCard` components from related products (same category, excluding the current product).
+
+**Key `useMemo` derivations:**
+* `selectedVariant` — result of `getVariantForSelection(product, selectedSize, selectedFirmness)`
+* `actualPriceForSize` — variant → firmnessPrices → sizePrices → Actual_Price fallback chain
+* `discountedPriceForSize` — `calculateDiscountedPrice(actualPriceForSize, discountPercent)`
+
+---
 
 ### 4. Cart View (`CartView.jsx`)
-*   **Cart Items**: Displays line items with configurations (firmness, size, and individual price vs. combined subtotal), and supports removal or direct quantity updates.
-*   **Summary Panel**: Calculates subtotal, applies free shipping on orders over `₹150` (otherwise `₹30` flat rate), and showcases a simulated secure checkout process.
-*   **Checkout Success Screen**: Clears global cart data, generates a randomized order identifier (`MS-XXXXXX`), and displays a randomized "Sleep Tip of the Day" to provide user delight.
+
+**Purpose**: Shopping cart manager with simulated checkout flow.
+
+**States:** `checkoutStep` (`"cart"` | `"success"`), `orderNumber`.
+
+**Cart Screen:**
+* Lists all cart items with: product image, name, tagline, firmness + size config chips, unit price, and `QuantityStepper`.
+* Each item has a Remove (×) button calling `removeFromCart(cartItemId)`.
+* **Order Summary Panel:**
+  * Subtotal: `cart.reduce((acc, item) => acc + item.price * item.qty, 0)`
+  * Delivery: `₹30` flat, or free if subtotal `> ₹150`
+  * Total = Subtotal + Delivery
+* **Checkout Button** → calls `handleCheckout()`:
+  1. Generates order number: `MS-${random 6 digits}`
+  2. Sets `checkoutStep = "success"` and calls `clearCart()`
+
+**Success Screen:**
+* Displays order confirmation with generated Order ID.
+* Shows a randomly selected "Sleep Tip of the Day" from 4 built-in tips.
+* "Return to Home" button calls `navigateTo("home")`.
+
+**Empty State:** Renders `EmptyState` with cart icon and "Explore Collections" CTA if cart is empty.
+
+---
 
 ### 5. Wishlist View (`WishlistView.jsx`)
-*   **Grid layout**: Showcases user-favorited products.
-*   **Bulk Controls**: "Clear Wishlist" and "Move All to Cart" buttons to speed up shopping actions.
-*   **Quick Card Actions**: Move individual items directly into the cart or remove them from favorites.
+
+**Purpose**: Saved favorites grid with bulk management controls.
+
+**Features:**
+* Resolves wishlist product IDs → full product objects via `getProductById`.
+* **Bulk Controls:**
+  * "Clear Wishlist" — calls `toggleWishlist` for every saved product ID.
+  * "Move All to Cart" — calls `moveToCart` for each wishlist item (using defaults: `Medium` firmness, `Queen` size).
+* **Per-Card Actions:**
+  * "Move to Cart" — `moveToCart(productId)`
+  * "Remove" (heart icon) — `toggleWishlist(productId)`
+* Renders `EmptyState` with "Explore Products" CTA if wishlist is empty.
+
+---
 
 ### 6. Search View (`SearchView.jsx`)
-*   **Live Input Bar**: Large auto-focus search field returning matching results across names, taglines, categories, badges, and technical specs.
-*   **Recent Search Chips**: Clickable history tags (e.g., "Classic Mattress", "Cooling", "Luxe Hybrid") to re-trigger frequent searches.
-*   **Shortcut Discovery Cards**: Visible links helping users browse mattresses or pillows quickly if they haven't typed a query yet.
+
+**Purpose**: Live product discovery search engine.
+
+**Features:**
+* Auto-focused search input connected to global `searchQuery` state.
+* **Live Results**: Filters `MOCK_PRODUCTS` by `name`, `tagline`, `category`, `badge`, and `specs` on every keystroke (via `useMemo`).
+* **Recent Search Chips**: Static shortcut terms (`"Classic Mattress"`, `"Cooling"`, `"Luxe Hybrid"`, `"Pillow"`, `"Protector"`) — clicking sets `searchQuery`.
+* **Quick-Access Discovery Cards**: "Browse Mattresses" and "Shop Pillows" cards visible when no query is entered.
+* **Empty Result State**: Custom `EmptyState` with "Clear Search" action when no products match.
+
+---
 
 ### 7. Profile View (`ProfileView.jsx`)
-*   **Sleep Profile Questionnaire**: Interactive selectors for preferred sleep positions (Side, Back, Stomach, Combination) and temperatures (Cool, Neutral, Warm).
-*   **AI Sleep Advisor**: Dynamic logic displaying personalized sleep tips and mattress configurations based on active questionnaire values.
-*   **Order History**: Mock display of past delivered items (ordered by user "Gowtham" under membership number `MS-XXXXX`).
-*   *Architecture Note*: This view is integrated in `page.js` view routing but is currently an **orphaned route** — there are no navigation links pointing to the profile in the desktop header, mobile header, or footer. It is accessible for testing by manually forcing the context view state to `"profile"`.
+
+**Purpose**: Personal sleep preference editor and order history viewer.
+
+**Features:**
+* **Profile Header**: Displays user avatar (`G`), name (`Gowtham`), membership since year, and "8-Night Perfect Sleep Streak" badge.
+* **Sleep Profile Questionnaire:**
+  * `sleepPos` state: `"Side"` | `"Back"` | `"Stomach"` | `"Combination"`
+  * `preferredTemp` state: `"Cool"` | `"Neutral"` | `"Warm"`
+  * "Save Preferences" button shows a `"Saved!"` confirmation for 3 seconds.
+* **AI Sleep Advisor:** Dynamic recommendation panel using `sleepPos` and `preferredTemp` values to display a personalized mattress configuration tip.
+* **Order History:** Two mock delivered orders (rendered from local `mockOrders` array):
+  * `MS-84912` — Mellosoft Classic Mattress (Queen, Medium) + Organic Protector — ₹968
+  * `MS-38291` — Luxury Down Pillow × 2 (Soft) — ₹178
+
+> **Architecture Note:** `ProfileView` is a registered route in `page.js` but is currently an **orphaned view** — no navigation links in `Header`, `Footer`, or any other view point to it. It is accessible only by programmatically setting the context `view` state to `"profile"` (e.g., from DevTools or test code).
 
 ---
 
-## 5. Components
+## 7. Components
 
 ### `Header.jsx`
-*   **Desktop layout**: Sticky, blurred backdrop containing logos, shopping navigation links, integrated live search input, and cart/wishlist badge counts.
-*   **Mobile layout**: Fixed top header which replaces text links with a slide-down mobile menu selector containing categories.
+| Layout | Details |
+| :--- | :--- |
+| **Desktop** | Sticky blurred backdrop header with: Mellosoft logo, navigation links (`Mattresses`, `Pillows`, `Bed Frames`, `Protectors`), integrated live search input with product suggestion dropdown, and Cart (with count badge) + Wishlist (with count badge) icon buttons. |
+| **Mobile** | Fixed top bar. Logo shown only when not in a nested view and search is not active. Hamburger menu triggers a slide-down panel with category links. Mobile search input expands to replace the logo when focused. |
+
+**Key state:**
+* `desktopSearch` / `mobileSearch` — Separate local inputs to prevent cross-interference.
+* `desktopSuggestions` / `mobileSuggestions` — Real-time results from `searchProducts(term)`, filtered to 5 results.
+* `mobileMenuOpen` — Controls the mobile dropdown visibility.
+* `isNestedMobileView` — `view !== "home"` — hides the logo in sub-pages on mobile.
+* `isDetailView` — Removes padding-top from `body` on mobile for product detail full-bleed hero.
+
+---
 
 ### `Footer.jsx`
-*   Responsive multi-column link grid (Shop, Company, Support) showcasing payment support badges (Visa, Mastercard, Amex, Apple Pay, Shop Pay) and a dynamic copyright year builder.
+* **Responsive three-column link grid**: Shop, Company, Support.
+* **Payment Badges**: Visa, Mastercard, Amex, Apple Pay, Shop Pay icons.
+* **Dynamic Copyright Year**: `new Date().getFullYear()`.
+
+---
 
 ### `ProductCard.jsx`
-*   Features a category tag, rating overlay, title, base price, and instant wishlist addition button. Navigates to product detail pages on click.
-
-### `EmptyState.jsx`, `FirmnessSizeSelector.jsx`, `QuantityStepper.jsx`, `RatingStars.jsx`
-*   Standard UI widgets built with semantic elements, custom controls, and ARIA labels.
+* Renders: product image, category tag chip, `RatingStars` overlay with review count, product name, base price + discounted price, and a Wishlist heart toggle button.
+* On card click: `navigateTo("detail", product.id)`.
+* On heart click: `toggleWishlist(product.id)` (event propagation stopped).
+* Reads `wishlist` from context to determine filled/unfilled heart state.
 
 ---
 
-## 6. Design System & Aesthetics
+### `EmptyState.jsx`
+Configurable fallback message component:
+```jsx
+<EmptyState
+  iconType="cart" | "wishlist" | "search" | "orders"
+  title="Your cart is empty"
+  message="..."
+  actionLabel="Explore Collections"
+  onAction={() => navigateTo("catalog")}
+/>
+```
 
-### Visual Color Palette
-The brand colors evoke relaxation, quality, and a luxury feel:
+---
 
-| Color Token | Hex Code | Visual Application |
+### `FirmnessSizeSelector.jsx`
+Chip group for selection inputs (firmness or size):
+```jsx
+<FirmnessSizeSelector
+  label="Size"
+  options={["Twin", "Full", "Queen", "King"]}
+  selected={selectedSize}
+  onChange={setSelectedSize}
+/>
+```
+
+---
+
+### `QuantityStepper.jsx`
+`+` / `–` counter button pair with configurable `min` (default: 1) and `max` boundaries.
+
+---
+
+### `RatingStars.jsx`
+Renders filled/half/empty star SVG icons based on a numeric rating (e.g., `4.8`).
+
+---
+
+## 8. Design System & Aesthetics
+
+### Color Palette
+
+| Token | Hex | Usage |
 | :--- | :--- | :--- |
-| **Primary Navy** | `#1B1F8C` | Brand typography, prominent headings, main action buttons |
-| **Accent Green** | `#16A34A` | Success messages, checkout badges, ratings stars, trial taglines |
-| **Background Cream** | `#F7F7F2` | Page background, inputs, search boxes, details tab strips |
-| **Text Dark** | `#14151A` | Main page typography |
-| **Text Gray** | `#6B6B75` | Product specs, secondary labels, description text |
-| **Border Light** | `#E7E7E2` | Thin grid boundaries, line separators |
-| **White** | `#FFFFFF` | Cards, header backdrops, promo sections |
+| **Primary Navy** | `#1B1F8C` | Brand typography, headings, CTAs, icon strokes |
+| **Accent Green** | `#16A34A` | Rating stars, checkout badges, success messages |
+| **Success Light** | `#DCFCE7` | Success background chips |
+| **Background Cream** | `#F7F7F2` | Page background, inputs, tab strips |
+| **Background Alt** | `#FAFAF7` | Card interiors, panel backgrounds |
+| **Text Dark** | `#14151A` | Primary body text |
+| **Text Gray** | `#6B6B75` | Descriptions, specs, secondary labels |
+| **Border Light** | `#E7E7E2` | Card dividers, grid separators |
+| **White** | `#FFFFFF` | Cards, header backdrop, panels |
 
 ### Typography
-*   **Headings**: Bold/Extra-Bold weights (700-800) with compact letter-spacing.
-*   **Responsive Scaling**: Fluid typography scales using CSS `clamp()` rules for clean resizing across viewports.
-*   **Labels**: Upper-case styling with expanded letter-spacing (`0.05em` to `0.08em`).
+* **Headings**: `font-weight: 700–800`, tight `letter-spacing: -0.01em` to `-0.02em`.
+* **Labels/Tags**: `text-transform: uppercase`, `letter-spacing: 0.05em–0.08em`.
+* **Responsive Scaling**: `font-size: clamp(...)` rules for fluid desktop → mobile type ramp.
 
-### Borders and Spacing
-*   **Sharp Edges (`0px` border-radius)**: Main content cards, headers, checkout panels, and image frames are set to zero border-radius for a premium, architectural block aesthetic.
-*   **Rounded Badges/Buttons**: Small active elements (wishlist icons, category selectors, quantities, search bars) use rounded styling (`12px`, `24px`, `999px`) to emphasize touch-friendly interactiveness.
-*   **Shadows**: Multi-layered, soft blur filters create depth under active items.
+### Border Radius Philosophy
+* **`0px` (Sharp/Architectural)**: Main content cards, headers, image frames, checkout panels — projects premium block aesthetic.
+* **Rounded (`12px–999px`)**: Small interactive elements — wishlist buttons, category chips, quantity steppers, search bars, badge pills.
+
+### Shadows & Depth
+* Multi-layer `box-shadow` with soft blur creates elevation on active/hovered cards.
+* Hover states use `transform: translateY(-2px)` + shadow intensification.
+
+### Micro-Animations
+* Cart/wishlist badge count bounce on increment.
+* Image gallery slides with `scroll-behavior: smooth`.
+* Category cards use `transition: transform 0.2s ease, box-shadow 0.2s ease`.
+* Checkout success screen fade-in sequence.
 
 ---
 
-## 7. Developer Guidelines & Roadmap
+## 9. Responsive Design
+
+| Breakpoint | Behavior |
+| :--- | :--- |
+| `> 768px` | Desktop layout — header with nav links, product grids 3–4 columns, side-by-side cart |
+| `<= 768px` | Mobile layout — fixed header with hamburger, single-column grids, stacked cart items |
+| `<= 480px` | Compact mobile — hero slider full-width, tighter padding, 2-column category grid |
+
+The mobile header applies `paddingTop: "60px"` to `document.body` dynamically to account for the fixed header, except on `ProductDetailView` where it is removed to allow full-bleed hero images.
+
+---
+
+## 10. Developer Notes & Roadmap
+
+### Current Limitations
+1. **ProfileView is an Orphan Route** — No navigation entry points exist in `Header`, `Footer`, or any other view. The route is accessible only via direct programmatic state manipulation.
+2. **No Filter UI in CatalogView** — All filter state is set externally. The catalog page renders no visible filter controls (dropdowns, checkboxes, sliders).
+3. **Mock Order History** — `ProfileView` renders a static, hardcoded `mockOrders` array. It is not connected to the cart checkout flow or the admin order database.
+4. **Static Search Recents** — "Recent Searches" in `SearchView` are hardcoded strings, not persisted or dynamically built from actual past searches.
+5. **Simulated Checkout** — `CartView` generates a random order number on checkout but does not persist the order or submit to any backend.
 
 ### Recommended Improvements
-1.  **Add Profile Navigation**: Integrate a profile icon or link in the `Header` or `Footer` to expose the built-in `ProfileView`.
-2.  **Add Filter Controls inside Catalog**: Build standard dropdown selectors or checkbox lists inside `CatalogView.jsx` to let users adjust firmness, sizes, and sorting configurations directly on the catalog page.
-3.  **URL-Based Routing**: Migrate the view-based custom routing (`navigateTo` states) to native Next.js file-system routing (App Router directories) to enable browser back-button navigation and direct links for search engine indexing (SEO optimization).
-4.  **Backend Hook-ups**: Swap the localized localStorage mock state loops with API endpoint calls targeting database models (e.g., PostgreSQL or MongoDB) for actual user profiles and shopping carts.
+1. **Add Profile Navigation** — Add a profile icon/link in `Header` (desktop & mobile) and `Footer` to expose `ProfileView` as a reachable route.
+2. **Catalog Filter UI** — Implement in-page filter controls (dropdowns or checkbox panels) inside `CatalogView` for firmness, size, and sort.
+3. **Connect Profile Orders to Cart Checkout** — Persist orders placed in `CartView` (using `AdminContext` or a shared order store) and display them in `ProfileView`.
+4. **URL-Based Routing** — Migrate the `view` state router to native Next.js App Router file-system routes for browser back-button support and deep linking.
+5. **Real Backend** — Replace `localStorage` state and `MOCK_PRODUCTS` with API calls to a database (PostgreSQL, MongoDB, or Supabase) for real-time inventory, authentication, and order management.
+6. **Persist Recent Searches** — Store search history to `localStorage` and render dynamically in `SearchView`.
