@@ -487,12 +487,16 @@ export default function CategoriesView() {
                   <p style={{ fontSize: "13px", color: "#6B6B75", marginTop: "4px" }}>{getProductCountForCategory(cat)} products</p>
                 </div>
                 <div style={{ display: "flex", gap: "6px" }}>
-                  <button style={iconActionBtnStyle} title="Edit">
-                    <Pencil size={15} color="#F59E0B" />
-                  </button>
-                  <button onClick={() => setDeleteTarget(cat)} style={iconActionBtnStyle} title="Delete">
-                    <Trash2 size={15} color="#DC2626" />
-                  </button>
+                  {hasPermission("products", "edit") && (
+                    <button style={iconActionBtnStyle} title="Edit">
+                      <Pencil size={15} color="#F59E0B" />
+                    </button>
+                  )}
+                  {hasPermission("products", "delete") && (
+                    <button onClick={() => setDeleteTarget(cat)} style={iconActionBtnStyle} title="Delete">
+                      <Trash2 size={15} color="#DC2626" />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

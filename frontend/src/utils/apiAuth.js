@@ -1,32 +1,25 @@
 import { NextResponse } from "next/server";
-import { DEFAULT_USERS } from "../data/usersData";
-import { DEFAULT_ROLES } from "../data/rolesData";
+import { getStoredUsers, getStoredRoles } from "./rolesStore";
 import { checkPermission } from "./security";
 
 /**
  * verifyApiAuthAndPermission(request, moduleName, actionName)
  * 
  * Verifies request authentication, user active status, and required permission.
+ * Resolves user.roleId against live stored roles.
  * If authorized, returns { authorized: true, user, role }.
  * If unauthorized, returns { authorized: false, response: NextResponse }.
  */
 export function verifyApiAuthAndPermission(request, moduleName, actionName) {
   try {
-    // Read session header or auth header
     const authHeader = request.headers.get("authorization") || request.headers.get("x-session-token");
     const userIdHeader = request.headers.get("x-user-id");
 
-    if (!authHeader && !userIdHeader) {
-      // Default fallback for client side requests in dev tab session context
-      return {
-        authorized: true,
-        user: DEFAULT_USERS[0],
-        role: DEFAULT_ROLES[0],
-      };
-    }
+    const users = getStoredUsers();
+    const roles = getStoredRoles();
 
-    const userId = userIdHeader || (authHeader ? authHeader.split("_").pop() : null);
-    const user = DEFAULT_USERS.find((u) => u.id === userId) || DEFAULT_USERS[0];
+    const userId = userIdHeader || (authHeader ? authHeader.split("_").pop() : null) || users[0]?.id;
+    const user = users.find((u) => u.id === userId) || users[0];
 
     if (!user || user.status !== "Active") {
       return {
@@ -38,13 +31,19 @@ export function verifyApiAuthAndPermission(request, moduleName, actionName) {
       };
     }
 
-    const role = DEFAULT_ROLES.find((r) => r.id === user.roleId) || {
+    const role = roles.find((r) => r.id === user.roleId) || {
       id: user.roleId,
       name: "User",
       permissions: {},
     };
 
     const hasAccess = checkPermission(role, moduleName, actionName);
+
+    // Development logging for permission check
+    if (process.env.NODE_ENV !== "production") {
+      console.log(`[API Auth Check] User: ${user.email} | Role: ${role.name} (${user.roleId}) | Required: ${moduleName}.${actionName} | Result: ${hasAccess ? "ALLOW" : "DENY"}`);
+    }
+
     if (!hasAccess) {
       return {
         authorized: false,
@@ -66,3 +65,4 @@ export function verifyApiAuthAndPermission(request, moduleName, actionName) {
     };
   }
 }
+

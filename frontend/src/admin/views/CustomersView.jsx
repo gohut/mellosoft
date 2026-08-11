@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useAdmin } from "../context/AdminContext";
 import { MOCK_CUSTOMERS } from "../data/adminMockData";
 import DataTable from "../components/DataTable";
 import StatusBadge from "../components/StatusBadge";
@@ -8,6 +9,8 @@ import { Eye, Pencil } from "lucide-react";
 import { formatPrice } from "../../utils/currency";
 
 export default function CustomersView() {
+  const { hasPermission } = useAdmin();
+
   const columns = [
     {
       key: "avatar", label: "", width: "48px",
@@ -32,7 +35,9 @@ export default function CustomersView() {
       render: () => (
         <div style={{ display: "flex", gap: "6px", justifyContent: "center" }}>
           <button style={actionBtnStyle} title="View"><Eye size={15} color="#1B1F8C" /></button>
-          <button style={actionBtnStyle} title="Edit"><Pencil size={15} color="#F59E0B" /></button>
+          {hasPermission("customers", "edit") && (
+            <button style={actionBtnStyle} title="Edit"><Pencil size={15} color="#F59E0B" /></button>
+          )}
         </div>
       ),
     },

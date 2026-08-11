@@ -68,7 +68,7 @@ export function AdminProvider({ children }) {
           if (Array.isArray(parsed) && parsed.length > 0) {
             const systemRoles = DEFAULT_ROLES.map((dr) => {
               const found = parsed.find((r) => r.id === dr.id);
-              return found ? { ...dr, permissions: dr.isSystemRole ? dr.permissions : found.permissions } : dr;
+              return found ? { ...dr, ...found, permissions: found.permissions || dr.permissions } : dr;
             });
             const customRoles = parsed.filter((r) => !r.isSystemRole && !DEFAULT_ROLES.some((dr) => dr.id === r.id));
             return [...systemRoles, ...customRoles];
@@ -372,21 +372,38 @@ export function AdminProvider({ children }) {
   }, []);
 
   const updateRole = useCallback((roleId, updatedData) => {
+    let updatedRoleObj = null;
     setRoles((prev) =>
       prev.map((r) => {
         if (r.id === roleId) {
-          return {
+          updatedRoleObj = {
             ...r,
             name: r.isSystemRole ? r.name : updatedData.name || r.name,
             description: updatedData.description !== undefined ? updatedData.description : r.description,
             permissions: updatedData.permissions || r.permissions,
           };
+          return updatedRoleObj;
         }
         return r;
       })
     );
-    return { success: true };
-  }, []);
+
+    // Sync with backend API
+    try {
+      fetch(`/api/admin/roles/${roleId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": currentUserId,
+        },
+        body: JSON.stringify(updatedData),
+      }).catch((err) => console.warn("Background API role sync warning:", err));
+    } catch {
+      // Ignore client offline
+    }
+
+    return { success: true, role: updatedRoleObj };
+  }, [currentUserId]);
 
   const deleteRole = useCallback(
     (roleId) => {

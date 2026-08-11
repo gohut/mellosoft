@@ -1,15 +1,13 @@
 import { NextResponse } from "next/server";
-import { DEFAULT_USERS } from "../../../../data/usersData";
+import { getStoredUsers, createStoredUser } from "../../../../utils/rolesStore";
 import { hashPassword } from "../../../../utils/security";
 import { verifyApiAuthAndPermission } from "../../../../utils/apiAuth";
-
-let inMemoryUsers = [...DEFAULT_USERS];
 
 export async function GET(request) {
   const authCheck = verifyApiAuthAndPermission(request, "users", "view");
   if (!authCheck.authorized) return authCheck.response;
 
-  return NextResponse.json({ success: true, users: inMemoryUsers });
+  return NextResponse.json({ success: true, users: getStoredUsers() });
 }
 
 export async function POST(request) {
@@ -28,28 +26,25 @@ export async function POST(request) {
     }
 
     const emailTrimmed = email.toLowerCase().trim();
-    if (inMemoryUsers.some((u) => u.email.toLowerCase() === emailTrimmed)) {
+    if (getStoredUsers().some((u) => u.email.toLowerCase() === emailTrimmed)) {
       return NextResponse.json(
         { success: false, error: "A user with this email address already exists." },
         { status: 409 }
       );
     }
 
-    const newUser = {
-      id: `user-${Date.now()}`,
+    const newUser = createStoredUser({
       name: name.trim(),
       email: emailTrimmed,
       phone: phone || "",
       passwordHash: hashPassword(password),
       roleId,
       status: status || "Active",
-      lastLogin: "Never",
-      createdAt: new Date().toISOString().split("T")[0],
-    };
+    });
 
-    inMemoryUsers.unshift(newUser);
     return NextResponse.json({ success: true, user: newUser }, { status: 201 });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+
