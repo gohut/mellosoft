@@ -64,6 +64,7 @@ Mellosoft/
         │   ├── ProductDetailView.jsx
         │   ├── CartView.jsx
         │   ├── WishlistView.jsx
+        │   ├── OrdersView.jsx
         │   ├── SearchView.jsx
         │   └── ProfileView.jsx
         └── admin/

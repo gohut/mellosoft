@@ -1,7 +1,8 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { MOCK_PRODUCTS } from "../data/products";
+import { MOCK_ORDERS } from "../admin/data/adminMockData";
 import { calculateDiscountedPrice } from "../utils/currency";
 import { getVariantForSelection } from "../utils/variantHelpers";
 
@@ -24,11 +25,21 @@ export function StoreProvider({ children }) {
   // User Commerce State
   const [cart, setCart] = useState([]);
   const [wishlist, setWishlist] = useState(["luxe-hybrid"]);
-  const [products, setProducts] = useState(MOCK_PRODUCTS);
+  const [products] = useState(MOCK_PRODUCTS);
+  const [currentCustomerId] = useState("C001");
 
-  // Sync with localStorage on client load
+  // Orders State synchronized with localStorage ("mellosoft_orders")
+  const [orders, setOrders] = useState(MOCK_ORDERS);
+
+  // Sync state with localStorage after mount (hydration-safe)
   useEffect(() => {
     try {
+      const savedOrders = localStorage.getItem("mellosoft_orders");
+      if (savedOrders) {
+        const parsed = JSON.parse(savedOrders);
+        if (Array.isArray(parsed) && parsed.length > 0) setOrders(parsed);
+      }
+
       const savedCart = localStorage.getItem("mellosoft_cart");
       if (savedCart) setCart(JSON.parse(savedCart));
 
@@ -37,6 +48,19 @@ export function StoreProvider({ children }) {
     } catch (e) {
       console.error("Failed to load state from localStorage:", e);
     }
+  }, []);
+
+  // Window storage sync for cross-tab / Admin updates
+  useEffect(() => {
+    const handleStorage = (e) => {
+      if (e.key === "mellosoft_orders" && e.newValue) {
+        try {
+          setOrders(JSON.parse(e.newValue));
+        } catch {}
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
   }, []);
 
   // Save changes to localStorage
@@ -56,13 +80,45 @@ export function StoreProvider({ children }) {
     }
   }, [wishlist]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem("mellosoft_orders", JSON.stringify(orders));
+    } catch (e) {
+      console.error("Failed to save orders:", e);
+    }
+  }, [orders]);
+
   // Actions & Handlers
+  const refreshOrders = useCallback(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("mellosoft_orders");
+        if (saved) setOrders(JSON.parse(saved));
+      } catch {}
+    }
+  }, []);
+
   const navigateTo = (newView, productId = null) => {
     if (productId) {
       setSelectedProductId(productId);
     }
+    if (newView === "orders") {
+      refreshOrders();
+    }
     setView(newView);
     window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const placeOrder = (newOrder) => {
+    setOrders((prevOrders) => [newOrder, ...prevOrders]);
+  };
+
+  const cancelOrder = (orderId) => {
+    setOrders((prevOrders) =>
+      prevOrders.map((o) =>
+        o.id === orderId ? { ...o, orderStatus: "Cancelled" } : o
+      )
+    );
   };
 
   const getProductById = (id) => {
@@ -178,6 +234,9 @@ export function StoreProvider({ children }) {
         setActiveFilters,
         cart,
         wishlist,
+        orders,
+        currentCustomerId,
+        customerOrders: (orders || []).filter((o) => o.customerId === currentCustomerId),
         addToCart,
         removeFromCart,
         updateQty,
@@ -185,7 +244,10 @@ export function StoreProvider({ children }) {
         toggleWishlist,
         moveToCart,
         navigateTo,
-        getProductById
+        getProductById,
+        placeOrder,
+        cancelOrder,
+        refreshOrders,
       }}
     >
       {children}

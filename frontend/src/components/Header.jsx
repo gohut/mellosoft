@@ -22,13 +22,22 @@ export default function Header() {
   const [mobileFocused, setMobileFocused] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const cartCount = cart.reduce((acc, item) => acc + item.qty, 0);
   const wishlistCount = wishlist.length;
+  const displayCartCount = mounted ? cartCount : 0;
+  const displayWishlistCount = mounted ? wishlistCount : 0;
+
   const isNestedMobileView = view !== "home";
   const isDetailView = view === "detail";
 
   // Dynamic body padding for mobile sticky header vs. detail view
   useEffect(() => {
+    if (typeof window === "undefined") return;
     const style = document.body.style;
     const mq = window.matchMedia("(max-width: 767px)");
     const apply = () => {
@@ -157,16 +166,21 @@ export default function Header() {
               onSubmitSearch={goToSearchResults}
             />
 
-            <button onClick={() => navigateTo("wishlist")} style={iconButtonStyle} aria-label="Open wishlist">
+            <button onClick={() => navigateTo("wishlist")} style={iconButtonStyle} aria-label="Open wishlist" title="Wishlist">
               <span style={{ position: "relative", display: "flex" }}>
-                <HeartIcon filled={wishlistCount > 0} />
-                {wishlistCount > 0 && <span style={badgeStyle}>{wishlistCount}</span>}
+                <HeartIcon filled={displayWishlistCount > 0} />
+                {displayWishlistCount > 0 && <span style={badgeStyle}>{displayWishlistCount}</span>}
               </span>
             </button>
-            <button onClick={() => navigateTo("cart")} style={iconButtonStyle} aria-label="Open cart">
+            <button onClick={() => navigateTo("orders")} style={iconButtonStyle} aria-label="My Orders" title="My Orders">
+              <span style={{ position: "relative", display: "flex" }}>
+                <OrdersIcon active={view === "orders"} />
+              </span>
+            </button>
+            <button onClick={() => navigateTo("cart")} style={iconButtonStyle} aria-label="Open cart" title="Cart">
               <span style={{ position: "relative", display: "flex" }}>
                 <CartIcon />
-                {cartCount > 0 && <span style={greenBadgeStyle}>{cartCount}</span>}
+                {displayCartCount > 0 && <span style={greenBadgeStyle}>{displayCartCount}</span>}
               </span>
             </button>
           </div>
@@ -213,10 +227,13 @@ export default function Header() {
               formStyle={mobileSearchFormStyle}
             />
 
-            <button onClick={() => navigateTo("cart")} style={{ ...mobileIconButtonStyle, marginLeft: "10px" }} aria-label="Open cart">
+            <button onClick={() => navigateTo("orders")} style={{ ...mobileIconButtonStyle, marginLeft: "6px" }} aria-label="My Orders" title="My Orders">
+              <OrdersIcon active={view === "orders"} />
+            </button>
+            <button onClick={() => navigateTo("cart")} style={{ ...mobileIconButtonStyle, marginLeft: "6px" }} aria-label="Open cart" title="Cart">
               <span style={{ position: "relative", display: "flex" }}>
                 <CartIcon />
-                {cartCount > 0 && <span style={mobileCartBadgeStyle}>{cartCount}</span>}
+                {displayCartCount > 0 && <span style={mobileCartBadgeStyle}>{displayCartCount}</span>}
               </span>
             </button>
           </div>
@@ -231,19 +248,6 @@ export default function Header() {
           )}
         </header>
       )}
-
-      <style jsx global>{`
-        .desktop-only { display: block; }
-        .mobile-only { display: none; }
-        @media (max-width: 767px) {
-          .desktop-only { display: none !important; }
-          .mobile-only { display: block !important; }
-          body {
-            padding-top: ${isDetailView ? "0" : "60px"} !important;
-            padding-bottom: 0 !important;
-          }
-        }
-      `}</style>
     </>
   );
 }
@@ -315,6 +319,16 @@ function HeartIcon({ filled }) {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill={filled ? "#16A34A" : "none"} stroke={filled ? "#16A34A" : "#1B1F8C"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+    </svg>
+  );
+}
+
+function OrdersIcon({ active }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? "#16A34A" : "#1B1F8C"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+      <line x1="3" y1="6" x2="21" y2="6" />
+      <path d="M16 10a4 4 0 0 1-8 0" />
     </svg>
   );
 }

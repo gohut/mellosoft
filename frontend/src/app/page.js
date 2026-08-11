@@ -9,6 +9,7 @@ import ProductDetailView from "../views/ProductDetailView";
 import CartView from "../views/CartView";
 import WishlistView from "../views/WishlistView";
 import SearchView from "../views/SearchView";
+import OrdersView from "../views/OrdersView";
 import ProfileView from "../views/ProfileView";
 
 export default function Home() {
@@ -26,6 +27,8 @@ export default function Home() {
         return <CartView />;
       case "wishlist":
         return <WishlistView />;
+      case "orders":
+        return <OrdersView />;
       case "search":
         return <SearchView />;
       case "profile":

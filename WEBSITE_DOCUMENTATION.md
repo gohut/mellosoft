@@ -60,6 +60,7 @@ frontend/
         ├── ProductDetailView.jsx  # Full product page: gallery, configurator, reviews, tabs
         ├── CartView.jsx           # Cart management, order summary, simulated checkout
         ├── WishlistView.jsx       # Saved favorites grid with bulk cart actions
+        ├── OrdersView.jsx         # Customer My Orders page & Order Details view
         ├── SearchView.jsx         # Live search engine with results & quick-access chips
         └── ProfileView.jsx        # Sleep questionnaire, AI Sleep Advisor & order history
 ```
