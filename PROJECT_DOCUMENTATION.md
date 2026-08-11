@@ -6,14 +6,16 @@ Welcome to the comprehensive technical and architectural documentation for **Mel
 
 ## 1. Project Overview & Technology Stack
 
-* **Framework**: [Next.js](https://nextjs.org/) (Version `16.2.10`) with App Router (`src/app`)
-* **Library**: [React](https://react.dev/) (Version `19.2.4`)
-* **React Compiler**: Enabled (`reactCompiler: true` in `next.config.mjs`) for automated compile-time performance optimizations
-* **Icons**: [Lucide React](https://lucide.dev/)
-* **Analytics & Charts**: [Recharts](https://recharts.org/)
-* **State Management**: Dual React Context Architecture (`StoreContext.js` for storefront & `AdminContext.js` / `AdminAuthContext.js` for admin) with synchronized `localStorage` hydration
-* **Styling**: Pure Vanilla CSS and scoped/global CSS-in-JS style objects paired with global stylesheets (`src/app/globals.css` and `src/app/admin/admin-globals.css`)
-* **Data Architecture**: Relational, single-source-of-truth entity model linking Customers, Orders, Products, and Wishlists via unique IDs (`customerId`, `productId`, `orderId`).
+| Technology | Version / Detail |
+| :--- | :--- |
+| **Framework** | [Next.js](https://nextjs.org/) `16.2.10` with App Router (`src/app`) |
+| **UI Library** | [React](https://react.dev/) `19.2.4` |
+| **React Compiler** | Enabled (`reactCompiler: true` in `next.config.mjs`) for automated compile-time optimization |
+| **Icons** | [Lucide React](https://lucide.dev/) |
+| **Analytics & Charts** | [Recharts](https://recharts.org/) |
+| **State Management** | Dual React Context architecture — `StoreContext.js` (storefront) + `AdminContext.js` / `AdminAuthContext.js` (admin) with `localStorage` hydration |
+| **Styling** | Vanilla CSS (`globals.css`, `admin-globals.css`) combined with CSS-in-JS inline style objects |
+| **Data Architecture** | Relational single-source-of-truth entity model: Customers, Orders, Carts, Wishlists, Products — all linked via unique IDs |
 
 ---
 
@@ -21,170 +23,263 @@ Welcome to the comprehensive technical and architectural documentation for **Mel
 
 ```
 Mellosoft/
-├── README.md                     # Main repository landing overview & quickstart
-├── PROJECT_DOCUMENTATION.md      # Full architecture & technical documentation
-├── WEBSITE_DOCUMENTATION.md      # Storefront specific documentation
-└── frontend/                     # Next.js web project root
-    ├── package.json              # Project dependencies & scripts
-    ├── next.config.mjs           # Next.js configuration
-    ├── public/
-    │   └── asset/                # Images, textures, and product assets
+├── README.md                          # Repository overview, features & quickstart
+├── PROJECT_DOCUMENTATION.md          # Full system architecture documentation (this file)
+├── WEBSITE_DOCUMENTATION.md          # Storefront-specific documentation
+└── frontend/                         # Next.js web project root
+    ├── package.json
+    ├── next.config.mjs
     └── src/
         ├── app/
-        │   ├── layout.js         # Root layout with metadata & StoreProvider
-        │   ├── page.js           # Storefront view router entry point
-        │   ├── globals.css       # Global storefront styles
-        │   └── admin/            # Admin portal route directory
-        │       ├── admin-globals.css # Admin CSS design system & responsive rules
-        │       └── (dashboard)/
-        │           └── page.js   # Admin dashboard shell & view manager
-        ├── components/           # Storefront UI components
-        │   ├── Header.jsx        # Sticky navigation header
-        │   ├── Footer.jsx        # Categoric footer & payment options
-        │   ├── ProductCard.jsx   # Product card component
-        │   ├── EmptyState.jsx    # Fallback message renderer
-        │   ├── FirmnessSizeSelector.jsx # Selection chips
-        │   ├── QuantityStepper.jsx # Item quantity counter
-        │   └── RatingStars.jsx   # Star rating builder
-        ├── context/              # Storefront state context
-        │   ├── StoreContext.js   # Global store state & cart management
-        │   └── AdminAuthContext.js # Admin authentication context
-        ├── data/                 # Primary static/mock database schemas
-        │   ├── products.js       # Master product catalog
-        │   ├── rolesData.js      # System roles & permission matrices
-        │   ├── usersData.js      # System admin users registry
-        │   └── dashboardAnalytics.js # Analytics & sales period datasets
-        ├── utils/                # Utility helpers
-        │   ├── currency.js       # Localized Indian Rupee (₹) price formatter
-        │   └── security.js       # Password hashing & RBAC permission checker
-        ├── views/                # Storefront view pages
-        │   ├── HomeView.jsx      # Hero slider, featured collections, promo callouts
-        │   ├── CatalogView.jsx   # Filtered product catalog & sorting engine
-        │   ├── ProductDetailView.jsx # Multi-angle gallery, size/firmness configurator
-        │   ├── CartView.jsx      # Cart manager & simulated checkout
-        │   ├── WishlistView.jsx  # Favorites manager with bulk cart actions
-        │   ├── SearchView.jsx    # Live discovery search engine
-        │   └── ProfileView.jsx   # Sleep questionnaire & AI Sleep Advisor
-        └── admin/                # Admin Portal System
-            ├── components/       # Admin reusable components
-            │   ├── AdminHeader.jsx # Admin top header & role-colored user profile
-            │   ├── AdminSidebar.jsx # Sidebar navigation with collapsed/mobile modes
-            │   ├── DataTable.jsx   # Data table with clickable row support
-            │   ├── SalesAnalyticsCard.jsx # Recharts sales graph & KPI cards
-            │   ├── StatusBadge.jsx # Color-coded status badge pill component
-            │   └── Modal.jsx       # Reusable modal container
+        │   ├── layout.js              # Root layout with StoreProvider
+        │   ├── page.js                # Storefront view router (7 views)
+        │   ├── globals.css            # Global storefront styles
+        │   └── admin/
+        │       └── admin-globals.css  # Admin CSS design system & responsive rules
+        ├── components/                # Storefront UI components
+        │   ├── Header.jsx
+        │   ├── Footer.jsx
+        │   ├── ProductCard.jsx
+        │   ├── EmptyState.jsx
+        │   ├── FirmnessSizeSelector.jsx
+        │   ├── QuantityStepper.jsx
+        │   └── RatingStars.jsx
+        ├── context/
+        │   ├── StoreContext.js        # Storefront global state (cart, wishlist, filters)
+        │   └── AdminAuthContext.js    # Admin authentication context
+        ├── data/
+        │   ├── products.js            # MOCK_PRODUCTS — master product catalog
+        │   ├── rolesData.js           # DEFAULT_ROLES — system roles & permissions
+        │   ├── usersData.js           # DEFAULT_USERS — admin user registry
+        │   └── dashboardAnalytics.js  # Sales chart & KPI datasets
+        ├── utils/
+        │   ├── currency.js            # formatPrice(), calculateDiscountedPrice(), getProductPrices()
+        │   ├── variantHelpers.js      # generateVariantId(), reconcileVariants(), getVariantForSelection()
+        │   ├── security.js            # hashPassword(), verifyPassword(), checkPermission()
+        │   ├── rolesStore.js          # In-memory role/user CRUD store (server-side)
+        │   └── apiAuth.js             # verifyApiAuthAndPermission() — API route RBAC middleware
+        ├── views/                     # Storefront screen views
+        │   ├── HomeView.jsx
+        │   ├── CatalogView.jsx
+        │   ├── ProductDetailView.jsx
+        │   ├── CartView.jsx
+        │   ├── WishlistView.jsx
+        │   ├── SearchView.jsx
+        │   └── ProfileView.jsx
+        └── admin/
+            ├── components/
+            │   ├── AdminHeader.jsx    # Top bar with role-colored username
+            │   ├── AdminSidebar.jsx   # Collapsible sidebar navigation
+            │   ├── DataTable.jsx      # Clickable data table component
+            │   ├── SalesAnalyticsCard.jsx # Recharts dashboard analytics
+            │   ├── StatusBadge.jsx    # Color-coded status pill
+            │   ├── Modal.jsx
+            │   ├── ConfirmDialog.jsx
+            │   ├── Breadcrumb.jsx
+            │   ├── Pagination.jsx
+            │   ├── SearchBar.jsx
+            │   └── StatCard.jsx
             ├── context/
-            │   └── AdminContext.js # Central relational state & persistence engine
+            │   └── AdminContext.js    # Central admin state, RBAC, & relational data engine
             ├── data/
-            │   └── adminMockData.js # Relational customer, order & wishlist mock data
-            └── views/            # Admin management view screens
-                ├── DashboardView.jsx # Main analytics overview
-                ├── ProductsView.jsx # Products table & inventory manager
-                ├── AddProductView.jsx # New product creation form
-                ├── EditProductView.jsx # Product editor & image manager
-                ├── EditPriceAndStockView.jsx # Quick price & inventory updater
-                ├── OrdersView.jsx   # Clickable orders table & Order Details Modal
-                ├── CustomersView.jsx # Clickable customer list & Customer Profile Modal
-                ├── UsersAndRolesView.jsx # User management & custom RBAC role editor
-                ├── CategoriesView.jsx # Category manager
-                ├── ReviewsView.jsx  # Review moderation panel
-                └── SettingsView.jsx # System settings & store configuration
+            │   └── adminMockData.js   # MOCK_ORDERS, MOCK_CUSTOMERS, MOCK_CARTS, MOCK_WISHLISTS, MOCK_CATEGORIES, MOCK_INVENTORY
+            └── views/
+                ├── DashboardView.jsx
+                ├── ProductsView.jsx
+                ├── AddProductView.jsx
+                ├── EditProductView.jsx
+                ├── EditPriceAndStockView.jsx
+                ├── OrdersView.jsx
+                ├── CustomersView.jsx  # Customer table + Customer Profile Modal (with Cart section)
+                ├── UsersAndRolesView.jsx
+                ├── CategoriesView.jsx
+                ├── ReviewsView.jsx
+                └── SettingsView.jsx
 ```
 
 ---
 
-## 3. Storefront Architecture (`src/views`)
+## 3. Storefront Architecture
 
 ### State Management (`StoreContext.js`)
-* **Cart Hydration & Management**: Hydrates automatically from `localStorage` key `mellosoft_cart`. Calculates item variant subtotals (`price * quantity`), handles size-specific pricing tiers, and generates order confirmation IDs (`MS-XXXXXX`).
-* **Wishlist Hydration**: Hydrates from `localStorage` key `mellosoft_wishlist`. Toggles items instantly and provides "Move All to Cart" bulk execution.
-* **View Routing**: Client-side view switcher (`home`, `catalog`, `detail`, `cart`, `wishlist`, `search`, `profile`).
+
+| State Field | Type | Persisted | Description |
+| :--- | :--- | :--- | :--- |
+| `view` | String | No | Active view: `home`, `catalog`, `detail`, `cart`, `wishlist`, `search`, `profile` |
+| `selectedProductId` | String | No | Product ID for `ProductDetailView` |
+| `searchQuery` | String | No | Live search input |
+| `activeFilters` | Object | No | `{ category, firmness, size, sort }` |
+| `cart` | Array | ✅ `mellosoft_cart` | Shopping cart items |
+| `wishlist` | Array | ✅ `mellosoft_wishlist` | Saved product IDs |
+
+**Key actions:** `navigateTo`, `addToCart`, `removeFromCart`, `updateQty`, `clearCart`, `toggleWishlist`, `moveToCart`, `getProductById`
 
 ---
 
-## 4. Admin Portal Architecture (`src/admin`)
+## 4. Admin Portal Architecture
 
-### 1. Role-Based Access Control (RBAC) System
-The admin system enforces fine-grained role-based permissions via `security.js` and `AdminContext.js`:
+### 4.1 Role-Based Access Control (RBAC)
 
-| Role | Role Color | Permissions Overview |
+| Role | Header Color | Permission Level |
 | :--- | :--- | :--- |
-| **Super Admin** | `#7C3AED` (Purple) | Full system permissions (Manage Users, Roles, Products, Orders, Categories, Settings) |
-| **Admin** | `#2563EB` (Blue) | Operational permissions (Manage Products, Orders, Customers, Reviews) |
-| **Manager** | `#D97706` (Gold) | Catalog & Inventory moderation (Products, Categories, Inventory) |
-| **Staff** | `#6B6B75` (Grey) | View-only access across core modules |
+| **Super Admin** | `#7C3AED` Purple | Full system access |
+| **Admin** | `#2563EB` Blue | Products, Orders, Customers, Reviews |
+| **Manager** | `#D97706` Gold | Catalog & Inventory |
+| **Staff** | `#6B6B75` Grey | View-only |
 
-* **Header Role Indicator**: In `AdminHeader.jsx`, visible role text is omitted in favor of dynamic username text coloring matching the role's specified hex code.
+- Role is indicated via **username text color** in `AdminHeader.jsx` — no visible role label.
+- `checkPermission(role, module, action)` enforces access guards on every admin mutation.
+- `verifyApiAuthAndPermission()` in `apiAuth.js` secures all API routes.
 
-### 2. Relational Single-Source-of-Truth Data Architecture
-All admin entities are normalized and linked through relational IDs:
+### 4.2 Relational Data Architecture (`AdminContext.js`)
+
+All admin entities are stored in centralized React state, hydrated from and persisted to `localStorage`:
+
+| Entity | localStorage Key | Source |
+| :--- | :--- | :--- |
+| Products | `mellosoft_products` | `MOCK_PRODUCTS` |
+| Categories | `mellosoft_categories` | `MOCK_CATEGORIES` |
+| Orders | `mellosoft_orders` | `MOCK_ORDERS` |
+| Customers | `mellosoft_customers` | `MOCK_CUSTOMERS` |
+| Wishlists | `mellosoft_wishlists` | `MOCK_WISHLISTS` |
+| **Carts** | **`mellosoft_admin_carts`** | **`MOCK_CARTS`** |
+| Roles | `mellosoft_roles` | `DEFAULT_ROLES` |
+| Users | `mellosoft_users` | `DEFAULT_USERS` |
+
+**Entity Relationship Model:**
 
 ```
 CUSTOMER (customerId)
    │
-   ├── ORDERS (order.customerId === customer.id)
-   │      │
+   ├── ORDERS   (order.customerId === customer.id)
    │      └── ORDER ITEMS
-   │              │
-   │              ├── PRODUCT (item.productId === product.id)
-   │              └── VARIANT (item.variantSize, item.variantFirmness)
+   │               ├── PRODUCT  (item.productId === product.id)
+   │               └── VARIANT  (item.variantSize + item.variantFirmness)
+   │
+   ├── CART     (cart.customerId === customer.id)          ← NEW
+   │      └── CART ITEMS
+   │               ├── PRODUCT  (item.productId === product.id)
+   │               └── VARIANT  (item.variantSize + item.variantFirmness + item.variantSKU)
    │
    └── WISHLIST (wishlist.customerId === customer.id)
-          │
           └── PRODUCT (wishlist.productId === product.id)
 ```
 
-* **Dynamic Calculations**: `TOTAL ORDERS`, `TOTAL SPENT`, `AVERAGE ORDER VALUE`, `ITEMS PURCHASED`, and `LAST ORDER` are computed dynamically from actual relational orders.
-* **Real-time Synchronization**: When an admin updates an order's **Payment Status** (`Pending`, `Paid`, `Failed`, `Refunded`) or **Order Status** (`Pending`, `Processing`, `Delivered`, `Cancelled`), the update immediately propagates across:
-  1. Orders Page Table
-  2. Order Details Modal
-  3. Customer Profile Modal
-  4. Customers Page Spending & Order Totals
-  5. Dashboard Analytics & Recent Orders Cards
-  6. Persistent `localStorage` store
+### 4.3 Cart Data Model (`MOCK_CARTS`)
+
+Each cart entry in `adminMockData.js` is a normalized record linking a customer to a specific product variant:
+
+```javascript
+{
+  cartItemId: "classic-mattress-Firm-King",  // Unique: productId-firmness-size
+  customerId: "C001",                         // FK → MOCK_CUSTOMERS.id
+  productId:  "classic-mattress",            // FK → MOCK_PRODUCTS.id
+  variantSize: "King",
+  variantFirmness: "Firm",
+  variantSKU: "MEL-KING-FIRM",
+  quantity: 2,
+  actualPrice: 1099,                         // Base price before discount
+  discountPercent: 10,                       // Same discount % as storefront
+  addedAt: "2026-08-09",
+  stockStatus: "In Stock"                    // "In Stock" | "Low Stock" | "Out of Stock"
+}
+```
+
+**Price calculation** is identical to the storefront:
+```
+discountPrice = actualPrice × (1 − discountPercent / 100)
+itemTotal     = discountPrice × quantity
+cartSubtotal  = Σ itemTotal across all customer's cart items
+```
 
 ---
 
-## 5. Admin Features Detail
+## 5. Admin Feature Details
 
-### Orders Management (`OrdersView.jsx`)
-* **Table Layout**: Rebalanced columns (`ORDER ID | CUSTOMER | PRODUCTS | AMOUNT | PAYMENT | STATUS | DATE`) without an action column.
-* **Clickable Rows**: Clicking anywhere on an order row opens the **Order Details Modal**.
-* **Order Details Modal**:
-  * Displays complete order details, customer contact info, shipping address, and product line items with thumbnails, variant size/firmness, unit prices, and subtotal.
-  * Provides Payment Status & Order Status edit controls with role permission validation.
+### 5.1 Orders Management (`OrdersView.jsx`)
+- Table: `ORDER ID | CUSTOMER | PRODUCTS | AMOUNT | PAYMENT | STATUS | DATE`
+- **Clickable rows** open Order Details Modal
+- Modal: full order info, customer contact, shipping address, line items with product images & variant details
+- Payment Status & Order Status can be updated inline (with RBAC permission check)
+- Changes sync in real time to Dashboard, Customer Profile, and `localStorage`
 
-### Customers Management (`CustomersView.jsx`)
-* **Table Layout**: `NAME | EMAIL | PHONE | ORDERS | SPENDING | STATUS` with dynamic order count and total spending calculated directly from `orders`.
-* **Clickable Rows**: Clicking a customer row passes `selectedCustomerId` to open the **Customer Profile Modal**.
-* **Customer Profile Modal**:
-  * Customer Profile Header with avatar, contact info, status badge, registration date, and last login.
-  * Overall Purchase Summary cards (Total Orders, Total Spent, Avg Order Value, Items Purchased, Last Order).
-  * Purchase Insights (Most Purchased Product, Most Recent Product, Order Status Breakdown).
-  * Order History listing with item breakdown.
-  * Wishlist grid displaying real products from catalog or empty fallback message.
+### 5.2 Customers Management (`CustomersView.jsx`)
 
-### Users & Roles Management (`UsersAndRolesView.jsx`)
-* **Responsive User Layout**:
-  * Desktop (`> 768px`): Clean data table layout.
-  * Mobile (`<= 768px`): Converts rows into native responsive `.admin-user-card` components showing user avatar, name, phone, ellipsis email, role badge, status indicator, formatted dates, and action buttons.
-* **Role Permissions Matrix**: Custom role builder allowing administrators to grant granular view/create/edit/delete access per system module (Dashboard, Products, Orders, Customers, Reviews, Users, Roles, Settings).
+#### Table
+`NAME | EMAIL | PHONE | ORDERS | SPENDING | STATUS`
+- `ORDERS` = dynamically computed: `orders.filter(o => o.customerId === c.id).length`
+- `SPENDING` = sum of `totalAmount` for Paid/Delivered orders per customer
+- **Clickable rows** open Customer Profile Modal
+
+#### Customer Profile Modal — Section Order
+
+| # | Section | Source |
+| :--- | :--- | :--- |
+| 1 | **Customer Information** | `MOCK_CUSTOMERS` |
+| 2 | **Overall Purchase Summary** | Computed from `orders` |
+| 3 | **Purchase Insights** | Computed from order items |
+| 4 | **Order History** | `orders` filtered by `customerId` |
+| 5 | **Cart** ← _New_ | `carts` filtered by `customerId` |
+| 6 | **Wishlist** | `wishlists` → resolved via `products` |
+
+#### Customer Profile → Cart Section (New Feature)
+
+**Heading:** `🛒 Cart (N)` — where N = number of unique cart item entries for that customer.
+
+**Per-item card displays:**
+- Product image (64×64, from `product.images[0]`)
+- Product name (resolved from `products` via `productId`)
+- Variant chips: **Size** (navy), **Firmness** (grey), **SKU** (monospace)
+- Pricing row: ~~actual price~~ → **discounted price** + discount % badge
+- Quantity & Item Total
+- Stock status badge: **Low Stock** (gold) or **Out of Stock** (red) — only shown when not "In Stock"
+
+**Cart Subtotal bar** (navy, at section bottom):
+```
+Σ calculateDiscountedPrice(actualPrice, discountPercent) × quantity
+```
+
+**Empty state:** ShoppingCart icon + "No items currently in this customer's cart."
+
+**Behavior:**
+- READ-ONLY — no delete/edit/add controls
+- Fully reactive via `AdminContext.carts` (`mellosoft_admin_carts` localStorage)
+- Different Size+Firmness combinations of the same product appear as **separate cart entries**
+- Stock status is informational only — admin cannot modify the customer's cart
+
+### 5.3 Users & Roles (`UsersAndRolesView.jsx`)
+- Desktop: data table layout
+- Mobile (`≤ 768px`): each user row converts to a responsive `.admin-user-card`
+- Role Permissions Matrix: per-module `view / create / edit / delete` toggles
+- System roles (Super Admin, Admin, Manager, Staff) are protected from deletion/rename
+
+### 5.4 Dashboard (`DashboardView.jsx`)
+- KPI stat cards: Revenue, Orders, Customers, Products
+- Recharts sales graph (time-filtered: Today, 7 Days, 30 Days, 6 Months, Year)
+- Recent Orders panel — reads from `AdminContext.orders` + resolves customer names from `AdminContext.customers`
 
 ---
 
-## 6. Design System & Responsive Guidelines
+## 6. Design System
 
-### Color System
-* **Primary Navy**: `#1B1F8C`
-* **Success Green**: `#16A34A` / `#DCFCE7`
-* **Warning Gold**: `#D97706` / `#FEF3C7`
-* **Danger Red**: `#DC2626` / `#FEE2E2`
-* **Background Light**: `#FAFAF7` / `#F7F7F2`
-* **Text Primary**: `#14151A`
+### Color Palette
+| Token | Hex | Usage |
+| :--- | :--- | :--- |
+| **Primary Navy** | `#1B1F8C` | Brand headings, CTAs, cart subtotal, SKU variant chips |
+| **Accent Green** | `#16A34A` | Success badges, "In Stock", discount % pill |
+| **Warning Gold** | `#D97706` | "Low Stock" badge, Manager role color |
+| **Danger Red** | `#DC2626` | "Out of Stock" badge, error states |
+| **Background Cream** | `#F7F7F2` | Page background |
+| **Background Alt** | `#FAFAF7` | Card interiors, modal panels |
+| **Text Primary** | `#14151A` | Main body text |
+| **Text Secondary** | `#6B6B75` | Labels, specs, meta info |
+| **Border Light** | `#E7E7E2` | Card dividers, separators |
 
-### Mobile Breakpoints (`globals.css` & `admin-globals.css`)
-* `<= 1024px`: Collapsible mobile sidebar overlay with toggle button.
-* `<= 768px`: Desktop tables convert to touch-friendly card layouts. Full-width modals with zero horizontal scrollbars.
+### Mobile Breakpoints
+| Breakpoint | Behavior |
+| :--- | :--- |
+| `≤ 1024px` | Collapsible mobile sidebar overlay |
+| `≤ 768px` | Tables → touch-friendly card layouts; full-width modals |
 
 ---
 
@@ -195,4 +290,12 @@ CUSTOMER (customerId)
 cd frontend
 npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000) for the Storefront or [http://localhost:3000/admin](http://localhost:3000/admin) for the Admin Portal.
+
+- **Storefront**: [http://localhost:3000](http://localhost:3000)
+- **Admin Portal**: [http://localhost:3000/admin](http://localhost:3000/admin)
+
+### Git Branches
+| Branch | Purpose |
+| :--- | :--- |
+| `frontend` | Active development branch (currently tracked) |
+| `main` | Stable production branch |

@@ -469,6 +469,7 @@ The mobile header applies `paddingTop: "60px"` to `document.body` dynamically to
 3. **Mock Order History** — `ProfileView` renders a static, hardcoded `mockOrders` array. It is not connected to the cart checkout flow or the admin order database.
 4. **Static Search Recents** — "Recent Searches" in `SearchView` are hardcoded strings, not persisted or dynamically built from actual past searches.
 5. **Simulated Checkout** — `CartView` generates a random order number on checkout but does not persist the order or submit to any backend.
+6. **Admin Cart is Separate from Storefront Cart** — The admin Customer Profile's Cart section reads from `AdminContext.carts` (`mellosoft_admin_carts` in localStorage), which is seeded from `MOCK_CARTS`. It is not connected to the storefront's `mellosoft_cart` key because the storefront cart is anonymous (session-based) and not associated with a `customerId`.
 
 ### Recommended Improvements
 1. **Add Profile Navigation** — Add a profile icon/link in `Header` (desktop & mobile) and `Footer` to expose `ProfileView` as a reachable route.
@@ -477,3 +478,28 @@ The mobile header applies `paddingTop: "60px"` to `document.body` dynamically to
 4. **URL-Based Routing** — Migrate the `view` state router to native Next.js App Router file-system routes for browser back-button support and deep linking.
 5. **Real Backend** — Replace `localStorage` state and `MOCK_PRODUCTS` with API calls to a database (PostgreSQL, MongoDB, or Supabase) for real-time inventory, authentication, and order management.
 6. **Persist Recent Searches** — Store search history to `localStorage` and render dynamically in `SearchView`.
+7. **Link Storefront Cart to Customer Identity** — When a real authentication system is added, associate `mellosoft_cart` with the logged-in customer's `customerId` so the Admin Customer Profile Cart reads live storefront cart data in real time.
+
+---
+
+## 11. Admin Portal Reference
+
+This document covers the **consumer storefront** only. The admin portal has its own dedicated documentation:
+
+> 📄 **[PROJECT_DOCUMENTATION.md](./PROJECT_DOCUMENTATION.md)** — Full admin portal architecture, RBAC system, relational data models (Orders, Carts, Wishlists, Customers), and feature detail for every admin management view.
+
+### Admin Customer Profile — Cart Section Summary
+
+The Customer Profile modal in **Admin → Customers** includes a dedicated **Cart** section added after Order History:
+
+| Element | Detail |
+| :--- | :--- |
+| **Heading** | `🛒 Cart (N)` — N = number of unique cart item entries |
+| **Item card** | Product image, name, variant chips (Size / Firmness / SKU), pricing row (actual → discounted + % badge), qty, item total |
+| **Stock status** | "Low Stock" (gold badge) or "Out of Stock" (red badge) shown inline |
+| **Cart Subtotal** | `Σ discountedPrice × qty` displayed in navy at section bottom |
+| **Empty state** | ShoppingCart icon + "No items currently in this customer's cart." |
+| **Mode** | Read-only — admin cannot modify customer carts from this view |
+| **Data source** | `AdminContext.carts` → `MOCK_CARTS` → `mellosoft_admin_carts` localStorage |
+| **Price formula** | `calculateDiscountedPrice(actualPrice, discountPercent)` — same function used by storefront |
+

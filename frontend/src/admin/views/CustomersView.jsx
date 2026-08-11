@@ -5,8 +5,8 @@ import { createPortal } from "react-dom";
 import { useAdmin } from "../context/AdminContext";
 import DataTable from "../components/DataTable";
 import StatusBadge from "../components/StatusBadge";
-import { X, ShoppingBag, DollarSign, TrendingUp, Package, Clock, Heart, Calendar } from "lucide-react";
-import { formatPrice } from "../../utils/currency";
+import { X, ShoppingBag, DollarSign, TrendingUp, Package, Clock, Heart, ShoppingCart } from "lucide-react";
+import { formatPrice, calculateDiscountedPrice } from "../../utils/currency";
 
 export default function CustomersView() {
   const { customers, orders, products, wishlists, updateCustomerStatus, hasPermission } = useAdmin();
@@ -82,7 +82,7 @@ export default function CustomersView() {
 
 // ─── CUSTOMER DETAILS MODAL (FETCHED BY CUSTOMER ID) ──────────────────────────
 function CustomerDetailsModal({ customerId, canEdit, onClose, onStatusToggle }) {
-  const { customers, orders, wishlists, products } = useAdmin();
+  const { customers, orders, wishlists, carts, products } = useAdmin();
 
   // Load customer record strictly from central state via customerId
   const customer = useMemo(() => {
@@ -107,6 +107,19 @@ function CustomerDetailsModal({ customerId, canEdit, onClose, onStatusToggle }) 
       .map((w) => products.find((p) => p.id === w.productId || p.slug === w.productId))
       .filter(Boolean);
   }, [customerWishlistEntries, products]);
+
+  // Find all cart items belonging to this customer
+  const customerCartItems = useMemo(() => {
+    return (carts || []).filter((c) => c.customerId === customerId);
+  }, [carts, customerId]);
+
+  // Calculate cart subtotal: sum of (discountPrice × quantity) per item
+  const cartSubtotal = useMemo(() => {
+    return customerCartItems.reduce((sum, item) => {
+      const discountPrice = calculateDiscountedPrice(item.actualPrice, item.discountPercent ?? 0);
+      return sum + discountPrice * (item.quantity || 1);
+    }, 0);
+  }, [customerCartItems]);
 
   // Calculate overall purchase metrics dynamically from customer's actual orders
   const metrics = useMemo(() => {
@@ -352,7 +365,140 @@ function CustomerDetailsModal({ customerId, canEdit, onClose, onStatusToggle }) 
             )}
           </div>
 
-          {/* 4. Wishlist */}
+          {/* 4. Cart */}
+          <div>
+            <h5 style={{ ...sectionTitle, display: "flex", alignItems: "center", gap: "6px" }}>
+              <ShoppingCart size={16} color="#1B1F8C" /> Cart ({customerCartItems.length})
+            </h5>
+            {customerCartItems.length === 0 ? (
+              <div style={{ ...emptyBoxStyle, display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
+                <ShoppingCart size={28} color="#CBD5E1" />
+                <span>No items currently in this customer&apos;s cart.</span>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                {customerCartItems.map((item) => {
+                  const prod = products.find((p) => p.id === item.productId);
+                  const productName = prod?.name || item.productId;
+                  const productImage = prod?.images?.[0] || "/asset/img1.jpg";
+                  const discountPrice = calculateDiscountedPrice(item.actualPrice, item.discountPercent ?? 0);
+                  const itemTotal = discountPrice * (item.quantity || 1);
+                  const hasVariant = item.variantSize || item.variantFirmness;
+
+                  // Stock status badge style
+                  const stockColors = {
+                    "Out of Stock": { bg: "#FEE2E2", color: "#DC2626" },
+                    "Low Stock":    { bg: "#FEF3C7", color: "#D97706" },
+                    "In Stock":     { bg: "#DCFCE7", color: "#16A34A" },
+                  };
+                  const stockStyle = stockColors[item.stockStatus] || stockColors["In Stock"];
+
+                  return (
+                    <div key={item.cartItemId} style={{
+                      border: "1px solid #E7E7E2",
+                      borderRadius: "12px",
+                      padding: "14px",
+                      backgroundColor: "#FAFAF7",
+                      display: "flex",
+                      gap: "14px",
+                      alignItems: "flex-start",
+                    }}>
+                      {/* Product Image */}
+                      <img
+                        src={productImage}
+                        alt={productName}
+                        style={{
+                          width: "64px", height: "64px", borderRadius: "8px",
+                          objectFit: "cover", backgroundColor: "#F0F0EC", flexShrink: 0,
+                          border: "1px solid #E7E7E2",
+                        }}
+                      />
+
+                      {/* Details */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        {/* Name + Stock Badge */}
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "8px", flexWrap: "wrap" }}>
+                          <div style={{ fontSize: "14px", fontWeight: 700, color: "#14151A", lineHeight: 1.3 }}>
+                            {productName}
+                          </div>
+                          {item.stockStatus && item.stockStatus !== "In Stock" && (
+                            <span style={{
+                              fontSize: "10px", fontWeight: 700, padding: "2px 8px",
+                              borderRadius: "20px", flexShrink: 0,
+                              backgroundColor: stockStyle.bg, color: stockStyle.color,
+                              textTransform: "uppercase", letterSpacing: "0.04em",
+                            }}>
+                              {item.stockStatus}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Variant Info */}
+                        {hasVariant && (
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "6px" }}>
+                            {item.variantSize && (
+                              <span style={{ fontSize: "11px", fontWeight: 600, padding: "2px 8px", borderRadius: "20px", backgroundColor: "#E8E9F8", color: "#1B1F8C" }}>
+                                {item.variantSize}
+                              </span>
+                            )}
+                            {item.variantFirmness && item.variantFirmness !== "Standard" && (
+                              <span style={{ fontSize: "11px", fontWeight: 600, padding: "2px 8px", borderRadius: "20px", backgroundColor: "#F0F0EC", color: "#6B6B75" }}>
+                                {item.variantFirmness}
+                              </span>
+                            )}
+                            {item.variantSKU && (
+                              <span style={{ fontSize: "10px", fontWeight: 500, padding: "2px 8px", borderRadius: "20px", backgroundColor: "#F0F0EC", color: "#9B9BA8", fontFamily: "monospace" }}>
+                                {item.variantSKU}
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Pricing Row */}
+                        <div style={{ display: "flex", alignItems: "center", gap: "12px", marginTop: "8px", flexWrap: "wrap" }}>
+                          <span style={{ fontSize: "11px", color: "#9B9BA8", textDecoration: "line-through" }}>
+                            {formatPrice(item.actualPrice)}
+                          </span>
+                          <span style={{ fontSize: "14px", fontWeight: 700, color: "#1B1F8C" }}>
+                            {formatPrice(discountPrice)}
+                          </span>
+                          {item.discountPercent > 0 && (
+                            <span style={{ fontSize: "10px", fontWeight: 700, color: "#16A34A", backgroundColor: "#DCFCE7", padding: "2px 6px", borderRadius: "20px" }}>
+                              -{item.discountPercent}%
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Quantity & Item Total */}
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "8px" }}>
+                          <span style={{ fontSize: "12px", color: "#6B6B75" }}>
+                            Qty: <strong style={{ color: "#14151A" }}>{item.quantity || 1}</strong>
+                          </span>
+                          <span style={{ fontSize: "13px", fontWeight: 700, color: "#14151A" }}>
+                            Item Total: {formatPrice(itemTotal)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Cart Subtotal */}
+                <div style={{
+                  display: "flex", justifyContent: "flex-end", alignItems: "center", gap: "8px",
+                  padding: "12px 16px", backgroundColor: "#F0F0FC",
+                  borderRadius: "10px", border: "1px solid #D1D4F0",
+                }}>
+                  <span style={{ fontSize: "13px", color: "#6B6B75", fontWeight: 600 }}>Cart Subtotal:</span>
+                  <span style={{ fontSize: "16px", fontWeight: 800, color: "#1B1F8C" }}>
+                    {formatPrice(cartSubtotal)}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 5. Wishlist */}
           <div>
             <h5 style={{ ...sectionTitle, display: "flex", alignItems: "center", gap: "6px" }}>
               <Heart size={16} color="#DC2626" /> Wishlist ({resolvedWishlistProducts.length})

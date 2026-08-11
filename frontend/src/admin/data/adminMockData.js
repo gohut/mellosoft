@@ -387,6 +387,114 @@ export const MOCK_WISHLISTS = [
   { customerId: "C008", productId: "luxury-pillow", addedAt: "2026-07-10" },
 ];
 
+// Normalized Mock Customer Carts
+// Each cart item references customerId, productId, and variant (size + firmness)
+// Price stored is the discounted price as seen by the customer in the storefront
+// stockStatus: "In Stock" | "Low Stock" | "Out of Stock"
+export const MOCK_CARTS = [
+  // Rahul Sharma (C001) — 2 items in cart
+  {
+    cartItemId: "classic-mattress-Firm-King",
+    customerId: "C001",
+    productId: "classic-mattress",
+    variantSize: "King",
+    variantFirmness: "Firm",
+    variantSKU: "MEL-KING-FIRM",
+    quantity: 2,
+    actualPrice: 1099,
+    discountPercent: 10,
+    addedAt: "2026-08-09",
+    stockStatus: "In Stock",
+  },
+  {
+    cartItemId: "luxe-hybrid-Medium-Queen",
+    customerId: "C001",
+    productId: "luxe-hybrid",
+    variantSize: "Queen",
+    variantFirmness: "Medium",
+    variantSKU: "MEL-QUEEN-MEDIUM",
+    quantity: 1,
+    actualPrice: 1199,
+    discountPercent: 10,
+    addedAt: "2026-08-10",
+    stockStatus: "Low Stock",
+  },
+
+  // Priya Patel (C002) — 1 item in cart
+  {
+    cartItemId: "luxury-pillow-Soft-Standard",
+    customerId: "C002",
+    productId: "luxury-pillow",
+    variantSize: "Standard",
+    variantFirmness: "Soft",
+    variantSKU: "MEL-STD-SOFT",
+    quantity: 2,
+    actualPrice: 89,
+    discountPercent: 10,
+    addedAt: "2026-08-08",
+    stockStatus: "Low Stock",
+  },
+
+  // Ankit Gupta (C003) — 1 item in cart (out of stock variant)
+  {
+    cartItemId: "luxury-pillow-Medium-King",
+    customerId: "C003",
+    productId: "luxury-pillow",
+    variantSize: "King",
+    variantFirmness: "Medium",
+    variantSKU: "MEL-KING-MEDIUM",
+    quantity: 1,
+    actualPrice: 109,
+    discountPercent: 10,
+    addedAt: "2026-08-07",
+    stockStatus: "Out of Stock",
+  },
+
+  // Sneha Reddy (C004) — 2 items in cart
+  {
+    cartItemId: "organic-protector-Standard-Queen",
+    customerId: "C004",
+    productId: "organic-protector",
+    variantSize: "Queen",
+    variantFirmness: "Standard",
+    variantSKU: "MEL-QUEEN-STD",
+    quantity: 1,
+    actualPrice: 79,
+    discountPercent: 10,
+    addedAt: "2026-08-06",
+    stockStatus: "In Stock",
+  },
+  {
+    cartItemId: "oak-bedframe-Standard-Queen",
+    customerId: "C004",
+    productId: "oak-bedframe",
+    variantSize: "Queen",
+    variantFirmness: "Standard",
+    variantSKU: "MEL-QUEEN-STD",
+    quantity: 1,
+    actualPrice: 799,
+    discountPercent: 10,
+    addedAt: "2026-08-06",
+    stockStatus: "In Stock",
+  },
+
+  // Kavitha Menon (C008) — 1 item in cart
+  {
+    cartItemId: "classic-mattress-Medium-Queen",
+    customerId: "C008",
+    productId: "classic-mattress",
+    variantSize: "Queen",
+    variantFirmness: "Medium",
+    variantSKU: "MEL-QUEEN-MEDIUM",
+    quantity: 1,
+    actualPrice: 899,
+    discountPercent: 10,
+    addedAt: "2026-08-10",
+    stockStatus: "In Stock",
+  },
+];
+
+
 // Mock reviews for moderation
 export const MOCK_REVIEWS = [
   { id: "RV001", customer: "Helen M.", product: "Mellosoft Classic Mattress", rating: 5, review: "Excellent mattress! It conforms to the body and turns very sharply on the comfort. Best sleep I've had in years.", date: "2026-08-01", status: "Approved" },

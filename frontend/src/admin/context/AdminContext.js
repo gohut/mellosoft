@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { MOCK_PRODUCTS } from "../../data/products";
-import { MOCK_CATEGORIES, MOCK_ORDERS, MOCK_CUSTOMERS, MOCK_WISHLISTS } from "../data/adminMockData";
+import { MOCK_CATEGORIES, MOCK_ORDERS, MOCK_CUSTOMERS, MOCK_WISHLISTS, MOCK_CARTS } from "../data/adminMockData";
 import { DEFAULT_ROLES } from "../../data/rolesData";
 import { DEFAULT_USERS } from "../../data/usersData";
 import { hashPassword, checkPermission } from "../../utils/security";
@@ -17,6 +17,7 @@ const ROLES_STORAGE_KEY = "mellosoft_roles";
 const ORDERS_STORAGE_KEY = "mellosoft_orders";
 const CUSTOMERS_STORAGE_KEY = "mellosoft_customers";
 const WISHLISTS_STORAGE_KEY = "mellosoft_wishlists";
+const CARTS_STORAGE_KEY = "mellosoft_admin_carts";
 
 export function AdminProvider({ children }) {
   const [adminView, setAdminView] = useState("dashboard");
@@ -156,6 +157,24 @@ export function AdminProvider({ children }) {
     return MOCK_WISHLISTS;
   });
 
+  // Hydrate customer carts from localStorage
+  const [carts, setCarts] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem(CARTS_STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed;
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load customer carts from localStorage:", e);
+      }
+    }
+    return MOCK_CARTS;
+  });
+
   const auth = useAdminAuth();
   const currentUserId = auth?.currentUserId || (typeof window !== "undefined" ? localStorage.getItem("mellosoft_current_user_id") : null) || "user-001";
   const currentUser = users.find((u) => u.id === currentUserId) || users[0];
@@ -244,6 +263,17 @@ export function AdminProvider({ children }) {
       }
     }
   }, [wishlists]);
+
+  // Persist customer carts to localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(CARTS_STORAGE_KEY, JSON.stringify(carts));
+      } catch (e) {
+        console.error("Failed to save customer carts to localStorage:", e);
+      }
+    }
+  }, [carts]);
 
   /** Customer Handlers */
   const updateCustomerStatus = useCallback((customerId, status) => {
@@ -593,6 +623,7 @@ export function AdminProvider({ children }) {
         customers,
         updateCustomerStatus,
         wishlists,
+        carts,
         currentUser,
         currentUserRole,
         hasPermission,
