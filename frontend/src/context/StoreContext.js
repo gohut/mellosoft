@@ -143,20 +143,37 @@ export function StoreProvider({ children }) {
     }
   }, []);
 
+  // Auth Popup Modal State ("login" | "signup" | "forgot-password" | null)
+  const [authModal, setAuthModal] = useState(null);
+
+  const closeAuthModal = useCallback(() => {
+    setAuthModal(null);
+  }, []);
+
+  const openAuthModal = useCallback((modalType = "login") => {
+    setAuthModal(modalType);
+  }, []);
+
   const navigateTo = (newView, productId = null) => {
     if (productId) {
       setSelectedProductId(productId);
+    }
+
+    // Modal popup views
+    if (newView === "login" || newView === "signup" || newView === "forgot-password") {
+      setAuthModal(newView);
+      return;
     }
 
     // Auth protection for customer-specific pages if accessing while logged out
     const protectedViews = ["orders", "profile"];
     if (protectedViews.includes(newView) && !isAuthenticated) {
       setIntendedView(newView);
-      setView("login");
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      setAuthModal("login");
       return;
     }
 
+    setAuthModal(null);
     if (newView === "orders") {
       refreshOrders();
     }
@@ -296,6 +313,10 @@ export function StoreProvider({ children }) {
         placeOrder,
         cancelOrder,
         refreshOrders,
+        authModal,
+        setAuthModal,
+        openAuthModal,
+        closeAuthModal,
       }}
     >
       {children}
