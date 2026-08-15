@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useStore } from "../context/StoreContext";
+import { useCustomerAuth } from "../context/CustomerAuthContext";
 import { MOCK_PRODUCTS } from "../data/products";
 import { formatPrice } from "../utils/currency";
 
@@ -15,6 +16,8 @@ export default function Header() {
     setSearchQuery,
     setActiveFilters
   } = useStore();
+
+  const { currentCustomer, isAuthenticated } = useCustomerAuth();
 
   const [desktopSearch, setDesktopSearch] = useState(searchQuery || "");
   const [mobileSearch, setMobileSearch] = useState(searchQuery || "");
@@ -183,6 +186,14 @@ export default function Header() {
                 {displayCartCount > 0 && <span style={greenBadgeStyle}>{displayCartCount}</span>}
               </span>
             </button>
+            <button
+              onClick={() => navigateTo(isAuthenticated ? "profile" : "login")}
+              style={iconButtonStyle}
+              aria-label={isAuthenticated ? "Customer Account" : "Sign In"}
+              title={isAuthenticated ? (currentCustomer?.name || "Account") : "Sign In"}
+            >
+              <UserIcon active={view === "profile" || view === "login"} />
+            </button>
           </div>
         </div>
       </header>
@@ -235,6 +246,9 @@ export default function Header() {
                 <CartIcon />
                 {displayCartCount > 0 && <span style={mobileCartBadgeStyle}>{displayCartCount}</span>}
               </span>
+            </button>
+            <button onClick={() => navigateTo(isAuthenticated ? "profile" : "login")} style={{ ...mobileIconButtonStyle, marginLeft: "6px" }} aria-label="Account" title="Account">
+              <UserIcon active={view === "profile" || view === "login"} />
             </button>
           </div>
 
@@ -329,6 +343,15 @@ function OrdersIcon({ active }) {
       <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
       <line x1="3" y1="6" x2="21" y2="6" />
       <path d="M16 10a4 4 0 0 1-8 0" />
+    </svg>
+  );
+}
+
+function UserIcon({ active }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? "#16A34A" : "#1B1F8C"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
     </svg>
   );
 }

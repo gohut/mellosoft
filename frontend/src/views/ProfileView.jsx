@@ -1,34 +1,36 @@
 "use client";
 
 import React, { useState } from "react";
+import { useCustomerAuth } from "../context/CustomerAuthContext";
+import { useStore } from "../context/StoreContext";
 import { formatPrice } from "../utils/currency";
+import { LogOut, Package } from "lucide-react";
 
 export default function ProfileView() {
+  const { currentCustomer, logout } = useCustomerAuth();
+  const { customerOrders, navigateTo } = useStore();
   const [sleepPos, setSleepPos] = useState("Side");
   const [preferredTemp, setPreferredTemp] = useState("Cool");
   const [savedSettings, setSavedSettings] = useState(false);
 
-  const mockOrders = [
-    {
-      id: "MS-84912",
-      date: "July 12, 2026",
-      status: "Delivered",
-      total: 968,
-      items: [
-        { name: "Mellosoft Classic Mattress", size: "Queen", firmness: "Medium", qty: 1, price: 899 },
-        { name: "Mellosoft Organic Mattress Protector", size: "Queen", firmness: "Standard", qty: 1, price: 69 }
-      ]
-    },
-    {
-      id: "MS-38291",
-      date: "May 10, 2026",
-      status: "Delivered",
-      total: 178,
-      items: [
-        { name: "Mellosoft Luxury Down Pillow", size: "Standard", firmness: "Soft", qty: 2, price: 89 }
-      ]
-    }
-  ];
+  const customerName = currentCustomer?.name || "Rahul Sharma";
+  const customerEmail = currentCustomer?.email || "rahul@example.com";
+  const avatarChar = currentCustomer?.avatar || customerName.charAt(0).toUpperCase();
+
+  const displayOrders = (customerOrders && customerOrders.length > 0)
+    ? customerOrders
+    : [
+        {
+          id: "MS-92841",
+          createdAt: "2026-08-01",
+          orderStatus: "Delivered",
+          totalAmount: 968,
+          items: [
+            { name: "Mellosoft Classic Mattress", variantSize: "Queen", variantFirmness: "Medium", quantity: 1, price: 899 },
+            { name: "Mellosoft Organic Mattress Protector", variantSize: "Queen", variantFirmness: "Standard", quantity: 1, price: 69 }
+          ]
+        }
+      ];
 
   const handleSavePreferences = (e) => {
     e.preventDefault();
@@ -38,19 +40,31 @@ export default function ProfileView() {
     }, 3000);
   };
 
+  const handleLogout = () => {
+    logout();
+    navigateTo("login");
+  };
+
   return (
     <div style={containerStyle}>
       {/* Profile Header */}
       <div style={headerCardStyle}>
-        <div style={avatarStyle}>G</div>
-        <div style={headerInfoStyle}>
-          <h2 style={userNameStyle}>Gowtham</h2>
-          <p style={userMetaStyle}>Mellosoft Sleep Member since 2026</p>
-          <div style={streakBadgeStyle}>
-            <span style={streakIconStyle}>🏆</span>
-            <span style={streakTextStyle}>8-Night Perfect Sleep Streak</span>
+        <div style={{ display: "flex", alignItems: "center", gap: "24px", flexWrap: "wrap" }}>
+          <div style={avatarStyle}>{avatarChar}</div>
+          <div style={headerInfoStyle}>
+            <h2 style={userNameStyle}>{customerName}</h2>
+            <p style={userMetaStyle}>{customerEmail} • Mellosoft Sleep Member since 2026</p>
+            <div style={streakBadgeStyle}>
+              <span style={streakIconStyle}>🏆</span>
+              <span style={streakTextStyle}>8-Night Perfect Sleep Streak</span>
+            </div>
           </div>
         </div>
+
+        <button onClick={handleLogout} style={logoutBtnStyle} className="hover-lift">
+          <LogOut size={16} />
+          <span>Sign Out</span>
+        </button>
       </div>
 
       <div style={gridStyle}>
@@ -124,7 +138,7 @@ export default function ProfileView() {
           <div style={coachBoxStyle}>
             <h4 style={coachTitleStyle}>🛌 Sleep Advisor Recommendation</h4>
             <p style={coachTextStyle}>
-              Since you are a <strong>{sleepPos} sleeper</strong> who prefers a <strong>{preferredTemp} temperature</strong>, we highly recommend the <strong>Mellosoft Classic Mattress</strong> in <strong>Medium firmness</strong> paired with a Tencel or Bamboo mattress protector. This configuration ensures shoulders are cradled while maintaining advanced airflow.
+              Since you are a <strong>{sleepPos} sleeper</strong> who prefers a <strong>{preferredTemp} temperature</strong>, we highly recommend the <strong>Mellosoft Classic Mattress</strong> in <strong>Medium firmness</strong> paired with a Tencel or Bamboo mattress protector.
             </p>
           </div>
         </div>
@@ -132,36 +146,41 @@ export default function ProfileView() {
         {/* Right Column: Order History */}
         <div style={rightColStyle}>
           <div style={panelCardStyle}>
-            <h3 style={panelTitleStyle}>Order History</h3>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+              <h3 style={panelTitleStyle}>Order History</h3>
+              <button onClick={() => navigateTo("orders")} style={viewAllOrdersBtnStyle}>
+                View All ({displayOrders.length})
+              </button>
+            </div>
             
             <div style={ordersListStyle}>
-              {mockOrders.map((order) => (
+              {displayOrders.slice(0, 3).map((order) => (
                 <div key={order.id} style={orderItemStyle}>
                   <div style={orderHeaderRowStyle}>
                     <div>
-                      <span style={orderIdStyle}>{order.id}</span>
-                      <span style={orderDateStyle}>{order.date}</span>
+                      <span style={orderIdStyle}>Order #{order.id}</span>
+                      <span style={orderDateStyle}>{order.createdAt || order.date}</span>
                     </div>
-                    <span style={statusBadgeStyle}>{order.status}</span>
+                    <span style={statusBadgeStyle}>{order.orderStatus || order.status}</span>
                   </div>
 
                   <div style={orderProductListStyle}>
-                    {order.items.map((item, idx) => (
+                    {(order.items || []).map((item, idx) => (
                       <div key={idx} style={orderProductRowStyle}>
                         <div>
-                          <span style={orderProductNameStyle}>{item.name}</span>
+                          <span style={orderProductNameStyle}>{item.name || item.productId}</span>
                           <span style={orderProductMetaStyle}>
-                            {item.size} • {item.firmness} (x{item.qty})
+                            {item.variantSize || item.size} • {item.variantFirmness || item.firmness} (x{item.quantity || item.qty})
                           </span>
                         </div>
-                        <span style={orderProductPriceStyle}>{formatPrice(item.price * item.qty)}</span>
+                        <span style={orderProductPriceStyle}>{formatPrice((item.price || item.actualPrice || 0) * (item.quantity || item.qty || 1))}</span>
                       </div>
                     ))}
                   </div>
 
                   <div style={orderFooterRowStyle}>
                     <span style={totalLabelStyle}>Total Paid:</span>
-                    <span style={totalValueStyle}>{formatPrice(order.total)}</span>
+                    <span style={totalValueStyle}>{formatPrice(order.totalAmount || order.total || 0)}</span>
                   </div>
                 </div>
               ))}
@@ -185,12 +204,38 @@ const containerStyle = {
 // Header Card
 const headerCardStyle = {
   backgroundColor: "#FFFFFF",
-  borderRadius: 0,
+  borderRadius: "16px",
+  border: "1px solid #E7E7E2",
   padding: "30px",
   display: "flex",
   alignItems: "center",
+  justifyContent: "space-between",
   gap: "24px",
-  marginBottom: "36px"
+  marginBottom: "36px",
+  flexWrap: "wrap"
+};
+
+const logoutBtnStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "8px",
+  backgroundColor: "#FAFAF7",
+  border: "1px solid #E7E7E2",
+  color: "#DC2626",
+  padding: "10px 18px",
+  borderRadius: "999px",
+  fontSize: "13.5px",
+  fontWeight: "700",
+  cursor: "pointer"
+};
+
+const viewAllOrdersBtnStyle = {
+  border: "none",
+  background: "transparent",
+  color: "#1B1F8C",
+  fontSize: "13px",
+  fontWeight: "700",
+  cursor: "pointer"
 };
 
 const avatarStyle = {

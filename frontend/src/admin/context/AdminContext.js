@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { MOCK_PRODUCTS } from "../../data/products";
-import { MOCK_CATEGORIES, MOCK_ORDERS, MOCK_CUSTOMERS, MOCK_WISHLISTS, MOCK_CARTS } from "../data/adminMockData";
+import { MOCK_CATEGORIES, MOCK_ORDERS, MOCK_CUSTOMERS, MOCK_WISHLISTS, MOCK_CARTS, MOCK_REVIEWS } from "../data/adminMockData";
 import { DEFAULT_ROLES } from "../../data/rolesData";
 import { DEFAULT_USERS } from "../../data/usersData";
 import { hashPassword, checkPermission } from "../../utils/security";
@@ -18,6 +18,7 @@ const ORDERS_STORAGE_KEY = "mellosoft_orders";
 const CUSTOMERS_STORAGE_KEY = "mellosoft_customers";
 const WISHLISTS_STORAGE_KEY = "mellosoft_wishlists";
 const CARTS_STORAGE_KEY = "mellosoft_admin_carts";
+const REVIEWS_STORAGE_KEY = "mellosoft_reviews";
 
 export function AdminProvider({ children }) {
   const [adminView, setAdminView] = useState("dashboard");
@@ -175,6 +176,24 @@ export function AdminProvider({ children }) {
     return MOCK_CARTS;
   });
 
+  // Hydrate reviews from localStorage
+  const [reviews, setReviews] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem(REVIEWS_STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            return parsed;
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load reviews from localStorage:", e);
+      }
+    }
+    return MOCK_REVIEWS;
+  });
+
   const auth = useAdminAuth();
   const currentUserId = auth?.currentUserId || (typeof window !== "undefined" ? localStorage.getItem("mellosoft_current_user_id") : null) || "user-001";
   const currentUser = users.find((u) => u.id === currentUserId) || users[0];
@@ -274,6 +293,61 @@ export function AdminProvider({ children }) {
       }
     }
   }, [carts]);
+
+  // Persist reviews to localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(REVIEWS_STORAGE_KEY, JSON.stringify(reviews));
+      } catch (e) {
+        console.error("Failed to save reviews to localStorage:", e);
+      }
+    }
+  }, [reviews]);
+
+  /** Review Handlers */
+  const approveReview = useCallback((reviewId) => {
+    setReviews((prev) =>
+      prev.map((r) => (r.id === reviewId ? { ...r, status: "Approved" } : r))
+    );
+  }, []);
+
+  const rejectReview = useCallback((reviewId) => {
+    setReviews((prev) =>
+      prev.map((r) => (r.id === reviewId ? { ...r, status: "Rejected" } : r))
+    );
+  }, []);
+
+  const deleteReview = useCallback((reviewId) => {
+    const deletedDate = new Date().toISOString().split("T")[0];
+    setReviews((prev) =>
+      prev.map((r) =>
+        r.id === reviewId
+          ? {
+              ...r,
+              status: "Deleted",
+              previousStatus: r.status !== "Deleted" ? r.status : r.previousStatus || "Approved",
+              deletedAt: deletedDate,
+            }
+          : r
+      )
+    );
+  }, []);
+
+  const restoreReview = useCallback((reviewId, targetStatus) => {
+    setReviews((prev) =>
+      prev.map((r) => {
+        if (r.id === reviewId) {
+          const restoredStatus = targetStatus || r.previousStatus || "Approved";
+          return {
+            ...r,
+            status: restoredStatus,
+          };
+        }
+        return r;
+      })
+    );
+  }, []);
 
   /** Customer Handlers */
   const updateCustomerStatus = useCallback((customerId, status) => {
@@ -624,6 +698,11 @@ export function AdminProvider({ children }) {
         updateCustomerStatus,
         wishlists,
         carts,
+        reviews,
+        approveReview,
+        rejectReview,
+        deleteReview,
+        restoreReview,
         currentUser,
         currentUserRole,
         hasPermission,

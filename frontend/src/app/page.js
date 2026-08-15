@@ -11,6 +11,9 @@ import WishlistView from "../views/WishlistView";
 import SearchView from "../views/SearchView";
 import OrdersView from "../views/OrdersView";
 import ProfileView from "../views/ProfileView";
+import LoginView from "../views/LoginView";
+import SignupView from "../views/SignupView";
+import ForgotPasswordView from "../views/ForgotPasswordView";
 
 export default function Home() {
   const { view } = useStore();
@@ -33,6 +36,12 @@ export default function Home() {
         return <SearchView />;
       case "profile":
         return <ProfileView />;
+      case "login":
+        return <LoginView />;
+      case "signup":
+        return <SignupView />;
+      case "forgot-password":
+        return <ForgotPasswordView />;
       default:
         return <HomeView />;
     }

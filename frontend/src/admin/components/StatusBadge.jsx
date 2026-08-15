@@ -22,13 +22,19 @@ const statusConfig = {
   "Expired": { bg: "#F3F4F6", color: "#6B7280", dot: "#9CA3AF" },
   "Approved": { bg: "#DCFCE7", color: "#15803D", dot: "#16A34A" },
   "Rejected": { bg: "#FEE2E2", color: "#991B1B", dot: "#DC2626" },
+  "Deleted": { bg: "#F3F4F6", color: "#6B7280", dot: "#9CA3AF" },
   "Draft": { bg: "#F3F4F6", color: "#6B7280", dot: "#9CA3AF" },
 };
 
 const defaultConfig = { bg: "#F3F4F6", color: "#6B7280", dot: "#9CA3AF" };
 
 export default function StatusBadge({ status }) {
-  const config = statusConfig[status] || defaultConfig;
+  // Normalize casing for lookup
+  const normalizedKey = Object.keys(statusConfig).find(
+    (k) => k.toLowerCase() === (status || "").toLowerCase()
+  ) || status;
+
+  const config = statusConfig[normalizedKey] || defaultConfig;
 
   return (
     <span style={{
