@@ -226,10 +226,9 @@ export default function CartView() {
 
 // Styling Object Configurations
 const containerStyle = {
-  maxWidth: "1200px",
-  margin: "0 auto",
-  padding: "20px 16px 80px 16px",
-  width: "100%"
+  width: "100%",
+  padding: "20px 48px 80px 48px",
+  boxSizing: "border-box"
 };
 
 const pageTitleStyle = {

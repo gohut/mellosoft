@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { MOCK_PRODUCTS } from "../../data/products";
-import { MOCK_CATEGORIES, MOCK_ORDERS, MOCK_CUSTOMERS, MOCK_WISHLISTS, MOCK_CARTS, MOCK_REVIEWS } from "../data/adminMockData";
+import { MOCK_CATEGORIES, MOCK_ORDERS, MOCK_CUSTOMERS, MOCK_WISHLISTS, MOCK_CARTS, MOCK_REVIEWS, MOCK_BANNERS } from "../data/adminMockData";
 import { DEFAULT_ROLES } from "../../data/rolesData";
 import { DEFAULT_USERS } from "../../data/usersData";
 import { hashPassword, checkPermission } from "../../utils/security";
@@ -19,6 +19,7 @@ const CUSTOMERS_STORAGE_KEY = "mellosoft_customers";
 const WISHLISTS_STORAGE_KEY = "mellosoft_wishlists";
 const CARTS_STORAGE_KEY = "mellosoft_admin_carts";
 const REVIEWS_STORAGE_KEY = "mellosoft_reviews";
+const BANNERS_STORAGE_KEY = "mellosoft_banners";
 
 export function AdminProvider({ children }) {
   const [adminView, setAdminView] = useState("dashboard");
@@ -183,9 +184,7 @@ export function AdminProvider({ children }) {
         const saved = localStorage.getItem(REVIEWS_STORAGE_KEY);
         if (saved) {
           const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) {
-            return parsed;
-          }
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
         }
       } catch (e) {
         console.error("Failed to load reviews from localStorage:", e);
@@ -193,6 +192,31 @@ export function AdminProvider({ children }) {
     }
     return MOCK_REVIEWS;
   });
+
+  // Hydrate promotional banners from localStorage
+  const [banners, setBanners] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem(BANNERS_STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch (e) {
+        console.error("Failed to load banners from localStorage:", e);
+      }
+    }
+    return MOCK_BANNERS;
+  });
+
+  // Persist banners to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(BANNERS_STORAGE_KEY, JSON.stringify(banners));
+    } catch (e) {
+      console.error("Failed to save banners to localStorage:", e);
+    }
+  }, [banners]);
 
   const auth = useAdminAuth();
   const currentUserId = auth?.currentUserId || (typeof window !== "undefined" ? localStorage.getItem("mellosoft_current_user_id") : null) || "user-001";
@@ -662,6 +686,42 @@ export function AdminProvider({ children }) {
     [roles, users]
   );
 
+  const addBanner = useCallback((bannerData) => {
+    const newBanner = {
+      id: `banner-${Date.now().toString().slice(-4)}`,
+      title: bannerData.title || "Untitled Banner",
+      type: bannerData.type || "Offer",
+      image: bannerData.image || "/asset/img2.jpg",
+      subtitle: bannerData.subtitle || "",
+      description: bannerData.description || "",
+      ctaText: bannerData.ctaText || "Shop Now",
+      ctaLink: bannerData.ctaLink || "mattress",
+      isActive: bannerData.isActive !== false,
+      displayOrder: Number(bannerData.displayOrder) || (banners.length + 1)
+    };
+    setBanners((prev) => [...prev, newBanner]);
+    return { success: true, banner: newBanner };
+  }, [banners.length]);
+
+  const updateBanner = useCallback((id, updatedFields) => {
+    setBanners((prev) =>
+      prev.map((b) => (b.id === id ? { ...b, ...updatedFields } : b))
+    );
+    return { success: true };
+  }, []);
+
+  const deleteBanner = useCallback((id) => {
+    setBanners((prev) => prev.filter((b) => b.id !== id));
+    return { success: true };
+  }, []);
+
+  const toggleBannerStatus = useCallback((id) => {
+    setBanners((prev) =>
+      prev.map((b) => (b.id === id ? { ...b, isActive: !b.isActive } : b))
+    );
+    return { success: true };
+  }, []);
+
   return (
     <AdminContext.Provider
       value={{
@@ -683,6 +743,11 @@ export function AdminProvider({ children }) {
         addCategory,
         updateCategory,
         deleteCategory,
+        banners,
+        addBanner,
+        updateBanner,
+        deleteBanner,
+        toggleBannerStatus,
         users,
         addUser,
         updateUser,

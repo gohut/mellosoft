@@ -10,6 +10,7 @@ import AddProductView from "../../../admin/views/AddProductView";
 import AdminProductDetailView from "../../../admin/views/AdminProductDetailView";
 import EditProductView from "../../../admin/views/EditProductView";
 import CategoriesView from "../../../admin/views/CategoriesView";
+import BannersView from "../../../admin/views/BannersView";
 import OrdersView from "../../../admin/views/OrdersView";
 import CustomersView from "../../../admin/views/CustomersView";
 import ReviewsView from "../../../admin/views/ReviewsView";
@@ -33,6 +34,9 @@ export default function AdminPage() {
       case "categories":
         if (!hasPermission("products", "view")) return <AccessDeniedPanel moduleName="Categories" onBack={() => navigateTo("dashboard")} />;
         return <CategoriesView />;
+      case "banners":
+        if (!hasPermission("products", "view")) return <AccessDeniedPanel moduleName="Banners" onBack={() => navigateTo("dashboard")} />;
+        return <BannersView />;
       case "add-product":
         if (!hasPermission("products", "create")) return <AccessDeniedPanel moduleName="Add Product" onBack={() => navigateTo("dashboard")} />;
         return <AddProductView />;

@@ -7,7 +7,7 @@ import { useAdminAuth } from "../../context/AdminAuthContext";
 import {
   LayoutDashboard, Package,
   ShoppingCart, Users, Star, Settings, LogOut,
-  ChevronDown, ChevronRight, X, ShieldCheck
+  ChevronDown, ChevronRight, X, ShieldCheck, Image as ImageIcon
 } from "lucide-react";
 
 const navItems = [
@@ -22,6 +22,7 @@ const navItems = [
       { id: "categories", label: "Categories" },
     ],
   },
+  { id: "banners", label: "Banners", icon: ImageIcon },
   { id: "orders", label: "Orders", icon: ShoppingCart },
   { id: "customers", label: "Customers", icon: Users },
   { id: "reviews", label: "Reviews", icon: Star },
@@ -48,6 +49,7 @@ export default function AdminSidebar() {
     switch (id) {
       case "dashboard": return hasPermission("dashboard", "view");
       case "products-group": return hasPermission("products", "view");
+      case "banners": return hasPermission("products", "view");
       case "orders": return hasPermission("orders", "view");
       case "customers": return hasPermission("customers", "view");
       case "reviews": return hasPermission("reviews", "view");

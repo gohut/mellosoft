@@ -548,3 +548,43 @@ export const RECENT_ACTIVITY = [
   { id: 6, type: "coupon", text: "Coupon FLAT1000 has expired", time: "5 hrs ago" },
   { id: 7, type: "order", text: "Sneha Reddy's order #MS-92838 delivered", time: "1 day ago" },
 ];
+
+// Mock promotional banners
+export const MOCK_BANNERS = [
+  {
+    id: "banner-001",
+    title: "Enjoy 60% savings",
+    type: "Offer",
+    image: "/asset/img2.jpg",
+    subtitle: "Limited mattress event",
+    description: "Handcrafted memory foam & hybrid mattresses at up to 60% off.",
+    ctaText: "Shop Now",
+    ctaLink: "mattress",
+    isActive: true,
+    displayOrder: 1
+  },
+  {
+    id: "banner-002",
+    title: "Get 30% off essentials",
+    type: "Promotion",
+    image: "/asset/pillow.png",
+    subtitle: "Pillows and protectors",
+    description: "Luxury down pillows and organic bamboo protectors for ultimate sleep care.",
+    ctaText: "Explore Now",
+    ctaLink: "pillows",
+    isActive: true,
+    displayOrder: 2
+  },
+  {
+    id: "banner-003",
+    title: "Free assembly included",
+    type: "New Arrival",
+    image: "/asset/bedframe.png",
+    subtitle: "New bed frame collection",
+    description: "Handcrafted platform frames made from solid sustainable oak.",
+    ctaText: "Discover Frames",
+    ctaLink: "bed frames",
+    isActive: true,
+    displayOrder: 3
+  }
+];

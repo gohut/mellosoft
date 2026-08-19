@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { MOCK_PRODUCTS } from "../data/products";
-import { MOCK_ORDERS, MOCK_CARTS, MOCK_WISHLISTS } from "../admin/data/adminMockData";
+import { MOCK_ORDERS, MOCK_CARTS, MOCK_WISHLISTS, MOCK_BANNERS } from "../admin/data/adminMockData";
 import { calculateDiscountedPrice } from "../utils/currency";
 import { getVariantForSelection } from "../utils/variantHelpers";
 import { useCustomerAuth } from "./CustomerAuthContext";
@@ -35,7 +35,15 @@ export function StoreProvider({ children }) {
   // Orders State synchronized with localStorage ("mellosoft_orders")
   const [orders, setOrders] = useState(MOCK_ORDERS);
 
-  // Hydration-safe initial loading of orders from localStorage
+  // Promotional Banners State synchronized with localStorage ("mellosoft_banners")
+  const [banners, setBanners] = useState(MOCK_BANNERS);
+
+  // Active banners filtered by status and sorted by displayOrder
+  const activeBanners = (banners || [])
+    .filter((b) => b.isActive !== false && b.status !== "Inactive" && b.status !== "inactive")
+    .sort((a, b) => (Number(a.displayOrder) || 0) - (Number(b.displayOrder) || 0));
+
+  // Hydration-safe initial loading of orders and banners from localStorage
   useEffect(() => {
     try {
       const savedOrders = localStorage.getItem("mellosoft_orders");
@@ -45,6 +53,16 @@ export function StoreProvider({ children }) {
       }
     } catch (e) {
       console.error("Failed to load orders from localStorage:", e);
+    }
+
+    try {
+      const savedBanners = localStorage.getItem("mellosoft_banners");
+      if (savedBanners) {
+        const parsed = JSON.parse(savedBanners);
+        if (Array.isArray(parsed) && parsed.length > 0) setBanners(parsed);
+      }
+    } catch (e) {
+      console.error("Failed to load banners from localStorage:", e);
     }
   }, []);
 
@@ -97,6 +115,11 @@ export function StoreProvider({ children }) {
       if (e.key === "mellosoft_orders" && e.newValue) {
         try {
           setOrders(JSON.parse(e.newValue));
+        } catch {}
+      }
+      if (e.key === "mellosoft_banners" && e.newValue) {
+        try {
+          setBanners(JSON.parse(e.newValue));
         } catch {}
       }
     };
@@ -300,6 +323,9 @@ export function StoreProvider({ children }) {
         cart,
         wishlist,
         orders,
+        banners,
+        activeBanners,
+        setBanners,
         currentCustomerId,
         customerOrders: (orders || []).filter((o) => o.customerId === currentCustomerId),
         addToCart,

@@ -154,10 +154,9 @@ export default function SearchView() {
 
 // Styling Object Configurations
 const containerStyle = {
-  maxWidth: "1200px",
-  margin: "0 auto",
-  padding: "40px 24px 80px 24px",
-  width: "100%"
+  width: "100%",
+  padding: "40px 48px 80px 48px",
+  boxSizing: "border-box"
 };
 
 const searchHeaderBoxStyle = {

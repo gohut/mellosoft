@@ -376,14 +376,14 @@ const desktopHeaderStyle = {
 };
 
 const headerContainerStyle = {
-  maxWidth: "1200px",
-  margin: "0 auto",
-  padding: "0 24px",
+  width: "100%",
+  padding: "0 48px",
   height: "76px",
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
-  gap: "24px"
+  gap: "24px",
+  boxSizing: "border-box"
 };
 
 const logoContainerStyle = {

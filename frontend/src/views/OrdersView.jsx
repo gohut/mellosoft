@@ -334,10 +334,8 @@ function StatusBadge({ status, type = "order" }) {
 
 // ─── STYLES ──────────────────────────────────────────────────────────────────
 const containerStyle = {
-  maxWidth: "1200px",
-  margin: "0 auto",
-  padding: "32px 24px 60px",
   width: "100%",
+  padding: "32px 48px 60px",
   boxSizing: "border-box"
 };
 

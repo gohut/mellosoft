@@ -11,6 +11,10 @@ import WishlistView from "../views/WishlistView";
 import SearchView from "../views/SearchView";
 import OrdersView from "../views/OrdersView";
 import ProfileView from "../views/ProfileView";
+import TermsView from "../views/TermsView";
+import PrivacyView from "../views/PrivacyView";
+import ReturnPolicyView from "../views/ReturnPolicyView";
+import CancellationPolicyView from "../views/CancellationPolicyView";
 import AuthModal from "../components/AuthModal";
 
 export default function Home() {
@@ -34,6 +38,14 @@ export default function Home() {
         return <SearchView />;
       case "profile":
         return <ProfileView />;
+      case "terms":
+        return <TermsView />;
+      case "privacy":
+        return <PrivacyView />;
+      case "return-policy":
+        return <ReturnPolicyView />;
+      case "cancellation-policy":
+        return <CancellationPolicyView />;
       default:
         return <HomeView />;
     }
@@ -56,5 +68,5 @@ const mainContentStyle = {
   display: "flex",
   flexDirection: "column",
   width: "100%",
-  backgroundColor: "#F7F7F2"
+  backgroundColor: "transparent"
 };

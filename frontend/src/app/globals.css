@@ -44,6 +44,10 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  background-color: #F7F7F2;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Cdefs%3E%3CradialGradient id='p' cx='50%25' cy='42%25' r='65%25'%3E%3Cstop offset='0%25' stop-color='%23FDFDFB'/%3E%3Cstop offset='70%25' stop-color='%23FAF9F5'/%3E%3Cstop offset='100%25' stop-color='%23F6F5F0'/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect width='64' height='64' fill='%23F7F7F2'/%3E%3Cpath d='M34.828,2.828 L61.172,29.172 Q64,32 61.172,34.828 L34.828,61.172 Q32,0 29.172,2.828 Z' fill='url(%23p)' stroke='%23EDEBE3' stroke-width='1' stroke-dasharray='1 3' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-size: 64px 64px;
+  background-repeat: repeat;
 }
 
 /* Custom Scrollbar for premium feel */
@@ -113,14 +117,30 @@ button, a, input, select, textarea {
 /* Custom styles for checkout modal, overlays and layout wrappers */
 .layout-container {
   width: 100%;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 24px;
+  padding: 0 48px;
+  box-sizing: border-box;
 }
 
+/* Storefront global page container — full-width with responsive horizontal padding */
+.storefront-container {
+  width: 100%;
+  box-sizing: border-box;
+  padding-left: 48px;
+  padding-right: 48px;
+}
+
+@media (max-width: 1024px) {
+  .layout-container,
+  .storefront-container {
+    padding-left: 32px;
+    padding-right: 32px;
+  }
+}
 @media (max-width: 767px) {
-  .layout-container {
-    padding: 0 16px;
+  .layout-container,
+  .storefront-container {
+    padding-left: 16px;
+    padding-right: 16px;
   }
 }
 
@@ -184,6 +204,26 @@ button, a, input, select, textarea {
     grid-template-columns: repeat(2, 1fr) !important;
     gap: 14px !important;
     overflow-x: visible !important;
+  }
+}
+
+/* ─── GLOBAL STOREFRONT RESPONSIVE PAGE PADDING ─────────────────────────────
+   All customer-facing view containers use padding-left/right: 48px on desktop.
+   These rules scale that to 32px on tablet, 16px on mobile.
+   This prevents content from touching screen edges while eliminating unused space.
+────────────────────────────────────────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .storefront-container,
+  .layout-container {
+    padding-left: 32px !important;
+    padding-right: 32px !important;
+  }
+}
+@media (max-width: 640px) {
+  .storefront-container,
+  .layout-container {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
   }
 }
 
