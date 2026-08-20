@@ -1,5 +1,6 @@
 import "./globals.css";
 import { StoreProvider } from "../context/StoreContext";
+import { CustomerAuthProvider } from "../context/CustomerAuthContext";
 
 export const metadata = {
   title: "Mellosoft | Premium Mattress & Sleep Products",
@@ -16,9 +17,11 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body>
-        <StoreProvider>
-          {children}
-        </StoreProvider>
+        <CustomerAuthProvider>
+          <StoreProvider>
+            {children}
+          </StoreProvider>
+        </CustomerAuthProvider>
       </body>
     </html>
   );

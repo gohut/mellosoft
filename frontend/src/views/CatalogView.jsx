@@ -113,7 +113,6 @@ export default function CatalogView() {
           />
         </div>
       )}
-
       <style>{`
         @media (max-width: 767px) {
           .catalog-grid {

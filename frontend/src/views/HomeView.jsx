@@ -4,15 +4,17 @@ import React, { useMemo, useRef, useState } from "react";
 import { useStore } from "../context/StoreContext";
 import { MOCK_PRODUCTS } from "../data/products";
 import ProductCard from "../components/ProductCard";
+import CustomerReviewsSection from "../components/CustomerReviewsSection";
+import PromotionalBannerSlider from "../components/PromotionalBannerSlider";
 import { formatPrice } from "../utils/currency";
 
 const categories = [
-  { label: "Memory Foam", category: "mattress", image: "/asset/img1.jpg" },
-  { label: "Hybrid", category: "mattress", image: "/asset/img2.jpg" },
-  { label: "Firm", category: "mattress", image: "/asset/texture.png", firmness: "Firm" },
-  { label: "Pillows", category: "pillows", image: "/asset/pillow.png" },
-  { label: "Bed Frames", category: "bed frames", image: "/asset/bedframe.png" },
-  { label: "Protectors", category: "protectors", image: "/asset/texture.png" }
+  { label: "Memory Foam", category: "mattress", image: "/asset/img1.jpg", color: "#DCEBFA" },
+  { label: "Hybrid", category: "mattress", image: "/asset/img2.jpg", color: "#FBE2D0" },
+  { label: "Firm", category: "mattress", image: "/asset/texture.png", firmness: "Firm", color: "#DDF2E8" },
+  { label: "Pillows", category: "pillows", image: "/asset/pillow.png", color: "#F8DDE3" },
+  { label: "Bed Frames", category: "bed frames", image: "/asset/bedframe.png", color: "#E9E3FA" },
+  { label: "Protectors", category: "protectors", image: "/asset/texture.png", color: "#F8EACD" }
 ];
 
 export default function HomeView() {
@@ -114,32 +116,31 @@ export default function HomeView() {
 
       <section style={categorySectionStyle} className="category-section">
         <div style={containerStyle}>
-          <SectionHeader title="Shop by Category" action="All products" onAction={() => goToCatalog("All")} />
+          <div style={categoryHeaderStyle}>
+            <h2 style={categoryTitleStyle}>Shop By Category</h2>
+            <button type="button" onClick={() => goToCatalog("All")} style={categoryViewAllStyle} className="category-view-all">
+              View All
+            </button>
+          </div>
           <div className="category-row" style={categoryRowStyle}>
             {categories.map((item) => (
-              <button key={item.label} onClick={() => goToCatalog(item.category, item.firmness || "All")} style={categoryTileStyle}>
-                <span style={categoryImageWrapStyle}>
-                  <img src={item.image} alt="" style={categoryImageStyle} />
-                </span>
+              <button
+                key={item.label}
+                type="button"
+                onClick={() => goToCatalog(item.category, item.firmness || "All")}
+                style={{ ...categoryTileStyle, backgroundColor: item.color }}
+                className="category-tile"
+              >
                 <span style={categoryLabelStyle}>{item.label}</span>
+                <img src={item.image} alt="" style={categoryImageStyle} />
               </button>
             ))}
           </div>
         </div>
       </section>
 
-      <ProductRow title="Featured Mattresses" tagline="Handpicked comfort, ready to ship." products={featuredMattresses} onAction={() => goToCatalog("mattress")} />
-
-      <section style={promoSectionStyle}>
-        <div style={singlePromoGridStyle} className="promo-grid">
-          <PromoCard
-            image="/asset/img2.jpg"
-            title="Enjoy 60% savings"
-            label="Limited mattress event"
-            onClick={() => goToCatalog("mattress")}
-          />
-        </div>
-      </section>
+      {/* PROMOTIONAL BANNER SLIDER (ADMIN-MANAGED) */}
+      <PromotionalBannerSlider />
 
       <ProductRow
         title="Best Sellers"
@@ -149,6 +150,7 @@ export default function HomeView() {
         titleColor="#00B138"
         taglineColor="#C7CBEF"
         scrollable
+        variant="bestSeller"
       />
 
       <section style={promoSectionStyle}>
@@ -229,12 +231,26 @@ export default function HomeView() {
         </div>
       </section>
 
+      {/* RE-DESIGNED CUSTOMER REVIEWS / FEEDBACK CAROUSEL SECTION */}
+      <CustomerReviewsSection />
+
       </div>
 
       <style>{`
         .view-more-btn:hover {
           background-color: #1B1F8C;
           color: #FFFFFF;
+        }
+        .category-tile:hover {
+          transform: translateY(-3px);
+          box-shadow: var(--shadow-md);
+        }
+        .product-card:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18) !important;
+        }
+        .pc-wishlist-btn:hover {
+          transform: scale(1.1);
         }
         .peek-slider::-webkit-scrollbar,
         .category-row::-webkit-scrollbar,
@@ -263,6 +279,17 @@ export default function HomeView() {
           .peek-slider {
             padding-left: 72px !important;
             scroll-padding-left: 72px !important;
+          }
+        }
+        @media (max-width: 1199px) {
+          .category-row {
+            overflow-x: auto !important;
+            flex-wrap: nowrap !important;
+            scroll-snap-type: x mandatory;
+          }
+          .category-row .category-tile {
+            flex: 0 0 clamp(170px, 18vw, 220px) !important;
+            scroll-snap-align: start;
           }
         }
         .product-row-scroll-wrap {
@@ -340,7 +367,22 @@ export default function HomeView() {
             padding: 7px 12px !important;
             font-size: 11px !important;
           }
-          .category-row,
+          .category-row {
+            overflow-x: auto !important;
+            display: flex !important;
+            flex-wrap: nowrap !important;
+            gap: 16px !important;
+            padding: 2px 24px 14px !important;
+            margin: 0 -16px !important;
+            scroll-snap-type: x mandatory;
+            scroll-padding-left: 24px !important;
+            justify-content: flex-start !important;
+          }
+          .category-row .category-tile {
+            flex: 0 0 clamp(154px, 52vw, 220px) !important;
+            min-width: 0 !important;
+            scroll-snap-align: start;
+          }
           .product-row {
             overflow-x: auto !important;
             display: grid !important;
@@ -352,9 +394,6 @@ export default function HomeView() {
             margin: 0 -16px !important;
             scroll-snap-type: x mandatory;
             scroll-padding-left: 24px !important;
-          }
-          .category-row {
-            grid-auto-columns: 92px !important;
           }
           .product-row > * {
             scroll-snap-align: start;
@@ -400,9 +439,9 @@ export default function HomeView() {
   );
 }
 
-function SectionHeader({ title, tagline, action, onAction, titleColor, taglineColor }) {
+function SectionHeader({ title, tagline, action, onAction, titleColor, taglineColor, compact = false }) {
   return (
-    <div style={sectionHeaderStyle}>
+    <div style={compact ? { ...sectionHeaderStyle, marginBottom: "24px" } : sectionHeaderStyle}>
       <div style={sectionHeaderTextWrapStyle}>
         <h2 style={titleColor ? { ...sectionTitleStyle, color: titleColor } : sectionTitleStyle}>{title}</h2>
         {tagline && (
@@ -416,20 +455,23 @@ function SectionHeader({ title, tagline, action, onAction, titleColor, taglineCo
   );
 }
 
-function ProductRow({ title, tagline, products, onAction, background, scrollable, titleColor, taglineColor }) {
-  const sectionStyle = background ? { ...productSectionStyle, backgroundColor: background } : productSectionStyle;
+function ProductRow({ title, tagline, products, onAction, background, scrollable, titleColor, taglineColor, variant }) {
+  const isBestSeller = variant === "bestSeller";
+  const sectionStyle = background
+    ? { ...(isBestSeller ? bestSellerSectionStyle : productSectionStyle), backgroundColor: background }
+    : productSectionStyle;
   const rowClassName = scrollable ? "product-row product-row-scroll" : "product-row";
   const wrapStyle = { "--row-fade-color": background || "#FFFFFF" };
   return (
-    <section style={sectionStyle} className="home-product-section">
+    <section style={sectionStyle} className={isBestSeller ? "home-product-section best-seller-section" : "home-product-section"}>
       <div style={containerStyle}>
-        <SectionHeader title={title} tagline={tagline} titleColor={titleColor} taglineColor={taglineColor} />
+        <SectionHeader title={title} tagline={tagline} titleColor={titleColor} taglineColor={taglineColor} compact={isBestSeller} />
         {scrollable ? (
           <div className="product-row-scroll-wrap" style={wrapStyle}>
             <div className={rowClassName} style={productRowStyle}>
               {products.map((product) => (
                 <div key={product.id} className="product-item-scroll" style={productItemStyle}>
-                  <ProductCard product={product} />
+                  <ProductCard product={product} variant={variant} />
                 </div>
               ))}
             </div>
@@ -441,7 +483,7 @@ function ProductRow({ title, tagline, products, onAction, background, scrollable
             <div className="product-row" style={productRowStyle}>
               {products.map((product) => (
                 <div key={product.id} style={productItemStyle}>
-                  <ProductCard product={product} />
+                  <ProductCard product={product} variant={variant} />
                 </div>
               ))}
             </div>
@@ -506,9 +548,9 @@ const diamondPatternLayerStyle = {
 };
 
 const containerStyle = {
-  maxWidth: "1200px",
-  margin: "0 auto",
-  padding: "0 24px"
+  width: "100%",
+  padding: "0 48px",
+  boxSizing: "border-box"
 };
 
 const sliderSectionStyle = {
@@ -638,47 +680,83 @@ const peekShopBtnStyle = {
 };
 
 const categorySectionStyle = {
-  padding: "30px 0",
-  backgroundColor: "#FFFFFF"
+  padding: "28px 0 24px"
+};
+
+const categoryHeaderStyle = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: "16px",
+  marginBottom: "18px"
+};
+
+const categoryTitleStyle = {
+  margin: 0,
+  color: "#14151A",
+  fontSize: "clamp(22px, 2vw, 28px)",
+  fontWeight: "800",
+  letterSpacing: "-0.02em"
+};
+
+const categoryViewAllStyle = {
+  border: "none",
+  background: "transparent",
+  color: "#16A34A",
+  cursor: "pointer",
+  fontSize: "14px",
+  fontWeight: "800",
+  padding: "6px 0",
+  whiteSpace: "nowrap"
 };
 
 const categoryRowStyle = {
-  display: "grid",
-  gridTemplateColumns: "repeat(6, 1fr)",
-  gap: "14px"
+  display: "flex",
+  alignItems: "stretch",
+  gap: "14px",
+  width: "100%"
 };
 
 const categoryTileStyle = {
+  position: "relative",
+  isolation: "isolate",
+  containerType: "inline-size",
+  overflow: "hidden",
   border: "none",
-  backgroundColor: "transparent",
-  borderRadius: 0,
-  padding: "12px 8px",
+  borderRadius: "clamp(12px, 9cqi, 20px)",
+  padding: "clamp(8px, 7cqi, 16px)",
   cursor: "pointer",
   display: "flex",
-  flexDirection: "column",
   alignItems: "center",
-  gap: "9px"
-};
-
-const categoryImageWrapStyle = {
-  width: "62px",
-  height: "62px",
-  borderRadius: "14px",
-  overflow: "hidden",
-  backgroundColor: "#F7F7F2"
+  textAlign: "left",
+  flex: "1 1 0",
+  minWidth: 0,
+  aspectRatio: "2.8 / 1",
+  transition: "transform 0.2s ease, box-shadow 0.2s ease"
 };
 
 const categoryImageStyle = {
-  width: "100%",
-  height: "100%",
-  objectFit: "cover"
+  position: "absolute",
+  zIndex: 0,
+  width: "43%",
+  height: "90%",
+  right: "5%",
+  top: "5%",
+  borderRadius: "clamp(8px, 7cqi, 16px)",
+  objectFit: "cover",
+  objectPosition: "center",
+  pointerEvents: "none"
 };
 
 const categoryLabelStyle = {
-  fontSize: "13px",
-  fontWeight: "700",
-  color: "#1B1F8C",
-  textAlign: "center"
+  position: "relative",
+  zIndex: 1,
+  display: "block",
+  maxWidth: "48%",
+  fontSize: "clamp(11px, 7.5cqi, 15px)",
+  fontWeight: "800",
+  color: "#14151A",
+  lineHeight: "1.2"
 };
 
 const brandHeroSectionStyle = {
@@ -759,16 +837,14 @@ const promoSectionStyle = {
 };
 
 const promoGridStyle = {
-  maxWidth: "1200px",
-  margin: "0 auto",
+  width: "100%",
   display: "grid",
   gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
   gap: "18px"
 };
 
 const singlePromoGridStyle = {
-  maxWidth: "1200px",
-  margin: "0 auto",
+  width: "100%",
   display: "grid",
   gridTemplateColumns: "1fr",
   gap: "18px"
@@ -834,6 +910,10 @@ const promoButtonStyle = {
 
 const productSectionStyle = {
   padding: "52px 0"
+};
+
+const bestSellerSectionStyle = {
+  padding: "36px 0 32px"
 };
 
 const sectionHeaderStyle = {

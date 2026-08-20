@@ -1,9 +1,11 @@
 "use client";
 
 import React, { useState } from "react";
+import { useAdmin } from "../context/AdminContext";
 import { Upload, Save, RotateCcw } from "lucide-react";
 
 export default function SettingsView() {
+  const { hasPermission } = useAdmin();
   const [form, setForm] = useState({
     storeName: "Mellosoft",
     email: "admin@mellosoft.in",
@@ -78,16 +80,18 @@ export default function SettingsView() {
         </div>
 
         {/* Action Buttons */}
-        <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
-          <button type="button" onClick={handleReset} style={resetBtnStyle}>
-            <RotateCcw size={16} />
-            Reset
-          </button>
-          <button type="submit" className="admin-btn-hover" style={saveBtnStyle}>
-            <Save size={16} />
-            Save Settings
-          </button>
-        </div>
+        {hasPermission("settings", "edit") && (
+          <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
+            <button type="button" onClick={handleReset} style={resetBtnStyle}>
+              <RotateCcw size={16} />
+              Reset
+            </button>
+            <button type="submit" className="admin-btn-hover" style={saveBtnStyle}>
+              <Save size={16} />
+              Save Settings
+            </button>
+          </div>
+        )}
       </form>
 
 

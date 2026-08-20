@@ -2,7 +2,7 @@
 
 import React from "react";
 
-export default function DataTable({ columns, data, emptyMessage = "No data found" }) {
+export default function DataTable({ columns, data, emptyMessage = "No data found", onRowClick }) {
   if (!data || data.length === 0) {
     return (
       <div style={{
@@ -60,7 +60,11 @@ export default function DataTable({ columns, data, emptyMessage = "No data found
               <tr
                 key={row.id || rowIndex}
                 className="admin-row-hover"
-                style={{ borderBottom: rowIndex < data.length - 1 ? "1px solid #F0F0EC" : "none" }}
+                onClick={() => onRowClick && onRowClick(row)}
+                style={{
+                  borderBottom: rowIndex < data.length - 1 ? "1px solid #F0F0EC" : "none",
+                  cursor: onRowClick ? "pointer" : "default",
+                }}
               >
                 {columns.map((col) => (
                   <td

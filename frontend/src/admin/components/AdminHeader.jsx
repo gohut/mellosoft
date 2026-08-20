@@ -8,12 +8,13 @@ const viewTitles = {
   dashboard: "Dashboard",
   products: "Products",
   "add-product": "Add Product",
+  "product-details": "Product Details",
+  "edit-product": "Edit Product",
   categories: "Categories",
-  inventory: "Inventory",
   orders: "Orders",
   customers: "Customers",
   reviews: "Reviews",
-  coupons: "Coupons",
+  "users-roles": "Users & Roles",
   settings: "Settings",
 };
 
@@ -21,24 +22,45 @@ const viewBreadcrumbs = {
   dashboard: [{ label: "Dashboard" }],
   products: [{ label: "Products" }],
   "add-product": [{ label: "Products", nav: "products" }, { label: "Add Product" }],
+  "product-details": [{ label: "Products", nav: "products" }, { label: "Product Details" }],
+  "edit-product": [{ label: "Products", nav: "products" }, { label: "Product Details", nav: "product-details" }, { label: "Edit Product" }],
   categories: [{ label: "Products", nav: "products" }, { label: "Categories" }],
-  inventory: [{ label: "Products", nav: "products" }, { label: "Inventory" }],
   orders: [{ label: "Orders" }],
   customers: [{ label: "Customers" }],
   reviews: [{ label: "Reviews" }],
-  coupons: [{ label: "Coupons" }],
+  "users-roles": [{ label: "Users & Roles" }],
   settings: [{ label: "Settings" }],
 };
 
+const getRoleColor = (roleObj, userObj) => {
+  const roleName = (roleObj?.name || userObj?.role || "").toLowerCase();
+  const roleId = (roleObj?.id || userObj?.roleId || "").toLowerCase();
+
+  if (roleName.includes("super admin") || roleId.includes("super-admin") || roleId.includes("super_admin")) {
+    return "#7C3AED"; // purple
+  }
+  if (roleName.includes("admin") || roleId.includes("admin")) {
+    return "#2563EB"; // blue
+  }
+  if (roleName.includes("manager") || roleId.includes("manager")) {
+    return "#D97706"; // yellow/gold
+  }
+  if (roleName.includes("staff") || roleId.includes("staff")) {
+    return "#6B7280"; // grey
+  }
+  return "#7C3AED";
+};
+
 export default function AdminHeader() {
-  const { adminView, navigateTo, sidebarCollapsed, toggleSidebar, toggleMobileSidebar, notifications } = useAdmin();
+  const { adminView, navigateTo, sidebarCollapsed, toggleSidebar, toggleMobileSidebar, notifications, currentUser, currentUserRole } = useAdmin();
   const [showNotifications, setShowNotifications] = useState(false);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
   const crumbs = viewBreadcrumbs[adminView] || [{ label: "Dashboard" }];
+  const roleColor = getRoleColor(currentUserRole, currentUser);
 
   return (
-    <header style={{
+    <header className="admin-header" style={{
       position: "sticky",
       top: 0,
       height: "64px",
@@ -48,29 +70,30 @@ export default function AdminHeader() {
       display: "flex",
       alignItems: "center",
       justifyContent: "space-between",
-      padding: "0 24px",
+      padding: "0 24px 0 14px",
       zIndex: 800,
-      gap: "16px",
+      gap: "14px",
     }}>
-      {/* Left: breadcrumb + toggle */}
-      <div style={{ display: "flex", alignItems: "center", gap: "16px", minWidth: 0 }}>
-        {/* Mobile hamburger */}
+      {/* Left: mobile menu + breadcrumb */}
+      <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0 }}>
+        {/* Mobile hamburger – hidden on desktop (≥1024px), visible on mobile/tablet */}
         <button
           className="admin-mobile-only"
           onClick={toggleMobileSidebar}
-          style={iconBtnStyle}
+          style={{
+            width: "36px",
+            height: "36px",
+            border: "1px solid #E7E7E2",
+            borderRadius: "10px",
+            backgroundColor: "#FFFFFF",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            flexShrink: 0,
+          }}
+          aria-label="Open sidebar"
         >
           <Menu size={20} color="#14151A" />
-        </button>
-
-        {/* Desktop collapse toggle */}
-        <button
-          className="admin-desktop-only"
-          onClick={toggleSidebar}
-          style={{ ...iconBtnStyle, transform: sidebarCollapsed ? "rotate(180deg)" : "none", transition: "transform 0.3s ease" }}
-          aria-label="Toggle sidebar"
-        >
-          <ChevronRight size={18} color="#6B6B75" style={{ transform: "rotate(180deg)" }} />
         </button>
 
         {/* Breadcrumb */}
@@ -201,9 +224,9 @@ export default function AdminHeader() {
           <Settings size={20} color="#6B6B75" />
         </button>
 
-        {/* Admin avatar */}
+        {/* Admin user profile badge */}
         <button
-          onClick={() => navigateTo("settings")}
+          onClick={() => navigateTo("users-roles")}
           style={{
             display: "flex",
             alignItems: "center",
@@ -217,6 +240,7 @@ export default function AdminHeader() {
           }}
           onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#F7F7F2"; }}
           onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+          title={currentUser?.name || "Admin"}
         >
           <div style={{
             width: "36px",
@@ -231,18 +255,33 @@ export default function AdminHeader() {
             fontWeight: 700,
             flexShrink: 0,
           }}>
-            A
+            {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : "A"}
           </div>
-          <span className="admin-desktop-only" style={{ fontSize: "14px", fontWeight: 600, color: "#14151A", whiteSpace: "nowrap" }}>
-            Admin
-          </span>
+          <div className="admin-desktop-only" style={{ textAlign: "left", lineHeight: 1.2 }}>
+            <div style={{ fontSize: "13px", fontWeight: 700, color: roleColor, whiteSpace: "nowrap" }}>
+              {currentUser?.name || "Admin"}
+            </div>
+          </div>
         </button>
       </div>
-
-
     </header>
   );
 }
+
+const backBtnStyle = {
+  width: "36px",
+  height: "36px",
+  border: "1px solid #E7E7E2",
+  borderRadius: "10px",
+  backgroundColor: "#FFFFFF",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  cursor: "pointer",
+  position: "relative",
+  transition: "all 0.15s ease",
+  flexShrink: 0,
+};
 
 const iconBtnStyle = {
   width: "40px",

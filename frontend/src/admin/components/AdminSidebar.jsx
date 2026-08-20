@@ -1,11 +1,13 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAdmin } from "../context/AdminContext";
+import { useAdminAuth } from "../../context/AdminAuthContext";
 import {
-  LayoutDashboard, Package, PlusCircle, FolderOpen, Warehouse,
-  ShoppingCart, Users, Star, Ticket, Settings, LogOut,
-  ChevronDown, ChevronRight, X,
+  LayoutDashboard, Package,
+  ShoppingCart, Users, Star, Settings, LogOut,
+  ChevronDown, ChevronRight, X, ShieldCheck, Image as ImageIcon
 } from "lucide-react";
 
 const navItems = [
@@ -18,27 +20,62 @@ const navItems = [
       { id: "products", label: "All Products" },
       { id: "add-product", label: "Add Product" },
       { id: "categories", label: "Categories" },
-      { id: "inventory", label: "Inventory" },
     ],
   },
+  { id: "banners", label: "Banners", icon: ImageIcon },
   { id: "orders", label: "Orders", icon: ShoppingCart },
   { id: "customers", label: "Customers", icon: Users },
   { id: "reviews", label: "Reviews", icon: Star },
-  { id: "coupons", label: "Coupons", icon: Ticket },
+  { id: "users-roles", label: "Users & Roles", icon: ShieldCheck },
   { id: "settings", label: "Settings", icon: Settings },
 ];
 
 export default function AdminSidebar() {
-  const { adminView, navigateTo, sidebarCollapsed, sidebarMobileOpen, toggleMobileSidebar } = useAdmin();
+  const { adminView, navigateTo, sidebarCollapsed, sidebarMobileOpen, toggleMobileSidebar, toggleSidebar, hasPermission } = useAdmin();
+  const { logout } = useAdminAuth();
+  const router = useRouter();
   const [productsOpen, setProductsOpen] = useState(true);
 
+  const handleLogout = () => {
+    logout();
+    router.replace("/admin/login");
+  };
+
   const isActive = (id) => adminView === id;
-  const isProductChild = (id) => ["products", "add-product", "categories", "inventory"].includes(id);
+  const isProductChild = (id) => ["products", "add-product", "categories", "product-details", "edit-product"].includes(id);
   const isProductsActive = isProductChild(adminView);
 
+  const isNavVisible = (id) => {
+    switch (id) {
+      case "dashboard": return hasPermission("dashboard", "view");
+      case "products-group": return hasPermission("products", "view");
+      case "banners": return hasPermission("products", "view");
+      case "orders": return hasPermission("orders", "view");
+      case "customers": return hasPermission("customers", "view");
+      case "reviews": return hasPermission("reviews", "view");
+      case "users-roles": return hasPermission("users", "view") || hasPermission("roles", "view");
+      case "settings": return hasPermission("settings", "view");
+      default: return true;
+    }
+  };
+
+  const isChildVisible = (id) => {
+    switch (id) {
+      case "products": return hasPermission("products", "view");
+      case "add-product": return hasPermission("products", "create");
+      case "categories": return hasPermission("products", "view");
+      default: return true;
+    }
+  };
+
   const renderNavItem = (item) => {
+    if (!isNavVisible(item.id)) return null;
+
     if (item.children) {
       const open = productsOpen;
+      const visibleChildren = item.children.filter((child) => isChildVisible(child.id));
+      if (visibleChildren.length === 0) return null;
+
       return (
         <div key={item.id}>
           <button
@@ -62,7 +99,7 @@ export default function AdminSidebar() {
           </button>
           {open && !sidebarCollapsed && (
             <div style={{ marginLeft: "20px", borderLeft: "2px solid #E7E7E2", paddingLeft: "12px", marginTop: "2px", marginBottom: "4px" }}>
-              {item.children.map((child) => (
+              {visibleChildren.map((child) => (
                 <button
                   key={child.id}
                   onClick={() => navigateTo(child.id)}
@@ -105,23 +142,45 @@ export default function AdminSidebar() {
 
   const sidebarContent = (
     <>
-      {/* Logo */}
+      {/* Logo & Toggle */}
       <div style={{
-        padding: sidebarCollapsed ? "20px 12px" : "20px 20px",
+        padding: sidebarCollapsed ? "0 12px" : "0 16px 0 20px",
         borderBottom: "1px solid #E7E7E2",
         display: "flex",
         alignItems: "center",
-        gap: "10px",
-        minHeight: "64px",
-        justifyContent: sidebarCollapsed ? "center" : "flex-start",
+        justifyContent: sidebarCollapsed ? "center" : "space-between",
+        height: "64px",
       }}>
-
         {!sidebarCollapsed && (
           <span style={{ fontSize: "20px", fontWeight: 800, letterSpacing: "-0.02em" }}>
             <span style={{ color: "#16A34A" }}>m</span>
             <span style={{ color: "#1B1F8C" }}>ellosoft</span>
           </span>
         )}
+        <button
+          onClick={toggleSidebar}
+          className="admin-desktop-only"
+          style={{
+            width: "36px",
+            height: "36px",
+            border: "1px solid #E7E7E2",
+            borderRadius: "10px",
+            backgroundColor: "#FFFFFF",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            transition: "transform 0.3s ease, background-color 0.15s ease",
+            transform: sidebarCollapsed ? "rotate(180deg)" : "none",
+            flexShrink: 0,
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#F7F7F2"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "#FFFFFF"; }}
+          aria-label="Toggle sidebar"
+          title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          <ChevronRight size={18} color="#6B6B75" style={{ transform: "rotate(180deg)" }} />
+        </button>
       </div>
 
       {/* Navigation */}
@@ -132,7 +191,7 @@ export default function AdminSidebar() {
       {/* Logout */}
       <div style={{ padding: "12px 10px", borderTop: "1px solid #E7E7E2" }}>
         <button
-          onClick={() => { window.location.href = "/"; }}
+          onClick={handleLogout}
           style={{
             ...navBtnStyle,
             color: "#DC2626",

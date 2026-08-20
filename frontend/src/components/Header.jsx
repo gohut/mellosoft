@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useStore } from "../context/StoreContext";
+import { useCustomerAuth } from "../context/CustomerAuthContext";
 import { MOCK_PRODUCTS } from "../data/products";
 import { formatPrice } from "../utils/currency";
 
@@ -16,16 +17,49 @@ export default function Header() {
     setActiveFilters
   } = useStore();
 
+  const { currentCustomer, isAuthenticated } = useCustomerAuth();
+
   const [desktopSearch, setDesktopSearch] = useState(searchQuery || "");
   const [mobileSearch, setMobileSearch] = useState(searchQuery || "");
   const [desktopFocused, setDesktopFocused] = useState(false);
   const [mobileFocused, setMobileFocused] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const cartCount = cart.reduce((acc, item) => acc + item.qty, 0);
   const wishlistCount = wishlist.length;
+  const displayCartCount = mounted ? cartCount : 0;
+  const displayWishlistCount = mounted ? wishlistCount : 0;
+
   const isNestedMobileView = view !== "home";
   const isDetailView = view === "detail";
+
+  // Dynamic body padding for mobile sticky header vs. detail view
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const style = document.body.style;
+    const mq = window.matchMedia("(max-width: 767px)");
+    const apply = () => {
+      if (mq.matches) {
+        style.paddingTop = isDetailView ? "0" : "60px";
+        style.paddingBottom = "0";
+      } else {
+        style.paddingTop = "";
+        style.paddingBottom = "";
+      }
+    };
+    apply();
+    mq.addEventListener("change", apply);
+    return () => {
+      mq.removeEventListener("change", apply);
+      style.paddingTop = "";
+      style.paddingBottom = "";
+    };
+  }, [isDetailView]);
 
   const searchActive = mobileFocused || mobileSearch.trim().length > 0;
   const showMobileLogo = !searchActive && !isNestedMobileView;
@@ -135,17 +169,30 @@ export default function Header() {
               onSubmitSearch={goToSearchResults}
             />
 
-            <button onClick={() => navigateTo("wishlist")} style={iconButtonStyle} aria-label="Open wishlist">
+            <button onClick={() => navigateTo("wishlist")} style={iconButtonStyle} aria-label="Open wishlist" title="Wishlist">
               <span style={{ position: "relative", display: "flex" }}>
-                <HeartIcon filled={wishlistCount > 0} />
-                {wishlistCount > 0 && <span style={badgeStyle}>{wishlistCount}</span>}
+                <HeartIcon filled={displayWishlistCount > 0} />
+                {displayWishlistCount > 0 && <span style={badgeStyle}>{displayWishlistCount}</span>}
               </span>
             </button>
-            <button onClick={() => navigateTo("cart")} style={iconButtonStyle} aria-label="Open cart">
+            <button onClick={() => navigateTo("orders")} style={iconButtonStyle} aria-label="My Orders" title="My Orders">
+              <span style={{ position: "relative", display: "flex" }}>
+                <OrdersIcon active={view === "orders"} />
+              </span>
+            </button>
+            <button onClick={() => navigateTo("cart")} style={iconButtonStyle} aria-label="Open cart" title="Cart">
               <span style={{ position: "relative", display: "flex" }}>
                 <CartIcon />
-                {cartCount > 0 && <span style={greenBadgeStyle}>{cartCount}</span>}
+                {displayCartCount > 0 && <span style={greenBadgeStyle}>{displayCartCount}</span>}
               </span>
+            </button>
+            <button
+              onClick={() => navigateTo(isAuthenticated ? "profile" : "login")}
+              style={iconButtonStyle}
+              aria-label={isAuthenticated ? "Customer Account" : "Sign In"}
+              title={isAuthenticated ? (currentCustomer?.name || "Account") : "Sign In"}
+            >
+              <UserIcon active={view === "profile" || view === "login"} />
             </button>
           </div>
         </div>
@@ -191,11 +238,17 @@ export default function Header() {
               formStyle={mobileSearchFormStyle}
             />
 
-            <button onClick={() => navigateTo("cart")} style={{ ...mobileIconButtonStyle, marginLeft: "10px" }} aria-label="Open cart">
+            <button onClick={() => navigateTo("orders")} style={{ ...mobileIconButtonStyle, marginLeft: "6px" }} aria-label="My Orders" title="My Orders">
+              <OrdersIcon active={view === "orders"} />
+            </button>
+            <button onClick={() => navigateTo("cart")} style={{ ...mobileIconButtonStyle, marginLeft: "6px" }} aria-label="Open cart" title="Cart">
               <span style={{ position: "relative", display: "flex" }}>
                 <CartIcon />
-                {cartCount > 0 && <span style={mobileCartBadgeStyle}>{cartCount}</span>}
+                {displayCartCount > 0 && <span style={mobileCartBadgeStyle}>{displayCartCount}</span>}
               </span>
+            </button>
+            <button onClick={() => navigateTo(isAuthenticated ? "profile" : "login")} style={{ ...mobileIconButtonStyle, marginLeft: "6px" }} aria-label="Account" title="Account">
+              <UserIcon active={view === "profile" || view === "login"} />
             </button>
           </div>
 
@@ -209,19 +262,6 @@ export default function Header() {
           )}
         </header>
       )}
-
-      <style>{`
-        .desktop-only { display: block; }
-        .mobile-only { display: none; }
-        @media (max-width: 767px) {
-          .desktop-only { display: none !important; }
-          .mobile-only { display: block !important; }
-          body {
-            padding-top: ${isDetailView ? "0" : "60px"} !important;
-            padding-bottom: 0 !important;
-          }
-        }
-      `}</style>
     </>
   );
 }
@@ -297,6 +337,25 @@ function HeartIcon({ filled }) {
   );
 }
 
+function OrdersIcon({ active }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? "#16A34A" : "#1B1F8C"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+      <line x1="3" y1="6" x2="21" y2="6" />
+      <path d="M16 10a4 4 0 0 1-8 0" />
+    </svg>
+  );
+}
+
+function UserIcon({ active }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? "#16A34A" : "#1B1F8C"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
+  );
+}
+
 function ArrowLeftIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1B1F8C" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
@@ -317,14 +376,14 @@ const desktopHeaderStyle = {
 };
 
 const headerContainerStyle = {
-  maxWidth: "1200px",
-  margin: "0 auto",
-  padding: "0 24px",
+  width: "100%",
+  padding: "0 48px",
   height: "76px",
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
-  gap: "24px"
+  gap: "24px",
+  boxSizing: "border-box"
 };
 
 const logoContainerStyle = {

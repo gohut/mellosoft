@@ -7,7 +7,7 @@ import EmptyState from "../components/EmptyState";
 import { formatPrice } from "../utils/currency";
 
 export default function CartView() {
-  const { cart, updateQty, removeFromCart, clearCart, navigateTo } = useStore();
+  const { cart, updateQty, removeFromCart, clearCart, navigateTo, placeOrder, products, currentCustomerId } = useStore();
   const [checkoutStep, setCheckoutStep] = useState("cart"); // "cart" | "success"
   const [orderNumber, setOrderNumber] = useState("");
 
@@ -18,7 +18,48 @@ export default function CartView() {
   const handleCheckout = () => {
     // Generate a random order number
     const rand = Math.floor(100000 + Math.random() * 900000);
-    setOrderNumber(`MS-${rand}`);
+    const newOrderId = `MS-${rand}`;
+    setOrderNumber(newOrderId);
+
+    // Build relational order item array
+    const orderItems = cart.map((item) => {
+      const prod = (products || []).find((p) => p.id === item.id);
+      return {
+        productId: item.id,
+        name: item.name || prod?.name || "Product",
+        variantSize: item.size || "Queen",
+        variantFirmness: item.firmness || "Medium",
+        variantSKU: item.sku || `MEL-${(item.size || "QUEEN").toUpperCase().slice(0, 3)}-${(item.firmness || "MEDIUM").toUpperCase().slice(0, 3)}`,
+        quantity: item.qty,
+        price: item.price,
+        actualPrice: item.price,
+        discountPercent: prod?.discountPercent || 10,
+        image: item.image || prod?.images?.[0] || "/asset/img1.jpg",
+      };
+    });
+
+    const newOrder = {
+      id: newOrderId,
+      customerId: currentCustomerId || "C001",
+      items: orderItems,
+      totalAmount: total,
+      subtotal: subtotal,
+      delivery: delivery,
+      paymentStatus: "Paid",
+      orderStatus: "Processing",
+      createdAt: new Date().toISOString().split("T")[0],
+      shippingAddress: {
+        name: "Rahul Sharma",
+        street: "123 Green Park Extension",
+        city: "New Delhi",
+        state: "Delhi",
+        zip: "110016",
+        phone: "+91 98765 43210"
+      },
+      paymentMethod: "Credit Card (Visa ending in 4242)"
+    };
+
+    placeOrder(newOrder);
     setCheckoutStep("success");
     clearCart();
   };
@@ -185,10 +226,9 @@ export default function CartView() {
 
 // Styling Object Configurations
 const containerStyle = {
-  maxWidth: "1200px",
-  margin: "0 auto",
-  padding: "20px 16px 80px 16px",
-  width: "100%"
+  width: "100%",
+  padding: "20px 48px 80px 48px",
+  boxSizing: "border-box"
 };
 
 const pageTitleStyle = {

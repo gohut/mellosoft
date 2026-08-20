@@ -1,11 +1,17 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { MOCK_PRODUCTS } from "../data/products";
+import { MOCK_ORDERS, MOCK_CARTS, MOCK_WISHLISTS, MOCK_BANNERS } from "../admin/data/adminMockData";
+import { calculateDiscountedPrice } from "../utils/currency";
+import { getVariantForSelection } from "../utils/variantHelpers";
+import { useCustomerAuth } from "./CustomerAuthContext";
 
 const StoreContext = createContext();
 
 export function StoreProvider({ children }) {
+  const { currentCustomer, isAuthenticated, setIntendedView, intendedView } = useCustomerAuth();
+  
   // Navigation & View State
   const [view, setView] = useState("home");
   const [selectedProductId, setSelectedProductId] = useState("classic-mattress");
@@ -19,56 +25,203 @@ export function StoreProvider({ children }) {
     sort: "Recommended"
   });
 
-  // Cart & Wishlist State
+  const currentCustomerId = currentCustomer ? currentCustomer.id : "C001";
+
+  // User Commerce State
   const [cart, setCart] = useState([]);
-  const [wishlist, setWishlist] = useState([]);
-  const [isHydrated, setIsHydrated] = useState(false);
+  const [wishlist, setWishlist] = useState(["luxe-hybrid"]);
+  const [products] = useState(MOCK_PRODUCTS);
 
-  // Load cart and wishlist from localStorage on mount (hydration-safe)
+  // Orders State synchronized with localStorage ("mellosoft_orders")
+  const [orders, setOrders] = useState(MOCK_ORDERS);
+
+  // Promotional Banners State synchronized with localStorage ("mellosoft_banners")
+  const [banners, setBanners] = useState(MOCK_BANNERS);
+
+  // Active banners filtered by status and sorted by displayOrder
+  const activeBanners = (banners || [])
+    .filter((b) => b.isActive !== false && b.status !== "Inactive" && b.status !== "inactive")
+    .sort((a, b) => (Number(a.displayOrder) || 0) - (Number(b.displayOrder) || 0));
+
+  // Hydration-safe initial loading of orders and banners from localStorage
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      try {
-        const savedCart = localStorage.getItem("mellosoft_cart");
-        if (savedCart) setCart(JSON.parse(savedCart));
-
-        const savedWishlist = localStorage.getItem("mellosoft_wishlist");
-        if (savedWishlist) setWishlist(JSON.parse(savedWishlist));
-      } catch (e) {
-        console.error("Failed to load store state from localStorage", e);
+    try {
+      const savedOrders = localStorage.getItem("mellosoft_orders");
+      if (savedOrders) {
+        const parsed = JSON.parse(savedOrders);
+        if (Array.isArray(parsed) && parsed.length > 0) setOrders(parsed);
       }
-      setIsHydrated(true);
-    }, 0);
+    } catch (e) {
+      console.error("Failed to load orders from localStorage:", e);
+    }
 
-    return () => window.clearTimeout(timer);
+    try {
+      const savedBanners = localStorage.getItem("mellosoft_banners");
+      if (savedBanners) {
+        const parsed = JSON.parse(savedBanners);
+        if (Array.isArray(parsed) && parsed.length > 0) setBanners(parsed);
+      }
+    } catch (e) {
+      console.error("Failed to load banners from localStorage:", e);
+    }
   }, []);
 
-  // Save to localStorage whenever cart changes
+  // Sync customer-specific cart & wishlist whenever currentCustomerId changes
   useEffect(() => {
-    if (!isHydrated) return;
+    if (!currentCustomerId) return;
     try {
-      localStorage.setItem("mellosoft_cart", JSON.stringify(cart));
-    } catch (e) {
-      console.error("Failed to save cart to localStorage", e);
-    }
-  }, [cart, isHydrated]);
+      // Load Cart
+      const savedCart = localStorage.getItem(`mellosoft_cart_${currentCustomerId}`);
+      if (savedCart) {
+        setCart(JSON.parse(savedCart));
+      } else {
+        const mockCustomerCart = (MOCK_CARTS || [])
+          .filter((item) => item.customerId === currentCustomerId)
+          .map((item) => {
+            const prod = MOCK_PRODUCTS.find((p) => p.id === item.productId);
+            return {
+              cartItemId: item.cartItemId,
+              id: item.productId,
+              name: prod?.name || item.productId,
+              tagline: prod?.tagline || "",
+              firmness: item.variantFirmness,
+              size: item.variantSize,
+              price: item.actualPrice,
+              qty: item.quantity,
+              image: prod?.images?.[0] || "/asset/img1.jpg"
+            };
+          });
+        setCart(mockCustomerCart.length > 0 ? mockCustomerCart : []);
+      }
 
-  // Save to localStorage whenever wishlist changes
+      // Load Wishlist
+      const savedWishlist = localStorage.getItem(`mellosoft_wishlist_${currentCustomerId}`);
+      if (savedWishlist) {
+        setWishlist(JSON.parse(savedWishlist));
+      } else {
+        const mockCustomerWishlist = (MOCK_WISHLISTS || [])
+          .filter((w) => w.customerId === currentCustomerId)
+          .map((w) => w.productId);
+        setWishlist(mockCustomerWishlist.length > 0 ? mockCustomerWishlist : ["luxe-hybrid"]);
+      }
+    } catch (e) {
+      console.error("Failed to load customer cart/wishlist:", e);
+    }
+  }, [currentCustomerId]);
+
+  // Window storage sync for cross-tab / Admin updates
   useEffect(() => {
-    if (!isHydrated) return;
+    const handleStorage = (e) => {
+      if (e.key === "mellosoft_orders" && e.newValue) {
+        try {
+          setOrders(JSON.parse(e.newValue));
+        } catch {}
+      }
+      if (e.key === "mellosoft_banners" && e.newValue) {
+        try {
+          setBanners(JSON.parse(e.newValue));
+        } catch {}
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
+  // Save cart changes per customerId
+  useEffect(() => {
+    if (!currentCustomerId) return;
     try {
-      localStorage.setItem("mellosoft_wishlist", JSON.stringify(wishlist));
+      localStorage.setItem(`mellosoft_cart_${currentCustomerId}`, JSON.stringify(cart));
     } catch (e) {
-      console.error("Failed to save wishlist to localStorage", e);
+      console.error("Failed to save cart:", e);
     }
-  }, [wishlist, isHydrated]);
+  }, [cart, currentCustomerId]);
 
-  // Helper: Get product details by ID
-  const getProductById = (id) => MOCK_PRODUCTS.find((p) => p.id === id);
+  // Save wishlist changes per customerId
+  useEffect(() => {
+    if (!currentCustomerId) return;
+    try {
+      localStorage.setItem(`mellosoft_wishlist_${currentCustomerId}`, JSON.stringify(wishlist));
+    } catch (e) {
+      console.error("Failed to save wishlist:", e);
+    }
+  }, [wishlist, currentCustomerId]);
 
-  // Cart Actions
+  // Save orders changes
+  useEffect(() => {
+    try {
+      localStorage.setItem("mellosoft_orders", JSON.stringify(orders));
+    } catch (e) {
+      console.error("Failed to save orders:", e);
+    }
+  }, [orders]);
+
+  // Actions & Handlers
+  const refreshOrders = useCallback(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("mellosoft_orders");
+        if (saved) setOrders(JSON.parse(saved));
+      } catch {}
+    }
+  }, []);
+
+  // Auth Popup Modal State ("login" | "signup" | "forgot-password" | null)
+  const [authModal, setAuthModal] = useState(null);
+
+  const closeAuthModal = useCallback(() => {
+    setAuthModal(null);
+  }, []);
+
+  const openAuthModal = useCallback((modalType = "login") => {
+    setAuthModal(modalType);
+  }, []);
+
+  const navigateTo = (newView, productId = null) => {
+    if (productId) {
+      setSelectedProductId(productId);
+    }
+
+    // Modal popup views
+    if (newView === "login" || newView === "signup" || newView === "forgot-password") {
+      setAuthModal(newView);
+      return;
+    }
+
+    // Auth protection for customer-specific pages if accessing while logged out
+    const protectedViews = ["orders", "profile"];
+    if (protectedViews.includes(newView) && !isAuthenticated) {
+      setIntendedView(newView);
+      setAuthModal("login");
+      return;
+    }
+
+    setAuthModal(null);
+    if (newView === "orders") {
+      refreshOrders();
+    }
+    setView(newView);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const placeOrder = (newOrder) => {
+    setOrders((prevOrders) => [newOrder, ...prevOrders]);
+  };
+
+  const cancelOrder = (orderId) => {
+    setOrders((prevOrders) =>
+      prevOrders.map((o) =>
+        o.id === orderId ? { ...o, orderStatus: "Cancelled" } : o
+      )
+    );
+  };
+
+  const getProductById = (id) => {
+    return products.find((p) => p.id === id);
+  };
+
   const addToCart = (product, firmness, size, qty = 1) => {
     setCart((prevCart) => {
-      // Find index of item with same id, firmness, and size
       const existingItemIndex = prevCart.findIndex(
         (item) =>
           item.id === product.id &&
@@ -76,18 +229,22 @@ export function StoreProvider({ children }) {
           item.size === size
       );
 
-      // Determine price for the selected size
-      const price = product.sizePrices && product.sizePrices[size] 
-        ? product.sizePrices[size] 
-        : product.price;
+      const variant = getVariantForSelection(product, size, firmness);
+      const discountPercent = product?.discountPercent ?? product?.Discount_Percentage ?? 10;
+      const rawPrice = Number(
+        (variant && variant.Actual_Price) ??
+        (product.firmnessPrices && product.firmnessPrices[firmness]) ??
+        (product.sizePrices && product.sizePrices[size]) ??
+        (product.Actual_Price ?? product.price) ??
+        0
+      );
+      const price = calculateDiscountedPrice(rawPrice, discountPercent);
 
       if (existingItemIndex > -1) {
-        // Increment quantity
         const newCart = [...prevCart];
         newCart[existingItemIndex].qty += qty;
         return newCart;
       } else {
-        // Add new item
         return [
           ...prevCart,
           {
@@ -141,8 +298,6 @@ export function StoreProvider({ children }) {
     const product = getProductById(productId);
     if (!product) return;
     
-    // Add to cart
-    // If the product doesn't support the requested firmness or size, fall back to first available
     const finalFirmness = product.firmnessOptions.includes(firmness) 
       ? firmness 
       : product.firmnessOptions[0] || "Standard";
@@ -151,18 +306,7 @@ export function StoreProvider({ children }) {
       : product.sizeOptions[0] || "Standard";
 
     addToCart(product, finalFirmness, finalSize, 1);
-    
-    // Remove from wishlist
     toggleWishlist(productId);
-  };
-
-  // View helper
-  const navigateTo = (newView, productId = null) => {
-    setView(newView);
-    if (productId) {
-      setSelectedProductId(productId);
-    }
-    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   return (
@@ -178,6 +322,12 @@ export function StoreProvider({ children }) {
         setActiveFilters,
         cart,
         wishlist,
+        orders,
+        banners,
+        activeBanners,
+        setBanners,
+        currentCustomerId,
+        customerOrders: (orders || []).filter((o) => o.customerId === currentCustomerId),
         addToCart,
         removeFromCart,
         updateQty,
@@ -185,7 +335,14 @@ export function StoreProvider({ children }) {
         toggleWishlist,
         moveToCart,
         navigateTo,
-        getProductById
+        getProductById,
+        placeOrder,
+        cancelOrder,
+        refreshOrders,
+        authModal,
+        setAuthModal,
+        openAuthModal,
+        closeAuthModal,
       }}
     >
       {children}

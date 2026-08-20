@@ -6,17 +6,17 @@
  *   kpis        – scalar values shown in the four stat cards
  *   chartData   – array consumed by the Recharts AreaChart
  *
- * "change" values represent week-over-week (or period-over-period) percentage.
+ * "change" values represent period-over-period percentage change.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
 // ── TODAY ─────────────────────────────────────────────────────────────────────
 export const todayData = {
   kpis: {
-    totalOrders:    { value: 81,        display: "81",         change: 14.1 },
-    totalRevenue:   { value: 73560,     display: "₹73,560",    change: 9.3  },
-    avgOrderValue:  { value: 908,       display: "₹908",       change: -4.7 },
-    conversionRate: { value: 4.12,      display: "4.12%",      change: 6.2  },
+    totalRevenue:    { value: 73560,  display: "₹73,560",   change: 9.3  },
+    totalOrders:     { value: 81,     display: "81",         change: 14.1 },
+    totalCustomers:  { value: 47,     display: "47",         change: 6.8  },
+    totalProducts:   { value: 28,     display: "28",         change: 2.1  },
   },
   chartData: [
     { label: "12 AM", orders: 2,  revenue: 1890  },
@@ -33,10 +33,10 @@ export const todayData = {
 // ── LAST 7 DAYS ───────────────────────────────────────────────────────────────
 export const last7DaysData = {
   kpis: {
-    totalOrders:    { value: 452,       display: "452",        change: 12.0 },
-    totalRevenue:   { value: 417700,    display: "₹4,17,700",  change: 8.4  },
-    avgOrderValue:  { value: 924,       display: "₹924",       change: -2.1 },
-    conversionRate: { value: 3.84,      display: "3.84%",      change: 5.7  },
+    totalRevenue:    { value: 417700, display: "₹4,17,700",  change: 8.4  },
+    totalOrders:     { value: 452,    display: "452",         change: 12.0 },
+    totalCustomers:  { value: 318,    display: "318",         change: 10.5 },
+    totalProducts:   { value: 28,     display: "28",          change: 2.1  },
   },
   chartData: [
     { label: "Mon", orders: 42, revenue: 38600 },
@@ -52,10 +52,10 @@ export const last7DaysData = {
 // ── LAST 30 DAYS ──────────────────────────────────────────────────────────────
 export const last30DaysData = {
   kpis: {
-    totalOrders:    { value: 1284,      display: "1,284",      change: 18.6 },
-    totalRevenue:   { value: 1186400,   display: "₹11,86,400", change: 15.2 },
-    avgOrderValue:  { value: 924,       display: "₹924",       change: 3.4  },
-    conversionRate: { value: 4.21,      display: "4.21%",      change: -1.3 },
+    totalRevenue:    { value: 1186400, display: "₹11,86,400", change: 15.2 },
+    totalOrders:     { value: 1284,    display: "1,284",       change: 18.6 },
+    totalCustomers:  { value: 876,     display: "876",         change: 13.4 },
+    totalProducts:   { value: 28,      display: "28",          change: 2.1  },
   },
   chartData: [
     { label: "Jul 3",  orders: 29, revenue: 26400  },
@@ -74,10 +74,10 @@ export const last30DaysData = {
 // ── LAST 6 MONTHS ─────────────────────────────────────────────────────────────
 export const last6MonthsData = {
   kpis: {
-    totalOrders:    { value: 2724,      display: "2,724",      change: 22.4 },
-    totalRevenue:   { value: 2504000,   display: "₹25,04,000", change: 19.1 },
-    avgOrderValue:  { value: 919,       display: "₹919",       change: -3.8 },
-    conversionRate: { value: 3.97,      display: "3.97%",      change: 8.5  },
+    totalRevenue:    { value: 2504000, display: "₹25,04,000", change: 19.1 },
+    totalOrders:     { value: 2724,    display: "2,724",       change: 22.4 },
+    totalCustomers:  { value: 1205,    display: "1,205",       change: 15.3 },
+    totalProducts:   { value: 28,      display: "28",          change: 2.1  },
   },
   chartData: [
     { label: "Feb", orders: 312, revenue: 285600 },
@@ -92,10 +92,10 @@ export const last6MonthsData = {
 // ── THIS YEAR ─────────────────────────────────────────────────────────────────
 export const thisYearData = {
   kpis: {
-    totalOrders:    { value: 3746,      display: "3,746",      change: 31.2 },
-    totalRevenue:   { value: 3447800,   display: "₹34,47,800", change: 27.8 },
-    avgOrderValue:  { value: 920,       display: "₹920",       change: 1.6  },
-    conversionRate: { value: 4.05,      display: "4.05%",      change: 11.3 },
+    totalRevenue:    { value: 3447800, display: "₹34,47,800", change: 27.8 },
+    totalOrders:     { value: 3746,    display: "3,746",       change: 31.2 },
+    totalCustomers:  { value: 1205,    display: "1,205",       change: 15.3 },
+    totalProducts:   { value: 28,      display: "28",          change: 2.1  },
   },
   chartData: [
     { label: "Jan", orders: 280, revenue: 256800 },

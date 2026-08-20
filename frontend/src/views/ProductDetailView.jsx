@@ -3,11 +3,13 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useStore } from "../context/StoreContext";
 import { MOCK_PRODUCTS } from "../data/products";
+import { MOCK_REVIEWS } from "../admin/data/adminMockData";
 import RatingStars from "../components/RatingStars";
 import FirmnessSizeSelector from "../components/FirmnessSizeSelector";
 import QuantityStepper from "../components/QuantityStepper";
 import ProductCard from "../components/ProductCard";
-import { formatPrice } from "../utils/currency";
+import { formatPrice, calculateDiscountedPrice } from "../utils/currency";
+import { getVariantForSelection } from "../utils/variantHelpers";
 
 export default function ProductDetailView() {
   const { 
@@ -42,8 +44,8 @@ export default function ProductDetailView() {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       if (!product) return;
-      setSelectedFirmness(product.firmnessOptions[0] || "Standard");
-      setSelectedSize(product.sizeOptions[0] || "Standard");
+      setSelectedFirmness((product.availableFirmness || product.firmnessOptions || product.firmness)?.[0] || "Medium");
+      setSelectedSize((product.availableSizes || product.sizeOptions || product.sizes)?.[0] || "Twin");
       setQuantity(1);
       setActiveImgIndex(0);
     }, 0);
@@ -51,35 +53,129 @@ export default function ProductDetailView() {
     return () => window.clearTimeout(timer);
   }, [product]);
 
-  // Calculate dynamic price based on size
-  const currentPrice = useMemo(() => {
-    if (product.sizePrices && product.sizePrices[selectedSize]) {
-      return product.sizePrices[selectedSize];
+  // Resolve exact variant matching selectedSize + selectedFirmness
+  const selectedVariant = useMemo(() => {
+    return getVariantForSelection(product, selectedSize, selectedFirmness);
+  }, [product, selectedSize, selectedFirmness]);
+
+  const discountPercent = useMemo(() => {
+    const d = product?.discountPercent ?? product?.Discount_Percentage;
+    return typeof d === "number" ? d : 10;
+  }, [product]);
+
+  const actualPriceForSize = useMemo(() => {
+    if (selectedVariant && selectedVariant.Actual_Price !== undefined) {
+      return Number(selectedVariant.Actual_Price);
     }
-    return product.price;
-  }, [product, selectedSize]);
+    if (product.firmnessPrices && product.firmnessPrices[selectedFirmness]) {
+      return Number(product.firmnessPrices[selectedFirmness]);
+    }
+    if (product.sizePrices && product.sizePrices[selectedSize]) {
+      return Number(product.sizePrices[selectedSize]);
+    }
+    return Number(product.Actual_Price ?? product.price);
+  }, [product, selectedVariant, selectedSize, selectedFirmness]);
+
+  const discountedPriceForSize = useMemo(() => {
+    return calculateDiscountedPrice(actualPriceForSize, discountPercent);
+  }, [actualPriceForSize, discountPercent]);
+
+  const isVariantOutOfStock = useMemo(() => {
+    if (selectedVariant) {
+      return selectedVariant.Stock === 0 || selectedVariant.Status === "Out of Stock";
+    }
+    return false;
+  }, [selectedVariant]);
+
+  // Compute public approved reviews
+  const approvedReviews = useMemo(() => {
+    if (!product) return [];
+
+    let adminReviewsList = [];
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("mellosoft_reviews");
+        if (saved) {
+          adminReviewsList = JSON.parse(saved);
+        }
+      } catch (e) {
+        console.error("Failed to parse mellosoft_reviews in ProductDetailView:", e);
+      }
+    }
+
+    if (!adminReviewsList || adminReviewsList.length === 0) {
+      adminReviewsList = MOCK_REVIEWS || [];
+    }
+
+    const adminApprovedMatches = adminReviewsList
+      .filter((r) => {
+        const matchesProduct =
+          r.productId === product.id ||
+          (r.product && r.product.toLowerCase().includes((product.name || "").toLowerCase())) ||
+          (product.Product_Name && r.product && r.product.toLowerCase() === product.Product_Name.toLowerCase());
+        
+        return matchesProduct && r.status === "Approved";
+      })
+      .map((r) => ({
+        id: r.id,
+        author: r.customer || r.customerName || "Anonymous",
+        rating: Number(r.rating || 5),
+        date: r.date,
+        content: r.review || r.comment || "",
+        helpfulCount: r.helpfulCount || 12,
+        replyCount: r.replyCount || 0,
+      }));
+
+    const allAdminReviewIds = new Set(adminReviewsList.map((r) => r.id));
+    const notApprovedAdminIds = new Set(
+      adminReviewsList.filter((r) => r.status !== "Approved").map((r) => r.id)
+    );
+
+    const baseProductReviews = (product.reviews || []).filter((r) => {
+      if (allAdminReviewIds.has(r.id)) {
+        return !notApprovedAdminIds.has(r.id);
+      }
+      return true;
+    });
+
+    const combined = [...adminApprovedMatches];
+    baseProductReviews.forEach((b) => {
+      if (!combined.some((c) => c.id === b.id || (c.author === b.author && c.content === b.content))) {
+        combined.push(b);
+      }
+    });
+
+    return combined;
+  }, [product]);
 
   // Compute rating stats
   const ratingStats = useMemo(() => {
-    const reviews = product.reviews || [];
+    const reviews = approvedReviews || [];
     const total = reviews.length;
     const counts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
     
+    let sum = 0;
     reviews.forEach((r) => {
-      counts[r.rating] = (counts[r.rating] || 0) + 1;
+      const rRating = Math.min(5, Math.max(1, Math.round(r.rating || 5)));
+      counts[rRating] = (counts[rRating] || 0) + 1;
+      sum += (r.rating || 5);
     });
+
+    const averageRating = total > 0 ? (sum / total).toFixed(1) : (product?.rating || "5.0");
 
     return {
       total,
+      averageRating,
       breakdown: Object.keys(counts).reduce((acc, rating) => {
         acc[rating] = total > 0 ? Math.round((counts[rating] / total) * 100) : 0;
         return acc;
       }, {}),
       counts
     };
-  }, [product]);
+  }, [approvedReviews, product]);
 
   const handleAddToCart = () => {
+    if (isVariantOutOfStock) return;
     addToCart(product, selectedFirmness, selectedSize, quantity);
   };
 
@@ -88,6 +184,7 @@ export default function ProductDetailView() {
   };
 
   const handleBuyNow = () => {
+    if (isVariantOutOfStock) return;
     addToCart(product, selectedFirmness, selectedSize, quantity);
     navigateTo("cart");
   };
@@ -231,7 +328,17 @@ export default function ProductDetailView() {
           </div>
 
           <div style={priceContainerStyle}>
-            <span style={priceStyle}>{formatPrice(currentPrice)}</span>
+            <span style={priceStyle}>{formatPrice(discountedPriceForSize)}</span>
+            {discountPercent > 0 && actualPriceForSize > discountedPriceForSize && (
+              <span style={{ fontSize: "14px", color: "#6B6B75", alignSelf: "center", marginLeft: "10px" }}>
+                MRP: {formatPrice(actualPriceForSize)} ({discountPercent}% OFF)
+              </span>
+            )}
+            {isVariantOutOfStock && (
+              <span style={{ fontSize: "12px", fontWeight: 700, color: "#DC2626", backgroundColor: "#FEE2E2", padding: "4px 10px", borderRadius: "999px", marginLeft: "10px", alignSelf: "center" }}>
+                Out of Stock
+              </span>
+            )}
           </div>
           
           <div style={dividerStyle} />
@@ -262,14 +369,24 @@ export default function ProductDetailView() {
             <div style={ctaButtonsGridStyle} className="detail-cta-grid">
               <button 
                 onClick={handleAddToCart}
-                style={addCartBtnStyle}
+                disabled={isVariantOutOfStock}
+                style={{
+                  ...addCartBtnStyle,
+                  opacity: isVariantOutOfStock ? 0.5 : 1,
+                  cursor: isVariantOutOfStock ? "not-allowed" : "pointer",
+                }}
               >
-                Add to Cart
+                {isVariantOutOfStock ? "Out of Stock" : "Add to Cart"}
               </button>
               
               <button 
                 onClick={handleBuyNow}
-                style={buyNowBtnStyle}
+                disabled={isVariantOutOfStock}
+                style={{
+                  ...buyNowBtnStyle,
+                  opacity: isVariantOutOfStock ? 0.5 : 1,
+                  cursor: isVariantOutOfStock ? "not-allowed" : "pointer",
+                }}
               >
                 Buy Now
               </button>
@@ -382,12 +499,12 @@ export default function ProductDetailView() {
               
               {/* Left Column: Reviews List */}
               <div style={reviewsListColStyle}>
-                {product.reviews && product.reviews.length > 0 ? (
-                  product.reviews.map((rev) => (
+                {approvedReviews && approvedReviews.length > 0 ? (
+                  approvedReviews.map((rev) => (
                     <div key={rev.id} style={reviewCardStyle}>
                       <div style={reviewHeaderStyle}>
                         <div style={avatarStyle}>
-                          {rev.author.split(" ").map(n => n[0]).join("")}
+                          {(rev.author || "A").split(" ").map(n => n[0]).join("")}
                         </div>
                         <div>
                           <h5 style={{ fontWeight: "700", color: "#14151A" }}>{rev.author}</h5>
@@ -420,8 +537,8 @@ export default function ProductDetailView() {
                   <h4 style={summaryHeaderStyle}>Customer Reviews</h4>
                   
                   <div style={summaryScoreBlockStyle}>
-                    <span style={bigScoreStyle}>{product.rating}</span>
-                    <RatingStars rating={product.rating} />
+                    <span style={bigScoreStyle}>{ratingStats.averageRating}</span>
+                    <RatingStars rating={Number(ratingStats.averageRating)} />
                     <span style={reviewsCountTextStyle}>Based on {ratingStats.total} reviews</span>
                   </div>
 
@@ -489,9 +606,7 @@ export default function ProductDetailView() {
 
           <span style={viewerCountStyle}>{activeImgIndex + 1} / {product.images.length}</span>
         </div>
-      )}
-
-      <style>{`
+      )}      <style>{`
         @media (max-width: 767px) {
           .detail-breadcrumb {
             display: none !important;
@@ -630,7 +745,6 @@ export default function ProductDetailView() {
           }
         }
       `}</style>
-
     </div>
   );
 }
@@ -665,10 +779,9 @@ function HeartIcon({ filled }) {
 
 // Styling Object Configurations
 const detailContainerStyle = {
-  maxWidth: "1200px",
-  margin: "0 auto",
-  padding: "30px 24px 80px 24px",
-  width: "100%"
+  width: "100%",
+  padding: "30px 48px 80px 48px",
+  boxSizing: "border-box"
 };
 
 // Breadcrumb
