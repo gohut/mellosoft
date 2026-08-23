@@ -1,23 +1,19 @@
 "use client";
 
-import React, { useEffect } from "react";
-import { useStore } from "../../context/StoreContext";
+import React from "react";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import OrdersView from "../../views/OrdersView";
 import AuthModal from "../../components/AuthModal";
+import { useStore } from "../../context/StoreContext";
 
 export default function OrdersPage() {
-  const { setView, authModal } = useStore();
-
-  useEffect(() => {
-    setView("orders");
-  }, [setView]);
+  const { authModal } = useStore();
 
   return (
     <>
       <Header />
-      <main style={{ flexGrow: 1, display: "flex", flexDirection: "column", width: "100%", backgroundColor: "transparent" }}>
+      <main style={{ flexGrow: 1, display: "flex", flexDirection: "column", width: "100%", backgroundColor: "#FFFFFF" }}>
         <OrdersView />
       </main>
       <Footer />

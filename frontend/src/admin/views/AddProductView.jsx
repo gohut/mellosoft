@@ -4,12 +4,26 @@ import React, { useState, useRef } from "react";
 import { useAdmin } from "../context/AdminContext";
 import { Upload, X, Plus, Save, ChevronLeft, Tag, Percent } from "lucide-react";
 import { formatPrice, calculateDiscountedPrice } from "../../utils/currency";
-import { reconcileVariants } from "../../utils/variantHelpers";
+import MatrixPricingManager from "../components/MatrixPricingManager";
 
-const categoryOptions = ["mattress", "pillows", "bed frames", "protectors", "accessories"];
-const sizeOptions = ["Twin", "Full", "Queen", "King", "Standard"];
-const firmnessOptions = ["Soft", "Medium", "Firm", "Standard"];
-const statusOptions = ["Active", "Inactive", "Low Stock", "Out of Stock"];
+const DEFAULT_BED_SIZES = {
+  Single: {
+    enabled: true,
+    dimensions: ["72 X 30", "72 X 36", "75 X 30", "75 X 36", "78 X 30", "78 X 36", "84 X 36"]
+  },
+  Double: {
+    enabled: true,
+    dimensions: ["72 X 42", "72 X 44", "72 X 48", "75 X 44", "75 X 48", "78 X 48", "84 X 48"]
+  },
+  Queen: {
+    enabled: true,
+    dimensions: ["72 X 60", "75 X 60", "78 X 60", "84 X 60"]
+  },
+  King: {
+    enabled: true,
+    dimensions: ["72 X 72", "75 X 72", "78 X 72", "84 X 72"]
+  }
+};
 
 function buildInitialForm() {
   const generatedId = `PROD-${Math.floor(100 + Math.random() * 900)}`;
@@ -20,27 +34,54 @@ function buildInitialForm() {
     Product_Name: "",
     name: "",
     description: "",
-    category: "mattress",
-    brand: "",
+    category: "ortho",
+    brand: "Mellosoft",
     material: "",
     specs: "",
     tagline: "",
     status: "Active",
     rating: "5.0",
     discountPercent: "0",
-    basePrice: 999,
-    sizes: [],
-    firmness: [],
+    basePrice: 15811,
     images: [],
     features: [],
-    sizePrices: {},
-    firmnessPrices: {},
-    variants: [],
+    bedSizes: JSON.parse(JSON.stringify(DEFAULT_BED_SIZES)),
+    variantsList: ["BLOOM 6'", "BLOOM 8'"],
+    matrixPrices: {
+      "BLOOM 6'": {
+        "72 X 30": 15811, "72 X 36": 18973, "75 X 30": 16470, "75 X 36": 19764,
+        "78 X 30": 17129, "78 X 36": 20555, "84 X 36": 22136,
+        "72 X 42": 22136, "72 X 44": 23190, "72 X 48": 25298, "75 X 44": 24156,
+        "75 X 48": 26352, "78 X 48": 27406, "84 X 48": 29514,
+        "72 X 60": 31622, "75 X 60": 32940, "78 X 60": 34258, "84 X 60": 36893,
+        "72 X 72": 37947, "75 X 72": 39528, "78 X 72": 41109, "84 X 72": 44271
+      },
+      "BLOOM 8'": {
+        "72 X 30": 21076, "72 X 36": 25291, "75 X 30": 21955, "75 X 36": 26345,
+        "78 X 30": 22833, "78 X 36": 27400, "84 X 36": 29507,
+        "72 X 42": 29507, "72 X 44": 30912, "72 X 48": 33722, "75 X 44": 32200,
+        "75 X 48": 35127, "78 X 48": 36532, "84 X 48": 39342,
+        "72 X 60": 42152, "75 X 60": 43909, "78 X 60": 45666, "84 X 60": 49178,
+        "72 X 72": 50583, "75 X 72": 52691, "78 X 72": 54798, "84 X 72": 59013
+      }
+    }
   };
 }
 
 export default function AddProductView() {
-  const { navigateTo, addProduct, products, categories } = useAdmin();
+  const {
+    navigateTo,
+    addProduct,
+    products,
+    categories,
+    returnToNewArrivals,
+    setReturnToNewArrivals,
+    addProductsToNewArrivals,
+    returnToBestSellers,
+    setReturnToBestSellers,
+    addProductsToBestSellers,
+    setContentActiveTab,
+  } = useAdmin();
 
   const [form, setForm] = useState(() => {
     const nextNum = (products?.length || 8) + 1;
@@ -49,98 +90,14 @@ export default function AddProductView() {
     initial.Product_Id = generatedId;
     return initial;
   });
+
   const [errors, setErrors] = useState({});
   const [toast, setToast] = useState(null);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef(null);
 
-  // ─── Field helpers ────────────────────────────────────────────────
   const update = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
 
-  const toggleSize = (size) => {
-    setForm((prev) => {
-      const isSelected = prev.sizes.includes(size);
-      const newSizes = isSelected ? prev.sizes.filter((s) => s !== size) : [...prev.sizes, size];
-      const newVariants = reconcileVariants(
-        newSizes,
-        prev.firmness,
-        prev.variants,
-        prev.basePrice,
-        prev.sizePrices,
-        prev.firmnessPrices
-      ).map((v) => {
-        const exists = prev.variants.some(
-          (existing) => (existing.Size || existing.size) === v.Size && (existing.Firmness || existing.firmness) === v.Firmness
-        );
-        if (!exists) {
-          return {
-            ...v,
-            Actual_Price: prev.basePrice || 999,
-            Stock: 15,
-            Threshold: 2,
-            Status: "Active",
-          };
-        }
-        return v;
-      });
-
-      return {
-        ...prev,
-        sizes: newSizes,
-        variants: newVariants,
-      };
-    });
-  };
-
-  const toggleFirmness = (firmnessItem) => {
-    setForm((prev) => {
-      const isSelected = prev.firmness.includes(firmnessItem);
-      const newFirmness = isSelected ? prev.firmness.filter((f) => f !== firmnessItem) : [...prev.firmness, firmnessItem];
-      const newVariants = reconcileVariants(
-        prev.sizes,
-        newFirmness,
-        prev.variants,
-        prev.basePrice,
-        prev.sizePrices,
-        prev.firmnessPrices
-      ).map((v) => {
-        const exists = prev.variants.some(
-          (existing) => (existing.Size || existing.size) === v.Size && (existing.Firmness || existing.firmness) === v.Firmness
-        );
-        if (!exists) {
-          return {
-            ...v,
-            Actual_Price: prev.basePrice || 999,
-            Stock: 15,
-            Threshold: 2,
-            Status: "Active",
-          };
-        }
-        return v;
-      });
-
-      return {
-        ...prev,
-        firmness: newFirmness,
-        variants: newVariants,
-      };
-    });
-  };
-
-  const updateVariant = (size, firmness, field, value) => {
-    setForm((prev) => ({
-      ...prev,
-      variants: prev.variants.map((v) => {
-        if ((v.Size || v.size) === size && (v.Firmness || v.firmness) === firmness) {
-          const val = field === "Status" ? value : (field === "Actual_Price" || field === "Stock" || field === "Threshold" ? (value === "" ? "" : Number(value)) : value);
-          return { ...v, [field]: val };
-        }
-        return v;
-      }),
-    }));
-  };
-
-  // ─── Image helpers ────────────────────────────────────────────────
   const addImages = (files) => {
     const urls = Array.from(files).map((f) => URL.createObjectURL(f));
     setForm((prev) => ({ ...prev, images: [...prev.images, ...urls] }));
@@ -153,164 +110,151 @@ export default function AddProductView() {
   const handleDrop = (e) => {
     e.preventDefault();
     setDragOver(false);
-    if (e.dataTransfer.files.length > 0) addImages(e.dataTransfer.files);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      addImages(e.dataTransfer.files);
+    }
   };
 
-  // ─── Feature helpers ──────────────────────────────────────────────
   const addFeature = () => setForm((prev) => ({ ...prev, features: [...prev.features, ""] }));
-  const updateFeature = (i, val) => setForm((prev) => {
-    const f = [...prev.features];
-    f[i] = val;
-    return { ...prev, features: f };
-  });
-  const removeFeature = (i) => setForm((prev) => ({ ...prev, features: prev.features.filter((_, j) => j !== i) }));
-
-  // ─── Validation ───────────────────────────────────────────────────
-  const validate = () => {
-    const e = {};
-    if (!form.name.trim()) e.name = "Product name is required.";
-    if (!form.description.trim()) e.description = "Description is required.";
-    if (!form.category) e.category = "Category is required.";
-    if (!form.status) e.status = "Status is required.";
-    if (form.sizes.length === 0) e.sizes = "At least one size option must be selected.";
-    if (form.firmness.length === 0) e.firmness = "At least one firmness option must be selected.";
-
-    const discNum = Number(form.discountPercent);
-    if (isNaN(discNum) || discNum < 0 || discNum > 100) {
-      e.discountPercent = "Discount percentage must be a number between 0 and 100.";
-    }
-
-    const invalidVariantPrice = form.variants.find((v) => isNaN(Number(v.Actual_Price)) || Number(v.Actual_Price) < 0);
-    if (invalidVariantPrice) {
-      e.variantPrice = `Variant ${invalidVariantPrice.Size} + ${invalidVariantPrice.Firmness} must have a price >= 0.`;
-    }
-
-    const invalidVariantStock = form.variants.find((v) => isNaN(Number(v.Stock)) || Number(v.Stock) < 0);
-    if (invalidVariantStock) {
-      e.variantStock = `Variant ${invalidVariantStock.Size} + ${invalidVariantStock.Firmness} must have stock >= 0.`;
-    }
-
-    const invalidVariantThreshold = form.variants.find((v) => isNaN(Number(v.Threshold)) || Number(v.Threshold) < 0);
-    if (invalidVariantThreshold) {
-      e.variantThreshold = `Variant ${invalidVariantThreshold.Size} + ${invalidVariantThreshold.Firmness} must have threshold >= 0.`;
-    }
-
-    setErrors(e);
-    return Object.keys(e).length === 0;
+  const updateFeature = (idx, val) => {
+    setForm((prev) => {
+      const next = [...prev.features];
+      next[idx] = val;
+      return { ...prev, features: next };
+    });
+  };
+  const removeFeature = (idx) => {
+    setForm((prev) => ({ ...prev, features: prev.features.filter((_, i) => i !== idx) }));
   };
 
-  // ─── Submit ───────────────────────────────────────────────────────
+  const validate = () => {
+    const errs = {};
+    if (!form.name.trim()) errs.name = "Product Name is required.";
+    if (!form.description.trim()) errs.description = "Description is required.";
+    if (!form.variantsList || form.variantsList.length === 0) {
+      errs.variants = "At least one Variant must be created (e.g. BLOOM 6').";
+    }
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!validate()) return;
 
-    const discNum = Number(form.discountPercent) || 0;
-    const totalCalculatedStock = form.variants.reduce((sum, v) => sum + Number(v.Stock || 0), 0);
-    const baseActualPrice = form.variants.length > 0 ? Number(form.variants[0].Actual_Price) : 999;
-    const generatedSlugId = form.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || `prod-${Date.now()}`;
-    const prodCode = form.Product_Id || `PROD-${String((products?.length || 0) + 1).padStart(3, "0")}`;
+    const activeBedCategories = Object.keys(form.bedSizes).filter(
+      (k) => form.bedSizes[k].enabled && form.bedSizes[k].dimensions.length > 0
+    );
 
-    const processedVariants = form.variants.map((v) => {
-      const sz = v.Size || v.size;
-      const fm = v.Firmness || v.firmness;
-      const actualP = Number(v.Actual_Price ?? v.price ?? baseActualPrice);
-      const discP = calculateDiscountedPrice(actualP, discNum);
-      const stk = Number(v.Stock ?? v.stock ?? 0);
-      const thres = Number(v.Threshold ?? v.threshold ?? 10);
-      const stat = v.Status || v.status || (stk === 0 ? "Out of Stock" : (stk <= thres ? "Low Stock" : "Active"));
+    let lowestPrice = 999;
+    const pricesList = [];
+    Object.values(form.matrixPrices || {}).forEach((dimMap) => {
+      Object.values(dimMap || {}).forEach((val) => {
+        if (typeof val === "number" && val > 0) {
+          pricesList.push(val);
+        }
+      });
+    });
+    if (pricesList.length > 0) {
+      lowestPrice = Math.min(...pricesList);
+    }
 
-      return {
-        Variant_Id: v.Variant_Id || v.id || `VAR-${sz.toUpperCase()}-${fm.toUpperCase()}`,
-        SKU: v.SKU || v.sku || `MEL-${sz.toUpperCase()}-${fm.toUpperCase()}`,
-        Size: sz,
-        size: sz,
-        Firmness: fm,
-        firmness: fm,
-        Actual_Price: actualP,
-        price: actualP,
-        Discounted_Price: discP,
-        discountedPrice: discP,
-        Stock: stk,
-        stock: stk,
-        Threshold: thres,
-        threshold: thres,
-        Status: stat,
-        status: stat,
-      };
+    const formattedVariants = [];
+    (form.variantsList || []).forEach((vName) => {
+      activeBedCategories.forEach((catName) => {
+        const dims = form.bedSizes[catName]?.dimensions || [];
+        dims.forEach((dim) => {
+          const priceVal = form.matrixPrices[vName]?.[dim] ?? lowestPrice;
+          formattedVariants.push({
+            Variant_Id: `VAR-${vName.toUpperCase().replace(/[^A-Z0-9]/g, "")}-${dim.replace(/[^A-Z0-9]/g, "")}`,
+            SKU: `MEL-${vName.toUpperCase().replace(/[^A-Z0-9]/g, "")}-${dim.replace(/[^A-Z0-9]/g, "")}`,
+            Size: dim,
+            SizeCategory: catName,
+            Firmness: vName,
+            VariantName: vName,
+            Actual_Price: Number(priceVal) || lowestPrice,
+            Stock: 15,
+            Threshold: 2,
+            Status: "Active"
+          });
+        });
+      });
     });
 
     const newProduct = {
-      id: generatedSlugId,
-      Product_Id: prodCode,
-      Product_Name: form.name.trim(),
-      name: form.name.trim(),
-      tagline: form.tagline.trim(),
-      description: form.description.trim(),
+      id: form.id || form.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+      Product_Id: form.Product_Id,
+      Product_Name: form.name,
+      name: form.name,
+      description: form.description,
       category: form.category,
+      categoryName: form.category.toUpperCase(),
+      brand: form.brand || "Mellosoft",
+      material: form.material,
+      specs: form.specs || `${form.category.toUpperCase()} • ${form.variantsList.join(" / ")} Variants`,
+      tagline: form.tagline,
       status: form.status,
-      price: baseActualPrice,
-      Actual_Price: baseActualPrice,
-      discountPercent: discNum,
-      Discount_Percentage: discNum,
-      discountPercentage: discNum,
-      discountPrice: calculateDiscountedPrice(baseActualPrice, discNum),
-      Discounted_Price: calculateDiscountedPrice(baseActualPrice, discNum),
-      stock: totalCalculatedStock,
-      Stock: totalCalculatedStock,
-      threshold: 10,
-      Threshold: 10,
-      brand: form.brand.trim() || "Mellosoft",
-      material: form.material.trim() || undefined,
-      specs: form.specs.trim() || undefined,
-      specifications: form.specs.trim() || undefined,
       rating: Number(form.rating) || 5.0,
-      sizeOptions: form.sizes,
-      availableSizes: form.sizes,
-      sizes: form.sizes,
-      firmnessOptions: form.firmness,
-      availableFirmness: form.firmness,
-      firmness: form.firmness,
+      discountPercent: Number(form.discountPercent) || 0,
+      price: lowestPrice,
+      Actual_Price: lowestPrice,
+      startingPrice: lowestPrice,
+      thicknessOptions: form.variantsList,
+      firmnessOptions: form.variantsList,
+      sizeOptions: activeBedCategories,
+      bedSizes: form.bedSizes,
+      variantsList: form.variantsList,
+      prices: form.matrixPrices,
+      variants: formattedVariants,
       images: form.images.length > 0 ? form.images : ["/asset/img1.jpg"],
-      features: form.features.filter((f) => f.trim() !== ""),
-      keyFeatures: form.features.filter((f) => f.trim() !== ""),
-      variants: processedVariants,
+      features: form.features.filter((f) => f.trim() !== "")
     };
 
     addProduct(newProduct);
-    setForm(buildInitialForm());
-    setToast({ msg: `Product "${newProduct.name}" created successfully!` });
 
-    setTimeout(() => {
-      setToast(null);
-      navigateTo("products");
-    }, 1200);
+    if (returnToNewArrivals) {
+      if (addProductsToNewArrivals) addProductsToNewArrivals([newProduct.id]);
+      if (setReturnToNewArrivals) setReturnToNewArrivals(false);
+      if (setContentActiveTab) setContentActiveTab("new-arrivals");
+      setToast({ msg: `Product "${newProduct.name}" created and added to New Arrivals!` });
+      setTimeout(() => {
+        setToast(null);
+        navigateTo("content", "new-arrivals");
+      }, 1200);
+    } else if (returnToBestSellers) {
+      if (addProductsToBestSellers) addProductsToBestSellers([newProduct.id]);
+      if (setReturnToBestSellers) setReturnToBestSellers(false);
+      if (setContentActiveTab) setContentActiveTab("best-sellers");
+      setToast({ msg: `Product "${newProduct.name}" created and added to Best Sellers!` });
+      setTimeout(() => {
+        setToast(null);
+        navigateTo("content", "best-sellers");
+      }, 1200);
+    } else {
+      setToast({ msg: `Product "${newProduct.name}" created successfully!` });
+      setTimeout(() => {
+        setToast(null);
+        navigateTo("products");
+      }, 1200);
+    }
   };
 
   return (
     <div className="admin-fade-in">
-      {/* Toast */}
       {toast && (
-        <div style={{
-          position: "fixed", top: "80px", right: "24px", zIndex: 2000,
-          backgroundColor: "#16A34A", color: "#FFF", padding: "12px 20px",
-          borderRadius: "10px", fontWeight: 600, fontSize: "14px",
-          boxShadow: "0 4px 20px rgba(0,0,0,0.15)", animation: "adminFadeIn 0.25s ease",
-        }}>
+        <div style={toastStyle}>
           {toast.msg}
         </div>
       )}
 
       <form onSubmit={handleSubmit}>
-        <div className="admin-add-product-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
-
-          {/* ── LEFT COLUMN: Basic Information & Available Variants & Options ── */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-
-            {/* Basic Information */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+          
+          {/* BASIC INFORMATION & DETAILS */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }} className="admin-add-product-grid">
             <div style={cardStyle}>
               <h4 style={cardTitleStyle}>Basic Information</h4>
 
-              {/* Product ID – auto generated */}
               <div style={fieldGroup}>
                 <label style={labelStyle}>Product ID <span style={{ color: "#9CA3AF", fontWeight: 400 }}>(auto-generated)</span></label>
                 <input
@@ -322,13 +266,13 @@ export default function AddProductView() {
 
               <div style={fieldGroup}>
                 <label style={labelStyle}>Product Name *</label>
-                <input value={form.name} onChange={(e) => update("name", e.target.value)} style={inputStyle} placeholder="Enter product name" required />
+                <input value={form.name} onChange={(e) => update("name", e.target.value)} style={inputStyle} placeholder="Enter product name (e.g. Bloom Ortho Mattress)" required />
                 {errors.name && <span style={errStyle}>{errors.name}</span>}
               </div>
 
               <div style={fieldGroup}>
                 <label style={labelStyle}>Tagline / Subtitle</label>
-                <input value={form.tagline} onChange={(e) => update("tagline", e.target.value)} style={inputStyle} placeholder="Enter tagline" />
+                <input value={form.tagline} onChange={(e) => update("tagline", e.target.value)} style={inputStyle} placeholder="e.g. Fresh and rejuvenating" />
               </div>
 
               <div style={fieldGroup}>
@@ -336,8 +280,8 @@ export default function AddProductView() {
                 <textarea
                   value={form.description}
                   onChange={(e) => update("description", e.target.value)}
-                  rows={4}
-                  style={{ ...inputStyle, height: "auto", padding: "10px 14px", resize: "vertical", minHeight: "100px" }}
+                  rows={3}
+                  style={{ ...inputStyle, height: "auto", padding: "10px 14px", resize: "vertical" }}
                   placeholder="Describe the product features and benefits..."
                   required
                 />
@@ -357,372 +301,137 @@ export default function AddProductView() {
                       );
                     })}
                   </select>
-                  {errors.category && <span style={errStyle}>{errors.category}</span>}
                 </div>
                 <div style={fieldGroup}>
                   <label style={labelStyle}>Status *</label>
                   <select value={form.status} onChange={(e) => update("status", e.target.value)} style={inputStyle}>
-                    {statusOptions.map((s) => <option key={s} value={s}>{s}</option>)}
+                    {["Active", "Inactive", "Low Stock", "Out of Stock"].map((s) => <option key={s} value={s}>{s}</option>)}
                   </select>
-                  {errors.status && <span style={errStyle}>{errors.status}</span>}
                 </div>
               </div>
             </div>
 
-            {/* Available Variant & Option Selection */}
-            <div style={cardStyle}>
-              <h4 style={cardTitleStyle}>Available Variants & Options</h4>
-              <p style={{ fontSize: "13px", color: "#6B6B75", margin: 0 }}>
-                Select which sizes and firmness options are available for this product.
-              </p>
-              
-              {/* Available Sizes */}
-              <div style={fieldGroup}>
-                <label style={labelStyle}>Available Sizes *</label>
-                <div style={chipGroup}>
-                  {sizeOptions.map((s) => {
-                    const isSelected = form.sizes.includes(s);
-                    return (
-                      <button
-                        key={s}
-                        type="button"
-                        onClick={() => toggleSize(s)}
-                        style={{ ...chipBtnStyle, ...(isSelected ? chipActive : chipInactive) }}
-                      >
-                        {s}
-                      </button>
-                    );
-                  })}
-                </div>
-                {errors.sizes && <span style={errStyle}>{errors.sizes}</span>}
-              </div>
-
-              {/* Firmness Options */}
-              <div style={{ ...fieldGroup, marginTop: "8px" }}>
-                <label style={labelStyle}>Firmness Options *</label>
-                <div style={chipGroup}>
-                  {firmnessOptions.map((f) => {
-                    const isSelected = form.firmness.includes(f);
-                    return (
-                      <button
-                        key={f}
-                        type="button"
-                        onClick={() => toggleFirmness(f)}
-                        style={{ ...chipBtnStyle, ...(isSelected ? chipActive : chipInactive) }}
-                      >
-                        {f}
-                      </button>
-                    );
-                  })}
-                </div>
-                {errors.firmness && <span style={errStyle}>{errors.firmness}</span>}
-              </div>
-            </div>
-
-          </div>
-
-          {/* ── RIGHT COLUMN: Product Details, Images & Key Features ────────── */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-
-            {/* Product Details (Top-right) */}
-            <div style={cardStyle}>
-              <h4 style={cardTitleStyle}>Product Details</h4>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-                <div style={fieldGroup}>
-                  <label style={labelStyle}>Brand</label>
-                  <input value={form.brand} onChange={(e) => update("brand", e.target.value)} style={inputStyle} placeholder="e.g. Mellosoft" />
+            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+              <div style={cardStyle}>
+                <h4 style={cardTitleStyle}>Product Details & Specifications</h4>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                  <div style={fieldGroup}>
+                    <label style={labelStyle}>Brand</label>
+                    <input value={form.brand} onChange={(e) => update("brand", e.target.value)} style={inputStyle} placeholder="Mellosoft" />
+                  </div>
+                  <div style={fieldGroup}>
+                    <label style={labelStyle}>Material</label>
+                    <input value={form.material} onChange={(e) => update("material", e.target.value)} style={inputStyle} placeholder="SS + ORTHO" />
+                  </div>
                 </div>
                 <div style={fieldGroup}>
-                  <label style={labelStyle}>Material</label>
-                  <input value={form.material} onChange={(e) => update("material", e.target.value)} style={inputStyle} placeholder="e.g. Memory Foam, Organic Cotton" />
-                </div>
-              </div>
-              <div style={fieldGroup}>
-                <label style={labelStyle}>Specifications</label>
-                <textarea
-                  value={form.specs}
-                  onChange={(e) => update("specs", e.target.value)}
-                  rows={2}
-                  style={{ ...inputStyle, height: "auto", padding: "10px 14px", resize: "vertical" }}
-                  placeholder="Enter product specifications"
-                />
-              </div>
-            </div>
-
-            {/* Product Images Management */}
-            <div style={cardStyle}>
-              <h4 style={cardTitleStyle}>Product Images</h4>
-              {errors.images && <span style={errStyle}>{errors.images}</span>}
-
-              {/* Upload Dropzone */}
-              <div
-                style={{
-                  border: dragOver ? "2px dashed #1B1F8C" : "2px dashed #E7E7E2",
-                  borderRadius: "12px",
-                  padding: "28px 20px",
-                  textAlign: "center",
-                  backgroundColor: dragOver ? "#F7F8FF" : "#FAFAF7",
-                  cursor: "pointer",
-                  transition: "all 0.2s ease",
-                }}
-                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={(e) => e.target.files && addImages(e.target.files)}
-                  multiple
-                  accept="image/*"
-                  style={{ display: "none" }}
-                />
-                <Upload size={32} color="#9CA3AF" style={{ marginBottom: "8px" }} />
-                <p style={{ fontSize: "13px", fontWeight: 600, color: "#14151A", margin: "0 0 2px" }}>
-                  Drag and drop images here or click to browse
-                </p>
-                <p style={{ fontSize: "11px", color: "#6B6B75", margin: 0 }}>
-                  PNG, JPG, WEBP up to 5MB
-                </p>
-              </div>
-
-              {/* Thumbnail Gallery List */}
-              {form.images.length > 0 && (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))", gap: "10px", marginTop: "10px" }}>
-                  {form.images.map((img, i) => (
-                    <div key={i} style={{ position: "relative", width: "100%", aspectRatio: "1/1", borderRadius: "8px", overflow: "hidden", border: "1px solid #E7E7E2", backgroundColor: "#F7F7F2" }}>
-                      <img src={img} alt={`Product ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                      <button
-                        type="button"
-                        onClick={() => removeImage(i)}
-                        style={{
-                          position: "absolute", top: "4px", right: "4px", width: "22px", height: "22px",
-                          borderRadius: "50%", backgroundColor: "rgba(220, 38, 38, 0.9)", color: "#FFF",
-                          border: "none", display: "flex", alignItems: "center", justifyContent: "center",
-                          cursor: "pointer", boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
-                        }}
-                      >
-                        <X size={12} />
-                      </button>
-                      {i === 0 && (
-                        <span style={{ position: "absolute", bottom: "4px", left: "4px", fontSize: "9px", fontWeight: 700, backgroundColor: "#1B1F8C", color: "#FFF", padding: "1px 4px", borderRadius: "4px" }}>
-                          Main
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Key Features */}
-            <div style={cardStyle}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <h4 style={cardTitleStyle}>Key Features</h4>
-                <button type="button" onClick={addFeature} style={{ ...outlineBtnStyle, fontSize: "12px", height: "32px", padding: "0 12px" }}>
-                  <Plus size={13} /> Add Feature
-                </button>
-              </div>
-              {form.features.length === 0 && (
-                <p style={{ fontSize: "13px", color: "#9CA3AF" }}>No features added. Click "Add Feature" to add one.</p>
-              )}
-              {form.features.map((f, i) => (
-                <div key={i} style={{ display: "flex", gap: "8px", alignItems: "flex-start" }}>
+                  <label style={labelStyle}>Specifications</label>
                   <textarea
-                    value={f}
-                    onChange={(e) => updateFeature(i, e.target.value)}
+                    value={form.specs}
+                    onChange={(e) => update("specs", e.target.value)}
                     rows={2}
-                    style={{ ...inputStyle, height: "auto", padding: "10px 14px", resize: "vertical", flex: 1 }}
-                    placeholder="Describe a key product feature..."
+                    style={{ ...inputStyle, height: "auto", padding: "10px 14px", resize: "vertical" }}
+                    placeholder="Enter specifications..."
                   />
-                  <button type="button" onClick={() => removeFeature(i)} style={{ ...iconBtn, marginTop: "2px" }}>
-                    <X size={14} color="#DC2626" />
-                  </button>
                 </div>
-              ))}
+              </div>
+
+              {/* Product Images */}
+              <div style={cardStyle}>
+                <h4 style={cardTitleStyle}>Product Images</h4>
+                <div
+                  style={{
+                    border: dragOver ? "2px dashed #1B1F8C" : "2px dashed #E7E7E2",
+                    borderRadius: "12px",
+                    padding: "20px",
+                    textAlign: "center",
+                    backgroundColor: dragOver ? "#F7F8FF" : "#FAFAF7",
+                    cursor: "pointer"
+                  }}
+                  onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={handleDrop}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={(e) => e.target.files && addImages(e.target.files)}
+                    multiple
+                    accept="image/*"
+                    style={{ display: "none" }}
+                  />
+                  <Upload size={24} color="#9CA3AF" style={{ marginBottom: "6px" }} />
+                  <p style={{ fontSize: "13px", fontWeight: 600, color: "#14151A", margin: 0 }}>
+                    Click or drag images to upload
+                  </p>
+                </div>
+
+                {form.images.length > 0 && (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(70px, 1fr))", gap: "8px", marginTop: "10px" }}>
+                    {form.images.map((img, i) => (
+                      <div key={i} style={{ position: "relative", width: "100%", aspectRatio: "1/1", borderRadius: "8px", overflow: "hidden", border: "1px solid #E7E7E2" }}>
+                        <img src={img} alt={`Img ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        <button
+                          type="button"
+                          onClick={() => removeImage(i)}
+                          style={removeImgBtnStyle}
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-
           </div>
-        </div>
 
-        {/* ── FULL WIDTH: Price & Stock Management ──────────────────────── */}
-        <div style={{ marginTop: "24px", display: "flex", flexDirection: "column", gap: "20px" }}>
-
-          {/* Validation Banner for Price/Stock */}
-          {(errors.variantPrice || errors.variantStock || errors.variantThreshold || errors.discountPercent) && (
-            <div style={{ backgroundColor: "#FEE2E2", border: "1px solid #FCA5A5", color: "#DC2626", padding: "12px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: 600 }}>
-              {errors.variantPrice || errors.variantStock || errors.variantThreshold || errors.discountPercent}
+          {/* ── MATRIX PRICING & SIZES & VARIANTS MANAGER ────────────────────── */}
+          {errors.variants && (
+            <div style={errorBannerStyle}>
+              {errors.variants}
             </div>
           )}
 
-          {/* Product Discount Card */}
-          <div style={cardStyle}>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <Percent size={18} color="#16A34A" />
-              <h4 style={cardTitleStyle}>Product Discount</h4>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxWidth: "260px" }}>
-              <label style={labelStyle}>Discount Percentage (%)</label>
-              <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                <input
-                  type="number"
-                  value={form.discountPercent}
-                  onChange={(e) => update("discountPercent", e.target.value)}
-                  style={{ ...inputStyle, paddingRight: "32px", fontWeight: 700, color: "#14151A" }}
-                  min="0"
-                  max="100"
-                  step="1"
-                  required
-                />
-                <span style={{ position: "absolute", right: "12px", fontSize: "14px", fontWeight: 700, color: "#6B6B75", pointerEvents: "none" }}>
-                  %
-                </span>
-              </div>
-              <span style={{ fontSize: "11px", color: "#6B6B75" }}>
-                Applies to all size + firmness variants (0% – 100%)
-              </span>
-            </div>
+          <MatrixPricingManager
+            bedSizes={form.bedSizes}
+            onBedSizesChange={(updatedSizes) => update("bedSizes", updatedSizes)}
+            variants={form.variantsList}
+            onVariantsChange={(updatedVariants) => update("variantsList", updatedVariants)}
+            prices={form.matrixPrices}
+            onPricesChange={(updatedPrices) => update("matrixPrices", updatedPrices)}
+            categoryName={form.name || form.category || "ORTHO MATTRESS"}
+          />
+
+          {/* BUTTONS */}
+          <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", marginTop: "16px" }}>
+            <button
+              type="button"
+              onClick={() => navigateTo("products")}
+              style={cancelBtnStyle}
+            >
+              <ChevronLeft size={16} /> Cancel
+            </button>
+            <button type="submit" style={saveBtnStyle}>
+              <Save size={16} /> Save & Create Product
+            </button>
           </div>
 
-          {/* Variant Price & Stock Management Table Card */}
-          <div style={cardStyle}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <h4 style={cardTitleStyle}>
-                <Tag size={18} style={{ marginRight: "8px", verticalAlign: "middle", color: "#1B1F8C" }} />
-                Variant Price & Stock Management
-              </h4>
-              <span style={{ fontSize: "12px", color: "#6B6B75", fontWeight: 600, backgroundColor: "#F0F0EC", padding: "4px 10px", borderRadius: "999px" }}>
-                {form.variants.length} Variant Combinations
-              </span>
-            </div>
-
-            {form.variants.length === 0 ? (
-              <p style={{ fontSize: "13px", color: "#9CA3AF" }}>
-                No active sizes or firmness options selected. Select available size and firmness options above.
-              </p>
-            ) : (
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
-                  <thead>
-                    <tr style={{ backgroundColor: "#FAFAF7", borderBottom: "1px solid #E7E7E2" }}>
-                      <th style={thStyle}>Size</th>
-                      <th style={thStyle}>Firmness</th>
-                      <th style={thStyle}>Price (₹)</th>
-                      <th style={thStyle}>Discount Price (₹)</th>
-                      <th style={thStyle}>Stock</th>
-                      <th style={thStyle}>Threshold</th>
-                      <th style={thStyle}>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {form.variants.map((v) => {
-                      const sizeName = v.Size || v.size;
-                      const firmnessName = v.Firmness || v.firmness;
-                      const priceVal = v.Actual_Price;
-                      const discPrice = priceVal === "" ? "" : calculateDiscountedPrice(Number(priceVal), Number(form.discountPercent) || 0);
-
-                      return (
-                        <tr key={`${sizeName}__${firmnessName}`} style={{ borderBottom: "1px solid #F0F0EC" }}>
-                          <td style={{ padding: "8px 10px", fontWeight: 700, color: "#14151A" }}>{sizeName}</td>
-                          <td style={{ padding: "8px 10px", color: "#4B5563" }}>{firmnessName}</td>
-                          <td style={{ padding: "8px 10px", width: "120px" }}>
-                            <input
-                              type="number"
-                              value={priceVal}
-                              onChange={(e) => updateVariant(sizeName, firmnessName, "Actual_Price", e.target.value)}
-                              style={{ ...inputStyle, height: "36px", padding: "0 10px", fontWeight: 700, color: "#14151A" }}
-                              placeholder="Enter price"
-                              min="0"
-                              required
-                            />
-                          </td>
-                          <td style={{ padding: "8px 10px", width: "140px", fontWeight: 700, color: "#16A34A", fontSize: "14px" }}>
-                            {formatPrice(discPrice)}
-                          </td>
-                          <td style={{ padding: "8px 10px", width: "90px" }}>
-                            <input
-                              type="number"
-                              value={v.Stock}
-                              onChange={(e) => updateVariant(sizeName, firmnessName, "Stock", e.target.value)}
-                              style={{ ...inputStyle, height: "36px", padding: "0 8px" }}
-                              placeholder="Enter stock"
-                              min="0"
-                              required
-                            />
-                          </td>
-                          <td style={{ padding: "8px 10px", width: "80px" }}>
-                            <input
-                              type="number"
-                              value={v.Threshold}
-                              onChange={(e) => updateVariant(sizeName, firmnessName, "Threshold", e.target.value)}
-                              style={{ ...inputStyle, height: "36px", padding: "0 8px" }}
-                              placeholder="Enter threshold"
-                              min="0"
-                              required
-                            />
-                          </td>
-                          <td style={{ padding: "8px 10px", width: "120px" }}>
-                            <select
-                              value={v.Status || "Active"}
-                              onChange={(e) => updateVariant(sizeName, firmnessName, "Status", e.target.value)}
-                              style={{ ...inputStyle, height: "36px", padding: "0 6px", fontSize: "12px" }}
-                            >
-                              {statusOptions.map((s) => (
-                                <option key={s} value={s}>{s}</option>
-                              ))}
-                            </select>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Buttons */}
-        <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", marginTop: "24px" }}>
-          <button
-            type="button"
-            onClick={() => navigateTo("products")}
-            style={cancelBtnStyle}
-          >
-            <ChevronLeft size={16} /> Cancel
-          </button>
-          <button type="submit" className="admin-btn-hover" style={saveBtnStyle}>
-            <Save size={16} /> Add Product
-          </button>
         </div>
       </form>
-
-      {/* Responsive */}
-      <style>{`
-        @media (max-width: 768px) {
-          .admin-add-product-grid {
-            grid-template-columns: 1fr !important;
-          }
-        }
-      `}</style>
     </div>
   );
 }
 
-// ── Styles ─────────────────────────────────────────────────────────────
 const cardStyle = { backgroundColor: "#FFFFFF", borderRadius: "12px", border: "1px solid #E7E7E2", padding: "20px", display: "flex", flexDirection: "column", gap: "16px" };
 const cardTitleStyle = { fontSize: "16px", fontWeight: 700, color: "#14151A", margin: 0 };
 const fieldGroup = { display: "flex", flexDirection: "column", gap: "6px" };
 const labelStyle = { fontSize: "13px", fontWeight: 600, color: "#6B6B75" };
-const inputStyle = { height: "42px", padding: "0 14px", border: "1px solid #E7E7E2", borderRadius: "10px", fontSize: "14px", color: "#14151A", backgroundColor: "#FFFFFF", fontFamily: "inherit", outline: "none", transition: "border-color 0.2s ease", width: "100%", boxSizing: "border-box", lineHeight: "1.5" };
+const inputStyle = { height: "42px", padding: "0 14px", border: "1px solid #E7E7E2", borderRadius: "10px", fontSize: "14px", color: "#14151A", backgroundColor: "#FFFFFF", outline: "none", width: "100%", boxSizing: "border-box" };
 const errStyle = { fontSize: "12px", color: "#DC2626", fontWeight: 500 };
-const chipGroup = { display: "flex", gap: "8px", flexWrap: "wrap" };
-const chipBtnStyle = { height: "36px", padding: "0 16px", border: "1px solid", borderRadius: "999px", fontSize: "13px", fontWeight: 500, cursor: "pointer", transition: "all 0.15s ease", fontFamily: "inherit" };
-const chipActive = { backgroundColor: "#1B1F8C", color: "#FFFFFF", borderColor: "#1B1F8C" };
-const chipInactive = { backgroundColor: "#FFFFFF", color: "#14151A", borderColor: "#E7E7E2" };
 const cancelBtnStyle = { height: "44px", padding: "0 24px", border: "1px solid #E7E7E2", borderRadius: "10px", backgroundColor: "#FFFFFF", color: "#14151A", fontSize: "14px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" };
 const saveBtnStyle = { height: "44px", padding: "0 28px", border: "none", borderRadius: "10px", backgroundColor: "#1B1F8C", color: "#FFFFFF", fontSize: "14px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: "8px" };
-const outlineBtnStyle = { display: "flex", alignItems: "center", gap: "4px", border: "1px solid #E7E7E2", borderRadius: "8px", backgroundColor: "#FFFFFF", color: "#14151A", cursor: "pointer", fontFamily: "inherit", fontWeight: 600 };
-const iconBtn = { width: "32px", height: "32px", border: "1px solid #FEE2E2", borderRadius: "8px", backgroundColor: "#FFF5F5", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 };
-const thStyle = { textAlign: "left", padding: "8px 10px", fontSize: "11px", fontWeight: 700, color: "#6B6B75", textTransform: "uppercase", letterSpacing: "0.05em" };
+const removeImgBtnStyle = { position: "absolute", top: "4px", right: "4px", width: "20px", height: "20px", borderRadius: "50%", backgroundColor: "rgba(220, 38, 38, 0.9)", color: "#FFF", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" };
+const toastStyle = { position: "fixed", top: "80px", right: "24px", zIndex: 2000, backgroundColor: "#16A34A", color: "#FFF", padding: "12px 20px", borderRadius: "10px", fontWeight: 600, fontSize: "14px", boxShadow: "0 4px 20px rgba(0,0,0,0.15)" };
+const errorBannerStyle = { backgroundColor: "#FEE2E2", border: "1px solid #FCA5A5", color: "#DC2626", padding: "12px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: 600 };

@@ -128,7 +128,9 @@ export default function PaymentView() {
         tax: tax,
         shipping: shipping,
         totalAmount: finalTotal,
-        createdAt: new Date().toISOString().split("T")[0]
+        createdAt: new Date().toISOString().split("T")[0],
+        expectedDeliveryStart: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+        expectedDeliveryEnd: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
       };
 
       placeOrder(newOrder);

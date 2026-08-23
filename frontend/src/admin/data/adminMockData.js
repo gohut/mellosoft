@@ -497,13 +497,13 @@ export const MOCK_CARTS = [
 
 // Mock reviews for moderation
 export const MOCK_REVIEWS = [
-  { id: "RV001", customerId: "C001", customer: "Helen M.", customerName: "Helen M.", productId: "classic-mattress", product: "Mellosoft Classic Mattress", productName: "Mellosoft Classic Mattress", rating: 5, review: "Excellent mattress! It conforms to the body and turns very sharply on the comfort. Best sleep I've had in years.", comment: "Excellent mattress! It conforms to the body and turns very sharply on the comfort. Best sleep I've had in years.", date: "2026-08-01", status: "Approved" },
-  { id: "RV002", customerId: "C002", customer: "Michael F.", customerName: "Michael F.", productId: "luxe-hybrid", product: "Mellosoft Luxe Hybrid", productName: "Mellosoft Luxe Hybrid", rating: 5, review: "This hybrid is outstanding. The pocket coils give it a nice bounce while the foam top cradles your body.", comment: "This hybrid is outstanding. The pocket coils give it a nice bounce while the foam top cradles your body.", date: "2026-07-31", status: "Approved" },
-  { id: "RV003", customerId: "C003", customer: "Diana C.", customerName: "Diana C.", productId: "latex-serene", product: "Mellosoft Latex Serene", productName: "Mellosoft Latex Serene", rating: 5, review: "I wanted a chemical-free mattress and this is perfect. It smells like sweet natural wool.", comment: "I wanted a chemical-free mattress and this is perfect. It smells like sweet natural wool.", date: "2026-07-30", status: "Pending" },
-  { id: "RV004", customerId: "C004", customer: "Gregory P.", customerName: "Gregory P.", productId: "ortho-support", product: "Mellosoft Ortho Support", productName: "Mellosoft Ortho Support", rating: 5, review: "Finally, a mattress that is actually firm. My chiropractor recommended it and it has drastically reduced my back aches.", comment: "Finally, a mattress that is actually firm. My chiropractor recommended it and it has drastically reduced my back aches.", date: "2026-07-29", status: "Approved" },
-  { id: "RV005", customerId: "C005", customer: "Laura W.", customerName: "Laura W.", productId: "ergo-air", product: "Mellosoft Ergo Air", productName: "Mellosoft Ergo Air", rating: 5, review: "This mattress is insanely comfortable. Like a soft hug but still supports you.", comment: "This mattress is insanely comfortable. Like a soft hug but still supports you.", date: "2026-07-28", status: "Pending" },
-  { id: "RV006", customerId: "C006", customer: "Tyler F.", customerName: "Tyler F.", productId: "organic-protector", product: "Organic Mattress Protector", productName: "Organic Mattress Protector", rating: 5, review: "Saved our new mattress from a coffee spill on day three. Totally waterproof. Lifesaver.", comment: "Saved our new mattress from a coffee spill on day three. Totally waterproof. Lifesaver.", date: "2026-07-27", status: "Approved" },
-  { id: "RV007", customerId: "C007", customer: "Anonymous", customerName: "Anonymous", productId: "classic-mattress", product: "Mellosoft Classic Mattress", productName: "Mellosoft Classic Mattress", rating: 1, review: "Very bad quality. Do not buy.", comment: "Very bad quality. Do not buy.", date: "2026-07-26", status: "Rejected" },
+  { id: "RV001", customerId: "C001", customer: "Helen M.", customerName: "Helen M.", productId: "classic-mattress", product: "Mellosoft Classic Mattress", productName: "Mellosoft Classic Mattress", rating: 5, review: "Excellent mattress! It conforms to the body and turns very sharply on the comfort. Best sleep I've had in years.", comment: "Excellent mattress! It conforms to the body and turns very sharply on the comfort. Best sleep I've had in years.", date: "2026-08-01", status: "Approved", showOnHome: true },
+  { id: "RV002", customerId: "C002", customer: "Michael F.", customerName: "Michael F.", productId: "luxe-hybrid", product: "Mellosoft Luxe Hybrid", productName: "Mellosoft Luxe Hybrid", rating: 5, review: "This hybrid is outstanding. The pocket coils give it a nice bounce while the foam top cradles your body.", comment: "This hybrid is outstanding. The pocket coils give it a nice bounce while the foam top cradles your body.", date: "2026-07-31", status: "Approved", showOnHome: true },
+  { id: "RV003", customerId: "C003", customer: "Diana C.", customerName: "Diana C.", productId: "latex-serene", product: "Mellosoft Latex Serene", productName: "Mellosoft Latex Serene", rating: 5, review: "I wanted a chemical-free mattress and this is perfect. It smells like sweet natural wool.", comment: "I wanted a chemical-free mattress and this is perfect. It smells like sweet natural wool.", date: "2026-07-30", status: "Pending", showOnHome: false },
+  { id: "RV004", customerId: "C004", customer: "Gregory P.", customerName: "Gregory P.", productId: "ortho-support", product: "Mellosoft Ortho Support", productName: "Mellosoft Ortho Support", rating: 5, review: "Finally, a mattress that is actually firm. My chiropractor recommended it and it has drastically reduced my back aches.", comment: "Finally, a mattress that is actually firm. My chiropractor recommended it and it has drastically reduced my back aches.", date: "2026-07-29", status: "Approved", showOnHome: true },
+  { id: "RV005", customerId: "C005", customer: "Laura W.", customerName: "Laura W.", productId: "ergo-air", product: "Mellosoft Ergo Air", productName: "Mellosoft Ergo Air", rating: 5, review: "This mattress is insanely comfortable. Like a soft hug but still supports you.", comment: "This mattress is insanely comfortable. Like a soft hug but still supports you.", date: "2026-07-28", status: "Pending", showOnHome: false },
+  { id: "RV006", customerId: "C006", customer: "Tyler F.", customerName: "Tyler F.", productId: "organic-protector", product: "Organic Mattress Protector", productName: "Organic Mattress Protector", rating: 5, review: "Saved our new mattress from a coffee spill on day three. Totally waterproof. Lifesaver.", comment: "Saved our new mattress from a coffee spill on day three. Totally waterproof. Lifesaver.", date: "2026-07-27", status: "Approved", showOnHome: true },
+  { id: "RV007", customerId: "C007", customer: "Anonymous", customerName: "Anonymous", productId: "classic-mattress", product: "Mellosoft Classic Mattress", productName: "Mellosoft Classic Mattress", rating: 1, review: "Very bad quality. Do not buy.", comment: "Very bad quality. Do not buy.", date: "2026-07-26", status: "Rejected", showOnHome: false },
 ];
 
 // Mock coupons
@@ -549,14 +549,16 @@ export const RECENT_ACTIVITY = [
   { id: 7, type: "order", text: "Sneha Reddy's order #MS-92838 delivered", time: "1 day ago" },
 ];
 
-// Mock promotional banners
+// Mock promotional banners & hero slides
 export const MOCK_BANNERS = [
+  // Hero Slides (type: "Offer")
   {
-    id: "banner-001",
-    title: "Enjoy 60% savings",
+    id: "hero-001",
+    productId: "classic-mattress",
+    title: "Mellosoft Classic Mattress",
     type: "Offer",
     image: "/asset/img2.jpg",
-    subtitle: "Limited mattress event",
+    subtitle: "Enjoy 60% savings",
     description: "Handcrafted memory foam & hybrid mattresses at up to 60% off.",
     ctaText: "Shop Now",
     ctaLink: "mattress",
@@ -564,7 +566,60 @@ export const MOCK_BANNERS = [
     displayOrder: 1
   },
   {
-    id: "banner-002",
+    id: "hero-002",
+    productId: "luxe-hybrid",
+    title: "Mellosoft Luxe Hybrid",
+    type: "Offer",
+    image: "/asset/img1.jpg",
+    subtitle: "Luxe Hybrid Comfort",
+    description: "Pocket coil bounce meets pressure-relieving memory foam layer.",
+    ctaText: "Shop Now",
+    ctaLink: "mattress",
+    isActive: true,
+    displayOrder: 2
+  },
+  {
+    id: "hero-003",
+    productId: "ortho-support",
+    title: "Mellosoft Ortho Support",
+    type: "Offer",
+    image: "/asset/img2.jpg",
+    subtitle: "Spinal Alignment Care",
+    description: "Extra firm orthopedic support for healthy spinal posture.",
+    ctaText: "Shop Now",
+    ctaLink: "mattress",
+    isActive: true,
+    displayOrder: 3
+  },
+  {
+    id: "hero-004",
+    productId: "ergo-air",
+    title: "Mellosoft Ergo Air",
+    type: "Offer",
+    image: "/asset/img1.jpg",
+    subtitle: "Breathable Airflow Tech",
+    description: "Advanced cooling gel foam with ergonomic body contours.",
+    ctaText: "Shop Now",
+    ctaLink: "mattress",
+    isActive: true,
+    displayOrder: 4
+  },
+
+  // 3 Homepage Promo Banners (type: "Promotion")
+  {
+    id: "promo-001",
+    title: "Classic Comfort",
+    type: "Promotion",
+    image: "/asset/img2.jpg",
+    subtitle: "Limited Mattress Event",
+    description: "Handcrafted memory foam & hybrid mattresses at up to 60% off.",
+    ctaText: "Shop Now",
+    ctaLink: "mattress",
+    isActive: true,
+    displayOrder: 1
+  },
+  {
+    id: "promo-002",
     title: "Get 30% off essentials",
     type: "Promotion",
     image: "/asset/pillow.png",
@@ -576,9 +631,9 @@ export const MOCK_BANNERS = [
     displayOrder: 2
   },
   {
-    id: "banner-003",
+    id: "promo-003",
     title: "Free assembly included",
-    type: "New Arrival",
+    type: "Promotion",
     image: "/asset/bedframe.png",
     subtitle: "New bed frame collection",
     description: "Handcrafted platform frames made from solid sustainable oak.",
@@ -588,3 +643,4 @@ export const MOCK_BANNERS = [
     displayOrder: 3
   }
 ];
+

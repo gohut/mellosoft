@@ -13,7 +13,11 @@ export default function ProductPage({ params }) {
 
   useEffect(() => {
     if (resolvedParams?.productId) {
-      setSelectedProductId(resolvedParams.productId);
+      let targetId = resolvedParams.productId;
+      try {
+        targetId = decodeURIComponent(targetId).trim();
+      } catch (e) {}
+      setSelectedProductId(targetId);
       setView("detail");
     }
   }, [resolvedParams, setSelectedProductId, setView]);

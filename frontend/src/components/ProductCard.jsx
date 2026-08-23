@@ -1,15 +1,19 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useStore } from "../context/StoreContext";
-import { formatPrice, calculateDiscountedPrice } from "../utils/currency";
+import { formatPrice } from "../utils/currency";
+import { CATEGORY_FALLBACK_IMAGES } from "../data/mattressData";
 
 export default function ProductCard({ product, variant }) {
   const { wishlist, toggleWishlist, navigateTo } = useStore();
   const isWishlisted = wishlist.includes(product.id);
-  const specHighlights = getSpecHighlights(product.specs);
-  const optionSummary = getOptionSummary(product);
-  const primaryFeature = product.features?.[0];
+  const [imgSrc, setImgSrc] = useState(
+    product.images?.[0] || product.image || CATEGORY_FALLBACK_IMAGES[product.category] || "/images/mattresses/fallback/foam.svg"
+  );
+  const [isHovered, setIsHovered] = useState(false);
+
+  const isPriced = (product.startingPrice && product.startingPrice > 0) || (product.price && product.price > 0);
 
   const handleWishlistClick = (event) => {
     event.stopPropagation();
@@ -17,26 +21,58 @@ export default function ProductCard({ product, variant }) {
     toggleWishlist(product.id);
   };
 
-  const isBestSeller = variant === "bestSeller";
+  const handleImageError = () => {
+    const fallback = CATEGORY_FALLBACK_IMAGES[product.category] || "/images/mattresses/fallback/foam.svg";
+    if (imgSrc !== fallback) {
+      setImgSrc(fallback);
+    }
+  };
+
+  const thicknessStr = product.thicknessOptions ? product.thicknessOptions.join(" / ") : "Standard";
+
+  const handleCardClick = () => {
+    const targetId = product.slug || product.id;
+    navigateTo("detail", targetId);
+    if (typeof window !== "undefined") {
+      window.history.pushState(null, "", `/product/${targetId}`);
+    }
+  };
 
   return (
     <article
-      onClick={() => navigateTo("detail", product.id)}
-      style={isBestSeller ? bestSellerCardStyle : cardStyle}
-      className={isBestSeller ? "product-card best-seller-card" : "product-card"}
+      onClick={handleCardClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      style={{
+        ...cardStyle,
+        transform: isHovered ? "translateY(-4px) scale(1.015)" : "none",
+        boxShadow: isHovered ? "0 12px 28px rgba(0, 0, 0, 0.12)" : "0 2px 10px rgba(0,0,0,0.04)"
+      }}
+      className="product-card"
     >
-      <div style={isBestSeller ? bestSellerImageWrapperStyle : imageWrapperStyle}>
-        <img src={product.images[0]} alt={product.name} style={imageStyle} />
-        {product.badge && (
-          <span style={isBestSeller ? bestSellerBadgeStyle : badgeStyle} className="pc-badge">
-            {product.badge}
-          </span>
-        )}
+      {/* IMAGE WRAPPER */}
+      <div style={imageWrapperStyle}>
+        <img
+          src={imgSrc}
+          alt={`Mellosoft ${product.name} ${product.categoryName || product.category} mattress`}
+          onError={handleImageError}
+          loading="lazy"
+          style={{
+            ...imageStyle,
+            transform: isHovered ? "scale(1.05)" : "scale(1)"
+          }}
+        />
 
+        {/* CATEGORY BADGE */}
+        <span style={badgeStyle}>
+          {product.categoryName || product.category.toUpperCase()}
+        </span>
+
+        {/* WISHLIST BUTTON */}
         <button
+          type="button"
           onClick={handleWishlistClick}
-          style={isBestSeller ? bestSellerWishlistBtnStyle : wishlistBtnStyle}
-          className="pc-wishlist-btn"
+          style={wishlistBtnStyle}
           aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
         >
           <svg
@@ -45,7 +81,7 @@ export default function ProductCard({ product, variant }) {
             viewBox="0 0 24 24"
             fill={isWishlisted ? "#16A34A" : "none"}
             stroke={isWishlisted ? "#16A34A" : "#1B1F8C"}
-            strokeWidth="2"
+            strokeWidth="2.2"
             strokeLinecap="round"
             strokeLinejoin="round"
           >
@@ -54,271 +90,106 @@ export default function ProductCard({ product, variant }) {
         </button>
       </div>
 
-      <div style={isBestSeller ? bestSellerInfoWrapperStyle : infoWrapperStyle} className="pc-info">
-        <div style={isBestSeller ? bestSellerTitleBlockStyle : titleBlockStyle}>
-          {product.category && (
-            <span style={isBestSeller ? bestSellerCategoryStyle : categoryStyle} className="pc-category">
-              {product.category}
-            </span>
-          )}
-          <h4 style={isBestSeller ? bestSellerTitleStyle : titleStyle}>{product.name}</h4>
-          {product.tagline && <p style={taglineStyle} className="pc-tagline">{product.tagline}</p>}
+      {/* CONTENT INFO */}
+      <div style={infoWrapperStyle}>
+        <div style={titleBlockStyle}>
+          <span style={categoryTagStyle}>{product.categoryName || product.category}</span>
+          <h4 style={titleStyle}>{product.name}</h4>
+          {product.tagline && <p style={taglineStyle}>"{product.tagline}"</p>}
         </div>
 
-        {specHighlights.length > 0 && (
-          <div style={specGridStyle} className="pc-spec-grid">
-            {specHighlights.map((spec) => (
-              <span key={spec} style={isBestSeller ? bestSellerSpecChipStyle : specChipStyle} className="pc-spec-chip">
-                {spec}
-              </span>
-            ))}
+        {/* CONSTRUCTION SPEC */}
+        {product.construction && (
+          <div style={constructionBadgeStyle}>
+            <span style={{ fontSize: "10px", fontWeight: 800, color: "#1B1F8C" }}>
+              {product.construction}
+            </span>
           </div>
         )}
 
-        {primaryFeature && <p style={featureStyle} className="pc-feature">{primaryFeature}</p>}
-
-        <div style={detailsRowStyle} className="pc-details-row">
-          <span style={isBestSeller ? bestSellerDetailPillStyle : detailPillStyle} className="pc-detail-pill">
-            {optionSummary.sizes}
-          </span>
-          <span style={isBestSeller ? bestSellerDetailPillStyle : detailPillStyle} className="pc-detail-pill">
-            {optionSummary.firmness}
+        {/* THICKNESS PILL */}
+        <div style={thicknessRowStyle}>
+          <span style={thicknessPillStyle}>
+            Thickness: {thicknessStr}
           </span>
         </div>
 
-        <div style={isBestSeller ? bestSellerMetaRowStyle : metaRowStyle}>
-          <span style={isBestSeller ? bestSellerPriceStyle : priceStyle} className="pc-price">
-            {formatPrice(product.price)}
-          </span>
-          <span style={compactRatingStyle} className="pc-rating">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="#16A34A" stroke="#16A34A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-            </svg>
-            {product.rating.toFixed(1)}
-          </span>
+        {/* PRICE / CONTACT FOR PRICE ROW */}
+        <div style={metaRowStyle}>
+          {isPriced ? (
+            <div>
+              <span style={priceLabelStyle}>Starting from</span>
+              <div style={priceValueStyle}>
+                {formatPrice(product.startingPrice || product.price)}
+              </div>
+            </div>
+          ) : (
+            <div>
+              <span style={priceLabelStyle}>Pricing</span>
+              <div style={contactPriceValueStyle}>Contact for Price</div>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!isPriced) {
+                // Navigate to contact with prefilled info
+                const params = new URLSearchParams({
+                  product: product.name,
+                  category: product.categoryName || product.category,
+                  construction: product.construction || "",
+                  thickness: product.thicknessOptions?.[0] || ""
+                });
+                window.location.href = `/contact?${params.toString()}`;
+              } else {
+                navigateTo("detail", product.id);
+              }
+            }}
+            style={isPriced ? viewDetailsBtnStyle : enquireBtnStyle}
+          >
+            {isPriced ? "VIEW DETAILS" : "ENQUIRE NOW"}
+          </button>
         </div>
       </div>
     </article>
   );
 }
 
-function getSpecHighlights(specs) {
-  if (!specs) return [];
-  return specs
-    .split(/\s*(?:•|â€¢)\s*/)
-    .map((spec) => spec.trim())
-    .filter(Boolean)
-    .slice(0, 3);
-}
-
-function getOptionSummary(product) {
-  const sizeCount = product.sizeOptions?.length || 0;
-  const firmnessCount = product.firmnessOptions?.length || 0;
-  return {
-    sizes: sizeCount > 1 ? `${sizeCount} sizes` : product.sizeOptions?.[0] || "Standard size",
-    firmness: firmnessCount > 1 ? `${firmnessCount} feels` : product.firmnessOptions?.[0] || "Standard feel"
-  };
-}
-
-/* Default standard card styles (used across catalog, search, etc.) */
+// ─── CARD STYLES ─────────────────────────────────────────────────────────────
 const cardStyle = {
   backgroundColor: "#FFFFFF",
-  borderRadius: 0,
+  borderRadius: "16px",
+  border: "1px solid #E7E7E2",
   overflow: "hidden",
   cursor: "pointer",
   display: "flex",
   flexDirection: "column",
   height: "100%",
-  transition: "all 0.25s ease"
+  transition: "transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1)"
 };
 
 const imageWrapperStyle = {
   position: "relative",
   width: "100%",
-  aspectRatio: "1 / 0.82",
-  backgroundColor: "#F3F3F0",
+  aspectRatio: "1 / 0.75",
+  backgroundColor: "#FAFAFA",
   overflow: "hidden"
-};
-
-const badgeStyle = {
-  position: "absolute",
-  top: "10px",
-  left: "10px",
-  maxWidth: "calc(100% - 56px)",
-  backgroundColor: "rgba(27, 31, 140, 0.9)",
-  color: "#FFFFFF",
-  borderRadius: "999px",
-  padding: "5px 9px",
-  fontSize: "10px",
-  fontWeight: "800",
-  textTransform: "uppercase",
-  letterSpacing: "0.04em",
-  whiteSpace: "nowrap",
-  overflow: "hidden",
-  textOverflow: "ellipsis"
 };
 
 const imageStyle = {
   width: "100%",
   height: "100%",
   objectFit: "cover",
-  display: "block"
+  display: "block",
+  transition: "transform 0.35s ease"
 };
 
-const wishlistBtnStyle = {
-  position: "absolute",
-  top: "10px",
-  right: "10px",
-  width: "30px",
-  height: "30px",
-  borderRadius: "50%",
-  backgroundColor: "#FFFFFF",
-  border: "none",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  cursor: "pointer",
-  boxShadow: "0 1px 4px rgba(20, 21, 26, 0.15)"
-};
-
-const infoWrapperStyle = {
-  padding: "12px 13px 13px",
-  display: "flex",
-  flexDirection: "column",
-  gap: "8px",
-  flex: 1
-};
-
-const titleBlockStyle = {
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "flex-start",
-  gap: "6px"
-};
-
-const titleStyle = {
-  fontSize: "14px",
-  fontWeight: "700",
-  color: "#1B1F8C",
-  lineHeight: "1.3"
-};
-
-const taglineStyle = {
-  fontSize: "12px",
-  color: "#6B6B75",
-  lineHeight: "1.45",
-  margin: 0,
-  display: "-webkit-box",
-  WebkitLineClamp: 2,
-  WebkitBoxOrient: "vertical",
-  overflow: "hidden"
-};
-
-const categoryStyle = {
-  fontSize: "10px",
-  fontWeight: "700",
-  color: "#6B6B75",
-  textTransform: "uppercase",
-  letterSpacing: "0.03em",
-  backgroundColor: "#F3F3F0",
-  padding: "2px 7px",
-  borderRadius: "999px"
-};
-
-const specGridStyle = {
-  display: "flex",
-  flexWrap: "wrap",
-  gap: "6px"
-};
-
-const specChipStyle = {
-  fontSize: "10px",
-  fontWeight: "700",
-  color: "#1B1F8C",
-  backgroundColor: "#F7F7F2",
-  border: "1px solid #E7E7E2",
-  borderRadius: "999px",
-  padding: "5px 8px",
-  lineHeight: 1.1
-};
-
-const featureStyle = {
-  fontSize: "11px",
-  color: "#14151A",
-  lineHeight: "1.45",
-  margin: 0,
-  display: "-webkit-box",
-  WebkitLineClamp: 2,
-  WebkitBoxOrient: "vertical",
-  overflow: "hidden"
-};
-
-const detailsRowStyle = {
-  display: "flex",
-  flexWrap: "wrap",
-  gap: "6px"
-};
-
-const detailPillStyle = {
-  fontSize: "10px",
-  fontWeight: "800",
-  color: "#16A34A",
-  backgroundColor: "rgba(22, 163, 74, 0.08)",
-  borderRadius: "999px",
-  padding: "5px 8px",
-  lineHeight: 1.1
-};
-
-const metaRowStyle = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  gap: "10px",
-  marginTop: "auto"
-};
-
-const compactRatingStyle = {
-  display: "inline-flex",
-  alignItems: "center",
-  gap: "4px",
-  color: "#14151A",
-  fontSize: "12px",
-  fontWeight: "800",
-  flexShrink: 0
-};
-
-const priceStyle = {
-  fontSize: "15px",
-  fontWeight: "800",
-  color: "#14151A"
-};
-
-/* Best Sellers specific variant styles matching target reference UI */
-const bestSellerCardStyle = {
-  backgroundColor: "#FFFFFF",
-  borderRadius: "16px",
-  overflow: "hidden",
-  cursor: "pointer",
-  display: "flex",
-  flexDirection: "column",
-  height: "100%",
-  boxShadow: "0 4px 16px rgba(0, 0, 0, 0.12)",
-  transition: "transform 0.22s ease, box-shadow 0.22s ease"
-};
-
-const bestSellerImageWrapperStyle = {
-  position: "relative",
-  width: "100%",
-  aspectRatio: "1 / 0.74",
-  backgroundColor: "#F3F3F0",
-  overflow: "hidden"
-};
-
-const bestSellerBadgeStyle = {
+const badgeStyle = {
   position: "absolute",
   top: "12px",
   left: "12px",
-  maxWidth: "calc(100% - 60px)",
   backgroundColor: "#1B1F8C",
   color: "#FFFFFF",
   borderRadius: "999px",
@@ -327,13 +198,10 @@ const bestSellerBadgeStyle = {
   fontWeight: "800",
   textTransform: "uppercase",
   letterSpacing: "0.05em",
-  whiteSpace: "nowrap",
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-  boxShadow: "0 2px 6px rgba(0, 0, 0, 0.15)"
+  boxShadow: "0 2px 6px rgba(0,0,0,0.15)"
 };
 
-const bestSellerWishlistBtnStyle = {
+const wishlistBtnStyle = {
   position: "absolute",
   top: "12px",
   right: "12px",
@@ -346,78 +214,118 @@ const bestSellerWishlistBtnStyle = {
   alignItems: "center",
   justifyContent: "center",
   cursor: "pointer",
-  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.14)",
-  zIndex: 2,
-  transition: "transform 0.15s ease"
+  boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+  zIndex: 2
 };
 
-const bestSellerInfoWrapperStyle = {
-  padding: "14px 16px 15px",
+const infoWrapperStyle = {
+  padding: "16px",
   display: "flex",
   flexDirection: "column",
-  gap: "8px",
-  flex: "1 1 auto"
+  gap: "10px",
+  flex: 1
 };
 
-const bestSellerTitleBlockStyle = {
+const titleBlockStyle = {
   display: "flex",
   flexDirection: "column",
-  alignItems: "flex-start",
   gap: "4px"
 };
 
-const bestSellerCategoryStyle = {
-  fontSize: "10px",
-  fontWeight: "800",
-  color: "#6B6B75",
-  textTransform: "uppercase",
-  letterSpacing: "0.04em",
-  backgroundColor: "#F3F3F0",
-  padding: "3px 9px",
-  borderRadius: "999px",
-  display: "inline-block",
-  alignSelf: "flex-start"
-};
-
-const bestSellerTitleStyle = {
-  fontSize: "15px",
-  fontWeight: "800",
-  color: "#1B1F8C",
-  lineHeight: "1.3",
-  margin: 0
-};
-
-const bestSellerSpecChipStyle = {
-  fontSize: "10px",
-  fontWeight: "700",
-  color: "#1B1F8C",
-  backgroundColor: "#F7F7F2",
-  border: "1px solid #E7E7E2",
-  borderRadius: "999px",
-  padding: "4px 8px",
-  lineHeight: 1.1
-};
-
-const bestSellerDetailPillStyle = {
+const categoryTagStyle = {
   fontSize: "10px",
   fontWeight: "800",
   color: "#16A34A",
-  backgroundColor: "rgba(22, 163, 74, 0.1)",
-  borderRadius: "999px",
-  padding: "4px 8px",
-  lineHeight: 1.1
+  textTransform: "uppercase",
+  letterSpacing: "0.04em"
 };
 
-const bestSellerPriceStyle = {
+const titleStyle = {
+  fontSize: "18px",
+  fontWeight: "800",
+  color: "#1B1F8C",
+  margin: 0,
+  lineHeight: "1.25"
+};
+
+const taglineStyle = {
+  fontSize: "12px",
+  color: "#6B6B75",
+  margin: 0,
+  fontStyle: "italic"
+};
+
+const constructionBadgeStyle = {
+  backgroundColor: "#F0F4FF",
+  border: "1px solid #DBE5FF",
+  borderRadius: "6px",
+  padding: "4px 8px",
+  alignSelf: "flex-start"
+};
+
+const thicknessRowStyle = {
+  display: "flex",
+  gap: "6px"
+};
+
+const thicknessPillStyle = {
+  fontSize: "11px",
+  fontWeight: "700",
+  color: "#334155",
+  backgroundColor: "#F1F5F9",
+  borderRadius: "6px",
+  padding: "4px 8px"
+};
+
+const metaRowStyle = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  marginTop: "auto",
+  paddingTop: "10px",
+  borderTop: "1px solid #F1F5F9"
+};
+
+const priceLabelStyle = {
+  display: "block",
+  fontSize: "10px",
+  fontWeight: "600",
+  color: "#6B6B75",
+  textTransform: "uppercase"
+};
+
+const priceValueStyle = {
   fontSize: "16px",
   fontWeight: "800",
   color: "#14151A"
 };
 
-const bestSellerMetaRowStyle = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  gap: "10px",
-  marginTop: "2px"
+const contactPriceValueStyle = {
+  fontSize: "14px",
+  fontWeight: "800",
+  color: "#D97706"
+};
+
+const viewDetailsBtnStyle = {
+  padding: "8px 14px",
+  backgroundColor: "#1B1F8C",
+  color: "#FFFFFF",
+  border: "none",
+  borderRadius: "8px",
+  fontSize: "11px",
+  fontWeight: "800",
+  cursor: "pointer",
+  letterSpacing: "0.04em"
+};
+
+const enquireBtnStyle = {
+  padding: "8px 14px",
+  backgroundColor: "#16A34A",
+  color: "#FFFFFF",
+  border: "none",
+  borderRadius: "8px",
+  fontSize: "11px",
+  fontWeight: "800",
+  cursor: "pointer",
+  letterSpacing: "0.04em"
 };

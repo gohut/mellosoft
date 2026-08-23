@@ -4,6 +4,7 @@ import React, { useMemo } from "react";
 import { useStore } from "../context/StoreContext";
 import { formatPrice } from "../utils/currency";
 import { CheckCircle2, Package, MapPin, CreditCard, Calendar, ArrowRight, ShoppingBag } from "lucide-react";
+import DownloadOrderPdf from "../components/DownloadOrderPdf";
 
 export default function OrderConfirmationView() {
   const { selectedOrderId, orders, navigateTo } = useStore();
@@ -179,6 +180,9 @@ export default function OrderConfirmationView() {
             </div>
 
             <div style={actionButtonsGroupStyle}>
+              {/* PDF Download — prominently placed above navigation actions */}
+              <DownloadOrderPdf order={currentOrder} variant="primary" />
+
               <button onClick={() => navigateTo("orders")} style={viewOrdersBtnStyle}>
                 <ShoppingBag size={16} />
                 <span>View My Orders</span>

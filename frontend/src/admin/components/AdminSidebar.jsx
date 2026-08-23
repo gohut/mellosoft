@@ -7,7 +7,7 @@ import { useAdminAuth } from "../../context/AdminAuthContext";
 import {
   LayoutDashboard, Package,
   ShoppingCart, Users, Star, Settings, LogOut,
-  ChevronDown, ChevronRight, X, ShieldCheck, Image as ImageIcon
+  ChevronDown, ChevronRight, X, ShieldCheck, LayoutList
 } from "lucide-react";
 
 const navItems = [
@@ -22,10 +22,10 @@ const navItems = [
       { id: "categories", label: "Categories" },
     ],
   },
-  { id: "banners", label: "Banners", icon: ImageIcon },
   { id: "orders", label: "Orders", icon: ShoppingCart },
   { id: "customers", label: "Customers", icon: Users },
   { id: "reviews", label: "Reviews", icon: Star },
+  { id: "content", label: "Content", icon: LayoutList },
   { id: "users-roles", label: "Users & Roles", icon: ShieldCheck },
   { id: "settings", label: "Settings", icon: Settings },
 ];
@@ -47,14 +47,14 @@ export default function AdminSidebar() {
 
   const isNavVisible = (id) => {
     switch (id) {
-      case "dashboard": return hasPermission("dashboard", "view");
+      case "dashboard":    return hasPermission("dashboard", "view");
       case "products-group": return hasPermission("products", "view");
-      case "banners": return hasPermission("products", "view");
-      case "orders": return hasPermission("orders", "view");
-      case "customers": return hasPermission("customers", "view");
-      case "reviews": return hasPermission("reviews", "view");
-      case "users-roles": return hasPermission("users", "view") || hasPermission("roles", "view");
-      case "settings": return hasPermission("settings", "view");
+      case "orders":       return hasPermission("orders", "view");
+      case "customers":    return hasPermission("customers", "view");
+      case "reviews":      return hasPermission("reviews", "view");
+      case "content":      return hasPermission("products", "view");
+      case "users-roles":  return hasPermission("users", "view") || hasPermission("roles", "view");
+      case "settings":     return hasPermission("settings", "view");
       default: return true;
     }
   };

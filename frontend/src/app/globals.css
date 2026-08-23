@@ -506,3 +506,8 @@ button, a, input, select, textarea {
   }
 }
 
+
+/* PDF download button loading spinner */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

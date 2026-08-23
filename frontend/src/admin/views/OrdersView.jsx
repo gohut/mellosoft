@@ -8,9 +8,9 @@ import StatusBadge from "../components/StatusBadge";
 import { X, Package, User, CreditCard, Calendar, Hash } from "lucide-react";
 import { formatPrice } from "../../utils/currency";
 
-const filterTabs = ["All", "Pending", "Processing", "Delivered", "Cancelled"];
+const filterTabs = ["All", "Pending", "Processing", "Confirmed", "Shipped", "Out for Delivery", "Delivered", "Cancelled"];
 const PAYMENT_OPTIONS = ["Pending", "Paid", "Failed", "Refunded"];
-const ORDER_STATUS_OPTIONS = ["Pending", "Processing", "Delivered", "Cancelled"];
+const ORDER_STATUS_OPTIONS = ["Pending", "Processing", "Confirmed", "Shipped", "Out for Delivery", "Delivered", "Cancelled"];
 
 export default function OrdersView() {
   const { orders, customers, products, updateOrder, hasPermission } = useAdmin();
@@ -169,13 +169,14 @@ function OrderDetailsModal({ orderId, canEdit, onClose, onSave }) {
         const prod = (products || []).find((p) => p.id === item.productId);
         return {
           id: item.productId,
-          name: prod?.name || item.name || item.productId,
-          image: prod?.images?.[0] || "/asset/img1.jpg",
-          size: item.variantSize || prod?.sizeOptions?.[0] || "Queen",
-          firmness: item.variantFirmness || prod?.firmnessOptions?.[0] || "Medium",
-          qty: item.quantity || 1,
-          unitPrice: item.price || prod?.price || 0,
-          totalPrice: (item.price || prod?.price || 0) * (item.quantity || 1),
+          name: prod?.name || item.name || item.productName || item.productId,
+          image: item.image || prod?.images?.[0] || "/asset/img1.jpg",
+          size: item.size || item.variantSize || prod?.sizeOptions?.[0] || "Queen",
+          firmness: item.firmness || item.variantFirmness || prod?.firmnessOptions?.[0] || "Medium",
+          sku: item.sku || item.variantSKU || `MEL-${(item.size || "QUEEN").toUpperCase()}-${(item.firmness || "MEDIUM").toUpperCase()}`,
+          qty: item.quantity || item.qty || 1,
+          unitPrice: item.price || item.discountPrice || item.actualPrice || prod?.price || 0,
+          totalPrice: (item.price || item.discountPrice || item.actualPrice || prod?.price || 0) * (item.quantity || item.qty || 1),
         };
       });
     }
@@ -190,6 +191,7 @@ function OrderDetailsModal({ orderId, canEdit, onClose, onSave }) {
         image: matched?.images?.[0] || "/asset/img1.jpg",
         size: matched?.sizeOptions?.[0] || "Queen",
         firmness: matched?.firmnessOptions?.[0] || "Medium",
+        sku: `MEL-${(matched?.sizeOptions?.[0] || "QUEEN").toUpperCase()}-${(matched?.firmnessOptions?.[0] || "MEDIUM").toUpperCase()}`,
         qty: 1,
         unitPrice,
         totalPrice: unitPrice,
@@ -289,8 +291,11 @@ function OrderDetailsModal({ orderId, canEdit, onClose, onSave }) {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: "14px", fontWeight: 600, color: "#14151A" }}>{item.name}</div>
                     <div style={{ fontSize: "12px", color: "#6B6B75", marginTop: "2px" }}>
-                      {item.size} / {item.firmness}
+                      Size: <strong>{item.size}</strong> &nbsp;|&nbsp; Firmness: <strong>{item.firmness}</strong>
                     </div>
+                    {item.sku && (
+                      <div style={{ fontSize: "11px", color: "#9CA3AF", marginTop: "2px", fontFamily: "monospace" }}>SKU: {item.sku}</div>
+                    )}
                     <div style={{ fontSize: "12px", color: "#4B5563", marginTop: "4px" }}>
                       Qty: <strong>{item.qty}</strong> × {formatPrice(item.unitPrice)}
                     </div>
@@ -302,6 +307,32 @@ function OrderDetailsModal({ orderId, canEdit, onClose, onSave }) {
               ))}
             </div>
           </div>
+
+          {/* Delivery Address */}
+          {(order.deliveryAddress || order.shippingAddress) && (() => {
+            const addr = order.deliveryAddress || order.shippingAddress;
+            return (
+              <div style={{ border: "1px solid #E7E7E2", borderRadius: "12px", padding: "16px", backgroundColor: "#FFFFFF" }}>
+                <h5 style={{ fontSize: "14px", fontWeight: 700, color: "#14151A", margin: "0 0 10px", display: "flex", alignItems: "center", gap: "8px" }}>
+                  📍 Delivery Address
+                </h5>
+                <div style={{ fontSize: "13px", color: "#4B5563", lineHeight: 1.7 }}>
+                  <strong style={{ color: "#14151A" }}>{addr.fullName || addr.name}</strong><br />
+                  {addr.addressLine1 || addr.street}{addr.addressLine2 ? `, ${addr.addressLine2}` : ""}<br />
+                  {addr.city}, {addr.state} – {addr.pincode || addr.zip}<br />
+                  {(addr.landmark) && <span>Landmark: {addr.landmark}<br /></span>}
+                  📞 {addr.phone || order.phone}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Payment Method */}
+          {order.paymentMethod && (
+            <div style={{ fontSize: "13px", color: "#6B6B75", padding: "10px 14px", backgroundColor: "#F9FAFB", borderRadius: "8px", border: "1px solid #E5E7EB" }}>
+              <strong style={{ color: "#14151A" }}>Payment Method:</strong> {order.paymentMethod}
+            </div>
+          )}
 
           {/* Status Settings */}
           <div style={{ borderTop: "1px solid #E7E7E2", paddingTop: "16px" }}>

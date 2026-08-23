@@ -10,8 +10,12 @@ import QuantityStepper from "../components/QuantityStepper";
 import ProductCard from "../components/ProductCard";
 import { formatPrice, calculateDiscountedPrice } from "../utils/currency";
 import { getVariantForSelection } from "../utils/variantHelpers";
+import { useRouter } from "next/navigation";
+import { getProductByIdentifier, getRelatedProducts, getMattressRecommendations } from "../utils/productHelpers";
+import MattressSelector from "../components/MattressSelector";
 
 export default function ProductDetailView() {
+  const router = useRouter();
   const { 
     selectedProductId, 
     getProductById, 
@@ -19,12 +23,16 @@ export default function ProductDetailView() {
     wishlist, 
     toggleWishlist, 
     navigateTo,
-    cart
+    cart,
+    setCheckoutItems,
+    setSearchQuery
   } = useStore();
 
   const cartCount = cart.reduce((acc, item) => acc + item.qty, 0);
 
-  const product = useMemo(() => getProductById(selectedProductId) || MOCK_PRODUCTS[0], [getProductById, selectedProductId]);
+  const product = useMemo(() => {
+    return getProductById(selectedProductId) || null;
+  }, [getProductById, selectedProductId]);
 
   // Gallery Active Image
   const [activeImgIndex, setActiveImgIndex] = useState(0);
@@ -48,22 +56,26 @@ export default function ProductDetailView() {
       setSelectedSize((product.availableSizes || product.sizeOptions || product.sizes)?.[0] || "Twin");
       setQuantity(1);
       setActiveImgIndex(0);
+      setActiveTab("reviews");
     }, 0);
 
     return () => window.clearTimeout(timer);
-  }, [product]);
+  }, [product?.id, product?.slug]);
 
   // Resolve exact variant matching selectedSize + selectedFirmness
   const selectedVariant = useMemo(() => {
+    if (!product) return null;
     return getVariantForSelection(product, selectedSize, selectedFirmness);
   }, [product, selectedSize, selectedFirmness]);
 
   const discountPercent = useMemo(() => {
+    if (!product) return 0;
     const d = product?.discountPercent ?? product?.Discount_Percentage;
     return typeof d === "number" ? d : 10;
   }, [product]);
 
   const actualPriceForSize = useMemo(() => {
+    if (!product) return 0;
     if (selectedVariant && selectedVariant.Actual_Price !== undefined) {
       return Number(selectedVariant.Actual_Price);
     }
@@ -115,16 +127,7 @@ export default function ProductDetailView() {
           (product.Product_Name && r.product && r.product.toLowerCase() === product.Product_Name.toLowerCase());
         
         return matchesProduct && r.status === "Approved";
-      })
-      .map((r) => ({
-        id: r.id,
-        author: r.customer || r.customerName || "Anonymous",
-        rating: Number(r.rating || 5),
-        date: r.date,
-        content: r.review || r.comment || "",
-        helpfulCount: r.helpfulCount || 12,
-        replyCount: r.replyCount || 0,
-      }));
+      });
 
     const allAdminReviewIds = new Set(adminReviewsList.map((r) => r.id));
     const notApprovedAdminIds = new Set(
@@ -175,7 +178,7 @@ export default function ProductDetailView() {
   }, [approvedReviews, product]);
 
   const handleAddToCart = () => {
-    if (isVariantOutOfStock) return;
+    if (!product || isVariantOutOfStock) return;
     addToCart(product, selectedFirmness, selectedSize, quantity);
   };
 
@@ -184,16 +187,42 @@ export default function ProductDetailView() {
   };
 
   const handleBuyNow = () => {
+    if (!product) return;
+    if (!selectedSize || !selectedFirmness) {
+      return;
+    }
     if (isVariantOutOfStock) return;
-    addToCart(product, selectedFirmness, selectedSize, quantity);
-    navigateTo("cart");
+
+    // Build a single checkout item from the selected variant
+    const checkoutItem = {
+      cartItemId: `buynow-${product.id}-${selectedFirmness}-${selectedSize}`,
+      productId: product.id,
+      id: product.id,
+      productName: product.name,
+      name: product.name,
+      category: product.category || "mattress",
+      size: selectedSize,
+      firmness: selectedFirmness,
+      sku: selectedVariant?.SKU || `MEL-${(selectedSize || "STD").toUpperCase()}-${(selectedFirmness || "STD").toUpperCase()}`,
+      quantity: quantity,
+      qty: quantity,
+      actualPrice: actualPriceForSize,
+      price: discountedPriceForSize,
+      discountPrice: discountedPriceForSize,
+      image: product.images?.[0] || "/asset/img1.jpg"
+    };
+
+    setCheckoutItems([checkoutItem]);
+    navigateTo("checkout");
   };
 
   const showPreviousImage = () => {
+    if (!product?.images?.length) return;
     setActiveImgIndex((current) => (current - 1 + product.images.length) % product.images.length);
   };
 
   const showNextImage = () => {
+    if (!product?.images?.length) return;
     setActiveImgIndex((current) => (current + 1) % product.images.length);
   };
 
@@ -219,21 +248,82 @@ export default function ProductDetailView() {
     setViewerOpen(true);
   };
 
-  const isWishlisted = wishlist.includes(product.id);
+  const isWishlisted = product ? wishlist.includes(product.id) : false;
 
-  // Filter out current product for "You may also like"
+  // Compute category-aware, de-duplicated recommendations (excludes current product)
   const recommendations = useMemo(() => {
-    return MOCK_PRODUCTS.filter((p) => p.id !== product.id).slice(0, 3);
+    if (!product) return [];
+    const isAcc = product.subCategory || product.category === "accessories";
+    if (isAcc) {
+      return getRelatedProducts(product, MOCK_PRODUCTS, 4);
+    }
+    return getMattressRecommendations(product, MOCK_PRODUCTS, 4);
   }, [product]);
+
+  if (!product) {
+    return (
+      <div style={{ padding: "80px 24px", textAlign: "center", maxWidth: "800px", margin: "0 auto", width: "100%" }}>
+        <h2 style={{ fontSize: "28px", fontWeight: "800", color: "#1B1F8C", marginBottom: "12px" }}>Product Not Found</h2>
+        <p style={{ fontSize: "15px", color: "#6B6B75", marginBottom: "24px" }}>
+          The product you are looking for could not be found or has been removed.
+        </p>
+        <button
+          type="button"
+          onClick={() => navigateTo("catalog")}
+          style={{
+            padding: "12px 24px",
+            backgroundColor: "#1B1F8C",
+            color: "#FFFFFF",
+            border: "none",
+            borderRadius: "8px",
+            fontWeight: "700",
+            cursor: "pointer"
+          }}
+        >
+          Return to Catalogue
+        </button>
+      </div>
+    );
+  }
+
+  const isAccessory = product.subCategory || product.category === "accessories";
+  const categorySlug = product.subCategory || product.category;
+  const categoryDisplayName = product.categoryName || (product.category ? (product.category.charAt(0).toUpperCase() + product.category.slice(1)) : "Category");
+
+  const handleBreadcrumbCategoryClick = () => {
+    if (router && typeof router.push === "function") {
+      if (isAccessory) {
+        router.push(`/accessories/${categorySlug}`);
+      } else {
+        router.push(`/mattresses/${categorySlug}`);
+      }
+    }
+  };
+
+  const handleBreadcrumbCatalogClick = () => {
+    if (router && typeof router.push === "function") {
+      if (isAccessory) {
+        router.push("/accessories");
+      } else {
+        router.push("/mattresses");
+      }
+    }
+  };
 
   return (
     <div style={detailContainerStyle} className="detail-page">
       
       {/* Breadcrumb */}
       <div style={breadcrumbStyle} className="detail-breadcrumb">
-        <span onClick={() => navigateTo("home")} style={breadcrumbLinkStyle}>Home</span>
+        <span onClick={() => { if (router && typeof router.push === "function") router.push("/"); }} style={breadcrumbLinkStyle}>Home</span>
         <span style={breadcrumbDividerStyle}>/</span>
-        <span onClick={() => navigateTo("catalog")} style={breadcrumbLinkStyle}>Catalog</span>
+        <span onClick={handleBreadcrumbCatalogClick} style={breadcrumbLinkStyle}>{isAccessory ? "Accessories" : "Mattresses"}</span>
+        {categorySlug && (
+          <>
+            <span style={breadcrumbDividerStyle}>/</span>
+            <span onClick={handleBreadcrumbCategoryClick} style={breadcrumbLinkStyle}>{categoryDisplayName}</span>
+          </>
+        )}
         <span style={breadcrumbDividerStyle}>/</span>
         <span style={breadcrumbActiveStyle}>{product.name}</span>
       </div>
@@ -321,76 +411,127 @@ export default function ProductDetailView() {
           
           <span style={brandLabelStyle}>Mellosoft Premium Series</span>
           <h2 style={titleStyle}>{product.name}</h2>
+          {product.tagline && (
+            <p style={{ fontSize: "15px", fontStyle: "italic", color: "#1B1F8C", marginTop: "4px" }}>
+              "{product.tagline}"
+            </p>
+          )}
+
+          {product.construction && (
+            <div style={{ fontSize: "13px", fontWeight: "700", color: "#4B5563", marginTop: "6px" }}>
+              Construction: <span style={{ color: "#1B1F8C" }}>{product.construction}</span>
+            </div>
+          )}
           
           {/* Rating summary overlay */}
           <div style={ratingSummaryLineStyle}>
             <RatingStars rating={product.rating} count={product.reviewCount} />
           </div>
 
-          <div style={priceContainerStyle}>
-            <span style={priceStyle}>{formatPrice(discountedPriceForSize)}</span>
-            {discountPercent > 0 && actualPriceForSize > discountedPriceForSize && (
-              <span style={{ fontSize: "14px", color: "#6B6B75", alignSelf: "center", marginLeft: "10px" }}>
-                MRP: {formatPrice(actualPriceForSize)} ({discountPercent}% OFF)
-              </span>
-            )}
-            {isVariantOutOfStock && (
-              <span style={{ fontSize: "12px", fontWeight: 700, color: "#DC2626", backgroundColor: "#FEE2E2", padding: "4px 10px", borderRadius: "999px", marginLeft: "10px", alignSelf: "center" }}>
-                Out of Stock
-              </span>
-            )}
-          </div>
-          
           <div style={dividerStyle} />
 
-          <div style={optionControlsRowStyle} className="detail-option-row">
-            <FirmnessSizeSelector
-              label="Firmness"
-              options={product.firmnessOptions}
-              selected={selectedFirmness}
-              onChange={setSelectedFirmness}
+          {/* MATTRESS SELECTOR FOR MATTRESS PRODUCTS */}
+          {product.thicknessOptions ? (
+            <MattressSelector
+              product={product}
+              onSelectionChange={(selection) => {
+                if (selection.price) {
+                  setSelectedSize(selection.dimension);
+                  setSelectedFirmness(selection.thickness);
+                }
+              }}
+              onEnquire={(data) => {
+                setSearchQuery(`Enquiry for ${product.name} (${data.thickness}, size ${data.size})`);
+                navigateTo("contact");
+              }}
             />
-
-            <FirmnessSizeSelector
-              label="Size"
-              options={product.sizeOptions}
-              selected={selectedSize}
-              onChange={setSelectedSize}
-            />
-
-            <div style={qtyFieldStyle} className="detail-option-control detail-qty-field">
-              <label style={qtyLabelStyle}>Quantity</label>
-              <QuantityStepper qty={quantity} onChange={setQuantity} />
+          ) : (
+            <div style={priceContainerStyle}>
+              <span style={priceStyle}>{formatPrice(discountedPriceForSize)}</span>
+              {discountPercent > 0 && actualPriceForSize > discountedPriceForSize && (
+                <span style={{ fontSize: "14px", color: "#6B6B75", alignSelf: "center", marginLeft: "10px" }}>
+                  MRP: {formatPrice(actualPriceForSize)} ({discountPercent}% OFF)
+                </span>
+              )}
             </div>
-          </div>
+          )}
+
+          {!product.thicknessOptions && (
+            <div style={optionControlsRowStyle} className="detail-option-row">
+              <FirmnessSizeSelector
+                label="Variant"
+                options={product.firmnessOptions}
+                selected={selectedFirmness}
+                onChange={setSelectedFirmness}
+              />
+
+              <FirmnessSizeSelector
+                label="Size"
+                options={product.sizeOptions}
+                selected={selectedSize}
+                onChange={setSelectedSize}
+              />
+
+              <div style={qtyFieldStyle} className="detail-option-control detail-qty-field">
+                <label style={qtyLabelStyle}>Quantity</label>
+                <QuantityStepper qty={quantity} onChange={setQuantity} />
+              </div>
+            </div>
+          )}
 
           {/* Quantity & CTA buttons block */}
           <div style={purchaseBlockStyle}>
-            <div style={ctaButtonsGridStyle} className="detail-cta-grid">
-              <button 
-                onClick={handleAddToCart}
-                disabled={isVariantOutOfStock}
-                style={{
-                  ...addCartBtnStyle,
-                  opacity: isVariantOutOfStock ? 0.5 : 1,
-                  cursor: isVariantOutOfStock ? "not-allowed" : "pointer",
+            {product.startingPrice !== null ? (
+              <div style={ctaButtonsGridStyle} className="detail-cta-grid">
+                <button 
+                  onClick={handleAddToCart}
+                  disabled={isVariantOutOfStock}
+                  style={{
+                    ...addCartBtnStyle,
+                    opacity: isVariantOutOfStock ? 0.5 : 1,
+                    cursor: isVariantOutOfStock ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {isVariantOutOfStock ? "Out of Stock" : "Add to Cart"}
+                </button>
+                
+                <button 
+                  onClick={handleBuyNow}
+                  disabled={isVariantOutOfStock}
+                  style={{
+                    ...buyNowBtnStyle,
+                    opacity: isVariantOutOfStock ? 0.5 : 1,
+                    cursor: isVariantOutOfStock ? "not-allowed" : "pointer",
+                  }}
+                >
+                  Buy Now
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  if (typeof setSearchQuery === "function") {
+                    setSearchQuery(`Enquiry for ${product.name}`);
+                  }
+                  const params = new URLSearchParams({
+                    product: product.name || "",
+                    category: product.categoryName || product.category || ""
+                  });
+                  if (typeof window !== "undefined") {
+                    window.location.href = `/contact?${params.toString()}`;
+                  } else {
+                    navigateTo("contact");
+                  }
                 }}
-              >
-                {isVariantOutOfStock ? "Out of Stock" : "Add to Cart"}
-              </button>
-              
-              <button 
-                onClick={handleBuyNow}
-                disabled={isVariantOutOfStock}
                 style={{
                   ...buyNowBtnStyle,
-                  opacity: isVariantOutOfStock ? 0.5 : 1,
-                  cursor: isVariantOutOfStock ? "not-allowed" : "pointer",
+                  width: "100%",
+                  backgroundColor: "#1B1F8C"
                 }}
               >
-                Buy Now
+                Enquire for Price
               </button>
-            </div>
+            )}
 
             <p style={descriptionStyle}>{product.description}</p>
           </div>

@@ -6,6 +6,8 @@ import { MOCK_PRODUCTS } from "../data/products";
 import ProductCard from "../components/ProductCard";
 import CustomerReviewsSection from "../components/CustomerReviewsSection";
 import PromotionalBannerSlider from "../components/PromotionalBannerSlider";
+import PromoBannerCard from "../components/PromoBannerCard";
+import HeroSlideCard from "../components/HeroSlideCard";
 import { formatPrice } from "../utils/currency";
 
 const categories = [
@@ -18,20 +20,122 @@ const categories = [
 ];
 
 export default function HomeView() {
-  const { navigateTo, setActiveFilters, setSearchQuery } = useStore();
+  const { navigateTo, setActiveFilters, setSearchQuery, activeHeroBanners, activePromoBanners, homepageConfig, newArrivalItems, bestSellerItems, products } = useStore();
   const sliderTrackRef = useRef(null);
   const [activeSlide, setActiveSlide] = useState(0);
 
-  const mattresses = useMemo(() => MOCK_PRODUCTS.filter((product) => product.category === "mattress"), []);
-  const heroSlides = useMemo(() => mattresses.slice(0, 5).map((product, index) => ({
-    product,
-    badge: index === 0 ? "Limited time!" : index === 1 ? "Ends soon" : index === 2 ? "New" : index === 3 ? "Best seller" : "Just dropped",
-    headline: ["Classic Comfort", "Hybrid Luxury", "Natural Latex", "Firm Support", "Cooling Plush"][index] || "Sleep Better",
-    deal: index === 0 ? `From ${formatPrice(product.sizePrices?.Twin || product.price)}` : index === 1 ? "Save more on hybrid" : index === 2 ? "Organic pick" : index === 3 ? "Firm favorite" : "New arrival"
-  })), [mattresses]);
+  const mattresses = useMemo(() => (products || MOCK_PRODUCTS).filter((product) => product.category === "mattress"), [products]);
   const featuredMattresses = useMemo(() => mattresses.slice(0, 4), [mattresses]);
-  const bestSellers = useMemo(() => [...MOCK_PRODUCTS].sort((a, b) => b.reviewCount - a.reviewCount).slice(0, 8), []);
-  const newArrivals = useMemo(() => MOCK_PRODUCTS.filter((product) => ["New", "Premium", "Eco-Friendly", "Essential"].includes(product.badge)).slice(0, 4), []);
+
+  const bestSellers = useMemo(() => {
+    const allProds = (products && products.length > 0) ? products : MOCK_PRODUCTS;
+    if (bestSellerItems && bestSellerItems.length > 0) {
+      const activeItems = bestSellerItems
+        .filter((item) => item.isActive !== false)
+        .sort((a, b) => (Number(a.displayOrder) || 0) - (Number(b.displayOrder) || 0));
+
+      const resolved = activeItems
+        .map((item) => allProds.find((p) => p.id === item.productId || p.id === item.id))
+        .filter(Boolean);
+
+      if (resolved.length > 0) return resolved;
+    }
+    return [...allProds].sort((a, b) => (b.reviewCount || 0) - (a.reviewCount || 0)).slice(0, 8);
+  }, [bestSellerItems, products]);
+
+  const newArrivals = useMemo(() => {
+    const allProds = (products && products.length > 0) ? products : MOCK_PRODUCTS;
+    if (newArrivalItems && newArrivalItems.length > 0) {
+      const activeItems = newArrivalItems
+        .filter((item) => item.isActive !== false)
+        .sort((a, b) => (Number(a.displayOrder) || 0) - (Number(b.displayOrder) || 0));
+
+      const resolved = activeItems
+        .map((item) => allProds.find((p) => p.id === item.productId || p.id === item.id))
+        .filter(Boolean);
+
+      if (resolved.length > 0) return resolved;
+    }
+    return allProds.filter((product) => ["New", "Premium", "Eco-Friendly", "Essential"].includes(product.badge)).slice(0, 4);
+  }, [newArrivalItems, products]);
+
+  const defaultSections = [
+    { id: "hero-slider", visible: true },
+    { id: "shop-by-category", visible: true },
+    { id: "promo-banner", visible: true },
+    { id: "new-arrivals", visible: true },
+    { id: "best-sellers", visible: true },
+    { id: "customer-reviews", visible: true },
+  ];
+
+  const sectionsToRender = (homepageConfig && Array.isArray(homepageConfig.sections) && homepageConfig.sections.length > 0)
+    ? homepageConfig.sections
+    : defaultSections;
+
+  // ─── Hero slider data ─────────────────────────────────────────────────────────
+  // Use admin-managed Hero Slides (type=="Offer") if available,
+  // otherwise fall back to featured mattress products so the slider is never empty
+  const heroSlides = useMemo(() => {
+    const allProds = (products && products.length > 0) ? products : MOCK_PRODUCTS;
+    if (activeHeroBanners && activeHeroBanners.length > 0) {
+      return activeHeroBanners.map((banner) => {
+        const associatedProd = allProds.find((p) => p.id === banner.productId || p.id === banner.id);
+        const resolvedTitle = associatedProd ? (associatedProd.name || associatedProd.title) : banner.title;
+        const resolvedImage = banner.image || (associatedProd ? (associatedProd.image || associatedProd.images?.[0]) : "/asset/img2.jpg");
+        return {
+          id: banner.id,
+          productId: banner.productId,
+          image: resolvedImage,
+          type: banner.type || "Offer",
+          badge: banner.type || "Offer",
+          subtitle: banner.subtitle ?? "",
+          title: resolvedTitle,
+          headline: resolvedTitle,
+          deal: banner.subtitle ?? "",
+          description: banner.description ?? (associatedProd?.description || ""),
+          ctaText: banner.ctaText !== undefined ? banner.ctaText : "Shop Now",
+          ctaLink: banner.ctaLink || (associatedProd?.category || "mattress"),
+          product: associatedProd,
+          isAdminBanner: true
+        };
+      });
+    }
+
+    // Fallback featured products
+    return featuredMattresses.map((product) => ({
+      id: product.id,
+      image: product.images[0],
+      type: "Offer",
+      badge: "Offer",
+      subtitle: product.tagline || product.subtitle || "Premium Sleep Experience",
+      title: product.name,
+      headline: product.name,
+      deal: product.tagline || product.subtitle || "Premium Sleep Experience",
+      description: product.description || "Designed for deep and restful sleep.",
+      ctaText: "Shop Now",
+      ctaLink: product.category || "mattress",
+      product,
+      isAdminBanner: false
+    }));
+  }, [activeHeroBanners, featuredMattresses, products]);
+
+  const handleSliderScroll = () => {
+    if (!sliderTrackRef.current) return;
+    const scrollLeft = sliderTrackRef.current.scrollLeft;
+    const slideWidth = 560 + 16;
+    const index = Math.round(scrollLeft / slideWidth);
+    setActiveSlide(Math.min(Math.max(index, 0), heroSlides.length - 1));
+  };
+
+  const scrollToSlide = (index) => {
+    if (!sliderTrackRef.current) return;
+    const slideWidth = 560 + 16;
+    sliderTrackRef.current.scrollTo({
+      left: index * slideWidth,
+      behavior: "smooth"
+    });
+    setActiveSlide(index);
+  };
 
   const goToCatalog = (category = "All", firmness = "All") => {
     setSearchQuery("");
@@ -42,35 +146,7 @@ export default function HomeView() {
       sort: "Recommended"
     });
     navigateTo("catalog");
-  };
-
-  const goToProduct = (productId) => {
-    navigateTo("detail", productId);
-  };
-
-  const handleSliderScroll = () => {
-    const track = sliderTrackRef.current;
-    if (!track) return;
-    const { scrollLeft, children } = track;
-    let closestIndex = 0;
-    let closestDistance = Infinity;
-    Array.from(children).forEach((child, index) => {
-      const distance = Math.abs(child.offsetLeft - scrollLeft);
-      if (distance < closestDistance) {
-        closestDistance = distance;
-        closestIndex = index;
-      }
-    });
-    setActiveSlide(closestIndex);
-  };
-
-  const scrollToSlide = (index) => {
-    const track = sliderTrackRef.current;
-    if (!track) return;
-    const child = track.children[index];
-    if (child) {
-      track.scrollTo({ left: child.offsetLeft, behavior: "smooth" });
-    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   return (
@@ -81,160 +157,212 @@ export default function HomeView() {
 
       <div className="content-layer" style={contentLayerStyle}>
 
-      <section style={sliderSectionStyle} aria-label="Featured mattresses">
-        <div className="peek-slider" style={peekSliderTrackStyle} ref={sliderTrackRef} onScroll={handleSliderScroll}>
-          {heroSlides.map((slide) => (
-            <button
-              key={slide.product.id}
-              className="peek-slide"
-              style={peekSlideCardStyle}
-              onClick={() => goToProduct(slide.product.id)}
-            >
-              <img src={slide.product.images[0]} alt={slide.product.name} style={peekSlideImageStyle} />
-              <div style={peekSlideOverlayStyle} />
-              <span style={peekBadgeStyle} className="peek-badge">{slide.badge}</span>
-              <div style={peekSlideContentStyle} className="peek-slide-content">
-                <span style={peekDealTextStyle} className="peek-deal-text">{slide.deal}</span>
-                <h3 style={peekHeadlineStyle} className="peek-headline">{slide.headline}</h3>
+      {/* ─── DYNAMIC EDITABLE HOMEPAGE SECTIONS ─── */}
+      {sectionsToRender.map((section) => {
+        if (section.visible === false) return null;
+
+        // Individual Promo Banner layout item handling
+        const isPromoItem = section.type === "promo-banner" || section.bannerId || (activePromoBanners && activePromoBanners.some((b) => b.id === section.id));
+        if (isPromoItem) {
+          const targetBannerId = section.bannerId || section.id;
+          const targetBanner = (activePromoBanners || []).find((b) => b.id === targetBannerId);
+          if (!targetBanner || targetBanner.isActive === false) return null;
+
+          return (
+            <section key={section.id || targetBanner.id} style={promoSectionWrapperStyle} className="single-promo-banner-section">
+              <div style={containerStyle}>
+                <PromoBannerCard
+                  banner={targetBanner}
+                  onClick={(e) => {
+                    e?.stopPropagation();
+                    const destination = targetBanner.ctaLink || "All";
+                    setSearchQuery("");
+                    setActiveFilters({
+                      category: destination,
+                      firmness: "All",
+                      size: "All",
+                      sort: "Recommended"
+                    });
+                    navigateTo("catalog");
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                />
               </div>
-              <span style={peekShopBtnStyle} className="peek-shop-btn">Shop Now</span>
-            </button>
-          ))}
-        </div>
-        <div style={peekDotsRowStyle} className="peek-dots">
-          {heroSlides.map((slide, index) => (
-            <button
-              key={slide.product.id}
-              type="button"
-              aria-label={`Go to slide ${index + 1}`}
-              onClick={() => scrollToSlide(index)}
-              style={index === activeSlide ? { ...peekDotStyle, ...peekDotActiveStyle } : peekDotStyle}
-            />
-          ))}
-        </div>
-      </section>
+            </section>
+          );
+        }
 
-      <section style={categorySectionStyle} className="category-section">
-        <div style={containerStyle}>
-          <div style={categoryHeaderStyle}>
-            <h2 style={categoryTitleStyle}>Shop By Category</h2>
-            <button type="button" onClick={() => goToCatalog("All")} style={categoryViewAllStyle} className="category-view-all">
-              View All
-            </button>
-          </div>
-          <div className="category-row" style={categoryRowStyle}>
-            {categories.map((item) => (
-              <button
-                key={item.label}
-                type="button"
-                onClick={() => goToCatalog(item.category, item.firmness || "All")}
-                style={{ ...categoryTileStyle, backgroundColor: item.color }}
-                className="category-tile"
-              >
-                <span style={categoryLabelStyle}>{item.label}</span>
-                <img src={item.image} alt="" style={categoryImageStyle} />
-              </button>
-            ))}
-          </div>
-        </div>
-      </section>
+        switch (section.id) {
+          case "hero-slider":
+            return (
+              <section key="hero-slider" style={sliderSectionStyle} aria-label="Featured mattresses">
+                <div className="peek-slider" style={peekSliderTrackStyle} ref={sliderTrackRef} onScroll={handleSliderScroll}>
+                  {heroSlides.map((slide) => (
+                    <HeroSlideCard
+                      key={slide.id}
+                      slide={slide}
+                      onClick={() => {
+                        if (slide.isAdminBanner) {
+                          setSearchQuery("");
+                          setActiveFilters({ category: slide.ctaLink || "All", firmness: "All", size: "All", sort: "Recommended" });
+                          navigateTo("catalog");
+                        } else {
+                          navigateTo("detail", slide.product?.id);
+                        }
+                      }}
+                    />
+                  ))}
+                </div>
+                <div style={peekDotsRowStyle} className="peek-dots">
+                  {heroSlides.map((slide, index) => (
+                    <button
+                      key={slide.id}
+                      type="button"
+                      aria-label={`Go to slide ${index + 1}`}
+                      onClick={() => scrollToSlide(index)}
+                      style={index === activeSlide ? { ...peekDotStyle, ...peekDotActiveStyle } : peekDotStyle}
+                    />
+                  ))}
+                </div>
+              </section>
+            );
 
-      {/* PROMOTIONAL BANNER SLIDER (ADMIN-MANAGED) */}
-      <PromotionalBannerSlider />
+          case "shop-by-category":
+            return (
+              <section key="shop-by-category" style={categorySectionStyle} className="category-section">
+                <div style={containerStyle}>
+                  <div style={categoryHeaderStyle}>
+                    <h2 style={categoryTitleStyle}>Shop By Category</h2>
+                    <button type="button" onClick={() => goToCatalog("All")} style={categoryViewAllStyle} className="category-view-all">
+                      View All
+                    </button>
+                  </div>
+                  <div className="category-row" style={categoryRowStyle}>
+                    {categories.map((item) => (
+                      <button
+                        key={item.label}
+                        type="button"
+                        onClick={() => goToCatalog(item.category, item.firmness || "All")}
+                        style={{ ...categoryTileStyle, backgroundColor: item.color }}
+                        className="category-tile"
+                      >
+                        <span style={categoryLabelStyle}>{item.label}</span>
+                        <img src={item.image} alt="" style={categoryImageStyle} />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </section>
+            );
 
-      <ProductRow
-        title="Best Sellers"
-        tagline="Loved by thousands of happy sleepers."
-        products={bestSellers}
-        background="#1B1F8C"
-        titleColor="#00B138"
-        taglineColor="#C7CBEF"
-        scrollable
-        variant="bestSeller"
-      />
+          case "promo-banner":
+          case "promo-banners":
+            return (
+              <PromotionalBannerSlider key={section.id} banners={activePromoBanners} />
+            );
 
-      <section style={promoSectionStyle}>
-        <div style={singlePromoGridStyle} className="promo-grid">
-          <PromoCard
-            image="/asset/pillow.png"
-            title="Get 30% off essentials"
-            label="Pillows and protectors"
-            onClick={() => goToCatalog("pillows")}
-          />
-        </div>
-      </section>
+          case "best-sellers":
+            return (
+              <ProductRow
+                key="best-sellers"
+                title="Best Sellers"
+                tagline="Loved by thousands of happy sleepers."
+                products={bestSellers}
+                background="#1B1F8C"
+                titleColor="#00B138"
+                taglineColor="#C7CBEF"
+                scrollable
+                variant="bestSeller"
+              />
+            );
 
-      <ProductRow title="New Arrivals" tagline="Fresh drops, fresh comfort." products={newArrivals} onAction={() => goToCatalog("All")} />
+          case "new-arrivals":
+            return (
+              <ProductRow
+                key="new-arrivals"
+                title="New Arrivals"
+                tagline="Fresh drops, fresh comfort."
+                products={newArrivals}
+                onAction={() => goToCatalog("All")}
+                scrollable
+              />
+            );
 
-      <section style={promoSectionStyle}>
-        <div style={singlePromoGridStyle} className="promo-grid">
-          <PromoCard
-            image="/asset/bedframe.png"
-            title="Free assembly included"
-            label="New bed frame collection"
-            onClick={() => goToCatalog("bed frames")}
-          />
-        </div>
-      </section>
+          case "customer-reviews":
+            return (
+              <CustomerReviewsSection key="customer-reviews" />
+            );
 
-      <section id="about-section" style={aboutSectionStyle}>
-        <div style={containerStyle}>
-          <div style={aboutHeaderWrapStyle}>
-            <span style={aboutTagStyle}>About Us</span>
-            <h2 style={aboutBigHeadingStyle}>Why sleep lovers choose Mellosoft</h2>
-            <p style={aboutSubheadingStyle}>
-              Thoughtful engineering and unhurried craftsmanship that set the standard for a genuinely restful night.
-            </p>
-          </div>
+          case "about-us":
+          case "about-section":
+            return (
+              <section key={section.id} id="about-section" style={aboutSectionStyle}>
+                <div style={containerStyle}>
+                  <div style={aboutHeaderWrapStyle}>
+                    <span style={aboutTagStyle}>About Us</span>
+                    <h2 style={aboutBigHeadingStyle}>Why sleep lovers choose Mellosoft</h2>
+                    <p style={aboutSubheadingStyle}>
+                      Thoughtful engineering and unhurried craftsmanship that set the standard for a genuinely restful night.
+                    </p>
+                  </div>
 
-          <div style={bentoGridStyle} className="about-bento-grid">
-            <div style={bentoCardStyle} className="bento-card">
-              <img src="/asset/img1.jpg" alt="Mellosoft craftsmanship" style={bentoCardImageStyle} />
-              <div style={bentoCardBodyStyle}>
-                <p style={bentoCardTextStyle}>
-                  Handcrafted by master upholsterers to deliver timeless comfort and unmatched build quality.
-                </p>
-                <button type="button" onClick={() => goToCatalog("All")} style={bentoExploreBtnStyle}>
-                  Explore Collection
-                  <span aria-hidden="true">&rarr;</span>
-                </button>
-              </div>
-            </div>
+                  <div style={bentoGridStyle} className="about-bento-grid">
+                    <div style={bentoCardStyle} className="bento-card">
+                      <img src="/asset/img1.jpg" alt="Mellosoft craftsmanship" style={bentoCardImageStyle} />
+                      <div style={bentoCardBodyStyle}>
+                        <p style={bentoCardTextStyle}>
+                          Handcrafted by master upholsterers to deliver timeless comfort and unmatched build quality.
+                        </p>
+                        <button type="button" onClick={() => goToCatalog("All")} style={bentoExploreBtnStyle}>
+                          Explore Collection
+                          <span aria-hidden="true">&rarr;</span>
+                        </button>
+                      </div>
+                    </div>
 
-            <div style={bentoCardStyle} className="bento-card">
-              <img src="/asset/img2.jpg" alt="Trusted by sleep specialists" style={bentoCardImageStyle} />
-              <div style={bentoCardBodyStyle}>
-                <p style={bentoCardTextStyle}>
-                  Trusted by sleep specialists worldwide for consistent quality and care.
-                </p>
-              </div>
-            </div>
+                    <div style={bentoCardStyle} className="bento-card">
+                      <img src="/asset/img2.jpg" alt="Trusted by sleep specialists" style={bentoCardImageStyle} />
+                      <div style={bentoCardBodyStyle}>
+                        <p style={bentoCardTextStyle}>
+                          Trusted by sleep specialists worldwide for consistent quality and care.
+                        </p>
+                      </div>
+                    </div>
 
-            <div style={bentoCardStyle} className="bento-card">
-              <div style={bentoStatPanelStyle}>
-                <strong style={bentoStatNumberStyle}>10+</strong>
-              </div>
-              <div style={bentoCardBodyStyle}>
-                <p style={bentoCardTextStyle}>Years of heritage craftsmanship.</p>
-              </div>
-            </div>
+                    <div style={bentoCardStyle} className="bento-card">
+                      <div style={bentoStatPanelStyle}>
+                        <strong style={bentoStatNumberStyle}>10+</strong>
+                      </div>
+                      <div style={bentoCardBodyStyle}>
+                        <p style={bentoCardTextStyle}>Years of heritage craftsmanship.</p>
+                      </div>
+                    </div>
 
-            <div style={bentoCardStyle} className="bento-card">
-              <img src="/asset/bedframe.png" alt="Mellosoft bedroom lifestyle" style={bentoCardImageStyle} />
-              <div style={bentoCardBodyStyle}>
-                <p style={bentoCardTextStyle}>
-                  Elevates your sleep and transforms your bedroom into a retreat of comfort.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+                    <div style={bentoCardStyle} className="bento-card">
+                      <img src="/asset/bedframe.png" alt="Mellosoft bedroom lifestyle" style={bentoCardImageStyle} />
+                      <div style={bentoCardBodyStyle}>
+                        <p style={bentoCardTextStyle}>
+                          Elevates your sleep and transforms your bedroom into a retreat of comfort.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            );
 
-      {/* RE-DESIGNED CUSTOMER REVIEWS / FEEDBACK CAROUSEL SECTION */}
-      <CustomerReviewsSection />
+          default:
+            return null;
+        }
+      })}
+
+      {/* Fallback for customer-reviews if not present in custom layout configuration */}
+      {!sectionsToRender.some((s) => s.id === "customer-reviews") && (
+        <CustomerReviewsSection />
+      )}
 
       </div>
+
 
       <style>{`
         .view-more-btn:hover {
@@ -558,9 +686,12 @@ const sliderSectionStyle = {
   position: "relative"
 };
 
-/* Small, peeking, horizontally-scrollable slider.
-   Mobile: tiny rounded "container" cards, next card peeking on the edge.
-   Desktop: identical shape/behavior, scaled up. */
+const promoSectionWrapperStyle = {
+  padding: "20px 0 16px",
+  width: "100%",
+  boxSizing: "border-box"
+};
+
 const peekSliderTrackStyle = {
   display: "flex",
   gap: "16px",
@@ -597,21 +728,6 @@ const peekDotStyle = {
 const peekDotActiveStyle = {
   width: "22px",
   backgroundColor: "#16A34A"
-};
-
-const peekSlideCardStyle = {
-  position: "relative",
-  flex: "0 0 auto",
-  width: "560px",
-  height: "260px",
-  borderRadius: "22px",
-  overflow: "hidden",
-  border: "none",
-  cursor: "pointer",
-  padding: 0,
-  textAlign: "left",
-  scrollSnapAlign: "start",
-  backgroundColor: "#14151A"
 };
 
 const peekSlideImageStyle = {

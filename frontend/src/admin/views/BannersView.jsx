@@ -2,9 +2,10 @@
 
 import React, { useState, useRef } from "react";
 import { useAdmin } from "../context/AdminContext";
+import PromoBannerRenderer from "../../components/PromoBannerRenderer";
 import {
   Image as ImageIcon, Plus, Edit2, Trash2, CheckCircle2, XCircle,
-  Eye, EyeOff, Search, ArrowUpDown, Tag, Sparkles, Sliders, Check
+  Eye, EyeOff, Search, ArrowUpDown, Tag, Sparkles, Sliders, Check, AlertTriangle
 } from "lucide-react";
 
 const BANNER_TYPES = ["Offer", "New Arrival", "Promotion", "Collection"];
@@ -18,7 +19,7 @@ const DESTINATION_OPTIONS = [
 ];
 
 export default function BannersView() {
-  const { banners, addBanner, updateBanner, deleteBanner, toggleBannerStatus } = useAdmin();
+  const { banners, addBanner, updateBanner, deleteBanner, toggleBannerStatus, bannerTypes = [], addBannerType, deleteBannerType } = useAdmin();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("All");
@@ -29,6 +30,19 @@ export default function BannersView() {
   const [editingBanner, setEditingBanner] = useState(null);
   const [deleteModalBanner, setDeleteModalBanner] = useState(null);
   const [toastMessage, setToastMessage] = useState(null);
+
+  // Type modal states
+  const [isManageTypesModalOpen, setIsManageTypesModalOpen] = useState(false);
+  const [isAddTypeModalOpen, setIsAddTypeModalOpen] = useState(false);
+  const [newTypeName, setNewTypeName] = useState("");
+  const [typeToDelete, setTypeToDelete] = useState(null);
+
+  const availableTypes = React.useMemo(() => {
+    const customNames = (bannerTypes && bannerTypes.length > 0)
+      ? bannerTypes.map((t) => (typeof t === "string" ? t : t.name))
+      : ["Offer", "New Arrival", "Promotion", "Collection"];
+    return Array.from(new Set([...BANNER_TYPES, ...customNames]));
+  }, [bannerTypes]);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -197,10 +211,41 @@ export default function BannersView() {
           <span style={statSubStyle}>Hidden from customer view</span>
         </div>
 
-        <div style={statCardStyle}>
-          <span style={statLabelStyle}>Banner Types</span>
-          <strong style={{ ...statValStyle, color: "#1B1F8C" }}>{BANNER_TYPES.length}</strong>
-          <span style={statSubStyle}>Offer, New Arrival, Promo, Collection</span>
+        <div
+          style={{ ...statCardStyle, cursor: "pointer" }}
+          onClick={() => setIsManageTypesModalOpen(true)}
+          title="Click to view and manage banner types"
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", marginBottom: "4px" }}>
+            <span style={statLabelStyle}>Banner Types</span>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsManageTypesModalOpen(true);
+              }}
+              style={{
+                backgroundColor: "#EEF0FF",
+                color: "#1B1F8C",
+                border: "none",
+                borderRadius: "6px",
+                padding: "3px 8px",
+                fontSize: "11.5px",
+                fontWeight: "800",
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "3px"
+              }}
+              title="Manage banner types"
+            >
+              Manage Types
+            </button>
+          </div>
+          <strong style={{ ...statValStyle, color: "#1B1F8C" }}>{availableTypes.length}</strong>
+          <span style={statSubStyle}>
+            {availableTypes.slice(0, 4).join(", ")}{availableTypes.length > 4 ? "..." : ""}
+          </span>
         </div>
       </div>
 
@@ -224,7 +269,7 @@ export default function BannersView() {
             style={selectFilterStyle}
           >
             <option value="All">All Types</option>
-            {BANNER_TYPES.map((t) => (
+            {availableTypes.map((t) => (
               <option key={t} value={t}>{t}</option>
             ))}
           </select>
@@ -349,26 +394,32 @@ export default function BannersView() {
 
             <form onSubmit={handleSaveForm} style={formStyle}>
               {/* Image Live Preview */}
-              <div style={imagePreviewBoxStyle}>
-                {formData.image ? (
-                  <div style={previewWrapperStyle}>
-                    <img src={formData.image} alt="Banner Preview" style={previewImgStyle} />
-                    <div style={previewOverlayStyle}>
-                      <span style={getTypeBadgeStyle(formData.type)}>{formData.type}</span>
-                      <h4 style={previewTitleStyle}>{formData.title || "Banner Title"}</h4>
-                      <p style={previewSubStyle}>{formData.subtitle || "Offer Subtitle"}</p>
-                      {formData.ctaText && (
-                        <span style={previewCtaBtnStyle}>{formData.ctaText}</span>
-                      )}
+              {formData.type === "Promotion" ? (
+                <div style={{ width: "100%", marginBottom: "6px" }}>
+                  <PromoBannerRenderer banner={formData} preview={true} />
+                </div>
+              ) : (
+                <div style={imagePreviewBoxStyle}>
+                  {formData.image ? (
+                    <div style={previewWrapperStyle}>
+                      <img src={formData.image} alt="Banner Preview" style={previewImgStyle} />
+                      <div style={previewOverlayStyle}>
+                        <span style={getTypeBadgeStyle(formData.type)}>{formData.type}</span>
+                        <h4 style={previewTitleStyle}>{formData.title || "Banner Title"}</h4>
+                        <p style={previewSubStyle}>{formData.subtitle || "Offer Subtitle"}</p>
+                        {formData.ctaText && (
+                          <span style={previewCtaBtnStyle}>{formData.ctaText}</span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <div style={noPreviewBoxStyle}>
-                    <ImageIcon size={32} color="#9CA3AF" />
-                    <span>Image Preview</span>
-                  </div>
-                )}
-              </div>
+                  ) : (
+                    <div style={noPreviewBoxStyle}>
+                      <ImageIcon size={32} color="#9CA3AF" />
+                      <span>Image Preview</span>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Image Upload controls */}
               <div style={fieldGroupStyle}>
@@ -420,7 +471,7 @@ export default function BannersView() {
                     onChange={(e) => setFormData((prev) => ({ ...prev, type: e.target.value }))}
                     style={selectStyle}
                   >
-                    {BANNER_TYPES.map((type) => (
+                    {availableTypes.map((type) => (
                       <option key={type} value={type}>{type}</option>
                     ))}
                   </select>

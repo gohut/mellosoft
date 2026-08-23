@@ -197,7 +197,9 @@ export default function ProfileView() {
 const containerStyle = {
   width: "100%",
   padding: "40px 48px 80px 48px",
-  boxSizing: "border-box"
+  boxSizing: "border-box",
+  backgroundColor: "#FFFFFF",
+  minHeight: "calc(100vh - 160px)",
 };
 
 // Header Card

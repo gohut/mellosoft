@@ -7,6 +7,7 @@ import { DEFAULT_ROLES } from "../../data/rolesData";
 import { DEFAULT_USERS } from "../../data/usersData";
 import { hashPassword, checkPermission } from "../../utils/security";
 import { useAdminAuth } from "../../context/AdminAuthContext";
+import { buildInitialTrackingHistory } from "../../utils/trackingHelpers";
 
 const AdminContext = createContext();
 
@@ -20,6 +21,99 @@ const WISHLISTS_STORAGE_KEY = "mellosoft_wishlists";
 const CARTS_STORAGE_KEY = "mellosoft_admin_carts";
 const REVIEWS_STORAGE_KEY = "mellosoft_reviews";
 const BANNERS_STORAGE_KEY = "mellosoft_banners";
+const HOMEPAGE_CONFIG_KEY = "mellosoft_homepage_config";
+const BANNER_TYPES_STORAGE_KEY = "mellosoft_banner_types";
+
+const DEFAULT_BANNER_TYPES = [
+  { id: "type-offer", name: "Offer" },
+  { id: "type-arrival", name: "New Arrival" },
+  { id: "type-promo", name: "Promotion" },
+  { id: "type-collection", name: "Collection" },
+];
+
+const DEFAULT_HOMEPAGE_SECTIONS = [
+  { id: "hero-slider",      label: "Hero Slides",       description: "Main hero banner slideshow at the top of the page",   visible: true, type: "global" },
+  { id: "shop-by-category", label: "Shop by Category",  description: "Category grid letting customers browse by product type", visible: true, type: "global" },
+  { id: "promo-001",        label: "Classic Comfort",   description: "Promotional Banner • Promotion",                       visible: true, type: "promo-banner", bannerId: "promo-001" },
+  { id: "promo-002",        label: "Get 30% off essentials", description: "Promotional Banner • Promotion",               visible: true, type: "promo-banner", bannerId: "promo-002" },
+  { id: "promo-003",        label: "Free assembly included", description: "Promotional Banner • Promotion",               visible: true, type: "promo-banner", bannerId: "promo-003" },
+  { id: "new-arrivals",     label: "New Arrivals",      description: "Showcase of the latest products added to the store",   visible: true, type: "global" },
+  { id: "best-sellers",     label: "Best Sellers",      description: "Top-selling products ranked by purchase frequency",    visible: true, type: "global" },
+  { id: "customer-reviews", label: "Customer Reviews",  description: "Customer reviews and feedback carousel section",        visible: true, type: "global" },
+  { id: "about-us",         label: "About Us",          description: "About Mellosoft and why customers choose us",          visible: true, type: "global" },
+];
+
+const ALL_GLOBAL_SECTIONS = [
+  { id: "hero-slider",      label: "Hero Slides",       description: "Main hero banner slideshow at the top of the page", visible: true, type: "global" },
+  { id: "shop-by-category", label: "Shop by Category",  description: "Category grid letting customers browse by product type", visible: true, type: "global" },
+  { id: "new-arrivals",     label: "New Arrivals",      description: "Showcase of the latest products added to the store", visible: true, type: "global" },
+  { id: "best-sellers",     label: "Best Sellers",      description: "Top-selling products ranked by purchase frequency", visible: true, type: "global" },
+  { id: "customer-reviews", label: "Customer Reviews",  description: "Customer reviews and feedback carousel section", visible: true, type: "global" },
+  { id: "about-us",         label: "About Us",          description: "About Mellosoft and why customers choose us", visible: true, type: "global" },
+];
+
+const sanitizeHomepageConfig = (configSections, currentBanners, isInitialHydration = false) => {
+  let result = [];
+  const promoBanners = (currentBanners || []).filter((b) => b.type === "Promotion");
+  const promoMap = new Map(promoBanners.map((b) => [b.id, b]));
+
+  (configSections || []).forEach((sec) => {
+    // If legacy single grouped section item "promo-banner" or "promo-banners" is encountered, expand it to individual items
+    if (sec.id === "promo-banner" || sec.id === "promo-banners") {
+      promoBanners.forEach((pBanner) => {
+        if (!result.some((r) => r.bannerId === pBanner.id || r.id === pBanner.id)) {
+          result.push({
+            id: pBanner.id,
+            type: "promo-banner",
+            bannerId: pBanner.id,
+            label: pBanner.title || "Promotional Banner",
+            description: `Promotional Banner • ${pBanner.type || "Promotion"}`,
+            visible: sec.visible !== false,
+          });
+        }
+      });
+      return;
+    }
+
+    // If item is a specific promo banner item
+    if (sec.type === "promo-banner" || sec.bannerId || promoMap.has(sec.id)) {
+      const bId = sec.bannerId || sec.id;
+      const bRecord = promoMap.get(bId);
+      if (bRecord) {
+        result.push({
+          ...sec,
+          id: bId,
+          type: "promo-banner",
+          bannerId: bId,
+          label: bRecord.title || sec.label || "Promotional Banner",
+          description: `Promotional Banner • ${bRecord.type || "Promotion"}`,
+          visible: sec.visible !== false,
+        });
+      }
+      return;
+    }
+
+    // Global section items
+    const globalDef = ALL_GLOBAL_SECTIONS.find((g) => g.id === sec.id || (sec.id === "about-section" && g.id === "about-us"));
+    result.push({
+      ...sec,
+      id: globalDef ? globalDef.id : sec.id,
+      label: globalDef ? globalDef.label : sec.label,
+      description: globalDef ? globalDef.description : sec.description,
+      type: sec.type || "global",
+      visible: sec.visible !== false,
+    });
+  });
+
+  // On initial hydration, if 'about-us' is not present, append it
+  if (isInitialHydration) {
+    if (!result.some((r) => r.id === "about-us" || r.id === "about-section")) {
+      result.push({ id: "about-us", label: "About Us", description: "About Mellosoft and why customers choose us", visible: true, type: "global" });
+    }
+  }
+
+  return { sections: result };
+};
 
 export function AdminProvider({ children }) {
   const [adminView, setAdminView] = useState("dashboard");
@@ -28,6 +122,8 @@ export function AdminProvider({ children }) {
   const [selectedProductId, setSelectedProductId] = useState(null);
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [selectedRoleId, setSelectedRoleId] = useState(null);
+  const [returnToNewArrivals, setReturnToNewArrivals] = useState(false);
+  const [contentActiveTab, setContentActiveTab] = useState("homepage-layout");
   
   // Hydrate products from localStorage if available, or default to MOCK_PRODUCTS
   const [products, setProducts] = useState(() => {
@@ -193,14 +289,22 @@ export function AdminProvider({ children }) {
     return MOCK_REVIEWS;
   });
 
-  // Hydrate promotional banners from localStorage
+  // Hydrate promotional banners & hero slides from localStorage
   const [banners, setBanners] = useState(() => {
     if (typeof window !== "undefined") {
       try {
         const saved = localStorage.getItem(BANNERS_STORAGE_KEY);
         if (saved) {
           const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            // If saved banners exist but lack Promotion type, ensure default promo banners are merged
+            const hasPromo = parsed.some((b) => b.type === "Promotion");
+            if (!hasPromo) {
+              const defaultPromos = MOCK_BANNERS.filter((b) => b.type === "Promotion");
+              return [...parsed, ...defaultPromos];
+            }
+            return parsed;
+          }
         }
       } catch (e) {
         console.error("Failed to load banners from localStorage:", e);
@@ -209,14 +313,151 @@ export function AdminProvider({ children }) {
     return MOCK_BANNERS;
   });
 
+  // Hydrate homepage config from localStorage (sanitizing to map individual promo banners)
+  const [homepageConfig, setHomepageConfig] = useState(() => {
+    let initialSections = DEFAULT_HOMEPAGE_SECTIONS;
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem(HOMEPAGE_CONFIG_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && Array.isArray(parsed.sections) && parsed.sections.length > 0) {
+            initialSections = parsed.sections;
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load homepage config from localStorage:", e);
+      }
+    }
+    return sanitizeHomepageConfig(initialSections, banners, true);
+  });
+
+  // Sync homepageConfig layout entries whenever banners update
+  useEffect(() => {
+    setHomepageConfig((prev) => sanitizeHomepageConfig(prev?.sections || [], banners));
+  }, [banners]);
+
+  // Hydrate banner types from localStorage
+  const [bannerTypes, setBannerTypes] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem(BANNER_TYPES_STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch (e) {
+        console.error("Failed to load banner types from localStorage:", e);
+      }
+    }
+    return DEFAULT_BANNER_TYPES;
+  });
+
+  // Hydrate New Arrival Items config from localStorage
+  const [newArrivalItems, setNewArrivalItems] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("mellosoft_new_arrivals_config");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch (e) {
+        console.error("Failed to load new arrivals config from localStorage:", e);
+      }
+    }
+    return [
+      { id: "na-1", productId: "classic-mattress", displayOrder: 1, isActive: true },
+      { id: "na-2", productId: "luxe-hybrid",     displayOrder: 2, isActive: true },
+      { id: "na-3", productId: "ortho-support",   displayOrder: 3, isActive: true },
+      { id: "na-4", productId: "ergo-air",        displayOrder: 4, isActive: true },
+    ];
+  });
+
+  // Hydrate Best Sellers config from localStorage with sequential displayOrder
+  const [bestSellerItems, setBestSellerItems] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("mellosoft_best_sellers_config");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed.map((item, idx) => ({
+              ...item,
+              displayOrder: idx + 1
+            }));
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load best sellers config from localStorage:", e);
+      }
+    }
+    return [
+      { id: "bs-1", productId: "classic-mattress", displayOrder: 1, isActive: true },
+      { id: "bs-2", productId: "luxe-hybrid",     displayOrder: 2, isActive: true },
+      { id: "bs-3", productId: "ortho-support",   displayOrder: 3, isActive: true },
+      { id: "bs-4", productId: "ergo-air",        displayOrder: 4, isActive: true },
+    ];
+  });
+
+  const [returnToBestSellers, setReturnToBestSellers] = useState(false);
+
   // Persist banners to localStorage
   useEffect(() => {
     try {
       localStorage.setItem(BANNERS_STORAGE_KEY, JSON.stringify(banners));
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("storage"));
+      }
     } catch (e) {
       console.error("Failed to save banners to localStorage:", e);
     }
   }, [banners]);
+
+  // Persist banner types to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(BANNER_TYPES_STORAGE_KEY, JSON.stringify(bannerTypes));
+    } catch (e) {
+      console.error("Failed to save banner types to localStorage:", e);
+    }
+  }, [bannerTypes]);
+
+  // Persist new arrival items to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem("mellosoft_new_arrivals_config", JSON.stringify(newArrivalItems));
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("storage"));
+      }
+    } catch (e) {
+      console.error("Failed to save new arrivals config to localStorage:", e);
+    }
+  }, [newArrivalItems]);
+
+  // Persist best seller items to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem("mellosoft_best_sellers_config", JSON.stringify(bestSellerItems));
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("storage"));
+      }
+    } catch (e) {
+      console.error("Failed to save best sellers config to localStorage:", e);
+    }
+  }, [bestSellerItems]);
+
+  // Persist homepage config to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(HOMEPAGE_CONFIG_KEY, JSON.stringify(homepageConfig));
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("storage"));
+      }
+    } catch (e) {
+      console.error("Failed to save homepage config to localStorage:", e);
+    }
+  }, [homepageConfig]);
 
   const auth = useAdminAuth();
   const currentUserId = auth?.currentUserId || (typeof window !== "undefined" ? localStorage.getItem("mellosoft_current_user_id") : null) || "user-001";
@@ -338,7 +579,7 @@ export function AdminProvider({ children }) {
 
   const rejectReview = useCallback((reviewId) => {
     setReviews((prev) =>
-      prev.map((r) => (r.id === reviewId ? { ...r, status: "Rejected" } : r))
+      prev.map((r) => (r.id === reviewId ? { ...r, status: "Rejected", showOnHome: false } : r))
     );
   }, []);
 
@@ -350,6 +591,7 @@ export function AdminProvider({ children }) {
           ? {
               ...r,
               status: "Deleted",
+              showOnHome: false,
               previousStatus: r.status !== "Deleted" ? r.status : r.previousStatus || "Approved",
               deletedAt: deletedDate,
             }
@@ -373,6 +615,19 @@ export function AdminProvider({ children }) {
     );
   }, []);
 
+  const toggleShowOnHome = useCallback((reviewId) => {
+    setReviews((prev) =>
+      prev.map((r) => {
+        if (r.id === reviewId) {
+          const isApproved = r.status === "Approved" || r.status === "approved";
+          if (!isApproved && !r.showOnHome) return r; // Cannot enable home display for unapproved reviews
+          return { ...r, showOnHome: !r.showOnHome };
+        }
+        return r;
+      })
+    );
+  }, []);
+
   /** Customer Handlers */
   const updateCustomerStatus = useCallback((customerId, status) => {
     setCustomers((prev) =>
@@ -384,15 +639,56 @@ export function AdminProvider({ children }) {
   const updateOrder = useCallback(
     (orderId, updatedFields) => {
       let updatedOrderObj = null;
-      setOrders((prev) =>
-        prev.map((o) => {
+      setOrders((prev) => {
+        const nextOrders = prev.map((o) => {
           if (o.id === orderId) {
-            updatedOrderObj = { ...o, ...updatedFields };
+            let history = Array.isArray(o.trackingHistory) && o.trackingHistory.length > 0
+              ? [...o.trackingHistory]
+              : buildInitialTrackingHistory(o);
+
+            if (updatedFields.orderStatus && o.orderStatus !== updatedFields.orderStatus) {
+              const newStatus = updatedFields.orderStatus;
+              const lastEntry = history[history.length - 1];
+              if (!lastEntry || lastEntry.status.toLowerCase() !== newStatus.toLowerCase()) {
+                const descMap = {
+                  "Confirmed": "Your order has been placed & confirmed.",
+                  "Order Confirmed": "Your order has been placed & confirmed.",
+                  "Processing": "Your order is being prepared and quality inspected.",
+                  "Packed": "Package packed and ready for carrier dispatch.",
+                  "Shipped": "Package handed over to courier. In transit.",
+                  "Out for Delivery": "Out for delivery with local courier agent.",
+                  "Delivered": "Package delivered to destination address.",
+                  "Cancelled": "Order has been cancelled."
+                };
+                history.push({
+                  status: newStatus,
+                  timestamp: new Date().toISOString(),
+                  description: updatedFields.description || descMap[newStatus] || `Order status updated to ${newStatus}.`
+                });
+              }
+            }
+
+            updatedOrderObj = {
+              ...o,
+              ...updatedFields,
+              trackingHistory: history
+            };
             return updatedOrderObj;
           }
           return o;
-        })
-      );
+        });
+
+        // Persist to localStorage for real-time customer UI sync
+        try {
+          localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(nextOrders));
+          window.dispatchEvent(new Event("storage"));
+          window.dispatchEvent(new Event("mellosoft_orders_updated"));
+        } catch (e) {
+          console.error("Failed to save orders to localStorage:", e);
+        }
+
+        return nextOrders;
+      });
 
       // Sync with backend API
       try {
@@ -425,6 +721,15 @@ export function AdminProvider({ children }) {
   // navigateTo supports optional itemId for product/user/role views
   const navigateTo = useCallback((view, itemId) => {
     setAdminView(view);
+    if (view === "add-product" && itemId === "new-arrivals") {
+      setReturnToNewArrivals(true);
+    }
+    if (view === "add-product" && itemId === "best-sellers") {
+      setReturnToBestSellers(true);
+    }
+    if (view === "content" && itemId) {
+      setContentActiveTab(itemId);
+    }
     if (itemId !== undefined) {
       if (view === "product-details" || view === "edit-product") {
         setSelectedProductId(itemId);
@@ -461,6 +766,14 @@ export function AdminProvider({ children }) {
 
   const deleteProduct = useCallback((productId) => {
     setProducts((prev) => prev.filter((p) => p.id !== productId && p.Product_Id !== productId));
+    setNewArrivalItems((prev) => {
+      const filtered = prev.filter((item) => item.productId !== productId && item.id !== productId);
+      return filtered.map((item, idx) => ({ ...item, displayOrder: idx + 1 }));
+    });
+    setBestSellerItems((prev) => {
+      const filtered = prev.filter((item) => item.productId !== productId && item.id !== productId);
+      return filtered.map((item, idx) => ({ ...item, displayOrder: idx + 1 }));
+    });
   }, []);
 
   /** Category Handlers */
@@ -687,31 +1000,85 @@ export function AdminProvider({ children }) {
   );
 
   const addBanner = useCallback((bannerData) => {
-    const newBanner = {
-      id: `banner-${Date.now().toString().slice(-4)}`,
-      title: bannerData.title || "Untitled Banner",
-      type: bannerData.type || "Offer",
-      image: bannerData.image || "/asset/img2.jpg",
-      subtitle: bannerData.subtitle || "",
-      description: bannerData.description || "",
-      ctaText: bannerData.ctaText || "Shop Now",
-      ctaLink: bannerData.ctaLink || "mattress",
-      isActive: bannerData.isActive !== false,
-      displayOrder: Number(bannerData.displayOrder) || (banners.length + 1)
-    };
-    setBanners((prev) => [...prev, newBanner]);
-    return { success: true, banner: newBanner };
-  }, [banners.length]);
+    let createdBanner;
+    setBanners((prev) => {
+      const targetType = bannerData.type || "Offer";
+      const sameTypeItems = prev.filter((b) => (b.type || "Offer") === targetType);
+      
+      createdBanner = {
+        id: bannerData.id || `banner-${Date.now().toString().slice(-4)}`,
+        title: bannerData.title || "Untitled Banner",
+        type: targetType,
+        image: bannerData.image || "/asset/img2.jpg",
+        subtitle: bannerData.subtitle || "",
+        description: bannerData.description || "",
+        ctaText: bannerData.ctaText !== undefined ? bannerData.ctaText : "Shop Now",
+        ctaLink: bannerData.ctaLink || "mattress",
+        isActive: bannerData.isActive !== false,
+        productId: bannerData.productId || "",
+        displayOrder: sameTypeItems.length + 1
+      };
+      return [...prev, createdBanner];
+    });
+
+    if (bannerData.type === "Promotion") {
+      setHomepageConfig((prevConfig) => {
+        const prevSections = prevConfig?.sections || [];
+        const exists = prevSections.some((s) => s.bannerId === createdBanner.id || s.id === createdBanner.id);
+        if (exists) return prevConfig;
+        const newSectionItem = {
+          id: createdBanner.id,
+          bannerId: createdBanner.id,
+          type: "promo-banner",
+          label: createdBanner.title || "Promotional Banner",
+          description: `Promotional Banner • ${createdBanner.type || "Promotion"}`,
+          visible: true
+        };
+        return {
+          ...prevConfig,
+          sections: [...prevSections, newSectionItem]
+        };
+      });
+    }
+
+    return { success: true, banner: createdBanner };
+  }, []);
 
   const updateBanner = useCallback((id, updatedFields) => {
     setBanners((prev) =>
       prev.map((b) => (b.id === id ? { ...b, ...updatedFields } : b))
     );
+    if (updatedFields.title) {
+      setHomepageConfig((prevConfig) => {
+        const prevSections = prevConfig?.sections || [];
+        const updatedSections = prevSections.map((s) =>
+          (s.id === id || s.bannerId === id) ? { ...s, label: updatedFields.title } : s
+        );
+        return { ...prevConfig, sections: updatedSections };
+      });
+    }
     return { success: true };
   }, []);
 
   const deleteBanner = useCallback((id) => {
-    setBanners((prev) => prev.filter((b) => b.id !== id));
+    setBanners((prev) => {
+      const deleted = prev.find((b) => b.id === id);
+      const targetType = deleted?.type || "Offer";
+      const remaining = prev.filter((b) => b.id !== id);
+      
+      let count = 1;
+      return remaining.map((b) => {
+        if ((b.type || "Offer") === targetType) {
+          return { ...b, displayOrder: count++ };
+        }
+        return b;
+      });
+    });
+    setHomepageConfig((prevConfig) => {
+      const prevSections = prevConfig?.sections || [];
+      const updatedSections = prevSections.filter((s) => s.id !== id && s.bannerId !== id);
+      return { ...prevConfig, sections: updatedSections };
+    });
     return { success: true };
   }, []);
 
@@ -719,6 +1086,174 @@ export function AdminProvider({ children }) {
     setBanners((prev) =>
       prev.map((b) => (b.id === id ? { ...b, isActive: !b.isActive } : b))
     );
+    return { success: true };
+  }, []);
+
+  const reorderBanners = useCallback((reorderedItems) => {
+    setBanners((prev) => {
+      const orderMap = new Map(reorderedItems.map((item, index) => [item.id, index + 1]));
+      return prev.map((b) => {
+        if (orderMap.has(b.id)) {
+          return { ...b, displayOrder: orderMap.get(b.id) };
+        }
+        return b;
+      });
+    });
+    return { success: true };
+  }, []);
+
+  const addBannerType = useCallback((typeNameInput) => {
+    const rawName = typeof typeNameInput === "string" ? typeNameInput : typeNameInput?.name || "";
+    const cleanName = rawName.trim();
+    if (!cleanName) {
+      return { success: false, error: "Type Name is required." };
+    }
+
+    const isDuplicate = bannerTypes.some(
+      (t) => (typeof t === "string" ? t : t.name).toLowerCase() === cleanName.toLowerCase()
+    );
+    if (isDuplicate) {
+      return { success: false, error: "This Hero Slide Type already exists." };
+    }
+
+    const newType = {
+      id: `type-${Date.now()}`,
+      name: cleanName
+    };
+    setBannerTypes((prev) => [...prev, newType]);
+    return { success: true, bannerType: newType };
+  }, [bannerTypes]);
+
+  const deleteBannerType = useCallback((typeNameOrId) => {
+    setBannerTypes((prev) =>
+      prev.filter((t) => {
+        const name = typeof t === "string" ? t : t.name;
+        const id = typeof t === "string" ? t : t.id;
+        return name.toLowerCase() !== typeNameOrId.toLowerCase() && id !== typeNameOrId;
+      })
+    );
+    return { success: true };
+  }, []);
+
+  const updateHomepageConfig = useCallback((updatedConfig) => {
+    setHomepageConfig(updatedConfig);
+  }, []);
+
+  const addProductsToNewArrivals = useCallback((productIds) => {
+    setNewArrivalItems((prev) => {
+      const existingProductIds = new Set(prev.map((item) => item.productId));
+      const newItems = [];
+      
+      productIds.forEach((pid) => {
+        if (!existingProductIds.has(pid)) {
+          newItems.push({
+            id: `na-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+            productId: pid,
+            isActive: true
+          });
+        }
+      });
+      const combined = [...prev, ...newItems];
+      return combined.map((item, idx) => ({
+        ...item,
+        displayOrder: idx + 1
+      }));
+    });
+    return { success: true };
+  }, []);
+
+  const addNewProductAndAddToNewArrivals = useCallback((productData) => {
+    const res = addProduct(productData);
+    if (res && res.success && res.product) {
+      addProductsToNewArrivals([res.product.id]);
+    }
+    return res;
+  }, [addProduct, addProductsToNewArrivals]);
+
+  const removeFromNewArrivals = useCallback((id) => {
+    setNewArrivalItems((prev) => {
+      const filtered = prev.filter((item) => item.id !== id && item.productId !== id);
+      return filtered.map((item, idx) => ({
+        ...item,
+        displayOrder: idx + 1
+      }));
+    });
+    return { success: true };
+  }, []);
+
+  const toggleNewArrivalStatus = useCallback((id) => {
+    setNewArrivalItems((prev) =>
+      prev.map((item) => (item.id === id || item.productId === id ? { ...item, isActive: !item.isActive } : item))
+    );
+    return { success: true };
+  }, []);
+
+  const reorderNewArrivals = useCallback((reorderedItems) => {
+    setNewArrivalItems(() => {
+      return reorderedItems.map((item, idx) => ({
+        ...item,
+        displayOrder: idx + 1
+      }));
+    });
+    return { success: true };
+  }, []);
+
+  const addProductsToBestSellers = useCallback((productIds) => {
+    setBestSellerItems((prev) => {
+      const existingProductIds = new Set(prev.map((item) => item.productId));
+      const newItems = [];
+      
+      productIds.forEach((pid) => {
+        if (!existingProductIds.has(pid)) {
+          newItems.push({
+            id: `bs-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+            productId: pid,
+            isActive: true
+          });
+        }
+      });
+      const combined = [...prev, ...newItems];
+      return combined.map((item, idx) => ({
+        ...item,
+        displayOrder: idx + 1
+      }));
+    });
+    return { success: true };
+  }, []);
+
+  const addNewProductAndAddToBestSellers = useCallback((productData) => {
+    const res = addProduct(productData);
+    if (res && res.success && res.product) {
+      addProductsToBestSellers([res.product.id]);
+    }
+    return res;
+  }, [addProduct, addProductsToBestSellers]);
+
+  const removeFromBestSellers = useCallback((id) => {
+    setBestSellerItems((prev) => {
+      const filtered = prev.filter((item) => item.id !== id && item.productId !== id);
+      return filtered.map((item, idx) => ({
+        ...item,
+        displayOrder: idx + 1
+      }));
+    });
+    return { success: true };
+  }, []);
+
+  const toggleBestSellerStatus = useCallback((id) => {
+    setBestSellerItems((prev) =>
+      prev.map((item) => (item.id === id || item.productId === id ? { ...item, isActive: !item.isActive } : item))
+    );
+    return { success: true };
+  }, []);
+
+  const reorderBestSellers = useCallback((reorderedItems) => {
+    setBestSellerItems(() => {
+      return reorderedItems.map((item, idx) => ({
+        ...item,
+        displayOrder: idx + 1
+      }));
+    });
     return { success: true };
   }, []);
 
@@ -748,6 +1283,30 @@ export function AdminProvider({ children }) {
         updateBanner,
         deleteBanner,
         toggleBannerStatus,
+        reorderBanners,
+        bannerTypes,
+        addBannerType,
+        deleteBannerType,
+        newArrivalItems,
+        addProductsToNewArrivals,
+        addNewProductAndAddToNewArrivals,
+        removeFromNewArrivals,
+        toggleNewArrivalStatus,
+        reorderNewArrivals,
+        bestSellerItems,
+        addProductsToBestSellers,
+        addNewProductAndAddToBestSellers,
+        removeFromBestSellers,
+        toggleBestSellerStatus,
+        reorderBestSellers,
+        returnToNewArrivals,
+        setReturnToNewArrivals,
+        returnToBestSellers,
+        setReturnToBestSellers,
+        contentActiveTab,
+        setContentActiveTab,
+        homepageConfig,
+        updateHomepageConfig,
         users,
         addUser,
         updateUser,
@@ -768,6 +1327,7 @@ export function AdminProvider({ children }) {
         rejectReview,
         deleteReview,
         restoreReview,
+        toggleShowOnHome,
         currentUser,
         currentUserRole,
         hasPermission,

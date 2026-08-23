@@ -119,7 +119,9 @@ export default function WishlistView() {
 const containerStyle = {
   width: "100%",
   padding: "40px 48px 80px 48px",
-  boxSizing: "border-box"
+  boxSizing: "border-box",
+  backgroundColor: "#FFFFFF",
+  minHeight: "calc(100vh - 160px)",
 };
 
 const headerStyle = {
@@ -184,7 +186,11 @@ const emptyWrapperStyle = {
   display: "flex",
   justifyContent: "center",
   alignItems: "center",
-  padding: "80px 0"
+  padding: "80px 24px",
+  width: "100%",
+  boxSizing: "border-box",
+  backgroundColor: "#FFFFFF",
+  minHeight: "calc(100vh - 160px)",
 };
 
 // Wishlist Specific Card Footer Overlay
@@ -192,10 +198,11 @@ const wishlistCardOverlayStyle = {
   display: "flex",
   justifyContent: "space-between",
   alignItems: "center",
-  backgroundColor: "#F7F7F2",
+  backgroundColor: "#FFFFFF",
   padding: "10px 16px",
   borderRadius: 0,
-  marginTop: "10px"
+  marginTop: "10px",
+  border: "1px solid #E2E8F0"
 };
 
 const cardMoveCartBtnStyle = {
