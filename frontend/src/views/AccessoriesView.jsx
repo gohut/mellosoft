@@ -6,6 +6,7 @@ import { ACCESSORY_CATEGORY_LIST, getAccessoryCategoryMeta } from "../utils/prod
 import { useStore } from "../context/StoreContext";
 import { Search, RefreshCw } from "lucide-react";
 import EmptyState from "../components/EmptyState";
+import ProductCard from "../components/ProductCard";
 
 export default function AccessoriesView({ categoryParam = "all" }) {
   const { navigateTo } = useStore();
@@ -179,7 +180,7 @@ export default function AccessoriesView({ categoryParam = "all" }) {
       {filteredAccessories.length > 0 ? (
         <div style={gridStyle}>
           {filteredAccessories.map((item) => (
-            <AccessoryProductCard key={item.id} item={item} />
+            <ProductCard key={item.id} product={item} />
           ))}
         </div>
       ) : (
@@ -193,109 +194,6 @@ export default function AccessoriesView({ categoryParam = "all" }) {
           />
         </div>
       )}
-    </div>
-  );
-}
-
-function AccessoryProductCard({ item }) {
-  const { navigateTo } = useStore();
-  const [imgSrc, setImgSrc] = useState(
-    item.images?.[0] || ACCESSORY_FALLBACK_IMAGES[item.category] || "/images/accessories/fallback/memory-foam-pillow.svg"
-  );
-  const [isHovered, setIsHovered] = useState(false);
-
-  const handleCardClick = () => {
-    const targetId = item.slug || item.id;
-    navigateTo("detail", targetId);
-    if (typeof window !== "undefined") {
-      window.history.pushState(null, "", `/product/${targetId}`);
-    }
-  };
-
-  const handleImageError = () => {
-    const fallback = ACCESSORY_FALLBACK_IMAGES[item.category] || "/images/accessories/fallback/memory-foam-pillow.svg";
-    if (imgSrc !== fallback) {
-      setImgSrc(fallback);
-    }
-  };
-
-  const handleEnquireClick = (e) => {
-    e.stopPropagation();
-    const params = new URLSearchParams({
-      product: item.name,
-      category: item.categoryName || item.category,
-      type: item.type || ""
-    });
-    window.location.href = `/contact?${params.toString()}`;
-  };
-
-  return (
-    <div
-      onClick={handleCardClick}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      style={{
-        ...cardStyle,
-        cursor: "pointer",
-        transform: isHovered ? "translateY(-4px) scale(1.015)" : "none",
-        boxShadow: isHovered ? "0 12px 28px rgba(0, 0, 0, 0.12)" : "0 2px 10px rgba(0,0,0,0.04)"
-      }}
-    >
-      <div style={imageWrapStyle}>
-        <img
-          src={imgSrc}
-          alt={`Mellosoft ${item.name} ${item.categoryName || item.category}`}
-          onError={handleImageError}
-          loading="lazy"
-          style={{
-            ...imageStyle,
-            transform: isHovered ? "scale(1.05)" : "scale(1)"
-          }}
-        />
-        <span style={badgeStyle}>
-          {item.categoryName || "ACCESSORY"}
-        </span>
-      </div>
-
-      <div style={cardBodyStyle}>
-        <div>
-          <span style={categoryTagStyle}>{item.categoryName || item.category}</span>
-          <h3 style={itemTitleStyle}>{item.name}</h3>
-          {item.tagline && <p style={taglineStyle}>"{item.tagline}"</p>}
-        </div>
-
-        {/* TYPE / SPEC BADGE */}
-        {item.type && (
-          <div style={typeBadgeStyle}>
-            <span style={{ fontSize: "11px", fontWeight: 700, color: "#1B1F8C" }}>
-              {item.type}
-            </span>
-          </div>
-        )}
-
-        {/* FIRMNESS OR MATERIAL */}
-        {(item.firmness || item.material) && (
-          <div style={specRowStyle}>
-            {item.firmness && <span style={specPillStyle}>Feel: {item.firmness}</span>}
-            {item.material && <span style={specPillStyle}>Material: {item.material}</span>}
-          </div>
-        )}
-
-        <div style={cardFooterStyle}>
-          <div>
-            <span style={priceLabelStyle}>Pricing</span>
-            <div style={contactPriceStyle}>Contact for Price</div>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleEnquireClick}
-            style={enquireBtnStyle}
-          >
-            ENQUIRE NOW
-          </button>
-        </div>
-      </div>
     </div>
   );
 }

@@ -133,7 +133,16 @@ export function AdminProvider({ children }) {
         if (saved) {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed;
+            const parsedIdMap = new Map(parsed.map((p) => [p.id, p]));
+            return MOCK_PRODUCTS.map((masterItem) => {
+              const stored = parsedIdMap.get(masterItem.id);
+              return {
+                ...masterItem,
+                ...(stored || {}),
+                isNewArrival: stored?.isNewArrival ?? masterItem.isNewArrival ?? false,
+                newArrivalOrder: stored?.newArrivalOrder ?? masterItem.newArrivalOrder ?? 999
+              };
+            });
           }
         }
       } catch (e) {
@@ -367,10 +376,16 @@ export function AdminProvider({ children }) {
       }
     }
     return [
-      { id: "na-1", productId: "classic-mattress", displayOrder: 1, isActive: true },
-      { id: "na-2", productId: "luxe-hybrid",     displayOrder: 2, isActive: true },
-      { id: "na-3", productId: "ortho-support",   displayOrder: 3, isActive: true },
-      { id: "na-4", productId: "ergo-air",        displayOrder: 4, isActive: true },
+      { id: "na-1", productId: "cloudrest",     displayOrder: 1,  isActive: true },
+      { id: "na-2", productId: "spinecare",     displayOrder: 2,  isActive: true },
+      { id: "na-3", productId: "breeze",        displayOrder: 3,  isActive: true },
+      { id: "na-4", productId: "natura",        displayOrder: 4,  isActive: true },
+      { id: "na-5", productId: "embrace",       displayOrder: 5,  isActive: true },
+      { id: "na-6", productId: "celestial",     displayOrder: 6,  isActive: true },
+      { id: "na-7", productId: "cloud-contour", displayOrder: 7,  isActive: true },
+      { id: "na-8", productId: "aqua-guard",    displayOrder: 8,  isActive: true },
+      { id: "na-9", productId: "cloud-duvet",    displayOrder: 9,  isActive: true },
+      { id: "na-10", productId: "flexi-bed",    displayOrder: 10, isActive: true },
     ];
   });
 

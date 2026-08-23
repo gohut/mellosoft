@@ -39,7 +39,7 @@ export default function PromotionalBannerSlider({ banners: bannersProp }) {
 
   return (
     <section style={sectionWrapperStyle} className="promotional-banner-section">
-      <div style={containerStyle}>
+      <div style={containerStyle} className="promo-banner-container">
         <div style={bannersColumnStyle} className="promo-banners-static-list">
           {promoBannersList.map((banner) => (
             <PromoBannerCard
@@ -51,14 +51,35 @@ export default function PromotionalBannerSlider({ banners: bannersProp }) {
         </div>
       </div>
       <style>{`
+        .promotional-banner-section {
+          width: 100%;
+          display: flex;
+          justify-content: center;
+          box-sizing: border-box;
+        }
+        .promo-banner-container {
+          width: calc(100% - 32px) !important;
+          max-width: none !important;
+          margin: 0 auto !important;
+          box-sizing: border-box !important;
+        }
         .promo-banners-static-list {
           display: flex;
           flex-direction: column;
           gap: 20px;
+          width: 100%;
+        }
+        @media (max-width: 1024px) {
+          .promo-banner-container {
+            width: calc(100% - 24px) !important;
+          }
         }
         @media (max-width: 767px) {
           .promotional-banner-section {
             padding: 14px 0 !important;
+          }
+          .promo-banner-container {
+            width: calc(100% - 20px) !important;
           }
           .promo-banners-static-list {
             gap: 14px !important;
@@ -70,14 +91,18 @@ export default function PromotionalBannerSlider({ banners: bannersProp }) {
 }
 
 const sectionWrapperStyle = {
-  padding: "20px 0 16px",
+  padding: "24px 0 20px",
   width: "100%",
-  boxSizing: "border-box"
+  boxSizing: "border-box",
+  display: "flex",
+  justifyContent: "center"
 };
 
 const containerStyle = {
-  width: "100%",
-  padding: "0 48px",
+  width: "calc(100% - 32px)",
+  maxWidth: "none",
+  margin: "0 auto",
+  padding: "0",
   boxSizing: "border-box"
 };
 

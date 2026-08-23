@@ -14,9 +14,10 @@ import { useRouter } from "next/navigation";
 import { getProductByIdentifier, getRelatedProducts, getMattressRecommendations } from "../utils/productHelpers";
 import MattressSelector from "../components/MattressSelector";
 
-export default function ProductDetailView() {
+export default function ProductDetailView({ productId: initialProductId }) {
   const router = useRouter();
   const { 
+    products,
     selectedProductId, 
     getProductById, 
     addToCart, 
@@ -31,8 +32,20 @@ export default function ProductDetailView() {
   const cartCount = cart.reduce((acc, item) => acc + item.qty, 0);
 
   const product = useMemo(() => {
-    return getProductById(selectedProductId) || null;
-  }, [getProductById, selectedProductId]);
+    let target = initialProductId || selectedProductId;
+    if (typeof window !== "undefined") {
+      const match = window.location.pathname.match(/\/product\/([^/]+)/);
+      if (match && match[1]) {
+        try {
+          target = decodeURIComponent(match[1]).trim();
+        } catch (e) {
+          target = match[1].trim();
+        }
+      }
+    }
+    const storeProds = (products && products.length > 0) ? products : MOCK_PRODUCTS;
+    return getProductByIdentifier(target, storeProds) || getProductByIdentifier(selectedProductId, storeProds) || null;
+  }, [products, selectedProductId, initialProductId]);
 
   // Gallery Active Image
   const [activeImgIndex, setActiveImgIndex] = useState(0);
@@ -563,7 +576,7 @@ export default function ProductDetailView() {
         <div style={recommendationsGridStyle} className="recommendations-row">
           {recommendations.map((rec) => (
             <div key={rec.id} style={{ flex: "1 1 280px" }}>
-              <ProductCard product={rec} />
+              <ProductCard product={rec} showContactForPrice={false} />
             </div>
           ))}
         </div>

@@ -1,29 +1,34 @@
 import { MATTRESS_PRODUCTS, ACCESSORY_PRODUCTS, ACCESSORIES_CATEGORIES } from "./mattressData";
+import { ensureProductPricing } from "../utils/pricingEngine";
 
 // Helper to convert MATTRESS_PRODUCTS to full MOCK_PRODUCTS format
-const mattressProductsFormatted = MATTRESS_PRODUCTS.map((prod) => {
+const mattressProductsFormatted = MATTRESS_PRODUCTS.map((rawProd) => {
+  const prod = ensureProductPricing(rawProd);
+  const minP = prod.startingPrice || 10800;
   return {
     ...prod,
     Product_Id: `PROD-${prod.id.toUpperCase()}`,
     Product_Name: prod.name,
-    price: prod.startingPrice ?? 0,
-    Actual_Price: prod.startingPrice ?? 0,
+    price: minP,
+    Actual_Price: minP,
     discountPercent: 0,
-    discountPrice: prod.startingPrice ?? 0,
-    Discounted_Price: prod.startingPrice ?? 0,
+    discountPrice: minP,
+    Discounted_Price: minP,
     rating: 4.8,
     reviewCount: 42,
     badge: prod.categoryName,
-    specs: `${prod.construction} • ${prod.thicknessOptions.join(" / ")} Thickness`,
+    specs: `${prod.construction || "Premium Construction"} • ${(prod.thicknessOptions || ["Standard"]).join(" / ")} Thickness`,
     features: [
-      `Construction: ${prod.construction}`,
-      `Available Thickness: ${prod.thicknessOptions.join(" & ")}`,
-      `Layer Details: ${Object.entries(prod.layers || {}).map(([t, l]) => `${t}: ${l}`).join(" | ")}`,
+      `Construction: ${prod.construction || "Standard"}`,
+      `Available Thickness: ${(prod.thicknessOptions || ["Standard"]).join(" & ")}`,
+      `Layer Details: ${Object.entries(prod.layers || {}).map(([t, l]) => `${t}: ${l}`).join(" | ") || "Multi-layer comfort design"}`,
       "100-Night Sleep Trial & Direct Manufacturer Warranty"
     ],
+    isNewArrival: prod.isNewArrival ?? false,
+    newArrivalOrder: prod.newArrivalOrder ?? 999,
     firmnessOptions: prod.thicknessOptions,
     sizeOptions: ["Single", "Double", "Queen", "King"],
-    sizePrices: {},
+    sizePrices: prod.sizePrices || {},
     reviews: [
       {
         id: `r-${prod.id}-1`,
@@ -48,18 +53,22 @@ const mattressProductsFormatted = MATTRESS_PRODUCTS.map((prod) => {
 });
 
 // Helper to convert ACCESSORY_PRODUCTS to full format
-const accessoryProductsFormatted = (ACCESSORY_PRODUCTS || []).map((acc) => {
+const accessoryProductsFormatted = (ACCESSORY_PRODUCTS || []).map((rawAcc) => {
+  const acc = ensureProductPricing(rawAcc);
+  const minP = acc.startingPrice || 499;
   return {
     ...acc,
+    isNewArrival: acc.isNewArrival ?? false,
+    newArrivalOrder: acc.newArrivalOrder ?? 999,
     category: "accessories",
     subCategory: acc.category,
     Product_Id: `ACC-${acc.id.toUpperCase()}`,
     Product_Name: acc.name,
-    price: acc.startingPrice ?? 0,
-    Actual_Price: acc.startingPrice ?? 0,
+    price: minP,
+    Actual_Price: minP,
     discountPercent: 0,
-    discountPrice: acc.startingPrice ?? 0,
-    Discounted_Price: acc.startingPrice ?? 0,
+    discountPrice: minP,
+    Discounted_Price: minP,
     rating: 4.8,
     reviewCount: 28,
     badge: acc.categoryName || "Accessories",
@@ -72,7 +81,7 @@ const accessoryProductsFormatted = (ACCESSORY_PRODUCTS || []).map((acc) => {
     ],
     firmnessOptions: acc.firmness ? [acc.firmness] : ["Standard"],
     sizeOptions: acc.sizes || ["Standard"],
-    sizePrices: {}
+    sizePrices: acc.sizePrices || {}
   };
 });
 

@@ -54,9 +54,12 @@ export default function HomeView() {
         .map((item) => allProds.find((p) => p.id === item.productId || p.id === item.id))
         .filter(Boolean);
 
-      if (resolved.length > 0) return resolved;
+      if (resolved.length > 0) return resolved.slice(0, 10);
     }
-    return allProds.filter((product) => ["New", "Premium", "Eco-Friendly", "Essential"].includes(product.badge)).slice(0, 4);
+    return allProds
+      .filter((product) => product.isNewArrival === true)
+      .sort((a, b) => (a.newArrivalOrder ?? 999) - (b.newArrivalOrder ?? 999))
+      .slice(0, 10);
   }, [newArrivalItems, products]);
 
   const defaultSections = [
@@ -170,7 +173,7 @@ export default function HomeView() {
 
           return (
             <section key={section.id || targetBanner.id} style={promoSectionWrapperStyle} className="single-promo-banner-section">
-              <div style={containerStyle}>
+              <div style={promoWideContainerStyle} className="promo-wide-container">
                 <PromoBannerCard
                   banner={targetBanner}
                   onClick={(e) => {
@@ -506,6 +509,91 @@ export default function HomeView() {
             scroll-padding-left: 24px !important;
             justify-content: flex-start !important;
           }
+          position: relative;
+        }
+        .row-fade {
+          position: absolute;
+          top: 0;
+          bottom: 10px;
+          width: 64px;
+          pointer-events: none;
+          z-index: 2;
+          display: none;
+        }
+        .row-fade-left {
+          left: 0;
+          background: linear-gradient(90deg, var(--row-fade-color, #FFFFFF), rgba(255, 255, 255, 0));
+        }
+        .row-fade-right {
+          right: 0;
+          background: linear-gradient(270deg, var(--row-fade-color, #FFFFFF), rgba(255, 255, 255, 0));
+        }
+        @media (min-width: 768px) {
+          .product-row-scroll {
+            display: flex !important;
+            grid-template-columns: none !important;
+            overflow-x: auto;
+            scroll-snap-type: x mandatory;
+            padding-bottom: 10px;
+            padding-left: 64px;
+            padding-right: 64px;
+            scroll-padding-left: 64px;
+            scroll-padding-right: 64px;
+          }
+          .product-row-scroll .product-item-scroll {
+            flex: 0 0 260px;
+            min-width: 260px;
+            scroll-snap-align: start;
+          }
+          .row-fade {
+            display: block;
+          }
+        }
+        @media (max-width: 767px) {
+          .peek-slider {
+            gap: 10px !important;
+            padding: 14px 16px 18px 24px !important;
+          }
+          .peek-slide {
+            width: 82vw !important;
+            height: 150px !important;
+            border-radius: 16px !important;
+          }
+          .peek-badge {
+            top: 10px !important;
+            left: 10px !important;
+            padding: 4px 9px !important;
+            font-size: 10px !important;
+          }
+          .peek-slide-content {
+            left: 12px !important;
+            right: 76px !important;
+            bottom: 12px !important;
+            gap: 2px !important;
+          }
+          .peek-deal-text {
+            font-size: 11px !important;
+          }
+          .peek-headline {
+            font-size: 16px !important;
+          }
+          .peek-shop-btn {
+            right: 10px !important;
+            bottom: 10px !important;
+            padding: 7px 12px !important;
+            font-size: 11px !important;
+          }
+          .category-row {
+            overflow-x: auto !important;
+            display: flex !important;
+            flex-wrap: nowrap !important;
+            gap: 16px !important;
+            padding: 2px 24px 14px !important;
+            margin: 0 -16px !important;
+            scroll-snap-type: x mandatory;
+            scroll-padding-left: 24px !important;
+            justify-content: flex-start !important;
+          }
           .category-row .category-tile {
             flex: 0 0 clamp(154px, 52vw, 220px) !important;
             min-width: 0 !important;
@@ -523,43 +611,31 @@ export default function HomeView() {
             scroll-snap-type: x mandatory;
             scroll-padding-left: 24px !important;
           }
-          .product-row > * {
-            scroll-snap-align: start;
+          .single-promo-banner-section {
+            width: 100% !important;
+            display: flex !important;
+            justify-content: center !important;
+            box-sizing: border-box !important;
           }
-          .peek-dots {
-            padding-bottom: 10px !important;
+          .promo-wide-container {
+            width: calc(100% - 16px) !important;
+            max-width: none !important;
+            margin: 0 auto !important;
+            padding: 0 !important;
+            box-sizing: border-box !important;
           }
-          .category-section {
-            padding: 12px 0 !important;
+          @media (max-width: 1024px) {
+            .promo-wide-container {
+              width: calc(100% - 16px) !important;
+            }
           }
-          .home-product-section {
-            padding: 20px 0 !important;
-          }
-          .home-product-section > div,
-          .category-section > div {
-            padding: 0 16px !important;
-          }
-          .brand-grid,
-          .promo-grid {
-            grid-template-columns: 1fr !important;
-          }
-          .about-bento-grid {
-            grid-template-columns: 1fr !important;
-          }
-          .promo-grid {
-            gap: 14px !important;
-          }
-          .promo-card {
-            min-height: 138px !important;
-            border-radius: 6px !important;
-          }
-          .promo-content {
-            min-height: 138px !important;
-            padding: 18px !important;
-          }
-          .promo-title {
-            font-size: 22px !important;
-            max-width: 260px !important;
+          @media (max-width: 767px) {
+            .single-promo-banner-section {
+              padding: 14px 0 !important;
+            }
+            .promo-wide-container {
+              width: calc(100% - 12px) !important;
+            }
           }
         }
       `}</style>
@@ -681,6 +757,14 @@ const containerStyle = {
   boxSizing: "border-box"
 };
 
+const promoWideContainerStyle = {
+  width: "calc(100% - 16px)",
+  maxWidth: "none",
+  margin: "0 auto",
+  padding: "0",
+  boxSizing: "border-box"
+};
+
 const sliderSectionStyle = {
   backgroundColor: "#FFFFFF",
   position: "relative"
@@ -689,7 +773,9 @@ const sliderSectionStyle = {
 const promoSectionWrapperStyle = {
   padding: "20px 0 16px",
   width: "100%",
-  boxSizing: "border-box"
+  boxSizing: "border-box",
+  display: "flex",
+  justifyContent: "center"
 };
 
 const peekSliderTrackStyle = {

@@ -2,18 +2,33 @@
 
 import React, { useState } from "react";
 import { useStore } from "../context/StoreContext";
-import { formatPrice } from "../utils/currency";
-import { CATEGORY_FALLBACK_IMAGES } from "../data/mattressData";
+import { formatPrice, getMinimumProductPrice } from "../utils/currency";
+import { getProductUrl } from "../utils/productHelpers";
+import { CATEGORY_FALLBACK_IMAGES, ACCESSORY_FALLBACK_IMAGES } from "../data/mattressData";
+import { useRouter } from "next/navigation";
 
-export default function ProductCard({ product, variant }) {
+export default function ProductCard({
+  product,
+  showContactForPrice = true,
+  hideUnpricedLabel = false
+}) {
+  const router = useRouter();
   const { wishlist, toggleWishlist, navigateTo } = useStore();
-  const isWishlisted = wishlist.includes(product.id);
+  const isWishlisted = wishlist ? wishlist.includes(product.id) : false;
+
+  const fallbackImg =
+    CATEGORY_FALLBACK_IMAGES[product.category] ||
+    ACCESSORY_FALLBACK_IMAGES[product.category] ||
+    "/images/mattresses/fallback/foam.svg";
+
   const [imgSrc, setImgSrc] = useState(
-    product.images?.[0] || product.image || CATEGORY_FALLBACK_IMAGES[product.category] || "/images/mattresses/fallback/foam.svg"
+    product.images?.[0] || product.image || fallbackImg
   );
   const [isHovered, setIsHovered] = useState(false);
 
-  const isPriced = (product.startingPrice && product.startingPrice > 0) || (product.price && product.price > 0);
+  const minPrice = getMinimumProductPrice(product);
+  const isPriced = minPrice !== null && minPrice !== undefined && !isNaN(minPrice) && minPrice > 0;
+  const shouldShowUnpricedLabel = showContactForPrice && !hideUnpricedLabel;
 
   const handleWishlistClick = (event) => {
     event.stopPropagation();
@@ -22,25 +37,40 @@ export default function ProductCard({ product, variant }) {
   };
 
   const handleImageError = () => {
-    const fallback = CATEGORY_FALLBACK_IMAGES[product.category] || "/images/mattresses/fallback/foam.svg";
-    if (imgSrc !== fallback) {
-      setImgSrc(fallback);
+    if (imgSrc !== fallbackImg) {
+      setImgSrc(fallbackImg);
     }
   };
 
-  const thicknessStr = product.thicknessOptions ? product.thicknessOptions.join(" / ") : "Standard";
+  const thicknessStr = product.thicknessOptions
+    ? product.thicknessOptions.join(" / ")
+    : (product.sizes ? product.sizes.slice(0, 3).join(" / ") : null);
+
+  const specLabel = product.construction || product.type || product.material || null;
 
   const handleCardClick = () => {
-    const targetId = product.slug || product.id;
+    const targetId = product.slug || product.id || product.Product_Id;
     navigateTo("detail", targetId);
-    if (typeof window !== "undefined") {
-      window.history.pushState(null, "", `/product/${targetId}`);
+    const targetUrl = getProductUrl(product);
+    if (router && typeof router.push === "function") {
+      router.push(targetUrl);
+    } else if (typeof window !== "undefined") {
+      window.location.href = targetUrl;
     }
   };
 
   return (
     <article
       onClick={handleCardClick}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handleCardClick();
+        }
+      }}
+      tabIndex={0}
+      role="button"
+      aria-label={`View details for ${product.name}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       style={{
@@ -54,7 +84,7 @@ export default function ProductCard({ product, variant }) {
       <div style={imageWrapperStyle}>
         <img
           src={imgSrc}
-          alt={`Mellosoft ${product.name} ${product.categoryName || product.category} mattress`}
+          alt={`Mellosoft ${product.name} ${product.categoryName || product.category || "Product"}`}
           onError={handleImageError}
           loading="lazy"
           style={{
@@ -63,10 +93,16 @@ export default function ProductCard({ product, variant }) {
           }}
         />
 
-        {/* CATEGORY BADGE */}
-        <span style={badgeStyle}>
-          {product.categoryName || product.category.toUpperCase()}
-        </span>
+        {/* CATEGORY / NEW ARRIVAL BADGE */}
+        {product.isNewArrival ? (
+          <span style={{ ...badgeStyle, backgroundColor: "#16A34A" }}>
+            NEW
+          </span>
+        ) : (
+          <span style={badgeStyle}>
+            {product.categoryName || (product.category ? product.category.toUpperCase() : "SLEEP")}
+          </span>
+        )}
 
         {/* WISHLIST BUTTON */}
         <button
@@ -98,60 +134,52 @@ export default function ProductCard({ product, variant }) {
           {product.tagline && <p style={taglineStyle}>"{product.tagline}"</p>}
         </div>
 
-        {/* CONSTRUCTION SPEC */}
-        {product.construction && (
+        {/* CONSTRUCTION / SPEC */}
+        {specLabel && (
           <div style={constructionBadgeStyle}>
             <span style={{ fontSize: "10px", fontWeight: 800, color: "#1B1F8C" }}>
-              {product.construction}
+              {specLabel}
             </span>
           </div>
         )}
 
-        {/* THICKNESS PILL */}
-        <div style={thicknessRowStyle}>
-          <span style={thicknessPillStyle}>
-            Thickness: {thicknessStr}
-          </span>
-        </div>
+        {/* THICKNESS / SIZES PILL */}
+        {thicknessStr && (
+          <div style={thicknessRowStyle}>
+            <span style={thicknessPillStyle}>
+              {product.thicknessOptions ? "Thickness" : "Sizes"}: {thicknessStr}
+            </span>
+          </div>
+        )}
 
         {/* PRICE / CONTACT FOR PRICE ROW */}
-        <div style={metaRowStyle}>
-          {isPriced ? (
-            <div>
-              <span style={priceLabelStyle}>Starting from</span>
-              <div style={priceValueStyle}>
-                {formatPrice(product.startingPrice || product.price)}
+        {(isPriced || shouldShowUnpricedLabel) ? (
+          <div style={metaRowStyle}>
+            {isPriced ? (
+              <div>
+                <span style={priceLabelStyle}>Starting from</span>
+                <div style={priceValueStyle}>
+                  {formatPrice(minPrice)}
+                </div>
               </div>
-            </div>
-          ) : (
-            <div>
-              <span style={priceLabelStyle}>Pricing</span>
-              <div style={contactPriceValueStyle}>Contact for Price</div>
-            </div>
-          )}
+            ) : (
+              <div>
+                <span style={priceLabelStyle}>Pricing</span>
+                <div style={contactPriceValueStyle}>Contact for Price</div>
+              </div>
+            )}
 
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (!isPriced) {
-                // Navigate to contact with prefilled info
-                const params = new URLSearchParams({
-                  product: product.name,
-                  category: product.categoryName || product.category,
-                  construction: product.construction || "",
-                  thickness: product.thicknessOptions?.[0] || ""
-                });
-                window.location.href = `/contact?${params.toString()}`;
-              } else {
-                navigateTo("detail", product.id);
-              }
-            }}
-            style={isPriced ? viewDetailsBtnStyle : enquireBtnStyle}
-          >
-            {isPriced ? "VIEW DETAILS" : "ENQUIRE NOW"}
-          </button>
-        </div>
+            <span style={viewDetailsIndicatorStyle}>
+              View Details &rarr;
+            </span>
+          </div>
+        ) : (
+          <div style={metaRowNoPriceStyle}>
+            <span style={viewDetailsIndicatorStyle}>
+              View Details &rarr;
+            </span>
+          </div>
+        )}
       </div>
     </article>
   );
@@ -286,6 +314,15 @@ const metaRowStyle = {
   borderTop: "1px solid #F1F5F9"
 };
 
+const metaRowNoPriceStyle = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "flex-end",
+  marginTop: "auto",
+  paddingTop: "10px",
+  borderTop: "1px solid #F1F5F9"
+};
+
 const priceLabelStyle = {
   display: "block",
   fontSize: "10px",
@@ -306,26 +343,9 @@ const contactPriceValueStyle = {
   color: "#D97706"
 };
 
-const viewDetailsBtnStyle = {
-  padding: "8px 14px",
-  backgroundColor: "#1B1F8C",
-  color: "#FFFFFF",
-  border: "none",
-  borderRadius: "8px",
+const viewDetailsIndicatorStyle = {
   fontSize: "11px",
   fontWeight: "800",
-  cursor: "pointer",
-  letterSpacing: "0.04em"
-};
-
-const enquireBtnStyle = {
-  padding: "8px 14px",
-  backgroundColor: "#16A34A",
-  color: "#FFFFFF",
-  border: "none",
-  borderRadius: "8px",
-  fontSize: "11px",
-  fontWeight: "800",
-  cursor: "pointer",
-  letterSpacing: "0.04em"
+  color: "#1B1F8C",
+  letterSpacing: "0.02em"
 };

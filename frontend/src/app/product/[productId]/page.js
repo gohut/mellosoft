@@ -1,35 +1,38 @@
 "use client";
 
-import React, { useEffect, use } from "react";
-import { useStore } from "../../../context/StoreContext";
+import React, { use, useEffect } from "react";
 import Header from "../../../components/Header";
 import Footer from "../../../components/Footer";
 import ProductDetailView from "../../../views/ProductDetailView";
-import AuthModal from "../../../components/AuthModal";
+import { useStore } from "../../../context/StoreContext";
 
 export default function ProductPage({ params }) {
   const resolvedParams = use(params);
-  const { setSelectedProductId, setView, authModal } = useStore();
+  const { setSelectedProductId, setView } = useStore();
+
+  let productId = "";
+  if (resolvedParams?.productId) {
+    try {
+      productId = decodeURIComponent(String(resolvedParams.productId)).trim();
+    } catch (e) {
+      productId = String(resolvedParams.productId).trim();
+    }
+  }
 
   useEffect(() => {
-    if (resolvedParams?.productId) {
-      let targetId = resolvedParams.productId;
-      try {
-        targetId = decodeURIComponent(targetId).trim();
-      } catch (e) {}
-      setSelectedProductId(targetId);
+    if (productId) {
+      setSelectedProductId(productId);
       setView("detail");
     }
-  }, [resolvedParams, setSelectedProductId, setView]);
+  }, [productId, setSelectedProductId, setView]);
 
   return (
     <>
       <Header />
       <main style={{ flexGrow: 1, display: "flex", flexDirection: "column", width: "100%", backgroundColor: "transparent" }}>
-        <ProductDetailView />
+        <ProductDetailView productId={productId} />
       </main>
       <Footer />
-      {authModal && <AuthModal type={authModal} />}
     </>
   );
 }

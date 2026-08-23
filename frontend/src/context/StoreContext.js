@@ -6,6 +6,7 @@ import { MOCK_PRODUCTS } from "../data/products";
 import { MOCK_ORDERS, MOCK_CARTS, MOCK_WISHLISTS, MOCK_BANNERS, MOCK_REVIEWS } from "../admin/data/adminMockData";
 import { calculateDiscountedPrice } from "../utils/currency";
 import { getVariantForSelection } from "../utils/variantHelpers";
+import { ensureProductPricing } from "../utils/pricingEngine";
 import { useCustomerAuth } from "./CustomerAuthContext";
 
 const StoreContext = createContext();
@@ -16,7 +17,7 @@ export function StoreProvider({ children }) {
   
   // Navigation & View State
   const [view, setView] = useState("home");
-  const [selectedProductId, setSelectedProductId] = useState("classic-mattress");
+  const [selectedProductId, setSelectedProductId] = useState("cloudrest");
   
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState("");
@@ -45,10 +46,16 @@ export function StoreProvider({ children }) {
 
   // New Arrival Config State synchronized with localStorage ("mellosoft_new_arrivals_config")
   const [newArrivalItems, setNewArrivalItems] = useState([
-    { id: "na-1", productId: "classic-mattress", displayOrder: 1, isActive: true },
-    { id: "na-2", productId: "luxe-hybrid",     displayOrder: 2, isActive: true },
-    { id: "na-3", productId: "ortho-support",   displayOrder: 3, isActive: true },
-    { id: "na-4", productId: "ergo-air",        displayOrder: 4, isActive: true },
+    { id: "na-1", productId: "cloudrest",     displayOrder: 1,  isActive: true },
+    { id: "na-2", productId: "spinecare",     displayOrder: 2,  isActive: true },
+    { id: "na-3", productId: "breeze",        displayOrder: 3,  isActive: true },
+    { id: "na-4", productId: "natura",        displayOrder: 4,  isActive: true },
+    { id: "na-5", productId: "embrace",       displayOrder: 5,  isActive: true },
+    { id: "na-6", productId: "celestial",     displayOrder: 6,  isActive: true },
+    { id: "na-7", productId: "cloud-contour", displayOrder: 7,  isActive: true },
+    { id: "na-8", productId: "aqua-guard",    displayOrder: 8,  isActive: true },
+    { id: "na-9", productId: "cloud-duvet",    displayOrder: 9,  isActive: true },
+    { id: "na-10", productId: "flexi-bed",    displayOrder: 10, isActive: true },
   ]);
 
   // Best Sellers Config State synchronized with localStorage ("mellosoft_best_sellers_config")
@@ -160,12 +167,25 @@ export function StoreProvider({ children }) {
         console.error("Failed to load best sellers config from localStorage:", e);
       }
 
-      // Sync admin products
+      // Sync products (merging stored overrides with master catalogue)
       try {
-        const savedProducts = localStorage.getItem("mellosoft_admin_products");
+        const savedProducts = localStorage.getItem("mellosoft_products") || localStorage.getItem("mellosoft_admin_products");
         if (savedProducts) {
           const parsed = JSON.parse(savedProducts);
-          if (Array.isArray(parsed) && parsed.length > 0) setProducts(parsed);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const parsedIdMap = new Map(parsed.map((p) => [p.id, p]));
+            const merged = MOCK_PRODUCTS.map((masterItem) => {
+              const stored = parsedIdMap.get(masterItem.id);
+              const combined = {
+                ...masterItem,
+                ...(stored || {}),
+                isNewArrival: stored?.isNewArrival ?? masterItem.isNewArrival ?? false,
+                newArrivalOrder: stored?.newArrivalOrder ?? masterItem.newArrivalOrder ?? 999
+              };
+              return ensureProductPricing(combined);
+            });
+            setProducts(merged);
+          }
         }
       } catch (e) {
         console.error("Failed to load products from localStorage:", e);
@@ -217,7 +237,13 @@ export function StoreProvider({ children }) {
         if (Array.isArray(parsed) && parsed.length > 0) {
           const parsedIdMap = new Map(parsed.map((p) => [p.id, p]));
           const merged = MOCK_PRODUCTS.map((masterItem) => {
-            return parsedIdMap.get(masterItem.id) || masterItem;
+            const stored = parsedIdMap.get(masterItem.id);
+            return {
+              ...masterItem,
+              ...(stored || {}),
+              isNewArrival: stored?.isNewArrival ?? masterItem.isNewArrival ?? false,
+              newArrivalOrder: stored?.newArrivalOrder ?? masterItem.newArrivalOrder ?? 999
+            };
           });
           setProducts(merged);
         }

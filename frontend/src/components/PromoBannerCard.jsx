@@ -204,7 +204,7 @@ const contentOverlayStyle = {
   alignItems: "flex-start",
   justifyContent: "center",
   gap: "7px",
-  maxWidth: "520px",
+  maxWidth: "1000px",
   boxSizing: "border-box"
 };
 
