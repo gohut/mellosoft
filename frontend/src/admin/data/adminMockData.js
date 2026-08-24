@@ -363,14 +363,14 @@ export const MOCK_ORDERS = [
 
 // Normalized Mock Customers
 export const MOCK_CUSTOMERS = [
-  { id: "C001", name: "Rahul Sharma", email: "rahul@example.com", phone: "+91 98765 43210", status: "Active", avatar: "R", createdAt: "2026-01-15", lastLogin: "2026-08-10 14:32" },
-  { id: "C002", name: "Priya Patel", email: "priya@example.com", phone: "+91 87654 32109", status: "Active", avatar: "P", createdAt: "2026-02-01", lastLogin: "2026-08-09 11:20" },
-  { id: "C003", name: "Ankit Gupta", email: "ankit@example.com", phone: "+91 76543 21098", status: "Active", avatar: "A", createdAt: "2026-03-10", lastLogin: "2026-08-08 16:45" },
-  { id: "C004", name: "Sneha Reddy", email: "sneha@example.com", phone: "+91 65432 10987", status: "Active", avatar: "S", createdAt: "2026-04-12", lastLogin: "2026-07-30 09:15" },
-  { id: "C005", name: "Vikram Singh", email: "vikram@example.com", phone: "+91 54321 09876", status: "Active", avatar: "V", createdAt: "2026-05-20", lastLogin: "2026-07-30 18:22" },
-  { id: "C006", name: "Meera Joshi", email: "meera@example.com", phone: "+91 43210 98765", status: "Active", avatar: "M", createdAt: "2026-06-05", lastLogin: "2026-07-29 12:10" },
-  { id: "C007", name: "Arjun Nair", email: "arjun@example.com", phone: "+91 32109 87654", status: "Inactive", avatar: "A", createdAt: "2026-06-18", lastLogin: "2026-07-25 14:05" },
-  { id: "C008", name: "Kavitha Menon", email: "kavitha@example.com", phone: "+91 21098 76543", status: "Active", avatar: "K", createdAt: "2026-07-01", lastLogin: "2026-07-27 10:30" },
+  { id: "C001", customerId: "CUS-0001", name: "Rahul Sharma", email: "rahul@example.com", phone: "+91 98765 43210", status: "Active", avatar: "R", createdAt: "2026-01-15", lastLogin: "2026-08-10 14:32" },
+  { id: "C002", customerId: "CUS-0002", name: "Priya Patel", email: "priya@example.com", phone: "+91 87654 32109", status: "Active", avatar: "P", createdAt: "2026-02-01", lastLogin: "2026-08-09 11:20" },
+  { id: "C003", customerId: "CUS-0003", name: "Ankit Gupta", email: "ankit@example.com", phone: "+91 76543 21098", status: "Active", avatar: "A", createdAt: "2026-03-10", lastLogin: "2026-08-08 16:45" },
+  { id: "C004", customerId: "CUS-0004", name: "Sneha Reddy", email: "sneha@example.com", phone: "+91 65432 10987", status: "Active", avatar: "S", createdAt: "2026-04-12", lastLogin: "2026-07-30 09:15" },
+  { id: "C005", customerId: "CUS-0005", name: "Vikram Singh", email: "vikram@example.com", phone: "+91 54321 09876", status: "Active", avatar: "V", createdAt: "2026-05-20", lastLogin: "2026-07-30 18:22" },
+  { id: "C006", customerId: "CUS-0006", name: "Meera Joshi", email: "meera@example.com", phone: "+91 43210 98765", status: "Active", avatar: "M", createdAt: "2026-06-05", lastLogin: "2026-07-29 12:10" },
+  { id: "C007", customerId: "CUS-0007", name: "Arjun Nair", email: "arjun@example.com", phone: "+91 32109 87654", status: "Inactive", avatar: "A", createdAt: "2026-06-18", lastLogin: "2026-07-25 14:05" },
+  { id: "C008", customerId: "CUS-0008", name: "Kavitha Menon", email: "kavitha@example.com", phone: "+91 21098 76543", status: "Active", avatar: "K", createdAt: "2026-07-01", lastLogin: "2026-07-27 10:30" },
 ];
 
 // Normalized Mock Wishlists
