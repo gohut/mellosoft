@@ -515,13 +515,27 @@ export const MOCK_COUPONS = [
   { id: "CP005", code: "FREESHIP", discount: "Free Shipping", type: "shipping", usageCount: 210, usageLimit: 0, expiryDate: "2026-12-31", status: "Active" },
 ];
 
-// Mock categories
+// Mock categories (Hierarchical Structure)
 export const MOCK_CATEGORIES = [
-  { id: "CAT001", name: "Mattresses", slug: "mattress", productCount: 5, image: "/asset/img1.jpg", description: "Premium sleep mattresses" },
-  { id: "CAT002", name: "Pillows", slug: "pillows", productCount: 1, image: "/asset/pillow.png", description: "Luxury comfort pillows" },
-  { id: "CAT003", name: "Bed Frames", slug: "bed frames", productCount: 1, image: "/asset/bedframe.png", description: "Solid wood bed frames" },
-  { id: "CAT004", name: "Protectors", slug: "protectors", productCount: 1, image: "/asset/texture.png", description: "Mattress protectors" },
-  { id: "CAT005", name: "Accessories", slug: "accessories", productCount: 0, image: "/asset/texture.png", description: "Sleep accessories" },
+  // Top-Level Groups
+  { id: "CAT-MATTRESSES", name: "Mattresses", slug: "mattresses", parentId: null, isParent: true, image: "/asset/cat-memory-foam.svg", description: "Premium sleep mattresses" },
+  { id: "CAT-ACCESSORIES", name: "Accessories", slug: "accessories", parentId: null, isParent: true, image: "/asset/cat-pillows.svg", description: "Luxury sleep accessories" },
+
+  // Mattress Subcategories
+  { id: "foam", name: "Foam Mattress", slug: "foam", parentId: "CAT-MATTRESSES", parentSlug: "mattresses", image: "/asset/cat-memory-foam.svg", description: "Simple, supportive comfort designed for everyday rest." },
+  { id: "ortho", name: "Ortho Mattress", slug: "ortho", parentId: "CAT-MATTRESSES", parentSlug: "mattresses", image: "/asset/cat-firm.svg", description: "Balanced firmness and dependable orthopedic support." },
+  { id: "spring", name: "Spring Mattress", slug: "spring", parentId: "CAT-MATTRESSES", parentSlug: "mattresses", image: "/asset/cat-hybrid.svg", description: "Responsive support with breathable spring coils." },
+  { id: "latex", name: "Latex Mattress", slug: "latex", parentId: "CAT-MATTRESSES", parentSlug: "mattresses", image: "/asset/cat-firm.svg", description: "Naturally responsive comfort with premium resilience." },
+  { id: "memory-foam", name: "Memory Foam Mattress", slug: "memory-foam", parentId: "CAT-MATTRESSES", parentSlug: "mattresses", image: "/asset/cat-memory-foam.svg", description: "Adaptive comfort designed to contour around you." },
+
+  // Accessory Subcategories
+  { id: "memory-foam-pillow", name: "Memory Foam Pillow", slug: "memory-foam-pillow", parentId: "CAT-ACCESSORIES", parentSlug: "accessories", image: "/asset/cat-pillows.svg", description: "Adaptive memory foam pillows for neck support." },
+  { id: "latex-pillow", name: "Latex Pillow", slug: "latex-pillow", parentId: "CAT-ACCESSORIES", parentSlug: "accessories", image: "/asset/cat-pillows.svg", description: "Naturally responsive, breathable latex pillows." },
+  { id: "fiber-pillow", name: "Fiber Pillow", slug: "fiber-pillow", parentId: "CAT-ACCESSORIES", parentSlug: "accessories", image: "/asset/cat-pillows.svg", description: "Soft, lightweight fiber pillows for everyday comfort." },
+  { id: "mattress-protector", name: "Mattress Protector", slug: "mattress-protector", parentId: "CAT-ACCESSORIES", parentSlug: "accessories", image: "/asset/cat-protectors.svg", description: "Fitted waterproof protection for your mattress." },
+  { id: "fitted-bedspread", name: "Fitted Bedspread", slug: "fitted-bedspread", parentId: "CAT-ACCESSORIES", parentSlug: "accessories", image: "/asset/cat-protectors.svg", description: "Clean fitted bedspreads for a neat bedroom look." },
+  { id: "blanket-duvet", name: "Blanket / Duvet", slug: "blanket-duvet", parentId: "CAT-ACCESSORIES", parentSlug: "accessories", image: "/asset/cat-protectors.svg", description: "Cozy blankets & duvets for all seasons." },
+  { id: "travel-bed", name: "Travel Bed", slug: "travel-bed", parentId: "CAT-ACCESSORIES", parentSlug: "accessories", image: "/asset/cat-bedframes.svg", description: "Portable quilt & folding beds for travel and guests." }
 ];
 
 // Mock inventory

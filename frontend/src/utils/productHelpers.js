@@ -2,6 +2,7 @@
  * Authoritative Central Product Lookup & Routing Utilities for Mellosoft
  */
 export { getMinimumProductPrice, formatPrice } from "./currency";
+import { getResolvedImageUrlSync } from "./imageStorage";
 
 export const ACCESSORY_CATEGORIES = {
   "memory-foam-pillow": {
@@ -12,7 +13,7 @@ export const ACCESSORY_CATEGORIES = {
     heading: "Memory Foam Pillows",
     description: "Adaptive comfort designed to support your head and neck.",
     tagline: "Adaptive comfort designed to support your head and neck.",
-    image: "/images/accessories/fallback/memory-foam-pillow.svg"
+    image: "/images/accessories/pillows/cloud-contour.jpg"
   },
   "latex-pillow": {
     id: "latex-pillow",
@@ -22,7 +23,7 @@ export const ACCESSORY_CATEGORIES = {
     heading: "Latex Pillows",
     description: "Naturally responsive, breathable comfort for refreshing sleep.",
     tagline: "Naturally responsive, breathable comfort for refreshing sleep.",
-    image: "/images/accessories/fallback/latex-pillow.svg"
+    image: "/images/accessories/pillows/natura-latex.jpg"
   },
   "fiber-pillow": {
     id: "fiber-pillow",
@@ -32,7 +33,7 @@ export const ACCESSORY_CATEGORIES = {
     heading: "Fiber Pillows",
     description: "Soft, lightweight comfort for everyday relaxation.",
     tagline: "Soft, lightweight comfort for everyday relaxation.",
-    image: "/images/accessories/fallback/fiber-pillow.svg"
+    image: "/images/accessories/pillows/plush-fiber.jpg"
   },
   "mattress-protector": {
     id: "mattress-protector",
@@ -42,7 +43,7 @@ export const ACCESSORY_CATEGORIES = {
     heading: "Mattress Protectors",
     description: "Practical protection designed to keep your mattress fresh and comfortable.",
     tagline: "Practical protection designed to keep your mattress fresh and comfortable.",
-    image: "/images/accessories/fallback/mattress-protector.svg"
+    image: "/images/accessories/pillows/92616115d66068597b3fcfc2e5ea2714.jpg"
   },
   "fitted-bedspread": {
     id: "fitted-bedspread",
@@ -52,7 +53,7 @@ export const ACCESSORY_CATEGORIES = {
     heading: "Fitted Bedspreads",
     description: "Clean fitted styling for a neat and comfortable bedroom.",
     tagline: "Clean fitted styling for a neat and comfortable bedroom.",
-    image: "/images/accessories/fallback/fitted-bedspread.svg"
+    image: "/images/accessories/pillows/soft-touch.jpg"
   },
   "blanket-duvet": {
     id: "blanket-duvet",
@@ -62,7 +63,7 @@ export const ACCESSORY_CATEGORIES = {
     heading: "Blankets & Duvets",
     description: "Cozy layers designed for comfortable nights in every season.",
     tagline: "Cozy layers designed for comfortable nights in every season.",
-    image: "/images/accessories/fallback/blanket-duvet.svg"
+    image: "/images/accessories/pillows/cloud-contour.jpg"
   },
   "travel-bed": {
     id: "travel-bed",
@@ -72,7 +73,7 @@ export const ACCESSORY_CATEGORIES = {
     heading: "Travel Beds",
     description: "Portable sleep comfort for guests, journeys and compact spaces.",
     tagline: "Portable sleep comfort for guests, journeys and compact spaces.",
-    image: "/images/accessories/fallback/travel-bed.svg"
+    image: "/asset/pillow.png"
   }
 };
 
@@ -87,7 +88,7 @@ export const MATTRESS_CATEGORIES = {
     heading: "Foam Mattresses",
     description: "Simple, supportive comfort designed for everyday rest.",
     tagline: "Simple, supportive comfort designed for everyday rest.",
-    image: "/images/mattresses/fallback/foam.svg"
+    image: "/images/mattresses/foam/haven.jpg"
   },
   ortho: {
     id: "ortho",
@@ -97,7 +98,7 @@ export const MATTRESS_CATEGORIES = {
     heading: "Ortho Mattresses",
     description: "Balanced firmness and dependable support for comfortable sleep.",
     tagline: "Balanced firmness and dependable support for comfortable sleep.",
-    image: "/images/mattresses/fallback/ortho.svg"
+    image: "/images/mattresses/foam/cocoon.jpg"
   },
   spring: {
     id: "spring",
@@ -107,7 +108,7 @@ export const MATTRESS_CATEGORIES = {
     heading: "Spring Mattresses",
     description: "Responsive support with breathable spring comfort.",
     tagline: "Responsive support with breathable spring comfort.",
-    image: "/images/mattresses/fallback/spring.svg"
+    image: "/images/mattresses/foam/0beb5330f6aabf8576772441b99ea894.jpg"
   },
   latex: {
     id: "latex",
@@ -117,7 +118,7 @@ export const MATTRESS_CATEGORIES = {
     heading: "Latex Mattresses",
     description: "Naturally responsive comfort with premium resilience.",
     tagline: "Naturally responsive comfort with premium resilience.",
-    image: "/images/mattresses/fallback/latex.svg"
+    image: "/images/mattresses/foam/99f4537f6a3b342b766b3253fa072148.jpg"
   },
   "memory-foam": {
     id: "memory-foam",
@@ -127,7 +128,7 @@ export const MATTRESS_CATEGORIES = {
     heading: "Memory Foam Mattresses",
     description: "Adaptive comfort designed to contour around your body.",
     tagline: "Adaptive comfort designed to contour around your body.",
-    image: "/images/mattresses/fallback/memory-foam.svg"
+    image: "/asset/img2.jpg"
   }
 };
 
@@ -331,4 +332,312 @@ export function getMattressRecommendations(currentProduct, productsList = [], li
   }
 
   return uniqueList;
+}
+
+
+
+/**
+ * Identifies legacy branded artwork SVGs or fallback placeholder paths.
+ */
+export function isLegacyArtwork(url) {
+  if (!url || typeof url !== "string") return false;
+  const lower = url.trim().toLowerCase();
+  if (lower.endsWith(".svg") || lower.includes("/fallback/") || lower.includes("artwork") || lower.includes("mellosoft") && lower.endsWith(".svg")) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Canonical helper to collect all valid, de-duplicated gallery images of a product.
+ * Strips all legacy artwork SVGs and returns only real product images.
+ */
+export function getProductGalleryImages(product) {
+  if (!product) return [];
+
+  const rawCandidates = [];
+
+  if (Array.isArray(product.images) && product.images.length > 0) {
+    rawCandidates.push(...product.images);
+  }
+  if (product.image) rawCandidates.push(product.image);
+  if (product.imageUrl) rawCandidates.push(product.imageUrl);
+  if (product.thumbnail) rawCandidates.push(product.thumbnail);
+
+  const seen = new Set();
+  const cleanList = [];
+
+  for (const item of rawCandidates) {
+    if (!item || typeof item !== "string") continue;
+    const trimmed = item.trim();
+    if (!trimmed || isLegacyArtwork(trimmed)) continue;
+
+    const resolved = getResolvedImageUrlSync(trimmed, "");
+    if (resolved && !isLegacyArtwork(resolved) && !seen.has(resolved)) {
+      seen.add(resolved);
+      cleanList.push(resolved);
+    }
+  }
+
+  if (cleanList.length === 0) {
+    const isAcc = isAccessoryProduct(product);
+    const fallbackPhoto = isAcc
+      ? "/images/accessories/pillows/natura-latex.jpg"
+      : "/images/mattresses/foam/haven.jpg";
+    cleanList.push(fallbackPhoto);
+  }
+
+  return cleanList;
+}
+
+/**
+ * Canonical helper to resolve the primary display image of any product.
+ * Returns only real product images.
+ */
+export function getProductPrimaryImage(product, defaultFallback = null) {
+  const gallery = getProductGalleryImages(product);
+  if (gallery.length > 0) return gallery[0];
+  const isAcc = isAccessoryProduct(product);
+  return isAcc
+    ? "/images/accessories/pillows/natura-latex.jpg"
+    : "/images/mattresses/foam/haven.jpg";
+}
+
+export const DELETED_PRODUCT_IDS_KEY = "mellosoft_deleted_product_ids";
+
+/**
+ * Returns array of persistently deleted product IDs/slugs
+ */
+export function getDeletedProductIds() {
+  if (typeof window === "undefined") return [];
+  try {
+    const saved = localStorage.getItem(DELETED_PRODUCT_IDS_KEY);
+    if (!saved) return [];
+    const parsed = JSON.parse(saved);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    console.error("Failed to load deleted product IDs:", e);
+    return [];
+  }
+}
+
+/**
+ * Persists a deleted product ID/slug tombstone
+ */
+export function saveDeletedProductId(productId) {
+  if (typeof window === "undefined" || !productId) return;
+  try {
+    const current = getDeletedProductIds();
+    const idStr = String(productId).trim();
+    if (idStr && !current.includes(idStr)) {
+      const next = [...current, idStr];
+      localStorage.setItem(DELETED_PRODUCT_IDS_KEY, JSON.stringify(next));
+    }
+  } catch (e) {
+    console.error("Failed to save deleted product ID:", e);
+  }
+}
+
+/**
+ * Checks if a product or ID is deleted
+ */
+export function isProductDeleted(productOrId, deletedIdsList = null) {
+  if (!productOrId) return false;
+  const deletedSet = new Set(
+    (deletedIdsList || getDeletedProductIds()).map((id) => String(id).trim().toLowerCase())
+  );
+  if (deletedSet.size === 0) return false;
+
+  if (typeof productOrId === "object") {
+    const id = String(productOrId.id || "").trim().toLowerCase();
+    const prodId = String(productOrId.Product_Id || "").trim().toLowerCase();
+    const slug = String(productOrId.slug || "").trim().toLowerCase();
+    return deletedSet.has(id) || deletedSet.has(prodId) || deletedSet.has(slug);
+  }
+
+  const target = String(productOrId).trim().toLowerCase();
+  return deletedSet.has(target);
+}
+
+/**
+ * Helper to test if two product objects or ID strings refer to the same product.
+ */
+export function isSameProduct(p1, p2OrId) {
+  if (!p1 || !p2OrId) return false;
+
+  const targetId = typeof p2OrId === "object" ? (p2OrId.id || p2OrId.Product_Id || p2OrId.slug) : p2OrId;
+  const targetProdId = typeof p2OrId === "object" ? p2OrId.Product_Id : null;
+  const targetSlug = typeof p2OrId === "object" ? p2OrId.slug : null;
+
+  const id1 = String(p1.id || "").trim().toLowerCase();
+  const prodId1 = String(p1.Product_Id || "").trim().toLowerCase();
+  const slug1 = String(p1.slug || "").trim().toLowerCase();
+
+  const id2 = String(targetId || "").trim().toLowerCase();
+  const prodId2 = String(targetProdId || id2).trim().toLowerCase();
+  const slug2 = String(targetSlug || id2).trim().toLowerCase();
+
+  return (
+    (id1 && (id1 === id2 || id1 === prodId2 || id1 === slug2)) ||
+    (prodId1 && (prodId1 === id2 || prodId1 === prodId2 || prodId1 === slug2)) ||
+    (slug1 && (slug1 === id2 || slug1 === prodId2 || slug1 === slug2))
+  );
+}
+
+/**
+ * Normalizes any category or subcategory string into a standard slug key.
+ * e.g., "Memory Foam Pillow" -> "memory-foam-pillow"
+ * "Blanket / Duvet" -> "blanket-duvet"
+ */
+export function normalizeCategoryKey(key) {
+  if (!key || typeof key !== "string") return "";
+  return key
+    .trim()
+    .toLowerCase()
+    .replace(/\s*\/\s*/g, "-")
+    .replace(/\s+/g, "-")
+    .replace(/_+/g, "-");
+}
+
+/**
+ * Helper to check if a product is an accessory.
+ */
+export function isAccessoryProduct(product) {
+  if (!product) return false;
+  const parentCat = normalizeCategoryKey(product.parentCategory || product.parentCategoryId);
+  const cat = normalizeCategoryKey(product.category || product.categoryId);
+  const subCat = normalizeCategoryKey(product.subCategory || product.subcategory || product.subcategoryId);
+
+  if (parentCat === "accessories" || cat === "accessories") return true;
+
+  const accessorySubcategories = [
+    "memory-foam-pillow", "latex-pillow", "fiber-pillow",
+    "mattress-protector", "fitted-bedspread", "blanket-duvet", "travel-bed"
+  ];
+  return accessorySubcategories.includes(cat) || accessorySubcategories.includes(subCat);
+}
+
+/**
+ * Returns parent group key: "mattresses" or "accessories".
+ */
+export function getProductGroupKey(product) {
+  if (!product) return "mattresses";
+  if (isAccessoryProduct(product)) return "accessories";
+  return "mattresses";
+}
+
+/**
+ * Returns the normalized subcategory key for a product.
+ */
+export function getProductSubcategoryKey(product) {
+  if (!product) return "";
+  const subCat = product.subCategory || product.subcategory || product.subcategoryId;
+  if (subCat && normalizeCategoryKey(subCat) !== "accessories" && normalizeCategoryKey(subCat) !== "mattresses") {
+    return normalizeCategoryKey(subCat);
+  }
+  const cat = product.category || product.categoryId;
+  if (cat && normalizeCategoryKey(cat) !== "accessories" && normalizeCategoryKey(cat) !== "mattresses") {
+    return normalizeCategoryKey(cat);
+  }
+  return normalizeCategoryKey(product.categoryName || product.categoryLabel);
+}
+
+export function getProductCategoryKey(product) {
+  return getProductSubcategoryKey(product);
+}
+
+/**
+ * Resolves user-friendly display label for any product's category/subcategory.
+ */
+export function getProductCategoryLabel(product) {
+  if (!product) return "General";
+
+  if (product.categoryLabel && typeof product.categoryLabel === "string") {
+    const rawLabel = product.categoryLabel.trim();
+    const norm = normalizeCategoryKey(rawLabel);
+    if (norm !== "accessories" && norm !== "mattresses" && norm !== "all") {
+      return rawLabel;
+    }
+  }
+
+  const subKey = getProductSubcategoryKey(product);
+  if (subKey) {
+    if (ACCESSORY_CATEGORIES[subKey]) {
+      return ACCESSORY_CATEGORIES[subKey].name;
+    }
+    if (MATTRESS_CATEGORIES[subKey]) {
+      return MATTRESS_CATEGORIES[subKey].name;
+    }
+  }
+
+  if (product.categoryName && typeof product.categoryName === "string") {
+    const rawName = product.categoryName.trim();
+    const norm = normalizeCategoryKey(rawName);
+    if (norm !== "accessories" && norm !== "mattresses" && norm !== "all") {
+      return rawName;
+    }
+  }
+
+  if (isAccessoryProduct(product)) {
+    return "Memory Foam Pillow";
+  }
+
+  return "Ortho Mattress";
+}
+
+/**
+ * Universal predicate checking if a product belongs to a group/category key.
+ */
+export function isProductInCategory(product, categoryKey) {
+  if (!product || !categoryKey) return false;
+  const targetKey = normalizeCategoryKey(categoryKey);
+  if (targetKey === "all" || targetKey === "all-categories" || targetKey === "all-products") return true;
+
+  if (targetKey === "mattresses" || targetKey === "mattress" || targetKey === "all-mattresses") {
+    return getProductGroupKey(product) === "mattresses";
+  }
+  if (targetKey === "accessories" || targetKey === "accessory" || targetKey === "all-accessories") {
+    return getProductGroupKey(product) === "accessories";
+  }
+
+  const subKey = getProductCategoryKey(product);
+  const catKey = normalizeCategoryKey(product.category || product.categoryId);
+  const catNameKey = normalizeCategoryKey(product.categoryName || product.categoryLabel);
+
+  return (
+    subKey === targetKey ||
+    catKey === targetKey ||
+    catNameKey === targetKey
+  );
+}
+
+/**
+ * Generic group filter function (e.g. "mattresses" vs "accessories").
+ */
+export function getProductsByGroup(products, groupKey) {
+  if (!Array.isArray(products)) return [];
+  const normGroup = normalizeCategoryKey(groupKey);
+  if (normGroup === "all" || normGroup === "all-categories" || normGroup === "all-products") {
+    return products;
+  }
+  return products.filter((p) => getProductGroupKey(p) === normGroup);
+}
+
+/**
+ * Generic category filter function for both Mattresses and Accessories.
+ */
+export function getProductsByCategory(products, categoryKey) {
+  if (!Array.isArray(products)) return [];
+  return products.filter((p) => isProductInCategory(p, categoryKey));
+}
+
+export function filterProductsByCategory(products, categoryKey) {
+  return getProductsByCategory(products, categoryKey);
+}
+
+/**
+ * Generic category count function using exact same predicate as filtering.
+ */
+export function getCategoryCount(products, categoryKey) {
+  return getProductsByCategory(products, categoryKey).length;
 }

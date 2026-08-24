@@ -3,14 +3,14 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useStore } from "../context/StoreContext";
 import { MOCK_PRODUCTS } from "../data/products";
-import { MATTRESS_CATEGORY_LIST, getMattressCategoryMeta } from "../utils/productHelpers";
+import { MATTRESS_CATEGORY_LIST, getMattressCategoryMeta, isProductInCategory, getProductsByGroup, getCategoryCount } from "../utils/productHelpers";
 import ProductCard from "../components/ProductCard";
 import EmptyState from "../components/EmptyState";
 import MattressFilterPanel from "../components/MattressFilterPanel";
 import { SlidersHorizontal, X } from "lucide-react";
 
 export default function CatalogView({ categoryParam = "all" }) {
-  const { searchQuery, setSearchQuery, activeFilters, setActiveFilters } = useStore();
+  const { searchQuery, setSearchQuery, activeFilters, setActiveFilters, products } = useStore();
 
   const [selectedCategory, setSelectedCategory] = useState(
     categoryParam && categoryParam !== "all" && categoryParam !== "mattress"
@@ -64,8 +64,9 @@ export default function CatalogView({ categoryParam = "all" }) {
 
   // Master Mattress Products List (strictly excludes accessories)
   const mattressOnlyProducts = useMemo(() => {
-    return (MOCK_PRODUCTS || []).filter((p) => p && p.category !== "accessories");
-  }, []);
+    const list = (products && products.length > 0) ? products : MOCK_PRODUCTS;
+    return getProductsByGroup(list, "mattresses");
+  }, [products]);
 
   // Filter and sort products
   const filteredProducts = useMemo(() => {
@@ -84,7 +85,7 @@ export default function CatalogView({ categoryParam = "all" }) {
 
       // 2. Category Filter
       if (selectedCategory !== "All" && selectedCategory !== "all" && selectedCategory !== "mattress") {
-        if (product.category !== selectedCategory) return false;
+        if (!isProductInCategory(product, selectedCategory)) return false;
       }
 
       // 3. Thickness Filter
@@ -131,7 +132,7 @@ export default function CatalogView({ categoryParam = "all" }) {
   const categoryCounts = useMemo(() => {
     const counts = { all: mattressOnlyProducts.length };
     MATTRESS_CATEGORY_LIST.forEach((c) => {
-      counts[c.slug] = mattressOnlyProducts.filter((p) => p.category === c.slug).length;
+      counts[c.slug] = getCategoryCount(mattressOnlyProducts, c.slug);
     });
     return counts;
   }, [mattressOnlyProducts]);
@@ -166,6 +167,22 @@ export default function CatalogView({ categoryParam = "all" }) {
         
         {/* Category Pills & Filter Button in Single Flex Row */}
         <div style={categoryRowWrapStyle}>
+          {/* Green Filter Toggle Button FIRST */}
+          <button
+            type="button"
+            onClick={() => setIsFilterOpen((prev) => !prev)}
+            className="filter-toggle-btn"
+            style={{
+              ...filterToggleBtnStyle,
+              backgroundColor: isFilterOpen ? "#15803D" : "#16A34A",
+              color: "#FFFFFF",
+              borderColor: isFilterOpen ? "#15803D" : "#16A34A"
+            }}
+          >
+            <SlidersHorizontal size={15} color="#FFFFFF" />
+            <span>Filter{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}</span>
+          </button>
+
           <button
             type="button"
             onClick={() => handleCategorySelect("all")}
@@ -198,22 +215,6 @@ export default function CatalogView({ categoryParam = "all" }) {
               </button>
             );
           })}
-
-          {/* Filter Toggle Button in same row after Memory Foam Mattress */}
-          <button
-            type="button"
-            onClick={() => setIsFilterOpen((prev) => !prev)}
-            className="filter-toggle-btn"
-            style={{
-              ...filterToggleBtnStyle,
-              backgroundColor: (isFilterOpen || activeFilterCount > 0) ? "#1B1F8C" : "#FFFFFF",
-              color: (isFilterOpen || activeFilterCount > 0) ? "#FFFFFF" : "#1E293B",
-              borderColor: (isFilterOpen || activeFilterCount > 0) ? "#1B1F8C" : "#E2E8F0"
-            }}
-          >
-            <SlidersHorizontal size={15} />
-            <span>Filter{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}</span>
-          </button>
         </div>
 
         {/* Results Count Line */}
@@ -294,6 +295,11 @@ export default function CatalogView({ categoryParam = "all" }) {
       )}
 
       <style>{`
+        .filter-toggle-btn:hover {
+          background-color: #15803D !important;
+          border-color: #15803D !important;
+          color: #FFFFFF !important;
+        }
         @media (max-width: 767px) {
           .catalog-grid {
             grid-template-columns: repeat(1, 1fr) !important;
@@ -331,7 +337,9 @@ const categoryRowWrapStyle = {
 const categoryPillBtnStyle = {
   padding: "8px 16px",
   borderRadius: "999px",
-  border: "1.5px solid #E7E7E2",
+  borderWidth: "1.5px",
+  borderStyle: "solid",
+  borderColor: "#E7E7E2",
   fontSize: "13px",
   fontWeight: "700",
   cursor: "pointer",
@@ -346,7 +354,11 @@ const filterToggleBtnStyle = {
   height: "37px",
   padding: "0 16px",
   borderRadius: "999px",
-  border: "1.5px solid #E2E8F0",
+  borderWidth: "1.5px",
+  borderStyle: "solid",
+  borderColor: "#16A34A",
+  backgroundColor: "#16A34A",
+  color: "#FFFFFF",
   fontSize: "13px",
   fontWeight: "700",
   cursor: "pointer",

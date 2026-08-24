@@ -14,6 +14,151 @@ import { STANDARD_SIZES } from "../data/mattressData.js";
 
 export const CLIENT_PRICED_PRODUCTS = new Set(["haven", "cocoon", "bloom", "mist", "terra"]);
 
+/**
+ * Normalizes dimension strings for key comparison and display.
+ * e.g., "72 X 30", "72x30", "72 X 30" -> "72 X 30"
+ */
+export function normalizeDimensionKey(dim) {
+  if (!dim || typeof dim !== "string") return "";
+  const parts = dim.toLowerCase().split("x").map((p) => p.trim());
+  if (parts.length === 2 && parts[0] && parts[1]) {
+    return `${parts[0]} X ${parts[1]}`;
+  }
+  return dim.trim().toUpperCase();
+}
+
+/**
+ * Normalizes thickness / variant strings for key comparison and display.
+ * e.g., "4 inch", "4", "4 INCH", "HAVEN 4'" -> "4 INCH"
+ */
+export function normalizeVariantKey(variant) {
+  if (!variant || typeof variant !== "string") return "";
+  const v = variant.trim().toUpperCase();
+  if (v === "4" || v === "4\"" || v === "4 INCH" || v === "4'" || v === "HAVEN 4'" || v === "4-INCH") return "4 INCH";
+  if (v === "5" || v === "5\"" || v === "5 INCH" || v === "5'" || v === "HAVEN 5'" || v === "5-INCH") return "5 INCH";
+  if (v === "6" || v === "6\"" || v === "6 INCH" || v === "6'" || v === "BLOOM 6'" || v === "6-INCH") return "6 INCH";
+  if (v === "8" || v === "8\"" || v === "8 INCH" || v === "8'" || v === "BLOOM 8'" || v === "8-INCH") return "8 INCH";
+  if (v === "10" || v === "10\"" || v === "10 INCH" || v === "10'" || v === "10-INCH") return "10 INCH";
+  return v;
+}
+
+/**
+ * Robust matrix cell price retriever supporting normalized keys.
+ */
+export function getMatrixCellValue(prices, variantName, dimension) {
+  if (!prices || typeof prices !== "object") return "";
+
+  // 1. Direct match
+  if (prices[variantName] && prices[variantName][dimension] !== undefined) {
+    const val = prices[variantName][dimension];
+    return (typeof val === "number" && val > 0) ? val : (val ?? "");
+  }
+
+  // 2. Normalized dimension match under direct variantName
+  const targetDimNorm = normalizeDimensionKey(dimension);
+  if (prices[variantName] && typeof prices[variantName] === "object") {
+    for (const [dKey, dVal] of Object.entries(prices[variantName])) {
+      if (normalizeDimensionKey(dKey) === targetDimNorm) {
+        return (typeof dVal === "number" && dVal > 0) ? dVal : (dVal ?? "");
+      }
+    }
+  }
+
+  // 3. Normalized variant match & normalized dimension match
+  const targetVarNorm = normalizeVariantKey(variantName);
+  for (const [vKey, dimMap] of Object.entries(prices)) {
+    const vNorm = normalizeVariantKey(vKey);
+    if (vNorm === targetVarNorm || vKey.toUpperCase().includes(targetVarNorm) || targetVarNorm.includes(vKey.toUpperCase())) {
+      if (dimMap && typeof dimMap === "object") {
+        if (dimMap[dimension] !== undefined) {
+          const val = dimMap[dimension];
+          return (typeof val === "number" && val > 0) ? val : (val ?? "");
+        }
+        for (const [dKey, dVal] of Object.entries(dimMap)) {
+          if (normalizeDimensionKey(dKey) === targetDimNorm) {
+            return (typeof dVal === "number" && dVal > 0) ? dVal : (dVal ?? "");
+          }
+        }
+      }
+    }
+  }
+
+  return "";
+}
+
+/**
+ * Validates matrix pricing for all enabled bed dimensions & variants.
+ * Returns { isValid: boolean, missingCount: number, firstMissing: { variant, dimension }, invalidCellKeys: Set, errorMsg: string }
+ */
+export function validateMatrixPricing(bedSizes, variants = [], prices = {}) {
+  const invalidCellKeys = new Set();
+  let firstMissing = null;
+  let missingCount = 0;
+
+  if (!variants || variants.length === 0) {
+    return {
+      isValid: false,
+      missingCount: 1,
+      firstMissing: null,
+      invalidCellKeys,
+      errorMsg: "At least one variant must be created."
+    };
+  }
+
+  const enabledCategories = ["Single", "Double", "Queen", "King"].filter((catName) => {
+    const catData = bedSizes?.[catName];
+    return catData && catData.enabled && Array.isArray(catData.dimensions) && catData.dimensions.length > 0;
+  });
+
+  if (enabledCategories.length === 0) {
+    return {
+      isValid: false,
+      missingCount: 1,
+      firstMissing: null,
+      invalidCellKeys,
+      errorMsg: "At least one bed size dimension must be enabled."
+    };
+  }
+
+  for (const catName of enabledCategories) {
+    const dimensions = bedSizes[catName].dimensions;
+    for (const dim of dimensions) {
+      for (const vName of variants) {
+        const val = getMatrixCellValue(prices, vName, dim);
+        const numVal = Number(val);
+        if (val === "" || val === null || val === undefined || isNaN(numVal) || numVal <= 0 || !isFinite(numVal)) {
+          missingCount++;
+          const cellKey = `${vName}::${dim}`;
+          const normCellKey = `${normalizeVariantKey(vName)}::${normalizeDimensionKey(dim)}`;
+          invalidCellKeys.add(cellKey);
+          invalidCellKeys.add(normCellKey);
+          if (!firstMissing) {
+            firstMissing = { variant: vName, dimension: dim };
+          }
+        }
+      }
+    }
+  }
+
+  const isValid = missingCount === 0;
+  let errorMsg = null;
+  if (!isValid) {
+    if (firstMissing) {
+      errorMsg = `${missingCount} pricing field${missingCount > 1 ? 's are' : ' is'} incomplete. First missing: ${firstMissing.variant} / ${firstMissing.dimension}.`;
+    } else {
+      errorMsg = "Pricing incomplete. Please enter a valid price for every selected size and thickness combination.";
+    }
+  }
+
+  return {
+    isValid,
+    missingCount,
+    firstMissing,
+    invalidCellKeys,
+    errorMsg
+  };
+}
+
 export const CATEGORY_BASE_RATES = {
   foam: 0.026,
   ortho: 0.036,

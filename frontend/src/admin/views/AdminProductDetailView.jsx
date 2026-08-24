@@ -6,6 +6,7 @@ import ConfirmDialog from "../components/ConfirmDialog";
 import StatusBadge from "../components/StatusBadge";
 import { formatPrice, calculateDiscountedPrice } from "../../utils/currency";
 import { buildVariants, getVariantForSelection } from "../../utils/variantHelpers";
+import { getProductPrimaryImage, getProductGalleryImages, getProductCategoryLabel } from "../../utils/productHelpers";
 import {
   Pencil, Trash2, Star, Package, ChevronLeft, ChevronRight,
   Tag, Layers, Ruler, Shield, Clock, Hash, Calendar, Thermometer,
@@ -61,7 +62,10 @@ export default function AdminProductDetailView() {
     );
   }
 
-  const images = product.images || (product.image ? [product.image] : ["/asset/img1.jpg"]);
+  const primaryImage = getProductPrimaryImage(product);
+  const images = useMemo(() => {
+    return getProductGalleryImages(product);
+  }, [product]);
 
   const discountPct = typeof product.discountPercent === "number"
     ? product.discountPercent
@@ -98,17 +102,20 @@ export default function AdminProductDetailView() {
   const isLowStock = selectedStock <= selectedThreshold && selectedStock > 0;
 
   const handleDelete = () => {
+    setShowDelete(false);
     deleteProduct(product.id);
-    setToast({ type: "success", msg: `"${product.name}" deleted successfully.` });
-    setTimeout(() => { setToast(null); navigateTo("products"); }, 1600);
+    setToast({ msg: `Product "${product.name}" deleted.` });
+    setTimeout(() => {
+      setToast(null);
+      navigateTo("products");
+    }, 1200);
   };
 
-  const prevImg = () => setActiveImg((i) => (i - 1 + images.length) % images.length);
-  const nextImg = () => setActiveImg((i) => (i + 1) % images.length);
+  const prevImg = () => setActiveImg((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+  const nextImg = () => setActiveImg((prev) => (prev === images.length - 1 ? 0 : prev + 1));
 
   return (
     <div className="admin-fade-in" style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-      {/* Toast */}
       {toast && (
         <div style={{
           position: "fixed", top: "80px", right: "24px", zIndex: 2000,
@@ -166,10 +173,14 @@ export default function AdminProductDetailView() {
         {/* LEFT: Image gallery, Key Features & Customer Reviews */}
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
           {/* Main image */}
-          <div style={{ position: "relative", backgroundColor: "#F7F7F2", borderRadius: "12px", border: "1px solid #E7E7E2", overflow: "hidden", aspectRatio: "1 / 1" }}>
+          <div style={{ position: "relative", backgroundColor: "#F7F7F2", borderRadius: "16px", border: "1px solid #E7E7E2", overflow: "hidden", aspectRatio: "1 / 1", width: "100%" }}>
             <img
-              src={images[activeImg]}
-              alt={product.name}
+              src={images[activeImg] || primaryImage}
+              alt={product.name || product.Product_Name || "Product image"}
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = "/images/mattresses/foam/haven.jpg";
+              }}
               style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
             />
             {images.length > 1 && (
@@ -210,6 +221,10 @@ export default function AdminProductDetailView() {
                   <img
                     src={img}
                     alt={`View ${i + 1}`}
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = "/images/mattresses/foam/haven.jpg";
+                    }}
                     style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
                   />
                 </button>
@@ -267,7 +282,7 @@ export default function AdminProductDetailView() {
               </div>
               <div style={rowStyle}>
                 <span style={labelStyle}><Calendar size={14} style={{ marginRight: "4px", verticalAlign: "middle" }} />Category</span>
-                <span style={{ fontSize: "14px", color: "#14151A", textTransform: "capitalize" }}>{product.category}</span>
+                <span style={{ fontSize: "14px", color: "#14151A" }}>{getProductCategoryLabel(product)}</span>
               </div>
             </div>
           )}
@@ -280,7 +295,7 @@ export default function AdminProductDetailView() {
           <div style={cardStyle}>
             <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
               <span style={{ fontSize: "12px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#6B6B75" }}>
-                {product.category}
+                {getProductCategoryLabel(product)}
               </span>
               {product.badge && (
                 <span style={{ fontSize: "11px", fontWeight: 700, color: "#1B1F8C", backgroundColor: "#E8E9F8", padding: "2px 8px", borderRadius: "999px" }}>

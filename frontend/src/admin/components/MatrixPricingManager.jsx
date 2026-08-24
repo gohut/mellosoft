@@ -1,7 +1,6 @@
-"use client";
-
 import React, { useState } from "react";
 import { Plus, X, Trash2, Check } from "lucide-react";
+import { getMatrixCellValue, normalizeDimensionKey, normalizeVariantKey } from "../../utils/pricingEngine";
 
 const DEFAULT_BED_SIZES = {
   Single: {
@@ -29,7 +28,8 @@ export default function MatrixPricingManager({
   onVariantsChange,
   prices = {},
   onPricesChange,
-  categoryName = "ORTHO MATTRESS"
+  categoryName = "ORTHO MATTRESS",
+  invalidCellKeys = new Set()
 }) {
   // Local state for opening "Add Size" input box per category
   const [activeAddSizeCategory, setActiveAddSizeCategory] = useState(null);
@@ -121,14 +121,38 @@ export default function MatrixPricingManager({
   // Helper to update price in matrix cell
   const handlePriceCellChange = (variantName, dimension, val) => {
     const numVal = val === "" ? "" : Math.max(0, Number(val));
-    const variantPrices = prices[variantName] || {};
-    const updatedVariantPrices = {
-      ...variantPrices,
-      [dimension]: numVal
-    };
+    const normV = normalizeVariantKey(variantName);
+    const normD = normalizeDimensionKey(dimension);
+
+    // Find existing variant map if already present under variantName or normV
+    let existingKey = variantName;
+    if (prices[normV]) {
+      existingKey = normV;
+    } else {
+      for (const k of Object.keys(prices)) {
+        if (normalizeVariantKey(k) === normV) {
+          existingKey = k;
+          break;
+        }
+      }
+    }
+
+    const variantPrices = prices[existingKey] ? { ...prices[existingKey] } : {};
+    
+    // Find existing dimension key
+    let targetDimKey = normD;
+    for (const dK of Object.keys(variantPrices)) {
+      if (normalizeDimensionKey(dK) === normD) {
+        targetDimKey = dK;
+        break;
+      }
+    }
+
+    variantPrices[targetDimKey] = numVal;
+
     onPricesChange({
       ...prices,
-      [variantName]: updatedVariantPrices
+      [existingKey]: variantPrices
     });
   };
 
@@ -346,15 +370,30 @@ export default function MatrixPricingManager({
                         <tr key={`${catName}-${dim}`} style={dimTrStyle}>
                           <td style={dimTdStyle}>{dim}</td>
                           {variants.map((vName) => {
-                            const currentPrice = prices[vName]?.[dim] ?? "";
+                            const currentPrice = getMatrixCellValue(prices, vName, dim);
+                            const cellKey = `${vName}::${dim}`;
+                            const isInvalid = invalidCellKeys && (
+                              invalidCellKeys instanceof Set
+                                ? invalidCellKeys.has(cellKey)
+                                : Array.isArray(invalidCellKeys) && invalidCellKeys.includes(cellKey)
+                            );
+                            const cellId = `matrix-cell-${vName.replace(/[^a-zA-Z0-9]/g, '-')}-${dim.replace(/[^a-zA-Z0-9]/g, '-')}`;
+
                             return (
                               <td key={vName} style={cellTdStyle}>
                                 <input
+                                  id={cellId}
                                   type="number"
                                   placeholder="Enter price"
                                   value={currentPrice}
                                   onChange={(e) => handlePriceCellChange(vName, dim, e.target.value)}
-                                  style={cellInputStyle}
+                                  style={{
+                                    ...cellInputStyle,
+                                    borderColor: isInvalid ? "#DC2626" : "#CBD5E1",
+                                    backgroundColor: isInvalid ? "#FEF2F2" : "#FFFFFF",
+                                    color: isInvalid ? "#991B1B" : "#14151A",
+                                    boxShadow: isInvalid ? "0 0 0 1px #DC2626" : "none"
+                                  }}
                                 />
                               </td>
                             );

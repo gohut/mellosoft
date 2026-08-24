@@ -11,12 +11,12 @@ import HeroSlideCard from "../components/HeroSlideCard";
 import { formatPrice } from "../utils/currency";
 
 const categories = [
-  { label: "Memory Foam", category: "mattress", image: "/asset/img1.jpg", color: "#DCEBFA" },
-  { label: "Hybrid", category: "mattress", image: "/asset/img2.jpg", color: "#FBE2D0" },
-  { label: "Firm", category: "mattress", image: "/asset/texture.png", firmness: "Firm", color: "#DDF2E8" },
-  { label: "Pillows", category: "pillows", image: "/asset/pillow.png", color: "#F8DDE3" },
-  { label: "Bed Frames", category: "bed frames", image: "/asset/bedframe.png", color: "#E9E3FA" },
-  { label: "Protectors", category: "protectors", image: "/asset/texture.png", color: "#F8EACD" }
+  { label: "Memory Foam", category: "mattress", image: "/asset/cat-memory-foam.svg", color: "#DCEBFA" },
+  { label: "Hybrid", category: "mattress", image: "/asset/cat-hybrid.svg", color: "#FBE2D0" },
+  { label: "Firm", category: "mattress", image: "/asset/cat-firm.svg", firmness: "Firm", color: "#DDF2E8" },
+  { label: "Pillows", category: "pillows", image: "/asset/cat-pillows.svg", color: "#F8DDE3" },
+  { label: "Bed Frames", category: "bed frames", image: "/asset/cat-bedframes.svg", color: "#E9E3FA" },
+  { label: "Protectors", category: "protectors", image: "/asset/cat-protectors.svg", color: "#F8EACD" }
 ];
 
 export default function HomeView() {
@@ -885,14 +885,17 @@ const categoryTileStyle = {
 const categoryImageStyle = {
   position: "absolute",
   zIndex: 0,
-  width: "43%",
-  height: "90%",
-  right: "5%",
-  top: "5%",
-  borderRadius: "clamp(8px, 7cqi, 16px)",
-  objectFit: "cover",
+  width: "48%",
+  height: "92%",
+  right: "4%",
+  top: "4%",
+  borderRadius: "0",
+  objectFit: "contain",
   objectPosition: "center",
-  pointerEvents: "none"
+  pointerEvents: "none",
+  background: "transparent",
+  border: "none",
+  boxShadow: "none"
 };
 
 const categoryLabelStyle = {

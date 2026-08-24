@@ -7,6 +7,8 @@ import ConfirmDialog from "../components/ConfirmDialog";
 import { useAdmin } from "../context/AdminContext";
 import { Plus, Pencil, Trash2, Search, X, UploadCloud } from "lucide-react";
 
+import { isProductInCategory } from "../../utils/productHelpers";
+
 function AddCategoryModal({ isOpen, onClose, onAddCategory, existingCategories }) {
   const [name, setName] = useState("");
   const [imagePreview, setImagePreview] = useState(null);
@@ -304,17 +306,9 @@ export default function CategoriesView() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   const getProductCountForCategory = (cat) => {
-    const slug = (cat.slug || cat.name || "").toLowerCase();
-    const name = (cat.name || "").toLowerCase();
-    return (products || []).filter((p) => {
-      const pCat = (p.category || "").toLowerCase();
-      return (
-        pCat === slug ||
-        pCat === name ||
-        pCat + "s" === name ||
-        pCat === name.replace(/s$/, "")
-      );
-    }).length;
+    if (!cat) return 0;
+    const slug = (cat.slug || cat.id || cat.name || "").toLowerCase();
+    return (products || []).filter((p) => isProductInCategory(p, slug)).length;
   };
 
   const filteredCategories = categories.filter((cat) =>

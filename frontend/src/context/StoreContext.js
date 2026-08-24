@@ -7,6 +7,7 @@ import { MOCK_ORDERS, MOCK_CARTS, MOCK_WISHLISTS, MOCK_BANNERS, MOCK_REVIEWS } f
 import { calculateDiscountedPrice } from "../utils/currency";
 import { getVariantForSelection } from "../utils/variantHelpers";
 import { ensureProductPricing } from "../utils/pricingEngine";
+import { getProductPrimaryImage, getDeletedProductIds, isProductDeleted } from "../utils/productHelpers";
 import { useCustomerAuth } from "./CustomerAuthContext";
 
 const StoreContext = createContext();
@@ -17,7 +18,7 @@ export function StoreProvider({ children }) {
   
   // Navigation & View State
   const [view, setView] = useState("home");
-  const [selectedProductId, setSelectedProductId] = useState("cloudrest");
+  const [selectedProductId, setSelectedProductId] = useState("foamcloud");
   
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState("");
@@ -32,7 +33,7 @@ export function StoreProvider({ children }) {
 
   // User Commerce State
   const [cart, setCart] = useState([]);
-  const [wishlist, setWishlist] = useState(["luxe-hybrid"]);
+  const [wishlist, setWishlist] = useState(["foamcloud"]);
   // Products state is mutable so stock decrements can be applied
   const [products, setProducts] = useState(MOCK_PRODUCTS);
 
@@ -46,24 +47,24 @@ export function StoreProvider({ children }) {
 
   // New Arrival Config State synchronized with localStorage ("mellosoft_new_arrivals_config")
   const [newArrivalItems, setNewArrivalItems] = useState([
-    { id: "na-1", productId: "cloudrest",     displayOrder: 1,  isActive: true },
-    { id: "na-2", productId: "spinecare",     displayOrder: 2,  isActive: true },
-    { id: "na-3", productId: "breeze",        displayOrder: 3,  isActive: true },
-    { id: "na-4", productId: "natura",        displayOrder: 4,  isActive: true },
-    { id: "na-5", productId: "embrace",       displayOrder: 5,  isActive: true },
-    { id: "na-6", productId: "celestial",     displayOrder: 6,  isActive: true },
-    { id: "na-7", productId: "cloud-contour", displayOrder: 7,  isActive: true },
-    { id: "na-8", productId: "aqua-guard",    displayOrder: 8,  isActive: true },
-    { id: "na-9", productId: "cloud-duvet",    displayOrder: 9,  isActive: true },
-    { id: "na-10", productId: "flexi-bed",    displayOrder: 10, isActive: true },
+    { id: "na-1", productId: "foamcloud",      displayOrder: 1,  isActive: true },
+    { id: "na-2", productId: "orthocare",       displayOrder: 2,  isActive: true },
+    { id: "na-3", productId: "springease",      displayOrder: 3,  isActive: true },
+    { id: "na-4", productId: "latexpure",       displayOrder: 4,  isActive: true },
+    { id: "na-5", productId: "memorycloud",     displayOrder: 5,  isActive: true },
+    { id: "na-6", productId: "memory-contour",  displayOrder: 6,  isActive: true },
+    { id: "na-7", productId: "natura-latex",    displayOrder: 7,  isActive: true },
+    { id: "na-8", productId: "aqua-guard",      displayOrder: 8,  isActive: true },
+    { id: "na-9", productId: "cloud-duvet",     displayOrder: 9,  isActive: true },
+    { id: "na-10", productId: "flexi-bed",      displayOrder: 10, isActive: true },
   ]);
 
   // Best Sellers Config State synchronized with localStorage ("mellosoft_best_sellers_config")
   const [bestSellerItems, setBestSellerItems] = useState([
-    { id: "bs-1", productId: "classic-mattress", displayOrder: 1, isActive: true },
-    { id: "bs-2", productId: "luxe-hybrid",     displayOrder: 2, isActive: true },
-    { id: "bs-3", productId: "ortho-support",   displayOrder: 3, isActive: true },
-    { id: "bs-4", productId: "ergo-air",        displayOrder: 4, isActive: true },
+    { id: "bs-1", productId: "foamcloud",  displayOrder: 1, isActive: true },
+    { id: "bs-2", productId: "orthocare",   displayOrder: 2, isActive: true },
+    { id: "bs-3", productId: "springease",  displayOrder: 3, isActive: true },
+    { id: "bs-4", productId: "latexpure",   displayOrder: 4, isActive: true },
   ]);
 
   // Homepage Layout Config synchronized with localStorage ("mellosoft_homepage_config")
@@ -166,25 +167,101 @@ export function StoreProvider({ children }) {
         console.error("Failed to load best sellers config from localStorage:", e);
       }
 
-      // Sync products (merging stored overrides with master catalogue)
+      // Sync products (merging stored overrides with master catalogue, minus persistent tombstones & respecting v3 migration)
       try {
+        const currentVer = localStorage.getItem("mellosoft_catalogue_version");
+        if (currentVer !== "v5-real-images") {
+          localStorage.removeItem("mellosoft_deleted_product_ids");
+          localStorage.removeItem("mellosoft_products");
+          localStorage.removeItem("mellosoft_admin_products");
+          localStorage.setItem("mellosoft_catalogue_version", "v5-real-images");
+          localStorage.setItem("mellosoft_products", JSON.stringify(MOCK_PRODUCTS));
+          setProducts(MOCK_PRODUCTS);
+          return;
+        }
+
+        const deletedIds = getDeletedProductIds();
+        const activeMaster = MOCK_PRODUCTS.filter((m) => !isProductDeleted(m, deletedIds));
+
         const savedProducts = localStorage.getItem("mellosoft_products") || localStorage.getItem("mellosoft_admin_products");
         if (savedProducts) {
           const parsed = JSON.parse(savedProducts);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            const parsedIdMap = new Map(parsed.map((p) => [p.id, p]));
-            const merged = MOCK_PRODUCTS.map((masterItem) => {
-              const stored = parsedIdMap.get(masterItem.id);
-              const combined = {
-                ...masterItem,
-                ...(stored || {}),
-                isNewArrival: stored?.isNewArrival ?? masterItem.isNewArrival ?? false,
-                newArrivalOrder: stored?.newArrivalOrder ?? masterItem.newArrivalOrder ?? 999
-              };
-              return ensureProductPricing(combined);
+            const validParsed = parsed.filter((p) => !isProductDeleted(p, deletedIds));
+
+            const parsedIdMap = new Map();
+            validParsed.forEach((p) => {
+              if (p.id) parsedIdMap.set(String(p.id).trim().toLowerCase(), p);
+              if (p.Product_Id) parsedIdMap.set(String(p.Product_Id).trim().toLowerCase(), p);
+              if (p.slug) parsedIdMap.set(String(p.slug).trim().toLowerCase(), p);
             });
+
+            const masterIdSet = new Set();
+            const merged = activeMaster.map((masterItem) => {
+              if (masterItem.id) masterIdSet.add(String(masterItem.id).trim().toLowerCase());
+              if (masterItem.Product_Id) masterIdSet.add(String(masterItem.Product_Id).trim().toLowerCase());
+              if (masterItem.slug) masterIdSet.add(String(masterItem.slug).trim().toLowerCase());
+
+              const stored =
+                parsedIdMap.get(String(masterItem.id || "").trim().toLowerCase()) ||
+                parsedIdMap.get(String(masterItem.Product_Id || "").trim().toLowerCase()) ||
+                parsedIdMap.get(String(masterItem.slug || "").trim().toLowerCase());
+
+              if (stored) {
+                const primaryImg = getProductPrimaryImage(stored) || getProductPrimaryImage(masterItem);
+                const imagesArray = stored?.images && stored.images.length > 0
+                  ? stored.images
+                  : (primaryImg ? [primaryImg] : masterItem.images || [masterItem.image]);
+
+                const combined = {
+                  ...masterItem,
+                  ...stored,
+                  name: stored.name || stored.Product_Name || masterItem.name,
+                  Product_Name: stored.Product_Name || stored.name || masterItem.Product_Name,
+                  parentCategory: stored.parentCategory || masterItem.parentCategory || "mattresses",
+                  subCategory: stored.subCategory || stored.subcategory || masterItem.subCategory,
+                  subcategory: stored.subcategory || stored.subCategory || masterItem.subcategory,
+                  categoryName: stored.categoryName || masterItem.categoryName,
+                  image: primaryImg,
+                  images: imagesArray,
+                  imageUrl: primaryImg,
+                  thumbnail: primaryImg,
+                  price: stored.price || stored.startingPrice || masterItem.price,
+                  startingPrice: stored.startingPrice || stored.price || masterItem.startingPrice,
+                  prices: stored.prices || masterItem.prices,
+                  variantsList: stored.variantsList || masterItem.variantsList,
+                  bedSizes: stored.bedSizes || masterItem.bedSizes,
+                  isNewArrival: stored.isNewArrival ?? masterItem.isNewArrival ?? false,
+                  newArrivalOrder: stored.newArrivalOrder ?? masterItem.newArrivalOrder ?? 999
+                };
+                return ensureProductPricing(combined);
+              }
+              return ensureProductPricing(masterItem);
+            });
+
+            validParsed.forEach((storedItem) => {
+              const sid = String(storedItem.id || storedItem.Product_Id || storedItem.slug || "").trim().toLowerCase();
+              if (sid && !masterIdSet.has(sid)) {
+                const primaryImg = getProductPrimaryImage(storedItem);
+                const imagesArray = storedItem.images && storedItem.images.length > 0
+                  ? storedItem.images
+                  : [primaryImg];
+                merged.push(ensureProductPricing({
+                  ...storedItem,
+                  image: primaryImg,
+                  images: imagesArray,
+                  imageUrl: primaryImg,
+                  thumbnail: primaryImg
+                }));
+              }
+            });
+
             setProducts(merged);
+          } else {
+            setProducts(activeMaster.map((item) => ensureProductPricing(item)));
           }
+        } else {
+          setProducts(activeMaster.map((item) => ensureProductPricing(item)));
         }
       } catch (e) {
         console.error("Failed to load products from localStorage:", e);
@@ -205,17 +282,7 @@ export function StoreProvider({ children }) {
     syncStore();
     window.addEventListener("storage", syncStore);
     window.addEventListener("mellosoft_orders_updated", syncStore);
-
-    // Load orders
-    try {
-      const savedOrders = localStorage.getItem("mellosoft_orders");
-      if (savedOrders) {
-        const parsed = JSON.parse(savedOrders);
-        if (Array.isArray(parsed) && parsed.length > 0) setOrders(parsed);
-      }
-    } catch (e) {
-      console.error("Failed to load orders from localStorage:", e);
-    }
+    window.addEventListener("mellosoft:products-updated", syncStore);
 
     // Load user addresses
     try {
@@ -228,32 +295,10 @@ export function StoreProvider({ children }) {
       console.error("Failed to load addresses from localStorage:", e);
     }
 
-    // Load products (merging any admin-updated stock levels with master catalogue)
-    try {
-      const savedProducts = localStorage.getItem("mellosoft_products");
-      if (savedProducts) {
-        const parsed = JSON.parse(savedProducts);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const parsedIdMap = new Map(parsed.map((p) => [p.id, p]));
-          const merged = MOCK_PRODUCTS.map((masterItem) => {
-            const stored = parsedIdMap.get(masterItem.id);
-            return {
-              ...masterItem,
-              ...(stored || {}),
-              isNewArrival: stored?.isNewArrival ?? masterItem.isNewArrival ?? false,
-              newArrivalOrder: stored?.newArrivalOrder ?? masterItem.newArrivalOrder ?? 999
-            };
-          });
-          setProducts(merged);
-        }
-      }
-    } catch (e) {
-      console.error("Failed to load products from localStorage:", e);
-    }
-
     return () => {
       window.removeEventListener("storage", syncStore);
       window.removeEventListener("mellosoft_orders_updated", syncStore);
+      window.removeEventListener("mellosoft:products-updated", syncStore);
     };
   }, []);
 

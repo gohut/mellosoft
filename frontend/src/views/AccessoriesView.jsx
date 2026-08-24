@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { ACCESSORY_PRODUCTS } from "../data/mattressData";
 import { ensureProductPricing } from "../utils/pricingEngine";
-import { ACCESSORY_CATEGORY_LIST, getAccessoryCategoryMeta } from "../utils/productHelpers";
+import { ACCESSORY_CATEGORY_LIST, getAccessoryCategoryMeta, isProductInCategory, getProductsByGroup, getCategoryCount } from "../utils/productHelpers";
 import { useStore } from "../context/StoreContext";
 import { SlidersHorizontal, X } from "lucide-react";
 import EmptyState from "../components/EmptyState";
@@ -11,7 +11,7 @@ import ProductCard from "../components/ProductCard";
 import AccessoryFilterPanel from "../components/AccessoryFilterPanel";
 
 export default function AccessoriesView({ categoryParam = "all" }) {
-  const { searchQuery, setSearchQuery } = useStore();
+  const { searchQuery, setSearchQuery, products } = useStore();
   const [selectedCategory, setSelectedCategory] = useState(categoryParam || "all");
   const [selectedFirmness, setSelectedFirmness] = useState("All");
   const [priceAvailability, setPriceAvailability] = useState("All");
@@ -19,8 +19,10 @@ export default function AccessoriesView({ categoryParam = "all" }) {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   const hydratedAccessories = useMemo(() => {
-    return (ACCESSORY_PRODUCTS || []).map((item) => ensureProductPricing(item));
-  }, []);
+    const list = (products && products.length > 0) ? products : ACCESSORY_PRODUCTS;
+    const accList = getProductsByGroup(list, "accessories");
+    return accList.map((item) => ensureProductPricing(item));
+  }, [products]);
 
   // Sync state if categoryParam changes via router
   useEffect(() => {
@@ -69,7 +71,7 @@ export default function AccessoriesView({ categoryParam = "all" }) {
 
       // 2. Category Filter
       if (selectedCategory !== "all" && selectedCategory !== "All") {
-        if (item.category !== selectedCategory) return false;
+        if (!isProductInCategory(item, selectedCategory)) return false;
       }
 
       // 3. Firmness / Comfort Filter
@@ -107,12 +109,12 @@ export default function AccessoriesView({ categoryParam = "all" }) {
   }, [hydratedAccessories, searchQuery, selectedCategory, selectedFirmness, priceAvailability, sortBy]);
 
   const categoryCounts = useMemo(() => {
-    const counts = { all: ACCESSORY_PRODUCTS.length };
+    const counts = { all: hydratedAccessories.length };
     ACCESSORY_CATEGORY_LIST.forEach((c) => {
-      counts[c.slug] = ACCESSORY_PRODUCTS.filter((p) => p.category === c.slug).length;
+      counts[c.slug] = getCategoryCount(hydratedAccessories, c.slug);
     });
     return counts;
-  }, []);
+  }, [hydratedAccessories]);
 
   // Secondary active filter count
   const activeFilterCount = useMemo(() => {
@@ -143,6 +145,22 @@ export default function AccessoriesView({ categoryParam = "all" }) {
         
         {/* Category Pills & Filter Button in Single Flex Row */}
         <div style={categoryRowWrapStyle}>
+          {/* Green Filter Toggle Button FIRST */}
+          <button
+            type="button"
+            onClick={() => setIsFilterOpen((prev) => !prev)}
+            className="filter-toggle-btn"
+            style={{
+              ...filterToggleBtnStyle,
+              backgroundColor: isFilterOpen ? "#15803D" : "#16A34A",
+              color: "#FFFFFF",
+              borderColor: isFilterOpen ? "#15803D" : "#16A34A"
+            }}
+          >
+            <SlidersHorizontal size={15} color="#FFFFFF" />
+            <span>Filter{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}</span>
+          </button>
+
           <button
             type="button"
             onClick={() => handleCategorySelect("all")}
@@ -175,27 +193,11 @@ export default function AccessoriesView({ categoryParam = "all" }) {
               </button>
             );
           })}
-
-          {/* Filter Toggle Button in same row after Travel Bed */}
-          <button
-            type="button"
-            onClick={() => setIsFilterOpen((prev) => !prev)}
-            className="filter-toggle-btn"
-            style={{
-              ...filterToggleBtnStyle,
-              backgroundColor: (isFilterOpen || activeFilterCount > 0) ? "#1B1F8C" : "#FFFFFF",
-              color: (isFilterOpen || activeFilterCount > 0) ? "#FFFFFF" : "#1E293B",
-              borderColor: (isFilterOpen || activeFilterCount > 0) ? "#1B1F8C" : "#E2E8F0"
-            }}
-          >
-            <SlidersHorizontal size={15} />
-            <span>Filter{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}</span>
-          </button>
         </div>
 
         {/* Results Count Line */}
         <div style={resultsCountStyle}>
-          Showing <strong>{filteredAccessories.length}</strong> {filteredAccessories.length === ACCESSORY_PRODUCTS.length ? "accessories" : <>of <strong>{ACCESSORY_PRODUCTS.length}</strong> accessories</>}
+          Showing <strong>{filteredAccessories.length}</strong> {filteredAccessories.length === hydratedAccessories.length ? "accessories" : <>of <strong>{hydratedAccessories.length}</strong> accessories</>}
         </div>
 
         {/* Active Filter Badges Summary */}
@@ -261,6 +263,11 @@ export default function AccessoriesView({ categoryParam = "all" }) {
       )}
 
       <style>{`
+        .filter-toggle-btn:hover {
+          background-color: #15803D !important;
+          border-color: #15803D !important;
+          color: #FFFFFF !important;
+        }
         @media (max-width: 767px) {
           .catalog-grid {
             grid-template-columns: repeat(1, 1fr) !important;
@@ -298,7 +305,9 @@ const categoryRowWrapStyle = {
 const categoryPillBtnStyle = {
   padding: "8px 16px",
   borderRadius: "999px",
-  border: "1.5px solid #E7E7E2",
+  borderWidth: "1.5px",
+  borderStyle: "solid",
+  borderColor: "#E7E7E2",
   fontSize: "13px",
   fontWeight: "700",
   cursor: "pointer",
@@ -313,7 +322,11 @@ const filterToggleBtnStyle = {
   height: "37px",
   padding: "0 16px",
   borderRadius: "999px",
-  border: "1.5px solid #E2E8F0",
+  borderWidth: "1.5px",
+  borderStyle: "solid",
+  borderColor: "#16A34A",
+  backgroundColor: "#16A34A",
+  color: "#FFFFFF",
   fontSize: "13px",
   fontWeight: "700",
   cursor: "pointer",

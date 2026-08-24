@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useStore } from "../context/StoreContext";
 import EmptyState from "../components/EmptyState";
+import { saveImageBlob, getResolvedImageUrlSync } from "../utils/imageStorage";
 import { formatPrice } from "../utils/currency";
 import DownloadOrderPdf from "../components/DownloadOrderPdf";
 import { 
@@ -204,40 +205,9 @@ export default function OrdersView() {
       }
 
       try {
-        const compressedBase64 = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = (event) => {
-            const img = new Image();
-            img.onload = () => {
-              const canvas = document.createElement("canvas");
-              const maxDim = 600;
-              let width = img.width;
-              let height = img.height;
-              if (width > height) {
-                if (width > maxDim) {
-                  height = Math.round((height * maxDim) / width);
-                  width = maxDim;
-                }
-              } else {
-                if (height > maxDim) {
-                  width = Math.round((width * maxDim) / height);
-                  height = maxDim;
-                }
-              }
-              canvas.width = width;
-              canvas.height = height;
-              const ctx = canvas.getContext("2d");
-              ctx.drawImage(img, 0, 0, width, height);
-              resolve(canvas.toDataURL("image/jpeg", 0.75));
-            };
-            img.onerror = reject;
-            img.src = event.target.result;
-          };
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
-
-        newImages.push(compressedBase64);
+        const idbKey = `idb:rev-upload-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+        await saveImageBlob(idbKey, file);
+        newImages.push(idbKey);
       } catch (err) {
         console.error("Failed to process image:", err);
       }
@@ -494,7 +464,7 @@ export default function OrdersView() {
                               {existingReview.images && existingReview.images.length > 0 && (
                                 <div style={{ display: "flex", gap: "6px", marginTop: "8px", flexWrap: "wrap" }}>
                                   {existingReview.images.map((img, i) => (
-                                    <img key={i} src={img} alt="Review attachment" style={{ width: "40px", height: "40px", borderRadius: "6px", objectFit: "cover", border: "1px solid #CBD5E1" }} />
+                                    <img key={i} src={getResolvedImageUrlSync(img)} alt="Review attachment" style={{ width: "40px", height: "40px", borderRadius: "6px", objectFit: "cover", border: "1px solid #CBD5E1" }} />
                                   ))}
                                 </div>
                               )}

@@ -1,13 +1,25 @@
 import { MATTRESS_PRODUCTS, ACCESSORY_PRODUCTS, ACCESSORIES_CATEGORIES } from "./mattressData";
 import { ensureProductPricing } from "../utils/pricingEngine";
+import { getProductCategoryLabel } from "../utils/productHelpers";
 
 // Helper to convert MATTRESS_PRODUCTS to full MOCK_PRODUCTS format
 const mattressProductsFormatted = MATTRESS_PRODUCTS.map((rawProd) => {
   const prod = ensureProductPricing(rawProd);
   const minP = prod.startingPrice || 10800;
+  const subCat = prod.category;
+  const catLabel = getProductCategoryLabel({ parentCategory: "mattresses", subCategory: subCat, category: subCat });
+
   return {
     ...prod,
-    Product_Id: `PROD-${prod.id.toUpperCase()}`,
+    category: subCat,
+    parentCategory: "mattresses",
+    parentCategoryId: "mattresses",
+    subCategory: subCat,
+    subcategory: subCat,
+    subcategoryId: subCat,
+    categoryName: catLabel,
+    categoryLabel: catLabel,
+    Product_Id: `PROD-${prod.id.toUpperCase().replace(/-/g, "")}`,
     Product_Name: prod.name,
     price: minP,
     Actual_Price: minP,
@@ -16,7 +28,7 @@ const mattressProductsFormatted = MATTRESS_PRODUCTS.map((rawProd) => {
     Discounted_Price: minP,
     rating: 4.8,
     reviewCount: 42,
-    badge: prod.categoryName,
+    badge: catLabel,
     specs: `${prod.construction || "Premium Construction"} • ${(prod.thicknessOptions || ["Standard"]).join(" / ")} Thickness`,
     features: [
       `Construction: ${prod.construction || "Standard"}`,
@@ -56,13 +68,22 @@ const mattressProductsFormatted = MATTRESS_PRODUCTS.map((rawProd) => {
 const accessoryProductsFormatted = (ACCESSORY_PRODUCTS || []).map((rawAcc) => {
   const acc = ensureProductPricing(rawAcc);
   const minP = acc.startingPrice || 499;
+  const subCat = acc.category;
+  const catLabel = getProductCategoryLabel({ parentCategory: "accessories", subCategory: subCat, category: subCat });
+
   return {
     ...acc,
     isNewArrival: acc.isNewArrival ?? false,
     newArrivalOrder: acc.newArrivalOrder ?? 999,
     category: "accessories",
-    subCategory: acc.category,
-    Product_Id: `ACC-${acc.id.toUpperCase()}`,
+    parentCategory: "accessories",
+    parentCategoryId: "accessories",
+    subCategory: subCat,
+    subcategory: subCat,
+    subcategoryId: subCat,
+    categoryName: catLabel,
+    categoryLabel: catLabel,
+    Product_Id: `PROD-${acc.id.toUpperCase().replace(/-/g, "")}`,
     Product_Name: acc.name,
     price: minP,
     Actual_Price: minP,
@@ -71,7 +92,7 @@ const accessoryProductsFormatted = (ACCESSORY_PRODUCTS || []).map((rawAcc) => {
     Discounted_Price: minP,
     rating: 4.8,
     reviewCount: 28,
-    badge: acc.categoryName || "Accessories",
+    badge: catLabel,
     specs: `${acc.type || "Accessory"} ${acc.firmness ? `• ${acc.firmness}` : ""} ${acc.material ? `• ${acc.material}` : ""}`,
     features: [
       `Type: ${acc.type || "Accessory"}`,

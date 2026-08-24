@@ -10,6 +10,14 @@ import {
   CheckCircle2, XCircle, Search, GripVertical,
   Eye, EyeOff, Check, ChevronRight, Star, Tag, Zap, Package, Info, AlertTriangle, Award
 } from "lucide-react";
+import {
+  isProductInCategory,
+  getProductCategoryLabel,
+  getProductPrimaryImage,
+  getMinimumProductPrice,
+  formatPrice,
+  isProductDeleted
+} from "../../utils/productHelpers";
 
 // ─── Banner types and destinations ────────────────────────────────────────────
 const BANNER_TYPES = ["Offer", "New Arrival", "Promotion", "Collection"];
@@ -1722,7 +1730,7 @@ function NewArrivalsTab({ showToast }) {
                     </td>
                     <td style={tdStyle}>
                       <div style={thumbContainerStyle}>
-                        <img src={imgSrc} alt={prod.name || prod.title} style={thumbImgStyle} />
+                        <img src={getProductPrimaryImage(prod)} alt={prod.name || prod.title} style={thumbImgStyle} />
                       </div>
                     </td>
                     <td style={tdStyle}>
@@ -1734,13 +1742,13 @@ function NewArrivalsTab({ showToast }) {
                       </span>
                     </td>
                     <td style={tdStyle}>
-                      <span style={{ fontSize: "12.5px", fontWeight: 600, color: "#4B5563", textTransform: "capitalize" }}>
-                        {prod.category || "General"}
+                      <span style={{ fontSize: "12.5px", fontWeight: 600, color: "#4B5563" }}>
+                        {getProductCategoryLabel(prod)}
                       </span>
                     </td>
                     <td style={tdStyle}>
                       <strong style={{ fontSize: "13.5px", color: "#16A34A" }}>
-                        ${(Number(prod.price) || 0).toFixed(2)}
+                        {formatPrice(getMinimumProductPrice(prod))}
                       </strong>
                     </td>
                     <td style={tdStyle}>
@@ -2724,10 +2732,10 @@ function BestSellersTab({ showToast }) {
             <div style={{ padding: "12px 0" }}>
               <Trash2 size={40} color="#DC2626" style={{ margin: "0 auto 12px", display: "block" }} />
               <h3 style={{ fontSize: "18px", fontWeight: 800, color: "#14151A", margin: "0 0 8px" }}>
-                Remove &quot;{itemToRemove.product.name || itemToRemove.product.title}&quot; from Best Sellers?
+                Remove &quot;{itemToRemove.product ? (itemToRemove.product.name || itemToRemove.product.title) : "Product"}&quot;?
               </h3>
               <p style={{ fontSize: "13.5px", color: "#4B5563", margin: "0 0 16px", lineHeight: "1.4" }}>
-                This will remove the product from the Best Sellers section but will not delete the product from the store catalog.
+                This will remove the product from this section, but will not delete it from the store catalog.
               </p>
             </div>
             <div style={{ ...modalFooterStyle, justifyContent: "center", gap: "10px" }}>
@@ -2761,7 +2769,7 @@ function ProductSelectionModal({
   onAddSelected,
   navigateTo,
 }) {
-  const { products = [], categories = [] } = useAdmin();
+  const { products = [] } = useAdmin();
   const [selectedProductIds, setSelectedProductIds] = useState([]);
   const [modalSearch, setModalSearch] = useState("");
   const [modalCategory, setModalCategory] = useState("All");
@@ -2792,12 +2800,23 @@ function ProductSelectionModal({
     onClose();
   };
 
-  const modalCatalogProducts = (products || []).filter((p) => {
+  const activeStoreProducts = (products || []).filter(
+    (p) => p && !isProductDeleted(p.id || p.Product_Id || p.slug) && (p.status ? p.status === "Active" : true)
+  );
+
+  const getCategoryCount = (catKey) => {
+    if (catKey === "All" || catKey === "all") return activeStoreProducts.length;
+    return activeStoreProducts.filter((p) => isProductInCategory(p, catKey)).length;
+  };
+
+  const modalCatalogProducts = activeStoreProducts.filter((p) => {
     const term = modalSearch.toLowerCase().trim();
-    const pName = (p.name || p.title || "").toLowerCase();
-    const pCat = (p.category || "").toLowerCase();
-    const matchSearch = !term || pName.includes(term) || pCat.includes(term);
-    const matchCat = modalCategory === "All" || p.category === modalCategory;
+    const pName = (p.name || p.title || p.Product_Name || "").toLowerCase();
+    const pCatLabel = getProductCategoryLabel(p).toLowerCase();
+    
+    const matchSearch = !term || pName.includes(term) || pCatLabel.includes(term);
+    const matchCat = isProductInCategory(p, modalCategory);
+
     return matchSearch && matchCat;
   });
 
@@ -2881,12 +2900,27 @@ function ProductSelectionModal({
               onChange={(e) => setModalCategory(e.target.value)}
               style={{ ...selectFilterStyle, height: "38px" }}
             >
-              <option value="All">All Categories</option>
-              {(categories || []).map((cat) => (
-                <option key={cat.id || cat.slug || cat.name} value={cat.slug || cat.name}>
-                  {cat.name}
-                </option>
-              ))}
+              <option value="All">All Categories ({getCategoryCount("All")})</option>
+
+              <optgroup label="Mattresses">
+                <option value="mattresses">All Mattresses ({getCategoryCount("mattresses")})</option>
+                <option value="foam">Foam Mattress ({getCategoryCount("foam")})</option>
+                <option value="ortho">Ortho Mattress ({getCategoryCount("ortho")})</option>
+                <option value="spring">Spring Mattress ({getCategoryCount("spring")})</option>
+                <option value="latex">Latex Mattress ({getCategoryCount("latex")})</option>
+                <option value="memory-foam">Memory Foam Mattress ({getCategoryCount("memory-foam")})</option>
+              </optgroup>
+
+              <optgroup label="Accessories">
+                <option value="accessories">All Accessories ({getCategoryCount("accessories")})</option>
+                <option value="memory-foam-pillow">Memory Foam Pillow ({getCategoryCount("memory-foam-pillow")})</option>
+                <option value="latex-pillow">Latex Pillow ({getCategoryCount("latex-pillow")})</option>
+                <option value="fiber-pillow">Fiber Pillow ({getCategoryCount("fiber-pillow")})</option>
+                <option value="mattress-protector">Mattress Protector ({getCategoryCount("mattress-protector")})</option>
+                <option value="fitted-bedspread">Fitted Bedspread ({getCategoryCount("fitted-bedspread")})</option>
+                <option value="blanket-duvet">Blanket / Duvet ({getCategoryCount("blanket-duvet")})</option>
+                <option value="travel-bed">Travel Bed ({getCategoryCount("travel-bed")})</option>
+              </optgroup>
             </select>
           </div>
 
@@ -2898,9 +2932,16 @@ function ProductSelectionModal({
               </div>
             ) : (
               modalCatalogProducts.map((p) => {
-                const isAlreadyAdded = existingProductIds.has(p.id);
+                const isAlreadyAdded =
+                  existingProductIds.has(p.id) ||
+                  existingProductIds.has(p.Product_Id) ||
+                  existingProductIds.has(p.slug);
                 const isSelected = selectedProductIds.includes(p.id);
-                const imgSrc = p.image || (p.images && p.images[0]) || "/asset/img2.jpg";
+                const imgSrc = getProductPrimaryImage(p);
+                const catLabel = getProductCategoryLabel(p);
+                const minPrice = getMinimumProductPrice(p);
+                const formattedPrice = formatPrice(minPrice);
+
                 return (
                   <div
                     key={p.id}
@@ -2939,7 +2980,7 @@ function ProductSelectionModal({
                         {p.name || p.title}
                       </strong>
                       <span style={{ fontSize: "12px", color: "#6B7280" }}>
-                        Category: {p.category} • Price: ${(Number(p.price) || 0).toFixed(2)}
+                        Category: {catLabel} • Price: {formattedPrice}
                       </span>
                     </div>
                     {isAlreadyAdded ? (

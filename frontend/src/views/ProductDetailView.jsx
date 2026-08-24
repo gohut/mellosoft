@@ -11,7 +11,8 @@ import ProductCard from "../components/ProductCard";
 import { formatPrice, calculateDiscountedPrice } from "../utils/currency";
 import { getVariantForSelection } from "../utils/variantHelpers";
 import { useRouter } from "next/navigation";
-import { getProductByIdentifier, getRelatedProducts, getMattressRecommendations } from "../utils/productHelpers";
+import { getProductByIdentifier, getRelatedProducts, getMattressRecommendations, getProductPrimaryImage, getProductGalleryImages } from "../utils/productHelpers";
+import { getResolvedImageUrlSync } from "../utils/imageStorage";
 import MattressSelector from "../components/MattressSelector";
 
 export default function ProductDetailView({ productId: initialProductId }) {
@@ -46,6 +47,10 @@ export default function ProductDetailView({ productId: initialProductId }) {
     const storeProds = (products && products.length > 0) ? products : MOCK_PRODUCTS;
     return getProductByIdentifier(target, storeProds) || getProductByIdentifier(selectedProductId, storeProds) || null;
   }, [products, selectedProductId, initialProductId]);
+
+  const galleryImages = useMemo(() => {
+    return getProductGalleryImages(product);
+  }, [product]);
 
   // Gallery Active Image
   const [activeImgIndex, setActiveImgIndex] = useState(0);
@@ -277,12 +282,13 @@ export default function ProductDetailView({ productId: initialProductId }) {
   // Compute category-aware, de-duplicated recommendations (excludes current product)
   const recommendations = useMemo(() => {
     if (!product) return [];
+    const storeProds = (products && products.length > 0) ? products : MOCK_PRODUCTS;
     const isAcc = product.subCategory || product.category === "accessories";
     if (isAcc) {
-      return getRelatedProducts(product, MOCK_PRODUCTS, 4);
+      return getRelatedProducts(product, storeProds, 4);
     }
-    return getMattressRecommendations(product, MOCK_PRODUCTS, 4);
-  }, [product]);
+    return getMattressRecommendations(product, storeProds, 4);
+  }, [product, products]);
 
   if (!product) {
     return (
@@ -365,10 +371,13 @@ export default function ProductDetailView({ productId: initialProductId }) {
             onTouchEnd={handleImageTouchEnd}
           >
             <img 
-              src={product.images[activeImgIndex] || product.images[0]} 
+              src={galleryImages[activeImgIndex] || galleryImages[0] || getProductPrimaryImage(product)} 
               alt={product.name} 
               style={mainImageStyle} 
               className="detail-gallery-img"
+              onError={(e) => {
+                e.target.src = "/images/mattresses/foam/haven.jpg";
+              }}
             />
 
             <div style={floatingActionsWrapStyle} className="detail-floating-actions">
@@ -412,22 +421,31 @@ export default function ProductDetailView({ productId: initialProductId }) {
             </div>
           </div>
           
-          {/* Thumbnail strip */}
-          <div style={thumbnailStripStyle} className="desktop-thumbnails">
-            {product.images.map((img, index) => (
-              <div 
-                key={index} 
-                onClick={() => setActiveImgIndex(index)}
-                style={{
-                  ...thumbnailWrapperStyle,
-                  borderColor: activeImgIndex === index ? "#1B1F8C" : "#E7E7E2",
-                  transform: activeImgIndex === index ? "scale(1.02)" : "scale(1)"
-                }}
-              >
-                <img src={img} alt={`${product.name} View ${index + 1}`} style={thumbnailImageStyle} />
-              </div>
-            ))}
-          </div>
+          {/* Thumbnail strip - ONLY rendered when product has > 1 valid distinct image */}
+          {galleryImages.length > 1 && (
+            <div style={thumbnailStripStyle} className="desktop-thumbnails">
+              {galleryImages.map((img, index) => (
+                <div 
+                  key={index} 
+                  onClick={() => setActiveImgIndex(index)}
+                  style={{
+                    ...thumbnailWrapperStyle,
+                    borderColor: activeImgIndex === index ? "#1B1F8C" : "#E7E7E2",
+                    transform: activeImgIndex === index ? "scale(1.02)" : "scale(1)"
+                  }}
+                >
+                  <img 
+                    src={img} 
+                    alt={`${product.name} thumbnail ${index + 1}`} 
+                    style={thumbnailImageStyle}
+                    onError={(e) => {
+                      e.target.src = "/images/mattresses/foam/haven.jpg";
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Right Column: Order Configuration */}
@@ -1005,9 +1023,10 @@ const galleryColStyle = {
 
 const mainImageWrapperStyle = {
   width: "100%",
-  paddingTop: "75%",
-  backgroundColor: "#FFFFFF",
-  borderRadius: 0,
+  aspectRatio: "1 / 1",
+  backgroundColor: "#FAFAF7",
+  borderRadius: "16px",
+  border: "1px solid #E7E7E2",
   position: "relative",
   overflow: "hidden",
   cursor: "zoom-in",
@@ -1021,7 +1040,8 @@ const mainImageStyle = {
   width: "100%",
   height: "100%",
   objectFit: "cover",
-  objectPosition: "center center"
+  objectPosition: "center center",
+  display: "block"
 };
 
 const floatingActionsWrapStyle = {

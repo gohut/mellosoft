@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 340" width="100%" height="100%" fill="none">
+  <defs>
+    <filter id="shadow-bed" x="-10%" y="-10%" width="130%" height="140%">
+      <feDropShadow dx="0" dy="14" stdDeviation="12" flood-color="#4F46E5" flood-opacity="0.18"/>
+    </filter>
+    <linearGradient id="headboardGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#4338CA"/>
+      <stop offset="100%" stop-color="#312E81"/>
+    </linearGradient>
+    <linearGradient id="frameWood" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#B45309"/>
+      <stop offset="100%" stop-color="#78350F"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Ground Contact Shadow -->
+  <ellipse cx="250" cy="280" rx="200" ry="24" fill="#0F172A" opacity="0.15"/>
+
+  <!-- 3/4 Isometric Bed Frame Product (No Room Scenery) -->
+  <g filter="url(#shadow-bed)">
+    <!-- Wooden Bed Frame Leg Back Left -->
+    <rect x="75" y="110" width="14" height="150" rx="3" fill="#78350F"/>
+    
+    <!-- Upholstered Headboard Left Wing & Back Panel -->
+    <path d="M70 70 L260 130 L260 190 L70 130 Z" fill="url(#headboardGrad)" stroke="#6366F1" stroke-width="1.5"/>
+    <path d="M260 130 L380 90 L380 150 L260 190 Z" fill="#3730A3" stroke="#4338CA" stroke-width="1.5"/>
+
+    <!-- Headboard Tufting Vertical Lines -->
+    <path d="M120 86 L120 146 M170 102 L170 162 M220 118 L220 178" stroke="#6366F1" stroke-width="1.5" stroke-dasharray="6 4" opacity="0.6"/>
+    <path d="M300 117 L300 177 M340 103 L340 163" stroke="#4338CA" stroke-width="1.5" stroke-dasharray="6 4" opacity="0.6"/>
+
+    <!-- Platform Slat Rail Side Left -->
+    <path d="M70 130 L260 210 L260 235 L70 155 Z" fill="url(#frameWood)"/>
+    <!-- Platform Slat Rail Side Right -->
+    <path d="M260 210 L440 150 L440 175 L260 235 Z" fill="#451A03"/>
+
+    <!-- Tapered Solid Wood Legs -->
+    <polygon points="70,155 82,159 78,275 66,270" fill="#78350F"/>
+    <polygon points="260,235 272,239 268,285 256,280" fill="#92400E"/>
+    <polygon points="440,175 448,178 444,255 436,252" fill="#451A03"/>
+
+    <!-- Minimalist Fitted Platform Deck Base -->
+    <path d="M70 130 L260 210 L440 150 L250 70 Z" fill="#E2E8F0" opacity="0.5" stroke="#CBD5E1" stroke-width="1"/>
+
+    <!-- Low Profile Sleek Mattress Base Mattress -->
+    <path d="M75 125 L260 198 L435 142 L250 72 Z" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5"/>
+    <path d="M75 125 L260 198 L260 208 L75 135 Z" fill="#EEF2FF"/>
+    <path d="M260 198 L435 142 L435 152 L260 208 Z" fill="#E0E7FF"/>
+  </g>
+</svg>

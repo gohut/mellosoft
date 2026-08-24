@@ -7,11 +7,12 @@ import ProductCard from "../components/ProductCard";
 import EmptyState from "../components/EmptyState";
 
 export default function WishlistView() {
-  const { wishlist, toggleWishlist, moveToCart, navigateTo } = useStore();
+  const { wishlist, toggleWishlist, moveToCart, navigateTo, products } = useStore();
 
   const savedProducts = useMemo(() => {
-    return MOCK_PRODUCTS.filter((product) => wishlist.includes(product.id));
-  }, [wishlist]);
+    const list = (products && products.length > 0) ? products : MOCK_PRODUCTS;
+    return list.filter((product) => wishlist.includes(product.id));
+  }, [wishlist, products]);
 
   const handleClearAll = () => {
     // Toggle all items off

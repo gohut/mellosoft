@@ -4,7 +4,11 @@ import React, { useState, useRef } from "react";
 import { useAdmin } from "../context/AdminContext";
 import { Upload, X, Plus, Save, ChevronLeft, Tag, Percent } from "lucide-react";
 import { formatPrice, calculateDiscountedPrice } from "../../utils/currency";
+import { validateMatrixPricing, getMatrixCellValue, normalizeDimensionKey, normalizeVariantKey } from "../../utils/pricingEngine";
 import MatrixPricingManager from "../components/MatrixPricingManager";
+
+import { saveImageBlob, getResolvedImageUrlSync } from "../../utils/imageStorage";
+import { getProductCategoryLabel } from "../../utils/productHelpers";
 
 const DEFAULT_BED_SIZES = {
   Single: {
@@ -35,6 +39,7 @@ function buildInitialForm() {
     name: "",
     description: "",
     category: "ortho",
+    subCategory: "ortho",
     brand: "Mellosoft",
     material: "",
     specs: "",
@@ -42,29 +47,12 @@ function buildInitialForm() {
     status: "Active",
     rating: "5.0",
     discountPercent: "0",
-    basePrice: 15811,
+    basePrice: "",
     images: [],
     features: [],
     bedSizes: JSON.parse(JSON.stringify(DEFAULT_BED_SIZES)),
-    variantsList: ["BLOOM 6'", "BLOOM 8'"],
-    matrixPrices: {
-      "BLOOM 6'": {
-        "72 X 30": 15811, "72 X 36": 18973, "75 X 30": 16470, "75 X 36": 19764,
-        "78 X 30": 17129, "78 X 36": 20555, "84 X 36": 22136,
-        "72 X 42": 22136, "72 X 44": 23190, "72 X 48": 25298, "75 X 44": 24156,
-        "75 X 48": 26352, "78 X 48": 27406, "84 X 48": 29514,
-        "72 X 60": 31622, "75 X 60": 32940, "78 X 60": 34258, "84 X 60": 36893,
-        "72 X 72": 37947, "75 X 72": 39528, "78 X 72": 41109, "84 X 72": 44271
-      },
-      "BLOOM 8'": {
-        "72 X 30": 21076, "72 X 36": 25291, "75 X 30": 21955, "75 X 36": 26345,
-        "78 X 30": 22833, "78 X 36": 27400, "84 X 36": 29507,
-        "72 X 42": 29507, "72 X 44": 30912, "72 X 48": 33722, "75 X 44": 32200,
-        "75 X 48": 35127, "78 X 48": 36532, "84 X 48": 39342,
-        "72 X 60": 42152, "75 X 60": 43909, "78 X 60": 45666, "84 X 60": 49178,
-        "72 X 72": 50583, "75 X 72": 52691, "78 X 72": 54798, "84 X 72": 59013
-      }
-    }
+    variantsList: ["6 INCH", "8 INCH"],
+    matrixPrices: {}
   };
 }
 
@@ -92,15 +80,25 @@ export default function AddProductView() {
   });
 
   const [errors, setErrors] = useState({});
+  const [invalidCellKeys, setInvalidCellKeys] = useState(new Set());
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [toast, setToast] = useState(null);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef(null);
 
   const update = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
 
-  const addImages = (files) => {
-    const urls = Array.from(files).map((f) => URL.createObjectURL(f));
-    setForm((prev) => ({ ...prev, images: [...prev.images, ...urls] }));
+  const addImages = async (files) => {
+    const fileList = Array.from(files);
+    for (const file of fileList) {
+      if (typeof file === "string") {
+        setForm((prev) => ({ ...prev, images: [...prev.images, file] }));
+      } else if (file instanceof File || file instanceof Blob) {
+        const idbKey = `idb:img-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+        await saveImageBlob(idbKey, file);
+        setForm((prev) => ({ ...prev, images: [...prev.images, idbKey] }));
+      }
+    }
   };
 
   const removeImage = (idx) => {
@@ -132,7 +130,7 @@ export default function AddProductView() {
     if (!form.name.trim()) errs.name = "Product Name is required.";
     if (!form.description.trim()) errs.description = "Description is required.";
     if (!form.variantsList || form.variantsList.length === 0) {
-      errs.variants = "At least one Variant must be created (e.g. BLOOM 6').";
+      errs.variants = "At least one Variant must be created.";
     }
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -140,24 +138,48 @@ export default function AddProductView() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
+
     if (!validate()) return;
+
+    // Validate Matrix Pricing for active product
+    const matrixValidation = validateMatrixPricing(form.bedSizes, form.variantsList, form.matrixPrices);
+    if (!matrixValidation.isValid) {
+      setInvalidCellKeys(matrixValidation.invalidCellKeys);
+      setToast({
+        type: "error",
+        msg: `❌ Pricing Incomplete — ${matrixValidation.errorMsg}`
+      });
+
+      // Scroll to first missing cell
+      if (matrixValidation.firstMissing) {
+        const cellId = `matrix-cell-${matrixValidation.firstMissing.variant.replace(/[^a-zA-Z0-9]/g, '-')}-${matrixValidation.firstMissing.dimension.replace(/[^a-zA-Z0-9]/g, '-')}`;
+        const el = document.getElementById(cellId);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          setTimeout(() => el.focus(), 300);
+        }
+      }
+      return;
+    }
+
+    setInvalidCellKeys(new Set());
+    setIsSubmitting(true);
 
     const activeBedCategories = Object.keys(form.bedSizes).filter(
       (k) => form.bedSizes[k].enabled && form.bedSizes[k].dimensions.length > 0
     );
 
-    let lowestPrice = 999;
     const pricesList = [];
     Object.values(form.matrixPrices || {}).forEach((dimMap) => {
       Object.values(dimMap || {}).forEach((val) => {
-        if (typeof val === "number" && val > 0) {
-          pricesList.push(val);
+        const num = Number(val);
+        if (!isNaN(num) && num > 0) {
+          pricesList.push(num);
         }
       });
     });
-    if (pricesList.length > 0) {
-      lowestPrice = Math.min(...pricesList);
-    }
+    const lowestPrice = pricesList.length > 0 ? Math.min(...pricesList) : 999;
 
     const formattedVariants = [];
     (form.variantsList || []).forEach((vName) => {
@@ -181,17 +203,29 @@ export default function AddProductView() {
       });
     });
 
+    const isAcc = form.category === "accessories" || ["memory-foam-pillow", "latex-pillow", "fiber-pillow", "mattress-protector", "fitted-bedspread", "blanket-duvet", "travel-bed"].includes(form.subCategory);
+    const parentCat = isAcc ? "accessories" : "mattresses";
+    const subCat = form.subCategory || (isAcc ? "memory-foam-pillow" : (form.category && form.category !== "accessories" ? form.category : "ortho"));
+
+    const catLabel = getProductCategoryLabel({ parentCategory: parentCat, subCategory: subCat, category: subCat });
+
     const newProduct = {
       id: form.id || form.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
       Product_Id: form.Product_Id,
       Product_Name: form.name,
       name: form.name,
       description: form.description,
-      category: form.category,
-      categoryName: form.category.toUpperCase(),
+      parentCategory: parentCat,
+      parentCategoryId: parentCat,
+      subCategory: subCat,
+      subcategory: subCat,
+      subcategoryId: subCat,
+      category: isAcc ? "accessories" : subCat,
+      categoryName: catLabel,
+      categoryLabel: catLabel,
       brand: form.brand || "Mellosoft",
       material: form.material,
-      specs: form.specs || `${form.category.toUpperCase()} • ${form.variantsList.join(" / ")} Variants`,
+      specs: form.specs || `${catLabel.toUpperCase()} • ${form.variantsList.join(" / ")} Variants`,
       tagline: form.tagline,
       status: form.status,
       rating: Number(form.rating) || 5.0,
@@ -206,7 +240,10 @@ export default function AddProductView() {
       variantsList: form.variantsList,
       prices: form.matrixPrices,
       variants: formattedVariants,
-      images: form.images.length > 0 ? form.images : ["/asset/img1.jpg"],
+      image: form.images.length > 0 ? form.images[0] : "/images/mattresses/foam/haven.jpg",
+      images: form.images.length > 0 ? form.images : ["/images/mattresses/foam/haven.jpg"],
+      imageUrl: form.images.length > 0 ? form.images[0] : "/images/mattresses/foam/haven.jpg",
+      thumbnail: form.images.length > 0 ? form.images[0] : "/images/mattresses/foam/haven.jpg",
       features: form.features.filter((f) => f.trim() !== "")
     };
 
@@ -288,20 +325,70 @@ export default function AddProductView() {
                 {errors.description && <span style={errStyle}>{errors.description}</span>}
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px" }}>
                 <div style={fieldGroup}>
-                  <label style={labelStyle}>Category *</label>
-                  <select value={form.category} onChange={(e) => update("category", e.target.value)} style={inputStyle}>
-                    {(categories || []).map((c) => {
-                      const val = c.slug || c.name.toLowerCase();
-                      return (
-                        <option key={c.id} value={val}>
-                          {c.name}
-                        </option>
-                      );
-                    })}
+                  <label style={labelStyle}>Main Category *</label>
+                  <select
+                    value={form.category === "accessories" ? "accessories" : "mattresses"}
+                    onChange={(e) => {
+                      const mainCat = e.target.value;
+                      if (mainCat === "accessories") {
+                        setForm((prev) => ({
+                          ...prev,
+                          category: "accessories",
+                          subCategory: prev.subCategory || "memory-foam-pillow"
+                        }));
+                      } else {
+                        setForm((prev) => ({
+                          ...prev,
+                          category: prev.subCategory && prev.subCategory !== "accessories" ? prev.subCategory : "ortho",
+                          subCategory: prev.subCategory && prev.subCategory !== "accessories" ? prev.subCategory : "ortho"
+                        }));
+                      }
+                    }}
+                    style={inputStyle}
+                  >
+                    <option value="mattresses">Mattresses</option>
+                    <option value="accessories">Accessories</option>
                   </select>
                 </div>
+
+                <div style={fieldGroup}>
+                  <label style={labelStyle}>Subcategory *</label>
+                  <select
+                    value={form.category === "accessories" ? (form.subCategory || "memory-foam-pillow") : (form.category || "ortho")}
+                    onChange={(e) => {
+                      const subVal = e.target.value;
+                      if (form.category === "accessories" || ["memory-foam-pillow", "latex-pillow", "fiber-pillow", "mattress-protector", "fitted-bedspread", "blanket-duvet", "travel-bed"].includes(subVal)) {
+                        setForm((prev) => ({ ...prev, category: "accessories", subCategory: subVal }));
+                      } else {
+                        setForm((prev) => ({ ...prev, category: subVal, subCategory: subVal }));
+                      }
+                    }}
+                    style={inputStyle}
+                  >
+                    {form.category === "accessories" ? (
+                      <>
+                        <option value="memory-foam-pillow">Memory Foam Pillow</option>
+                        <option value="latex-pillow">Latex Pillow</option>
+                        <option value="fiber-pillow">Fiber Pillow</option>
+                        <option value="mattress-protector">Mattress Protector</option>
+                        <option value="fitted-bedspread">Fitted Bedspread</option>
+                        <option value="blanket-duvet">Blanket / Duvet</option>
+                        <option value="travel-bed">Travel Bed</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="foam">Foam Mattress</option>
+                        <option value="ortho">Ortho Mattress</option>
+                        <option value="spring">Spring Mattress</option>
+                        <option value="latex">Latex Mattress</option>
+                        <option value="memory-foam">Memory Foam Mattress</option>
+                      </>
+                    )}
+                  </select>
+                </div>
+
                 <div style={fieldGroup}>
                   <label style={labelStyle}>Status *</label>
                   <select value={form.status} onChange={(e) => update("status", e.target.value)} style={inputStyle}>
@@ -371,7 +458,7 @@ export default function AddProductView() {
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(70px, 1fr))", gap: "8px", marginTop: "10px" }}>
                     {form.images.map((img, i) => (
                       <div key={i} style={{ position: "relative", width: "100%", aspectRatio: "1/1", borderRadius: "8px", overflow: "hidden", border: "1px solid #E7E7E2" }}>
-                        <img src={img} alt={`Img ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        <img src={getResolvedImageUrlSync(img)} alt={`Img ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                         <button
                           type="button"
                           onClick={() => removeImage(i)}
@@ -400,8 +487,29 @@ export default function AddProductView() {
             variants={form.variantsList}
             onVariantsChange={(updatedVariants) => update("variantsList", updatedVariants)}
             prices={form.matrixPrices}
-            onPricesChange={(updatedPrices) => update("matrixPrices", updatedPrices)}
+            onPricesChange={(updatedPrices) => {
+              update("matrixPrices", updatedPrices);
+              if (invalidCellKeys && invalidCellKeys.size > 0) {
+                const nextInvalid = new Set(invalidCellKeys);
+                let changed = false;
+                invalidCellKeys.forEach((key) => {
+                  const [v, d] = key.split("::");
+                  if (v && d) {
+                    const val = getMatrixCellValue(updatedPrices, v, d);
+                    const num = Number(val);
+                    if (val !== "" && val !== null && val !== undefined && !isNaN(num) && num > 0 && isFinite(num)) {
+                      nextInvalid.delete(key);
+                      changed = true;
+                    }
+                  }
+                });
+                if (changed) {
+                  setInvalidCellKeys(nextInvalid);
+                }
+              }
+            }}
             categoryName={form.name || form.category || "ORTHO MATTRESS"}
+            invalidCellKeys={invalidCellKeys}
           />
 
           {/* BUTTONS */}
@@ -410,11 +518,20 @@ export default function AddProductView() {
               type="button"
               onClick={() => navigateTo("products")}
               style={cancelBtnStyle}
+              disabled={isSubmitting}
             >
               <ChevronLeft size={16} /> Cancel
             </button>
-            <button type="submit" style={saveBtnStyle}>
-              <Save size={16} /> Save & Create Product
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              style={{
+                ...saveBtnStyle,
+                opacity: isSubmitting ? 0.65 : 1,
+                cursor: isSubmitting ? "not-allowed" : "pointer"
+              }}
+            >
+              <Save size={16} /> {isSubmitting ? "Creating Product..." : "Save & Create Product"}
             </button>
           </div>
 

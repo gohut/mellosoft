@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from "react";
 import { useStore } from "../context/StoreContext";
 import { formatPrice, getMinimumProductPrice } from "../utils/currency";
-import { getProductUrl } from "../utils/productHelpers";
+import { getProductUrl, getProductPrimaryImage } from "../utils/productHelpers";
 import { ensureProductPricing } from "../utils/pricingEngine";
 import { CATEGORY_FALLBACK_IMAGES, ACCESSORY_FALLBACK_IMAGES } from "../data/mattressData";
 import { useRouter } from "next/navigation";
@@ -25,12 +25,15 @@ export default function ProductCard({
   const fallbackImg =
     CATEGORY_FALLBACK_IMAGES[product.category] ||
     ACCESSORY_FALLBACK_IMAGES[product.category] ||
-    "/images/mattresses/fallback/foam.svg";
+    "/images/mattresses/foam/haven.jpg";
 
-  const [imgSrc, setImgSrc] = useState(
-    product.images?.[0] || product.image || fallbackImg
-  );
+  const primaryImage = getProductPrimaryImage(product, fallbackImg);
+  const [imgSrc, setImgSrc] = useState(primaryImage);
   const [isHovered, setIsHovered] = useState(false);
+
+  React.useEffect(() => {
+    setImgSrc(primaryImage);
+  }, [primaryImage]);
 
   let minPrice = getMinimumProductPrice(product);
   if (minPrice === null || minPrice === undefined || isNaN(minPrice) || minPrice <= 0) {
@@ -101,7 +104,7 @@ export default function ProductCard({
             width: "100%",
             height: "100%",
             objectFit: isSvg ? "contain" : "cover",
-            padding: isSvg ? "12px" : "0",
+            padding: isSvg ? "8px" : "0",
             display: "block",
             transition: "transform 0.35s ease",
             transform: isHovered ? "scale(1.05)" : "scale(1)"

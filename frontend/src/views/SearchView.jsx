@@ -7,7 +7,7 @@ import ProductCard from "../components/ProductCard";
 import EmptyState from "../components/EmptyState";
 
 export default function SearchView() {
-  const { searchQuery, setSearchQuery, navigateTo, setActiveFilters } = useStore();
+  const { searchQuery, setSearchQuery, navigateTo, setActiveFilters, products } = useStore();
 
   const recentSearches = ["Classic Mattress", "Cooling", "Luxe Hybrid", "Pillow", "Protector"];
 
@@ -16,16 +16,15 @@ export default function SearchView() {
     if (!searchQuery) return [];
     
     const query = searchQuery.toLowerCase().trim();
-    return MOCK_PRODUCTS.filter((product) => {
-      return (
-        product.name.toLowerCase().includes(query) ||
-        product.tagline.toLowerCase().includes(query) ||
-        product.category.toLowerCase().includes(query) ||
-        product.badge?.toLowerCase().includes(query) ||
-        product.specs.toLowerCase().includes(query)
-      );
+    const list = (products && products.length > 0) ? products : MOCK_PRODUCTS;
+    return list.filter((product) => {
+      const pName = (product.name || product.Product_Name || "").toLowerCase();
+      const pTagline = (product.tagline || "").toLowerCase();
+      const pCat = (product.categoryName || product.category || "").toLowerCase();
+      const pSpecs = (product.construction || product.specs || "").toLowerCase();
+      return pName.includes(query) || pTagline.includes(query) || pCat.includes(query) || pSpecs.includes(query);
     });
-  }, [searchQuery]);
+  }, [searchQuery, products]);
 
   const handleRecentClick = (term) => {
     setSearchQuery(term);

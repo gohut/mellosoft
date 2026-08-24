@@ -8,6 +8,8 @@ import { DEFAULT_USERS } from "../../data/usersData";
 import { hashPassword, checkPermission } from "../../utils/security";
 import { useAdminAuth } from "../../context/AdminAuthContext";
 import { buildInitialTrackingHistory } from "../../utils/trackingHelpers";
+import { getProductPrimaryImage, getDeletedProductIds, saveDeletedProductId, isProductDeleted, isSameProduct } from "../../utils/productHelpers";
+import { migrateProductsBase64, migrateReviewsBase64 } from "../../utils/imageStorage";
 
 const AdminContext = createContext();
 
@@ -115,6 +117,8 @@ const sanitizeHomepageConfig = (configSections, currentBanners, isInitialHydrati
   return { sections: result };
 };
 
+export const MELLOSOFT_CATALOGUE_VERSION = "v5-real-images";
+
 export function AdminProvider({ children }) {
   const [adminView, setAdminView] = useState("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -124,27 +128,85 @@ export function AdminProvider({ children }) {
   const [selectedRoleId, setSelectedRoleId] = useState(null);
   const [returnToNewArrivals, setReturnToNewArrivals] = useState(false);
   const [contentActiveTab, setContentActiveTab] = useState("homepage-layout");
-  
-  // Hydrate products from localStorage if available, or default to MOCK_PRODUCTS
+
+  // Hydrate products from localStorage if available, enforcing persistent deletion tombstones & v3 catalogue reset
   const [products, setProducts] = useState(() => {
     if (typeof window !== "undefined") {
       try {
+        const currentVer = localStorage.getItem("mellosoft_catalogue_version");
+        if (currentVer !== MELLOSOFT_CATALOGUE_VERSION) {
+          localStorage.removeItem("mellosoft_deleted_product_ids");
+          localStorage.removeItem("mellosoft_products");
+          localStorage.removeItem("mellosoft_admin_products");
+          localStorage.setItem("mellosoft_catalogue_version", MELLOSOFT_CATALOGUE_VERSION);
+          localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(MOCK_PRODUCTS));
+          return MOCK_PRODUCTS;
+        }
+
+        const deletedIds = getDeletedProductIds();
+
+        const activeMaster = MOCK_PRODUCTS.filter((m) => !isProductDeleted(m, deletedIds));
+
         const saved = localStorage.getItem(PRODUCTS_STORAGE_KEY);
         if (saved) {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            const parsedIdMap = new Map(parsed.map((p) => [p.id, p]));
-            return MOCK_PRODUCTS.map((masterItem) => {
-              const stored = parsedIdMap.get(masterItem.id);
-              return {
-                ...masterItem,
-                ...(stored || {}),
-                isNewArrival: stored?.isNewArrival ?? masterItem.isNewArrival ?? false,
-                newArrivalOrder: stored?.newArrivalOrder ?? masterItem.newArrivalOrder ?? 999
-              };
+            const validParsed = parsed.filter((p) => !isProductDeleted(p, deletedIds));
+
+            const parsedIdMap = new Map();
+            validParsed.forEach((p) => {
+              if (p.id) parsedIdMap.set(String(p.id).trim().toLowerCase(), p);
+              if (p.Product_Id) parsedIdMap.set(String(p.Product_Id).trim().toLowerCase(), p);
+              if (p.slug) parsedIdMap.set(String(p.slug).trim().toLowerCase(), p);
             });
+
+            const masterIdSet = new Set();
+
+            const merged = activeMaster.map((masterItem) => {
+              if (masterItem.id) masterIdSet.add(String(masterItem.id).trim().toLowerCase());
+              if (masterItem.Product_Id) masterIdSet.add(String(masterItem.Product_Id).trim().toLowerCase());
+              if (masterItem.slug) masterIdSet.add(String(masterItem.slug).trim().toLowerCase());
+
+              const stored =
+                parsedIdMap.get(String(masterItem.id || "").trim().toLowerCase()) ||
+                parsedIdMap.get(String(masterItem.Product_Id || "").trim().toLowerCase()) ||
+                parsedIdMap.get(String(masterItem.slug || "").trim().toLowerCase());
+
+              if (stored) {
+                return {
+                  ...masterItem,
+                  ...stored,
+                  name: stored.name || stored.Product_Name || masterItem.name,
+                  Product_Name: stored.Product_Name || stored.name || masterItem.Product_Name,
+                  parentCategory: stored.parentCategory || masterItem.parentCategory || "mattresses",
+                  subCategory: stored.subCategory || stored.subcategory || masterItem.subCategory,
+                  subcategory: stored.subcategory || stored.subCategory || masterItem.subcategory,
+                  categoryName: stored.categoryName || masterItem.categoryName,
+                  images: stored.images && stored.images.length > 0 ? stored.images : (stored.image ? [stored.image] : masterItem.images),
+                  image: stored.image || (stored.images && stored.images[0]) || masterItem.image,
+                  price: stored.price || stored.startingPrice || masterItem.price,
+                  startingPrice: stored.startingPrice || stored.price || masterItem.startingPrice,
+                  prices: stored.prices || masterItem.prices,
+                  variantsList: stored.variantsList || masterItem.variantsList,
+                  bedSizes: stored.bedSizes || masterItem.bedSizes,
+                  isNewArrival: stored.isNewArrival ?? masterItem.isNewArrival ?? false,
+                  newArrivalOrder: stored.newArrivalOrder ?? masterItem.newArrivalOrder ?? 999
+                };
+              }
+              return masterItem;
+            });
+
+            validParsed.forEach((storedItem) => {
+              const sid = String(storedItem.id || storedItem.Product_Id || storedItem.slug || "").trim().toLowerCase();
+              if (sid && !masterIdSet.has(sid)) {
+                merged.push(storedItem);
+              }
+            });
+
+            return merged;
           }
         }
+        return activeMaster;
       } catch (e) {
         console.error("Failed to load products from localStorage:", e);
       }
@@ -376,16 +438,16 @@ export function AdminProvider({ children }) {
       }
     }
     return [
-      { id: "na-1", productId: "cloudrest",     displayOrder: 1,  isActive: true },
-      { id: "na-2", productId: "spinecare",     displayOrder: 2,  isActive: true },
-      { id: "na-3", productId: "breeze",        displayOrder: 3,  isActive: true },
-      { id: "na-4", productId: "natura",        displayOrder: 4,  isActive: true },
-      { id: "na-5", productId: "embrace",       displayOrder: 5,  isActive: true },
-      { id: "na-6", productId: "celestial",     displayOrder: 6,  isActive: true },
-      { id: "na-7", productId: "cloud-contour", displayOrder: 7,  isActive: true },
-      { id: "na-8", productId: "aqua-guard",    displayOrder: 8,  isActive: true },
-      { id: "na-9", productId: "cloud-duvet",    displayOrder: 9,  isActive: true },
-      { id: "na-10", productId: "flexi-bed",    displayOrder: 10, isActive: true },
+      { id: "na-1", productId: "foamcloud",      displayOrder: 1,  isActive: true },
+      { id: "na-2", productId: "orthocare",       displayOrder: 2,  isActive: true },
+      { id: "na-3", productId: "springease",      displayOrder: 3,  isActive: true },
+      { id: "na-4", productId: "latexpure",       displayOrder: 4,  isActive: true },
+      { id: "na-5", productId: "memorycloud",     displayOrder: 5,  isActive: true },
+      { id: "na-6", productId: "memory-contour",  displayOrder: 6,  isActive: true },
+      { id: "na-7", productId: "natura-latex",    displayOrder: 7,  isActive: true },
+      { id: "na-8", productId: "aqua-guard",      displayOrder: 8,  isActive: true },
+      { id: "na-9", productId: "cloud-duvet",     displayOrder: 9,  isActive: true },
+      { id: "na-10", productId: "flexi-bed",      displayOrder: 10, isActive: true },
     ];
   });
 
@@ -408,10 +470,10 @@ export function AdminProvider({ children }) {
       }
     }
     return [
-      { id: "bs-1", productId: "classic-mattress", displayOrder: 1, isActive: true },
-      { id: "bs-2", productId: "luxe-hybrid",     displayOrder: 2, isActive: true },
-      { id: "bs-3", productId: "ortho-support",   displayOrder: 3, isActive: true },
-      { id: "bs-4", productId: "ergo-air",        displayOrder: 4, isActive: true },
+      { id: "bs-1", productId: "foamcloud",  displayOrder: 1, isActive: true },
+      { id: "bs-2", productId: "orthocare",   displayOrder: 2, isActive: true },
+      { id: "bs-3", productId: "springease",  displayOrder: 3, isActive: true },
+      { id: "bs-4", productId: "latexpure",   displayOrder: 4, isActive: true },
     ];
   });
 
@@ -422,7 +484,9 @@ export function AdminProvider({ children }) {
     try {
       localStorage.setItem(BANNERS_STORAGE_KEY, JSON.stringify(banners));
       if (typeof window !== "undefined") {
-        window.dispatchEvent(new Event("storage"));
+        setTimeout(() => {
+          window.dispatchEvent(new Event("storage"));
+        }, 0);
       }
     } catch (e) {
       console.error("Failed to save banners to localStorage:", e);
@@ -443,7 +507,9 @@ export function AdminProvider({ children }) {
     try {
       localStorage.setItem("mellosoft_new_arrivals_config", JSON.stringify(newArrivalItems));
       if (typeof window !== "undefined") {
-        window.dispatchEvent(new Event("storage"));
+        setTimeout(() => {
+          window.dispatchEvent(new Event("storage"));
+        }, 0);
       }
     } catch (e) {
       console.error("Failed to save new arrivals config to localStorage:", e);
@@ -455,7 +521,9 @@ export function AdminProvider({ children }) {
     try {
       localStorage.setItem("mellosoft_best_sellers_config", JSON.stringify(bestSellerItems));
       if (typeof window !== "undefined") {
-        window.dispatchEvent(new Event("storage"));
+        setTimeout(() => {
+          window.dispatchEvent(new Event("storage"));
+        }, 0);
       }
     } catch (e) {
       console.error("Failed to save best sellers config to localStorage:", e);
@@ -467,12 +535,42 @@ export function AdminProvider({ children }) {
     try {
       localStorage.setItem(HOMEPAGE_CONFIG_KEY, JSON.stringify(homepageConfig));
       if (typeof window !== "undefined") {
-        window.dispatchEvent(new Event("storage"));
+        setTimeout(() => {
+          window.dispatchEvent(new Event("storage"));
+        }, 0);
       }
     } catch (e) {
       console.error("Failed to save homepage config to localStorage:", e);
     }
   }, [homepageConfig]);
+
+  // One-time automatic migration of any legacy base64 images in localStorage products & reviews to IndexedDB
+  useEffect(() => {
+    let isMounted = true;
+    async function runStorageMigration() {
+      try {
+        const { migratedProducts, hasChanges: prodChanges } = await migrateProductsBase64(products);
+        if (isMounted && prodChanges) {
+          setProducts(migratedProducts);
+          persistAndDispatchProducts(migratedProducts);
+        }
+
+        const savedReviewsStr = typeof window !== "undefined" ? localStorage.getItem(REVIEWS_STORAGE_KEY) : null;
+        if (savedReviewsStr) {
+          const parsedReviews = JSON.parse(savedReviewsStr);
+          const { migratedReviews, hasChanges: revChanges } = await migrateReviewsBase64(parsedReviews);
+          if (isMounted && revChanges) {
+            localStorage.setItem(REVIEWS_STORAGE_KEY, JSON.stringify(migratedReviews));
+            window.dispatchEvent(new Event("storage"));
+          }
+        }
+      } catch (err) {
+        console.error("Storage migration error:", err);
+      }
+    }
+    runStorageMigration();
+    return () => { isMounted = false; };
+  }, []);
 
   const auth = useAdminAuth();
   const currentUserId = auth?.currentUserId || (typeof window !== "undefined" ? localStorage.getItem("mellosoft_current_user_id") : null) || "user-001";
@@ -758,8 +856,12 @@ export function AdminProvider({ children }) {
         // Persist to localStorage for real-time customer UI sync
         try {
           localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(nextOrders));
-          window.dispatchEvent(new Event("storage"));
-          window.dispatchEvent(new Event("mellosoft_orders_updated"));
+          if (typeof window !== "undefined") {
+            setTimeout(() => {
+              window.dispatchEvent(new Event("storage"));
+              window.dispatchEvent(new CustomEvent("mellosoft_orders_updated"));
+            }, 0);
+          }
         } catch (e) {
           console.error("Failed to save orders to localStorage:", e);
         }
@@ -828,29 +930,127 @@ export function AdminProvider({ children }) {
     setSidebarMobileOpen((prev) => !prev);
   }, []);
 
+  /** Helper to persist products and notify storefront */
+  const persistAndDispatchProducts = async (nextProducts) => {
+    try {
+      // 1. Ensure no base64 payloads remain in localStorage record
+      const { migratedProducts } = await migrateProductsBase64(nextProducts);
+      const cleanProducts = migratedProducts || nextProducts;
+
+      const jsonStr = JSON.stringify(cleanProducts);
+      
+      // Development storage size diagnostics
+      if (process.env.NODE_ENV !== "production" && typeof Blob !== "undefined") {
+        const mbSize = new Blob([jsonStr]).size / 1024 / 1024;
+        console.log("mellosoft_products storage size:", mbSize.toFixed(3), "MB");
+      }
+
+      localStorage.setItem(PRODUCTS_STORAGE_KEY, jsonStr);
+      if (typeof window !== "undefined") {
+        setTimeout(() => {
+          window.dispatchEvent(new Event("storage"));
+          window.dispatchEvent(new CustomEvent("mellosoft:products-updated", { detail: cleanProducts }));
+        }, 0);
+      }
+    } catch (e) {
+      console.error("QuotaExceededError saving products to localStorage:", e);
+      if (typeof window !== "undefined" && (e?.name === "QuotaExceededError" || e?.code === 22 || e?.code === 1014)) {
+        setTimeout(() => {
+          alert("Unable to save product because browser storage is full. Please clear unused browser data or remove unnecessary uploads.");
+        }, 0);
+      }
+    }
+  };
+
   /** Product Handlers */
   const addProduct = useCallback((newProduct) => {
-    setProducts((prev) => [newProduct, ...prev]);
+    const primaryImg = getProductPrimaryImage(newProduct);
+    const imagesArray = Array.isArray(newProduct.images) && newProduct.images.length > 0
+      ? newProduct.images
+      : (primaryImg ? [primaryImg] : []);
+    const normalized = {
+      ...newProduct,
+      image: primaryImg,
+      images: imagesArray,
+      imageUrl: primaryImg,
+      thumbnail: primaryImg
+    };
+    setProducts((prev) => {
+      const next = [normalized, ...prev];
+      persistAndDispatchProducts(next);
+      return next;
+    });
   }, []);
 
   const updateProduct = useCallback((updatedProduct) => {
-    setProducts((prev) =>
-      prev.map((p) =>
-        p.id === updatedProduct.id || p.Product_Id === updatedProduct.Product_Id ? updatedProduct : p
-      )
-    );
+    const primaryImg = getProductPrimaryImage(updatedProduct);
+    const imagesArray = Array.isArray(updatedProduct.images) && updatedProduct.images.length > 0
+      ? updatedProduct.images
+      : (primaryImg ? [primaryImg] : []);
+    const normalized = {
+      ...updatedProduct,
+      image: primaryImg,
+      images: imagesArray,
+      imageUrl: primaryImg,
+      thumbnail: primaryImg,
+      name: updatedProduct.name || updatedProduct.Product_Name,
+      Product_Name: updatedProduct.Product_Name || updatedProduct.name
+    };
+    setProducts((prev) => {
+      let matched = false;
+      const next = prev.map((p) => {
+        if (isSameProduct(p, normalized)) {
+          matched = true;
+          return { ...p, ...normalized };
+        }
+        return p;
+      });
+      if (!matched) {
+        next.unshift(normalized);
+      }
+      persistAndDispatchProducts(next);
+      return next;
+    });
   }, []);
 
-  const deleteProduct = useCallback((productId) => {
-    setProducts((prev) => prev.filter((p) => p.id !== productId && p.Product_Id !== productId));
+  const deleteProduct = useCallback((targetProductOrId) => {
+    const targetId = typeof targetProductOrId === "object" ? targetProductOrId?.id : targetProductOrId;
+    const targetProdId = typeof targetProductOrId === "object" ? targetProductOrId?.Product_Id : null;
+    const targetSlug = typeof targetProductOrId === "object" ? targetProductOrId?.slug : null;
+
+    if (targetId) saveDeletedProductId(targetId);
+    if (targetProdId) saveDeletedProductId(targetProdId);
+    if (targetSlug) saveDeletedProductId(targetSlug);
+
+    const deletedSet = new Set(getDeletedProductIds().map((i) => String(i).trim().toLowerCase()));
+
+    setProducts((prev) => {
+      const next = prev.filter((p) => {
+        const id = String(p.id || "").trim().toLowerCase();
+        const prodId = String(p.Product_Id || "").trim().toLowerCase();
+        const slug = String(p.slug || "").trim().toLowerCase();
+        return !deletedSet.has(id) && !deletedSet.has(prodId) && !deletedSet.has(slug);
+      });
+      persistAndDispatchProducts(next);
+      return next;
+    });
+
     setNewArrivalItems((prev) => {
-      const filtered = prev.filter((item) => item.productId !== productId && item.id !== productId);
+      const filtered = prev.filter((item) => !deletedSet.has(String(item.productId || item.id || "").trim().toLowerCase()));
       return filtered.map((item, idx) => ({ ...item, displayOrder: idx + 1 }));
     });
+
     setBestSellerItems((prev) => {
-      const filtered = prev.filter((item) => item.productId !== productId && item.id !== productId);
+      const filtered = prev.filter((item) => !deletedSet.has(String(item.productId || item.id || "").trim().toLowerCase()));
       return filtered.map((item, idx) => ({ ...item, displayOrder: idx + 1 }));
     });
+
+    if (typeof window !== "undefined") {
+      setTimeout(() => {
+        window.dispatchEvent(new Event("storage"));
+        window.dispatchEvent(new CustomEvent("mellosoft:products-updated"));
+      }, 0);
+    }
   }, []);
 
   /** Category Handlers */
