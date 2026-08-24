@@ -6,7 +6,8 @@ import { MOCK_PRODUCTS } from "../data/products";
 import { MATTRESS_CATEGORY_LIST, getMattressCategoryMeta } from "../utils/productHelpers";
 import ProductCard from "../components/ProductCard";
 import EmptyState from "../components/EmptyState";
-import { Search, Filter, RefreshCw } from "lucide-react";
+import MattressFilterPanel from "../components/MattressFilterPanel";
+import { SlidersHorizontal, X } from "lucide-react";
 
 export default function CatalogView({ categoryParam = "all" }) {
   const { searchQuery, setSearchQuery, activeFilters, setActiveFilters } = useStore();
@@ -20,6 +21,7 @@ export default function CatalogView({ categoryParam = "all" }) {
   const [selectedSize, setSelectedSize] = useState("All");
   const [priceAvailability, setPriceAvailability] = useState("All");
   const [sortBy, setSortBy] = useState("Recommended");
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   // Sync state if categoryParam changes via router
   useEffect(() => {
@@ -59,11 +61,6 @@ export default function CatalogView({ categoryParam = "all" }) {
       window.history.pushState(null, "", "/mattresses");
     }
   };
-
-  // Find active category metadata for hero section
-  const currentCategoryMeta = useMemo(() => {
-    return getMattressCategoryMeta(selectedCategory);
-  }, [selectedCategory]);
 
   // Master Mattress Products List (strictly excludes accessories)
   const mattressOnlyProducts = useMemo(() => {
@@ -139,6 +136,15 @@ export default function CatalogView({ categoryParam = "all" }) {
     return counts;
   }, [mattressOnlyProducts]);
 
+  // Secondary active filter count
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (selectedThickness !== "All") count++;
+    if (selectedSize !== "All") count++;
+    if (priceAvailability !== "All") count++;
+    return count;
+  }, [selectedThickness, selectedSize, priceAvailability]);
+
   if (!isValidCategoryParam) {
     return (
       <div style={{ padding: "80px 24px", textAlign: "center", maxWidth: "800px", margin: "0 auto", width: "100%" }}>
@@ -155,27 +161,11 @@ export default function CatalogView({ categoryParam = "all" }) {
 
   return (
     <div style={containerStyle}>
-      
-      {/* ── HERO BANNER ──────────────────────────────────────────────────────── */}
-      <div style={heroBannerStyle}>
-        <span style={heroEyebrowStyle}>
-          {currentCategoryMeta ? currentCategoryMeta.name.toUpperCase() : "MELLOSOFT MATTRESS CATALOGUE"}
-        </span>
-        <h1 style={heroTitleStyle}>
-          {currentCategoryMeta ? currentCategoryMeta.title : "Premium Mattress Collection"}
-        </h1>
-        <p style={heroSubtextStyle}>
-          {currentCategoryMeta
-            ? currentCategoryMeta.description
-            : "Explore our complete range of 66 engineered mattress models across Foam, Ortho, Spring, Latex, and Memory Foam."}
-        </p>
-      </div>
-
-      {/* ── FILTERING & SEARCH CONTROLS BAR ──────────────────────────────────── */}
+      {/* ── FILTERING & CONTROLS BAR ──────────────────────────────────── */}
       <div style={filterBarContainerStyle}>
         
-        {/* Category Pills */}
-        <div style={categoryPillsWrapStyle}>
+        {/* Category Pills & Filter Button in Single Flex Row */}
+        <div style={categoryRowWrapStyle}>
           <button
             type="button"
             onClick={() => handleCategorySelect("all")}
@@ -208,87 +198,77 @@ export default function CatalogView({ categoryParam = "all" }) {
               </button>
             );
           })}
-        </div>
 
-        {/* Dropdown Filters */}
-        <div style={dropdownFiltersGridStyle}>
-          
-          {/* Search Box */}
-          <div style={searchWrapStyle}>
-            <Search size={16} color="#6B6B75" />
-            <input
-              type="text"
-              placeholder="Search mattresses..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={searchInputStyle}
-            />
-            {searchQuery && (
-              <button type="button" onClick={() => setSearchQuery("")} style={clearSearchBtnStyle}>
-                ×
-              </button>
-            )}
-          </div>
-
-          {/* Thickness Dropdown */}
-          <select
-            value={selectedThickness}
-            onChange={(e) => setSelectedThickness(e.target.value)}
-            style={selectInputStyle}
+          {/* Filter Toggle Button in same row after Memory Foam Mattress */}
+          <button
+            type="button"
+            onClick={() => setIsFilterOpen((prev) => !prev)}
+            className="filter-toggle-btn"
+            style={{
+              ...filterToggleBtnStyle,
+              backgroundColor: (isFilterOpen || activeFilterCount > 0) ? "#1B1F8C" : "#FFFFFF",
+              color: (isFilterOpen || activeFilterCount > 0) ? "#FFFFFF" : "#1E293B",
+              borderColor: (isFilterOpen || activeFilterCount > 0) ? "#1B1F8C" : "#E2E8F0"
+            }}
           >
-            <option value="All">Thickness: All</option>
-            <option value="4">4 Inch</option>
-            <option value="5">5 Inch</option>
-            <option value="6">6 Inch</option>
-            <option value="8">8 Inch</option>
-            <option value="10">10 Inch</option>
-          </select>
-
-          {/* Size Type Dropdown */}
-          <select
-            value={selectedSize}
-            onChange={(e) => setSelectedSize(e.target.value)}
-            style={selectInputStyle}
-          >
-            <option value="All">Size: All</option>
-            <option value="Single">Single</option>
-            <option value="Double">Double</option>
-            <option value="Queen">Queen</option>
-            <option value="King">King</option>
-          </select>
-
-          {/* Price Availability Filter */}
-          <select
-            value={priceAvailability}
-            onChange={(e) => setPriceAvailability(e.target.value)}
-            style={selectInputStyle}
-          >
-            <option value="All">Pricing: All</option>
-            <option value="Priced">Priced Products</option>
-            <option value="Contact">Contact for Price</option>
-          </select>
-
-          {/* Sort By Dropdown */}
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            style={selectInputStyle}
-          >
-            <option value="Recommended">Sort: Recommended</option>
-            <option value="Price: Low to High">Price: Low to High</option>
-            <option value="Price: High to Low">Price: High to Low</option>
-            <option value="Rating">Highest Rated</option>
-          </select>
-
-          <button type="button" onClick={resetAllFilters} style={resetBtnStyle} title="Reset all filters">
-            <RefreshCw size={14} /> Reset
+            <SlidersHorizontal size={15} />
+            <span>Filter{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}</span>
           </button>
         </div>
 
-        {/* Results summary line */}
+        {/* Results Count Line */}
         <div style={resultsCountStyle}>
-          Showing <strong>{filteredProducts.length}</strong> of <strong>{MOCK_PRODUCTS.length}</strong> products
+          Showing <strong>{filteredProducts.length}</strong> {filteredProducts.length === mattressOnlyProducts.length ? "mattresses" : <>of <strong>{mattressOnlyProducts.length}</strong> mattresses</>}
         </div>
+
+        {/* Active Filter Badges Summary */}
+        {activeFilterCount > 0 && (
+          <div style={activeBadgesRowStyle}>
+            <span style={activeBadgesLabelStyle}>Active Filters:</span>
+            {selectedThickness !== "All" && (
+              <span style={activeBadgeStyle}>
+                {selectedThickness} Inch
+                <button type="button" onClick={() => setSelectedThickness("All")} style={removeBadgeBtnStyle} aria-label="Remove thickness filter">
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+            {selectedSize !== "All" && (
+              <span style={activeBadgeStyle}>
+                {selectedSize}
+                <button type="button" onClick={() => setSelectedSize("All")} style={removeBadgeBtnStyle} aria-label="Remove size filter">
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+            {priceAvailability !== "All" && (
+              <span style={activeBadgeStyle}>
+                {priceAvailability === "Priced" ? "Priced Products" : "Contact for Price"}
+                <button type="button" onClick={() => setPriceAvailability("All")} style={removeBadgeBtnStyle} aria-label="Remove pricing filter">
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+            <button type="button" onClick={resetAllFilters} style={clearAllLinkStyle}>
+              Clear all
+            </button>
+          </div>
+        )}
+
+        {/* Collapsible Filter Panel */}
+        <MattressFilterPanel
+          isOpen={isFilterOpen}
+          onClose={() => setIsFilterOpen(false)}
+          selectedThickness={selectedThickness}
+          setSelectedThickness={setSelectedThickness}
+          selectedSize={selectedSize}
+          setSelectedSize={setSelectedSize}
+          priceAvailability={priceAvailability}
+          setPriceAvailability={setPriceAvailability}
+          sortBy={sortBy}
+          setSortBy={setSortBy}
+          resetAllFilters={resetAllFilters}
+        />
 
       </div>
 
@@ -296,7 +276,7 @@ export default function CatalogView({ categoryParam = "all" }) {
       {filteredProducts.length > 0 ? (
         <div className="catalog-grid" style={gridStyle}>
           {filteredProducts.map((product) => (
-            <div key={product.id}>
+            <div key={product.id} style={{ height: "100%" }}>
               <ProductCard product={product} />
             </div>
           ))}
@@ -306,7 +286,7 @@ export default function CatalogView({ categoryParam = "all" }) {
           <EmptyState
             iconType="search"
             title="No matching mattresses"
-            message="No products match your active search or filter selection. Try clearing filters to see all 66 products."
+            message="No products match your active filter selection. Try clearing filters to see all 66 products."
             actionLabel="Reset All Filters"
             onAction={resetAllFilters}
           />
@@ -329,57 +309,23 @@ export default function CatalogView({ categoryParam = "all" }) {
 const containerStyle = {
   maxWidth: "1280px",
   margin: "0 auto",
-  padding: "32px 24px 80px 24px",
+  padding: "24px 24px 80px 24px",
   width: "100%"
-};
-
-const heroBannerStyle = {
-  textAlign: "center",
-  marginBottom: "32px",
-  padding: "36px 24px",
-  backgroundColor: "#FAFAFA",
-  borderRadius: "20px",
-  border: "1px solid #E7E7E2"
-};
-
-const heroEyebrowStyle = {
-  fontSize: "12px",
-  fontWeight: "800",
-  letterSpacing: "1px",
-  color: "#16A34A",
-  display: "block",
-  marginBottom: "8px"
-};
-
-const heroTitleStyle = {
-  fontSize: "36px",
-  fontWeight: "800",
-  color: "#1B1F8C",
-  margin: "0 0 10px 0"
-};
-
-const heroSubtextStyle = {
-  fontSize: "15px",
-  color: "#6B6B75",
-  maxWidth: "680px",
-  margin: "0 auto"
 };
 
 const filterBarContainerStyle = {
   display: "flex",
   flexDirection: "column",
-  gap: "16px",
-  marginBottom: "32px",
-  backgroundColor: "#FFFFFF",
-  padding: "20px",
-  borderRadius: "16px",
-  border: "1px solid #E7E7E2"
+  gap: "12px",
+  marginBottom: "24px",
+  padding: "0"
 };
 
-const categoryPillsWrapStyle = {
+const categoryRowWrapStyle = {
   display: "flex",
-  flexWrap: "wrap",
-  gap: "10px"
+  alignItems: "center",
+  gap: "10px",
+  flexWrap: "wrap"
 };
 
 const categoryPillBtnStyle = {
@@ -389,72 +335,73 @@ const categoryPillBtnStyle = {
   fontSize: "13px",
   fontWeight: "700",
   cursor: "pointer",
+  whiteSpace: "nowrap",
   transition: "all 0.2s ease"
 };
 
-const dropdownFiltersGridStyle = {
-  display: "flex",
-  flexWrap: "wrap",
-  gap: "12px",
-  alignItems: "center"
+const filterToggleBtnStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "6px",
+  height: "37px",
+  padding: "0 16px",
+  borderRadius: "999px",
+  border: "1.5px solid #E2E8F0",
+  fontSize: "13px",
+  fontWeight: "700",
+  cursor: "pointer",
+  whiteSpace: "nowrap",
+  flex: "0 0 auto",
+  transition: "all 0.2s ease"
 };
 
-const searchWrapStyle = {
+const activeBadgesRowStyle = {
   display: "flex",
   alignItems: "center",
   gap: "8px",
-  backgroundColor: "#F8F9FA",
-  border: "1px solid #E2E8F0",
-  borderRadius: "10px",
-  padding: "0 12px",
-  flex: "1 1 240px",
-  height: "42px"
+  flexWrap: "wrap",
+  paddingTop: "6px"
 };
 
-const searchInputStyle = {
-  border: "none",
-  background: "none",
-  outline: "none",
-  fontSize: "13px",
-  width: "100%",
-  color: "#14151A"
+const activeBadgesLabelStyle = {
+  fontSize: "12px",
+  fontWeight: "700",
+  color: "#64748B"
 };
 
-const clearSearchBtnStyle = {
-  border: "none",
-  background: "none",
-  fontSize: "16px",
-  cursor: "pointer",
-  color: "#94A3B8"
-};
-
-const selectInputStyle = {
-  height: "42px",
-  padding: "0 12px",
-  borderRadius: "10px",
-  border: "1px solid #E2E8F0",
-  backgroundColor: "#FFFFFF",
-  fontSize: "13px",
-  fontWeight: "600",
-  color: "#334155",
-  outline: "none",
-  cursor: "pointer",
-  flex: "1 1 150px"
-};
-
-const resetBtnStyle = {
-  display: "flex",
+const activeBadgeStyle = {
+  display: "inline-flex",
   alignItems: "center",
   gap: "6px",
-  height: "42px",
-  padding: "0 14px",
-  borderRadius: "10px",
-  border: "1px solid #E2E8F0",
-  backgroundColor: "#F1F5F9",
-  color: "#475569",
-  fontSize: "13px",
+  padding: "4px 10px",
+  borderRadius: "999px",
+  backgroundColor: "#EEF2FF",
+  color: "#1B1F8C",
+  border: "1px solid #C7D2FE",
+  fontSize: "12px",
+  fontWeight: "700"
+};
+
+const removeBadgeBtnStyle = {
+  background: "none",
+  border: "none",
+  cursor: "pointer",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  color: "#1B1F8C",
+  padding: "2px"
+};
+
+const clearAllLinkStyle = {
+  background: "none",
+  border: "none",
+  cursor: "pointer",
+  color: "#E11D48",
+  fontSize: "12px",
   fontWeight: "700",
-  cursor: "pointer"
+  textDecoration: "underline",
+  padding: "2px 4px"
 };
 
 const resultsCountStyle = {
@@ -475,3 +422,5 @@ const emptyWrapperStyle = {
   width: "100%",
   padding: "60px 0"
 };
+
+

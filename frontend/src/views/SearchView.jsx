@@ -97,7 +97,7 @@ export default function SearchView() {
         searchResults.length > 0 ? (
           <div style={gridStyle} className="search-grid">
             {searchResults.map((product) => (
-              <div key={product.id}>
+              <div key={product.id} style={{ height: "100%" }}>
                 <ProductCard product={product} />
               </div>
             ))}

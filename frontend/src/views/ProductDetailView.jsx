@@ -92,13 +92,24 @@ export default function ProductDetailView({ productId: initialProductId }) {
     if (selectedVariant && selectedVariant.Actual_Price !== undefined) {
       return Number(selectedVariant.Actual_Price);
     }
+    if (product.prices && selectedFirmness && product.prices[selectedFirmness]) {
+      const val = product.prices[selectedFirmness];
+      if (typeof val === "number" && val > 0) return val;
+      if (val && typeof val === "object" && selectedSize && val[selectedSize]) {
+        return Number(val[selectedSize]);
+      }
+    }
+    if (product.prices && selectedSize && product.prices[selectedSize]) {
+      const val = Number(product.prices[selectedSize]);
+      if (val > 0) return val;
+    }
     if (product.firmnessPrices && product.firmnessPrices[selectedFirmness]) {
       return Number(product.firmnessPrices[selectedFirmness]);
     }
     if (product.sizePrices && product.sizePrices[selectedSize]) {
       return Number(product.sizePrices[selectedSize]);
     }
-    return Number(product.Actual_Price ?? product.price);
+    return Number(product.startingPrice || product.Actual_Price || product.price || 0);
   }, [product, selectedVariant, selectedSize, selectedFirmness]);
 
   const discountedPriceForSize = useMemo(() => {
@@ -575,7 +586,7 @@ export default function ProductDetailView({ productId: initialProductId }) {
         <h3 style={carouselHeadingStyle}>You may also like</h3>
         <div style={recommendationsGridStyle} className="recommendations-row">
           {recommendations.map((rec) => (
-            <div key={rec.id} style={{ flex: "1 1 280px" }}>
+            <div key={rec.id} style={{ flex: "1 1 280px", height: "100%" }}>
               <ProductCard product={rec} showContactForPrice={false} />
             </div>
           ))}
@@ -668,7 +679,20 @@ export default function ProductDetailView({ productId: initialProductId }) {
                           <RatingStars rating={rev.rating} />
                         </div>
                       </div>
-                      <p style={reviewBodyStyle}>{rev.content}</p>
+                      <p style={reviewBodyStyle}>{rev.content || rev.feedback || rev.comment}</p>
+                      
+                      {rev.images && Array.isArray(rev.images) && rev.images.length > 0 && (
+                        <div style={{ display: "flex", gap: "8px", marginTop: "10px", flexWrap: "wrap" }}>
+                          {rev.images.map((imgUrl, i) => (
+                            <img
+                              key={i}
+                              src={imgUrl}
+                              alt="Customer review photo"
+                              style={{ width: "60px", height: "60px", borderRadius: "8px", objectFit: "cover", border: "1px solid #E2E8F0" }}
+                            />
+                          ))}
+                        </div>
+                      )}
                       
                       <div style={reviewFooterStyle}>
                         <button style={reviewActionBtnStyle}>

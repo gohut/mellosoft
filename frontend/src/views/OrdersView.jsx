@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useStore } from "../context/StoreContext";
 import EmptyState from "../components/EmptyState";
@@ -23,7 +23,12 @@ import {
   XCircle, 
   Truck,
   AlertCircle,
-  X
+  X,
+  Star,
+  Camera,
+  Upload,
+  Edit3,
+  MessageSquare
 } from "lucide-react";
 
 // ─── HELPER FUNCTIONS ────────────────────────────────────────────────────────
@@ -115,6 +120,200 @@ export default function OrdersView() {
   const [activeTab, setActiveTab] = useState("orders"); // "orders" | "delivered"
   const [trackingOrderId, setTrackingOrderId] = useState(null);
   const [showTrackModal, setShowTrackModal] = useState(false);
+
+  // ─── REVIEW STATE ────────────────────────────────────────────────────────────
+  const [allReviews, setAllReviews] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("mellosoft_reviews");
+        return saved ? JSON.parse(saved) : [];
+      } catch (e) {
+        console.error("Failed to load reviews:", e);
+      }
+    }
+    return [];
+  });
+
+  useEffect(() => {
+    const syncReviews = () => {
+      if (typeof window !== "undefined") {
+        try {
+          const saved = localStorage.getItem("mellosoft_reviews");
+          if (saved) setAllReviews(JSON.parse(saved));
+        } catch (e) {
+          console.error("Failed to sync reviews:", e);
+        }
+      }
+    };
+    window.addEventListener("storage", syncReviews);
+    window.addEventListener("mellosoft_reviews_updated", syncReviews);
+    return () => {
+      window.removeEventListener("storage", syncReviews);
+      window.removeEventListener("mellosoft_reviews_updated", syncReviews);
+    };
+  }, []);
+
+  const [reviewModalItem, setReviewModalItem] = useState(null); // { item, existingReview, orderId }
+  const [reviewRating, setReviewRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [reviewFeedback, setReviewFeedback] = useState("");
+  const [reviewImages, setReviewImages] = useState([]);
+  const [reviewError, setReviewError] = useState("");
+  const [toastMessage, setToastMessage] = useState("");
+
+  const fileInputRef = React.useRef(null);
+
+  const openReviewModal = (item, existingReview, orderId) => {
+    setReviewModalItem({ item, existingReview, orderId });
+    setReviewRating(existingReview?.rating || 5);
+    setHoverRating(0);
+    setReviewFeedback(existingReview?.feedback || existingReview?.comment || existingReview?.content || "");
+    setReviewImages(existingReview?.images || []);
+    setReviewError("");
+  };
+
+  const closeReviewModal = () => {
+    setReviewModalItem(null);
+    setReviewRating(0);
+    setHoverRating(0);
+    setReviewFeedback("");
+    setReviewImages([]);
+    setReviewError("");
+  };
+
+  const handleFileSelect = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    if (reviewImages.length + files.length > 5) {
+      setReviewError("Maximum 5 images allowed per review.");
+      return;
+    }
+
+    setReviewError("");
+    const newImages = [];
+
+    for (const file of files) {
+      if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+        setReviewError("Image must be JPG, JPEG, PNG, or WEBP.");
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        setReviewError("Maximum file size is 5 MB.");
+        return;
+      }
+
+      try {
+        const compressedBase64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+              const canvas = document.createElement("canvas");
+              const maxDim = 600;
+              let width = img.width;
+              let height = img.height;
+              if (width > height) {
+                if (width > maxDim) {
+                  height = Math.round((height * maxDim) / width);
+                  width = maxDim;
+                }
+              } else {
+                if (height > maxDim) {
+                  width = Math.round((width * maxDim) / height);
+                  height = maxDim;
+                }
+              }
+              canvas.width = width;
+              canvas.height = height;
+              const ctx = canvas.getContext("2d");
+              ctx.drawImage(img, 0, 0, width, height);
+              resolve(canvas.toDataURL("image/jpeg", 0.75));
+            };
+            img.onerror = reject;
+            img.src = event.target.result;
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+
+        newImages.push(compressedBase64);
+      } catch (err) {
+        console.error("Failed to process image:", err);
+      }
+    }
+
+    setReviewImages((prev) => [...prev, ...newImages].slice(0, 5));
+    if (e.target) e.target.value = "";
+  };
+
+  const handleRemoveImage = (idxToRemove) => {
+    setReviewImages((prev) => prev.filter((_, i) => i !== idxToRemove));
+  };
+
+  const handleSubmitReview = (e) => {
+    if (e) e.preventDefault();
+
+    if (!reviewRating || reviewRating < 1) {
+      setReviewError("Please select a star rating.");
+      return;
+    }
+
+    if (!reviewModalItem) return;
+
+    const { item, existingReview, orderId } = reviewModalItem;
+    const targetOrderId = orderId || selectedOrder?.id;
+    const productId = item.productId || item.id;
+    const productName = item.name || item.productName || productId;
+
+    const reviewObj = {
+      id: existingReview?.id || `REV-${Date.now()}`,
+      orderId: targetOrderId,
+      orderItemId: productId,
+      productId: productId,
+      product: productName,
+      productName: productName,
+      customerId: selectedOrder?.customerId || selectedOrder?.userId || "C001",
+      customer: selectedOrder?.customerName || selectedOrder?.deliveryAddress?.fullName || "Customer",
+      customerName: selectedOrder?.customerName || selectedOrder?.deliveryAddress?.fullName || "Customer",
+      author: selectedOrder?.customerName || selectedOrder?.deliveryAddress?.fullName || "Customer",
+      rating: Number(reviewRating),
+      comment: reviewFeedback.trim() || "Great quality product!",
+      feedback: reviewFeedback.trim() || "Great quality product!",
+      content: reviewFeedback.trim() || "Great quality product!",
+      images: reviewImages,
+      status: "Approved",
+      createdAt: new Date().toISOString().split("T")[0],
+      date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+      helpfulCount: 0
+    };
+
+    let updatedReviews = [...allReviews];
+    const existingIndex = updatedReviews.findIndex(
+      (r) => r.id === reviewObj.id || (r.orderId === targetOrderId && r.productId === productId)
+    );
+
+    if (existingIndex >= 0) {
+      updatedReviews[existingIndex] = reviewObj;
+    } else {
+      updatedReviews.unshift(reviewObj);
+    }
+
+    try {
+      localStorage.setItem("mellosoft_reviews", JSON.stringify(updatedReviews));
+      setAllReviews(updatedReviews);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("storage"));
+        window.dispatchEvent(new CustomEvent("mellosoft_reviews_updated"));
+      }
+    } catch (err) {
+      console.error("Failed to save review to localStorage:", err);
+    }
+
+    closeReviewModal();
+    setToastMessage("Thank you! Your review has been submitted.");
+    setTimeout(() => setToastMessage(""), 4000);
+  };
 
   const activeOrders = useMemo(() => {
     return (customerOrders || []).filter((o) => o.orderStatus !== "Delivered");
@@ -226,31 +425,108 @@ export default function OrdersView() {
                   const pImage = item.image || prod?.images?.[0] || "/asset/img1.jpg";
                   const itemPrice = item.price ?? item.actualPrice ?? 0;
                   const itemTotal = itemPrice * (item.quantity || 1);
+                  const isDelivered = selectedOrder.orderStatus === "Delivered";
+
+                  // Find review for this item in allReviews
+                  const targetProductId = item.productId || item.id;
+                  const existingReview = (allReviews || []).find(
+                    (r) => r.orderId === selectedOrder.id && (r.productId === targetProductId || r.orderItemId === targetProductId)
+                  );
 
                   return (
-                    <div key={idx} style={orderItemCardStyle}>
-                      <img src={pImage} alt={pName} style={itemImageStyle} />
-                      
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <h4 style={itemTitleStyle}>{pName}</h4>
+                    <div key={idx} style={{ ...orderItemCardStyle, flexDirection: "column", alignItems: "stretch" }}>
+                      <div style={{ display: "flex", gap: "16px", width: "100%" }}>
+                        <img src={pImage} alt={pName} style={itemImageStyle} />
                         
-                        <div style={variantChipsWrapStyle}>
-                          {item.variantSize && (
-                            <span style={variantChipSizeStyle}>{item.variantSize}</span>
-                          )}
-                          {item.variantFirmness && item.variantFirmness !== "Standard" && (
-                            <span style={variantChipFirmnessStyle}>{item.variantFirmness}</span>
-                          )}
-                          {item.variantSKU && (
-                            <span style={variantChipSKUStyle}>{item.variantSKU}</span>
-                          )}
-                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <h4 style={itemTitleStyle}>{pName}</h4>
+                          
+                          <div style={variantChipsWrapStyle}>
+                            {item.variantSize && (
+                              <span style={variantChipSizeStyle}>{item.variantSize}</span>
+                            )}
+                            {item.variantFirmness && item.variantFirmness !== "Standard" && (
+                              <span style={variantChipFirmnessStyle}>{item.variantFirmness}</span>
+                            )}
+                            {item.variantSKU && (
+                              <span style={variantChipSKUStyle}>{item.variantSKU}</span>
+                            )}
+                          </div>
 
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "12px", flexWrap: "wrap", gap: "8px" }}>
-                          <span style={qtyTextStyle}>Qty: <strong>{item.quantity || 1}</strong> × {formatPrice(itemPrice)}</span>
-                          <span style={itemTotalStyle}>Item Total: {formatPrice(itemTotal)}</span>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "12px", flexWrap: "wrap", gap: "8px" }}>
+                            <span style={qtyTextStyle}>Qty: <strong>{item.quantity || 1}</strong> × {formatPrice(itemPrice)}</span>
+                            <span style={itemTotalStyle}>Item Total: {formatPrice(itemTotal)}</span>
+                          </div>
                         </div>
                       </div>
+
+                      {/* DELIVERED ORDER REVIEW SECTION */}
+                      {isDelivered && (
+                        <div style={{ marginTop: "14px", paddingTop: "12px", borderTop: "1px dashed #E7E7E2", display: "flex", flexDirection: "column", gap: "8px" }}>
+                          {existingReview ? (
+                            <div style={{ backgroundColor: "#F8FAFC", padding: "12px 14px", borderRadius: "10px", border: "1px solid #E2E8F0" }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                  <span style={{ fontSize: "12px", fontWeight: 700, color: "#16A34A" }}>Your Review</span>
+                                  <div style={{ display: "flex", gap: "2px" }}>
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                      <Star
+                                        key={star}
+                                        size={13}
+                                        fill={star <= existingReview.rating ? "#F59E0B" : "none"}
+                                        stroke={star <= existingReview.rating ? "#F59E0B" : "#CBD5E1"}
+                                      />
+                                    ))}
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={() => openReviewModal(item, existingReview, selectedOrder.id)}
+                                  style={{ border: "none", background: "none", color: "#1B1F8C", fontSize: "12px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}
+                                >
+                                  <Edit3 size={12} /> Edit Review
+                                </button>
+                              </div>
+                              {existingReview.feedback && (
+                                <p style={{ fontSize: "12px", color: "#334155", fontStyle: "italic", margin: "6px 0 0" }}>
+                                  "{existingReview.feedback}"
+                                </p>
+                              )}
+                              {existingReview.images && existingReview.images.length > 0 && (
+                                <div style={{ display: "flex", gap: "6px", marginTop: "8px", flexWrap: "wrap" }}>
+                                  {existingReview.images.map((img, i) => (
+                                    <img key={i} src={img} alt="Review attachment" style={{ width: "40px", height: "40px", borderRadius: "6px", objectFit: "cover", border: "1px solid #CBD5E1" }} />
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                              <button
+                                onClick={() => openReviewModal(item, null, selectedOrder.id)}
+                                style={{
+                                  backgroundColor: "#1B1F8C",
+                                  color: "#FFFFFF",
+                                  border: "none",
+                                  borderRadius: "8px",
+                                  padding: "8px 14px",
+                                  fontSize: "12px",
+                                  fontWeight: 700,
+                                  cursor: "pointer",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "6px",
+                                  boxShadow: "0 2px 6px rgba(27, 31, 140, 0.15)",
+                                  transition: "transform 0.2s ease"
+                                }}
+                                className="hover-lift"
+                              >
+                                <Star size={13} fill="#FFFFFF" />
+                                <span>Write a Review</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -388,7 +664,7 @@ export default function OrdersView() {
                   <span>Payment Information</span>
                 </h4>
                 <div style={addressTextStyle}>
-                  <strong>Method:</strong> {selectedOrder.paymentMethod || "Credit Card (Visa ending in 4242)"}
+                  <strong>Method:</strong> {selectedOrder.paymentMethod || "UPI"}
                   <br />
                   <strong>Status:</strong> <span style={{ color: selectedOrder.paymentStatus === "Paid" ? "#16A34A" : "#D97706", fontWeight: 700 }}>{selectedOrder.paymentStatus || "Paid"}</span>
                 </div>
@@ -396,7 +672,7 @@ export default function OrdersView() {
             </div>
           </div>
 
-          {/* Right Column: Order Summary Calculation */}
+          {/* Right Column: Full Payment Breakdown & Order Summary Calculation */}
           <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
             <div style={sectionCardStyle}>
               <h3 style={sectionHeadingStyle}>Order Summary</h3>
@@ -406,17 +682,50 @@ export default function OrdersView() {
                   <span>Subtotal</span>
                   <span>{formatPrice(selectedOrder.subtotal || selectedOrder.totalAmount)}</span>
                 </div>
-                
-                {selectedOrder.delivery !== undefined && (
-                  <div style={summaryRowStyle}>
-                    <span>Shipping</span>
-                    <span>{selectedOrder.delivery === 0 ? "FREE" : formatPrice(selectedOrder.delivery)}</span>
+
+                {Number(selectedOrder.productDiscount) > 0 && (
+                  <div style={{ ...summaryRowStyle, color: "#16A34A" }}>
+                    <span>Product Discount</span>
+                    <span>-{formatPrice(selectedOrder.productDiscount)}</span>
                   </div>
                 )}
 
+                {(Number(selectedOrder.couponDiscount) > 0 || Number(selectedOrder.discount) > 0) && (
+                  <div style={{ ...summaryRowStyle, color: "#16A34A" }}>
+                    <span>Coupon Discount {selectedOrder.couponCode ? `(${selectedOrder.couponCode})` : ""}</span>
+                    <span>-{formatPrice(selectedOrder.couponDiscount || selectedOrder.discount)}</span>
+                  </div>
+                )}
+
+                {(Number(selectedOrder.gst) > 0 || Number(selectedOrder.tax) > 0) && (
+                  <div style={summaryRowStyle}>
+                    <span>GST ({selectedOrder.gstRate || 18}%)</span>
+                    <span>{formatPrice(selectedOrder.gst || selectedOrder.tax)}</span>
+                  </div>
+                )}
+
+                <div style={summaryRowStyle}>
+                  <span>Shipping</span>
+                  <span>{selectedOrder.shipping === 0 || selectedOrder.delivery === 0 ? "FREE" : formatPrice(selectedOrder.shipping || selectedOrder.delivery || 0)}</span>
+                </div>
+
                 <div style={{ ...summaryRowStyle, borderTop: "1px solid #E7E7E2", paddingTop: "12px", marginTop: "4px" }}>
                   <span style={{ fontSize: "16px", fontWeight: 700, color: "#14151A" }}>Total Amount</span>
-                  <span style={{ fontSize: "20px", fontWeight: 800, color: "#1B1F8C" }}>{formatPrice(selectedOrder.totalAmount)}</span>
+                  <span style={{ fontSize: "20px", fontWeight: 800, color: "#1B1F8C" }}>{formatPrice(selectedOrder.totalAmount || selectedOrder.total)}</span>
+                </div>
+              </div>
+
+              {/* Payment Details Box */}
+              <div style={{ marginTop: "16px", padding: "12px 14px", backgroundColor: "#FAFAF7", borderRadius: "10px", border: "1px solid #E7E7E2", fontSize: "13px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+                  <span style={{ color: "#6B6B75" }}>Payment Method</span>
+                  <strong style={{ color: "#14151A" }}>{selectedOrder.paymentMethod || "UPI"}</strong>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "#6B6B75" }}>Payment Status</span>
+                  <span style={{ color: selectedOrder.paymentStatus === "Paid" ? "#16A34A" : "#D97706", fontWeight: 700 }}>
+                    {selectedOrder.paymentStatus || "Paid"}
+                  </span>
                 </div>
               </div>
 
@@ -645,6 +954,265 @@ export default function OrdersView() {
             setTrackingOrderId(null);
           }}
         />
+      )}
+
+      {/* TOAST NOTIFICATION */}
+      {toastMessage && (
+        <div style={{
+          position: "fixed",
+          bottom: "24px",
+          right: "24px",
+          backgroundColor: "#16A34A",
+          color: "#FFFFFF",
+          padding: "12px 20px",
+          borderRadius: "10px",
+          fontSize: "14px",
+          fontWeight: 700,
+          boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
+          zIndex: 9999,
+          display: "flex",
+          alignItems: "center",
+          gap: "8px"
+        }}>
+          <CheckCircle size={18} color="#FFFFFF" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* PRODUCT REVIEW MODAL */}
+      {reviewModalItem && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: "rgba(0, 0, 0, 0.5)",
+          backdropFilter: "blur(4px)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 9990,
+          padding: "16px"
+        }} onClick={closeReviewModal}>
+          <div style={{
+            backgroundColor: "#FFFFFF",
+            borderRadius: "16px",
+            width: "100%",
+            maxWidth: "520px",
+            maxHeight: "90vh",
+            overflowY: "auto",
+            boxShadow: "0 20px 40px rgba(0, 0, 0, 0.2)",
+            padding: "24px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "20px"
+          }} onClick={(e) => e.stopPropagation()}>
+
+            {/* Header */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <h3 style={{ fontSize: "18px", fontWeight: 800, color: "#14151A", margin: 0 }}>
+                  {reviewModalItem.existingReview ? "Edit Your Review" : "Write a Product Review"}
+                </h3>
+                <div style={{ fontSize: "13px", color: "#6B6B75", marginTop: "2px" }}>
+                  {reviewModalItem.item?.name || reviewModalItem.item?.productName || "Product"}
+                </div>
+              </div>
+              <button onClick={closeReviewModal} style={{ border: "none", background: "none", cursor: "pointer", color: "#6B6B75" }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Error Banner */}
+            {reviewError && (
+              <div style={{ backgroundColor: "#FEE2E2", color: "#DC2626", padding: "10px 14px", borderRadius: "8px", fontSize: "13px", fontWeight: 600, display: "flex", alignItems: "center", gap: "8px" }}>
+                <AlertCircle size={16} color="#DC2626" />
+                <span>{reviewError}</span>
+              </div>
+            )}
+
+            {/* Star Rating Section */}
+            <div>
+              <label style={{ display: "block", fontSize: "13px", fontWeight: 700, color: "#14151A", marginBottom: "8px" }}>
+                Rate this product <span style={{ color: "#DC2626" }}>*</span>
+              </label>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => setReviewRating(star)}
+                    onMouseEnter={() => setHoverRating(star)}
+                    onMouseLeave={() => setHoverRating(0)}
+                    aria-label={`${star} star`}
+                    style={{ border: "none", background: "none", cursor: "pointer", padding: "4px" }}
+                  >
+                    <Star
+                      size={28}
+                      fill={(hoverRating || reviewRating) >= star ? "#F59E0B" : "none"}
+                      stroke={(hoverRating || reviewRating) >= star ? "#F59E0B" : "#CBD5E1"}
+                      strokeWidth={1.8}
+                    />
+                  </button>
+                ))}
+                <span style={{ marginLeft: "8px", fontSize: "13px", fontWeight: 700, color: reviewRating > 0 ? "#1B1F8C" : "#94A3B8" }}>
+                  {reviewRating === 5 && "5/5 - Excellent"}
+                  {reviewRating === 4 && "4/5 - Very Good"}
+                  {reviewRating === 3 && "3/5 - Average"}
+                  {reviewRating === 2 && "2/5 - Poor"}
+                  {reviewRating === 1 && "1/5 - Terrible"}
+                  {reviewRating === 0 && "Select rating"}
+                </span>
+              </div>
+            </div>
+
+            {/* Written Feedback Section */}
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                <label style={{ fontSize: "13px", fontWeight: 700, color: "#14151A" }}>
+                  Your Feedback
+                </label>
+                <span style={{ fontSize: "11px", color: "#94A3B8" }}>
+                  {reviewFeedback.length} / 1000
+                </span>
+              </div>
+              <textarea
+                value={reviewFeedback}
+                onChange={(e) => setReviewFeedback(e.target.value.slice(0, 1000))}
+                placeholder="Share your experience with this product (comfort, support, quality, delivery)..."
+                rows={4}
+                style={{
+                  width: "100%",
+                  padding: "12px",
+                  borderRadius: "10px",
+                  border: "1px solid #CBD5E1",
+                  fontSize: "13px",
+                  color: "#14151A",
+                  outline: "none",
+                  resize: "vertical",
+                  boxSizing: "border-box",
+                  fontFamily: "inherit"
+                }}
+              />
+            </div>
+
+            {/* Image Upload Section */}
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                <label style={{ fontSize: "13px", fontWeight: 700, color: "#14151A" }}>
+                  Add Product Photos (Optional)
+                </label>
+                <span style={{ fontSize: "11px", color: "#6B6B75" }}>
+                  Max 5 photos (5 MB each)
+                </span>
+              </div>
+
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                multiple
+                ref={fileInputRef}
+                onChange={handleFileSelect}
+                style={{ display: "none" }}
+              />
+
+              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
+                {reviewImages.map((img, idx) => (
+                  <div key={idx} style={{ position: "relative", width: "64px", height: "64px", borderRadius: "8px", overflow: "hidden", border: "1px solid #CBD5E1" }}>
+                    <img src={img} alt={`Preview ${idx + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveImage(idx)}
+                      style={{
+                        position: "absolute",
+                        top: "2px",
+                        right: "2px",
+                        backgroundColor: "rgba(0,0,0,0.6)",
+                        color: "#FFFFFF",
+                        border: "none",
+                        borderRadius: "50%",
+                        width: "18px",
+                        height: "18px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: "pointer",
+                        fontSize: "10px"
+                      }}
+                      aria-label="Remove image"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+
+                {reviewImages.length < 5 && (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{
+                      width: "64px",
+                      height: "64px",
+                      borderRadius: "8px",
+                      border: "2px dashed #CBD5E1",
+                      backgroundColor: "#FAFAF7",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      cursor: "pointer",
+                      gap: "4px",
+                      color: "#6B6B75",
+                      fontSize: "10px",
+                      fontWeight: 600
+                    }}
+                  >
+                    <Camera size={18} color="#1B1F8C" />
+                    <span>Upload</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "8px" }}>
+              <button
+                type="button"
+                onClick={closeReviewModal}
+                style={{
+                  padding: "10px 18px",
+                  borderRadius: "8px",
+                  border: "1px solid #CBD5E1",
+                  backgroundColor: "#FFFFFF",
+                  color: "#475569",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  cursor: "pointer"
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmitReview}
+                style={{
+                  padding: "10px 20px",
+                  borderRadius: "8px",
+                  border: "none",
+                  backgroundColor: "#1B1F8C",
+                  color: "#FFFFFF",
+                  fontSize: "13px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  boxShadow: "0 2px 8px rgba(27, 31, 140, 0.2)"
+                }}
+              >
+                Submit Review
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

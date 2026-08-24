@@ -674,7 +674,7 @@ function ProductRow({ title, tagline, products, onAction, background, scrollable
           <div className="product-row-scroll-wrap" style={wrapStyle}>
             <div className={rowClassName} style={productRowStyle}>
               {products.map((product) => (
-                <div key={product.id} className="product-item-scroll" style={productItemStyle}>
+                <div key={product.id} className="product-item-scroll" style={{ ...productItemStyle, height: "100%" }}>
                   <ProductCard product={product} variant={variant} />
                 </div>
               ))}
@@ -686,7 +686,7 @@ function ProductRow({ title, tagline, products, onAction, background, scrollable
           <>
             <div className="product-row" style={productRowStyle}>
               {products.map((product) => (
-                <div key={product.id} style={productItemStyle}>
+                <div key={product.id} style={{ ...productItemStyle, height: "100%" }}>
                   <ProductCard product={product} variant={variant} />
                 </div>
               ))}

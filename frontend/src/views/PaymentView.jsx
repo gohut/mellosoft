@@ -4,7 +4,7 @@ import React, { useState, useMemo } from "react";
 import { useStore } from "../context/StoreContext";
 import { useCustomerAuth } from "../context/CustomerAuthContext";
 import { formatPrice } from "../utils/currency";
-import { ArrowLeft, CheckCircle2, ShieldCheck, Lock, CreditCard, Smartphone, Building, Banknote } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ShieldCheck, Lock, Smartphone, Banknote } from "lucide-react";
 
 export default function PaymentView() {
   const {
@@ -35,18 +35,11 @@ export default function PaymentView() {
     pincode: "560038"
   };
 
-  // Payment Method Selection: "upi" | "card" | "netbanking" | "cod"
+  // Payment Method Selection: "upi" | "cod"
   const [paymentMethod, setPaymentMethod] = useState("upi");
   
   // Payment Method Details Form State
-  const [upiId, setUpiId] = useState("customer@okaxis");
-  const [cardDetails, setCardDetails] = useState({
-    number: "4242 •••• •••• 4242",
-    name: address.fullName || "Rahul Sharma",
-    expiry: "12/28",
-    cvv: "•••"
-  });
-  const [selectedBank, setSelectedBank] = useState("HDFC Bank");
+  const [upiId, setUpiId] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentError, setPaymentError] = useState("");
 
@@ -74,9 +67,16 @@ export default function PaymentView() {
   const finalTotal = subtotal + tax + shipping - couponDiscount;
 
   const handleCompleteOrder = () => {
-    if (paymentMethod === "upi" && !upiId.trim()) {
-      setPaymentError("Please enter a valid UPI ID.");
-      return;
+    if (paymentMethod === "upi") {
+      const trimmedUpi = upiId.trim();
+      if (!trimmedUpi) {
+        setPaymentError("Please enter a valid UPI ID (e.g. name@okaxis).");
+        return;
+      }
+      if (!trimmedUpi.includes("@") || trimmedUpi.length < 3) {
+        setPaymentError("Please enter a valid VPA / UPI ID containing '@' (e.g. username@bank).");
+        return;
+      }
     }
 
     setIsProcessing(true);
@@ -88,10 +88,7 @@ export default function PaymentView() {
       const generatedOrderId = `MS-${randNum}`;
 
       const paymentMethodLabel =
-        paymentMethod === "upi" ? `UPI (${upiId || "GPay"})` :
-        paymentMethod === "card" ? `Credit Card (${cardDetails.number.slice(-4)})` :
-        paymentMethod === "netbanking" ? `Net Banking (${selectedBank})` :
-        "Cash on Delivery";
+        paymentMethod === "upi" ? `UPI (${upiId.trim()})` : "COD";
 
       const newOrder = {
         id: generatedOrderId,
@@ -124,10 +121,17 @@ export default function PaymentView() {
         paymentStatus: paymentMethod === "cod" ? "Pending" : "Paid",
         orderStatus: "Processing",
         subtotal: subtotal,
+        productDiscount: discountSavings,
+        couponDiscount: couponDiscount,
+        couponCode: couponDiscount > 0 ? "SLEEP10" : null,
         discount: discountSavings + couponDiscount,
+        gst: tax,
         tax: tax,
+        gstRate: 18,
         shipping: shipping,
+        delivery: shipping,
         totalAmount: finalTotal,
+        total: finalTotal,
         createdAt: new Date().toISOString().split("T")[0],
         expectedDeliveryStart: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
         expectedDeliveryEnd: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
@@ -232,7 +236,7 @@ export default function PaymentView() {
                       type="text"
                       value={upiId}
                       onChange={(e) => setUpiId(e.target.value)}
-                      placeholder="e.g. username@upi"
+                      placeholder="Example: name@okaxis"
                       style={inputStyle}
                     />
                     <span style={{ fontSize: "12px", color: "#6B6B75" }}>
@@ -242,110 +246,7 @@ export default function PaymentView() {
                 )}
               </div>
 
-              {/* Option 2: Credit / Debit Card */}
-              <div
-                style={{
-                  ...paymentOptionCardStyle,
-                  borderColor: paymentMethod === "card" ? "#1B1F8C" : "#E7E7E2",
-                  backgroundColor: paymentMethod === "card" ? "#F4F5FF" : "#FFFFFF"
-                }}
-                onClick={() => setPaymentMethod("card")}
-              >
-                <div style={optionRadioRowStyle}>
-                  <input
-                    type="radio"
-                    name="payment"
-                    checked={paymentMethod === "card"}
-                    onChange={() => setPaymentMethod("card")}
-                    style={radioInputStyle}
-                  />
-                  <div style={optionTitleWrapStyle}>
-                    <CreditCard size={20} color="#1B1F8C" />
-                    <strong style={optionTitleStyle}>Credit / Debit Card</strong>
-                  </div>
-                </div>
-
-                {paymentMethod === "card" && (
-                  <div style={optionDetailsWrapStyle}>
-                    <div style={formRowStyle}>
-                      <div style={{ flex: 1 }}>
-                        <label style={labelStyle}>Card Number</label>
-                        <input
-                          type="text"
-                          value={cardDetails.number}
-                          onChange={(e) => setCardDetails({ ...cardDetails, number: e.target.value })}
-                          style={inputStyle}
-                        />
-                      </div>
-                    </div>
-                    <div style={formTwoColStyle}>
-                      <div>
-                        <label style={labelStyle}>Expiry Date</label>
-                        <input
-                          type="text"
-                          value={cardDetails.expiry}
-                          onChange={(e) => setCardDetails({ ...cardDetails, expiry: e.target.value })}
-                          placeholder="MM/YY"
-                          style={inputStyle}
-                        />
-                      </div>
-                      <div>
-                        <label style={labelStyle}>CVV</label>
-                        <input
-                          type="password"
-                          value={cardDetails.cvv}
-                          onChange={(e) => setCardDetails({ ...cardDetails, cvv: e.target.value })}
-                          placeholder="123"
-                          style={inputStyle}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Option 3: Net Banking */}
-              <div
-                style={{
-                  ...paymentOptionCardStyle,
-                  borderColor: paymentMethod === "netbanking" ? "#1B1F8C" : "#E7E7E2",
-                  backgroundColor: paymentMethod === "netbanking" ? "#F4F5FF" : "#FFFFFF"
-                }}
-                onClick={() => setPaymentMethod("netbanking")}
-              >
-                <div style={optionRadioRowStyle}>
-                  <input
-                    type="radio"
-                    name="payment"
-                    checked={paymentMethod === "netbanking"}
-                    onChange={() => setPaymentMethod("netbanking")}
-                    style={radioInputStyle}
-                  />
-                  <div style={optionTitleWrapStyle}>
-                    <Building size={20} color="#1B1F8C" />
-                    <strong style={optionTitleStyle}>Net Banking</strong>
-                  </div>
-                </div>
-
-                {paymentMethod === "netbanking" && (
-                  <div style={optionDetailsWrapStyle}>
-                    <label style={labelStyle}>Select Bank</label>
-                    <select
-                      value={selectedBank}
-                      onChange={(e) => setSelectedBank(e.target.value)}
-                      style={selectStyle}
-                    >
-                      <option value="HDFC Bank">HDFC Bank</option>
-                      <option value="ICICI Bank">ICICI Bank</option>
-                      <option value="State Bank of India">State Bank of India (SBI)</option>
-                      <option value="Axis Bank">Axis Bank</option>
-                      <option value="Kotak Mahindra">Kotak Mahindra Bank</option>
-                    </select>
-                  </div>
-                )}
-              </div>
-
-              {/* Option 4: Cash on Delivery */}
+              {/* Option 2: Cash on Delivery */}
               <div
                 style={{
                   ...paymentOptionCardStyle,
@@ -645,27 +546,6 @@ const inputStyle = {
   fontSize: "14px",
   backgroundColor: "#FFFFFF",
   boxSizing: "border-box"
-};
-
-const selectStyle = {
-  width: "100%",
-  padding: "10px 14px",
-  borderRadius: "10px",
-  border: "1px solid #E7E7E2",
-  fontSize: "14px",
-  backgroundColor: "#FFFFFF",
-  boxSizing: "border-box"
-};
-
-const formRowStyle = {
-  display: "flex",
-  gap: "12px"
-};
-
-const formTwoColStyle = {
-  display: "grid",
-  gridTemplateColumns: "1fr 1fr",
-  gap: "12px"
 };
 
 const summaryCardStyle = {

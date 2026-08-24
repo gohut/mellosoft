@@ -541,6 +541,67 @@ export function AdminProvider({ children }) {
     }
   }, [orders]);
 
+  // Real-time synchronization for shared data across same tab & multi-tab
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const syncAdminData = () => {
+      try {
+        const savedOrders = localStorage.getItem(ORDERS_STORAGE_KEY);
+        if (savedOrders) {
+          const parsed = JSON.parse(savedOrders);
+          if (Array.isArray(parsed)) setOrders(parsed);
+        }
+      } catch (e) {
+        console.error("Failed to sync orders in AdminContext:", e);
+      }
+
+      try {
+        const savedCustomers = localStorage.getItem(CUSTOMERS_STORAGE_KEY);
+        if (savedCustomers) {
+          const parsed = JSON.parse(savedCustomers);
+          if (Array.isArray(parsed)) setCustomers(parsed);
+        }
+      } catch (e) {
+        console.error("Failed to sync customers in AdminContext:", e);
+      }
+
+      try {
+        const savedReviews = localStorage.getItem(REVIEWS_STORAGE_KEY);
+        if (savedReviews) {
+          const parsed = JSON.parse(savedReviews);
+          if (Array.isArray(parsed)) setReviews(parsed);
+        }
+      } catch (e) {
+        console.error("Failed to sync reviews in AdminContext:", e);
+      }
+
+      try {
+        const savedProducts = localStorage.getItem(PRODUCTS_STORAGE_KEY);
+        if (savedProducts) {
+          const parsed = JSON.parse(savedProducts);
+          if (Array.isArray(parsed) && parsed.length > 0) setProducts(parsed);
+        }
+      } catch (e) {
+        console.error("Failed to sync products in AdminContext:", e);
+      }
+    };
+
+    window.addEventListener("storage", syncAdminData);
+    window.addEventListener("mellosoft_orders_updated", syncAdminData);
+    window.addEventListener("mellosoft_customers_updated", syncAdminData);
+    window.addEventListener("mellosoft_reviews_updated", syncAdminData);
+    window.addEventListener("mellosoft_products_updated", syncAdminData);
+
+    return () => {
+      window.removeEventListener("storage", syncAdminData);
+      window.removeEventListener("mellosoft_orders_updated", syncAdminData);
+      window.removeEventListener("mellosoft_customers_updated", syncAdminData);
+      window.removeEventListener("mellosoft_reviews_updated", syncAdminData);
+      window.removeEventListener("mellosoft_products_updated", syncAdminData);
+    };
+  }, []);
+
   // Persist customers to localStorage
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -656,7 +717,7 @@ export function AdminProvider({ children }) {
       let updatedOrderObj = null;
       setOrders((prev) => {
         const nextOrders = prev.map((o) => {
-          if (o.id === orderId) {
+          if (o.id === orderId || o.orderId === orderId) {
             let history = Array.isArray(o.trackingHistory) && o.trackingHistory.length > 0
               ? [...o.trackingHistory]
               : buildInitialTrackingHistory(o);
@@ -686,6 +747,7 @@ export function AdminProvider({ children }) {
             updatedOrderObj = {
               ...o,
               ...updatedFields,
+              updatedAt: new Date().toISOString(),
               trackingHistory: history
             };
             return updatedOrderObj;

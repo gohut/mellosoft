@@ -63,7 +63,7 @@ export default function WishlistView() {
       {/* Grid of Saved Cards */}
       <div style={gridStyle} className="wishlist-grid">
         {savedProducts.map((product) => (
-          <div key={product.id} style={{ position: "relative" }}>
+          <div key={product.id} style={{ position: "relative", height: "100%" }}>
             <ProductCard product={product} />
             
             {/* Overlay a explicit Remove & Move to Cart panel below or around if needed */}

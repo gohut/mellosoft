@@ -1,17 +1,26 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
-import { ACCESSORY_PRODUCTS, ACCESSORY_FALLBACK_IMAGES } from "../data/mattressData";
+import { ACCESSORY_PRODUCTS } from "../data/mattressData";
+import { ensureProductPricing } from "../utils/pricingEngine";
 import { ACCESSORY_CATEGORY_LIST, getAccessoryCategoryMeta } from "../utils/productHelpers";
 import { useStore } from "../context/StoreContext";
-import { Search, RefreshCw } from "lucide-react";
+import { SlidersHorizontal, X } from "lucide-react";
 import EmptyState from "../components/EmptyState";
 import ProductCard from "../components/ProductCard";
+import AccessoryFilterPanel from "../components/AccessoryFilterPanel";
 
 export default function AccessoriesView({ categoryParam = "all" }) {
-  const { navigateTo } = useStore();
+  const { searchQuery, setSearchQuery } = useStore();
   const [selectedCategory, setSelectedCategory] = useState(categoryParam || "all");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedFirmness, setSelectedFirmness] = useState("All");
+  const [priceAvailability, setPriceAvailability] = useState("All");
+  const [sortBy, setSortBy] = useState("Recommended");
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+
+  const hydratedAccessories = useMemo(() => {
+    return (ACCESSORY_PRODUCTS || []).map((item) => ensureProductPricing(item));
+  }, []);
 
   // Sync state if categoryParam changes via router
   useEffect(() => {
@@ -25,10 +34,6 @@ export default function AccessoriesView({ categoryParam = "all" }) {
     return !!getAccessoryCategoryMeta(categoryParam);
   }, [categoryParam]);
 
-  const currentCategoryMeta = useMemo(() => {
-    return getAccessoryCategoryMeta(selectedCategory);
-  }, [selectedCategory]);
-
   const handleCategorySelect = (slug) => {
     setSelectedCategory(slug);
     const targetUrl = slug === "all" ? "/accessories" : `/accessories/${slug}`;
@@ -39,6 +44,9 @@ export default function AccessoriesView({ categoryParam = "all" }) {
 
   const resetFilters = () => {
     setSelectedCategory("all");
+    setSelectedFirmness("All");
+    setPriceAvailability("All");
+    setSortBy("Recommended");
     setSearchQuery("");
     if (typeof window !== "undefined") {
       window.history.pushState(null, "", "/accessories");
@@ -46,8 +54,8 @@ export default function AccessoriesView({ categoryParam = "all" }) {
   };
 
   const filteredAccessories = useMemo(() => {
-    return (ACCESSORY_PRODUCTS || []).filter((item) => {
-      // 1. Search Query
+    return hydratedAccessories.filter((item) => {
+      // 1. Global Search Query
       if (searchQuery) {
         const q = searchQuery.toLowerCase().trim();
         const matchesName = item.name.toLowerCase().includes(q);
@@ -64,9 +72,39 @@ export default function AccessoriesView({ categoryParam = "all" }) {
         if (item.category !== selectedCategory) return false;
       }
 
+      // 3. Firmness / Comfort Filter
+      if (selectedFirmness !== "All") {
+        if (!item.firmness || item.firmness.toLowerCase() !== selectedFirmness.toLowerCase()) {
+          return false;
+        }
+      }
+
+      // 4. Price Availability Filter
+      const hasPrice = (item.startingPrice && item.startingPrice > 0) || (item.price && item.price > 0);
+      if (priceAvailability === "Priced") {
+        if (!hasPrice) return false;
+      } else if (priceAvailability === "Contact") {
+        if (hasPrice) return false;
+      }
+
       return true;
+    }).sort((a, b) => {
+      if (sortBy === "Price: Low to High") {
+        const priceA = a.startingPrice || a.price || 999999;
+        const priceB = b.startingPrice || b.price || 999999;
+        return priceA - priceB;
+      }
+      if (sortBy === "Price: High to Low") {
+        const priceA = a.startingPrice || a.price || 0;
+        const priceB = b.startingPrice || b.price || 0;
+        return priceB - priceA;
+      }
+      if (sortBy === "Rating") {
+        return (b.rating || 5) - (a.rating || 5);
+      }
+      return 0;
     });
-  }, [searchQuery, selectedCategory]);
+  }, [hydratedAccessories, searchQuery, selectedCategory, selectedFirmness, priceAvailability, sortBy]);
 
   const categoryCounts = useMemo(() => {
     const counts = { all: ACCESSORY_PRODUCTS.length };
@@ -75,6 +113,14 @@ export default function AccessoriesView({ categoryParam = "all" }) {
     });
     return counts;
   }, []);
+
+  // Secondary active filter count
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (selectedFirmness !== "All") count++;
+    if (priceAvailability !== "All") count++;
+    return count;
+  }, [selectedFirmness, priceAvailability]);
 
   if (!isValidCategoryParam) {
     return (
@@ -92,27 +138,11 @@ export default function AccessoriesView({ categoryParam = "all" }) {
 
   return (
     <div style={containerStyle}>
-      
-      {/* ── HERO BANNER ──────────────────────────────────────────────────────── */}
-      <div style={heroBannerStyle}>
-        <span style={heroEyebrowStyle}>
-          {currentCategoryMeta ? currentCategoryMeta.name.toUpperCase() : "MELLOSOFT SLEEP ACCESSORIES"}
-        </span>
-        <h1 style={heroTitleStyle}>
-          {currentCategoryMeta ? currentCategoryMeta.title : "Sleep Better Beyond the Mattress"}
-        </h1>
-        <p style={heroSubtextStyle}>
-          {currentCategoryMeta
-            ? currentCategoryMeta.description
-            : "Complete your sleep experience with thoughtfully selected pillows, protectors, bedding and travel essentials."}
-        </p>
-      </div>
-
-      {/* ── FILTER & SEARCH BAR ──────────────────────────────────────────────── */}
+      {/* ── FILTERING & CONTROLS BAR ──────────────────────────────────── */}
       <div style={filterBarContainerStyle}>
         
-        {/* Category Pills */}
-        <div style={categoryPillsWrapStyle}>
+        {/* Category Pills & Filter Button in Single Flex Row */}
+        <div style={categoryRowWrapStyle}>
           <button
             type="button"
             onClick={() => handleCategorySelect("all")}
@@ -145,42 +175,77 @@ export default function AccessoriesView({ categoryParam = "all" }) {
               </button>
             );
           })}
-        </div>
 
-        {/* Search & Reset */}
-        <div style={searchRowStyle}>
-          <div style={searchWrapStyle}>
-            <Search size={16} color="#6B6B75" />
-            <input
-              type="text"
-              placeholder={currentCategoryMeta ? `Search in ${currentCategoryMeta.name}...` : "Search accessories (e.g. CloudContour, AquaGuard, Duvet)..."}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={searchInputStyle}
-            />
-            {searchQuery && (
-              <button type="button" onClick={() => setSearchQuery("")} style={clearSearchBtnStyle}>
-                ×
-              </button>
-            )}
-          </div>
-
-          <button type="button" onClick={resetFilters} style={resetBtnStyle}>
-            <RefreshCw size={14} /> Reset
+          {/* Filter Toggle Button in same row after Travel Bed */}
+          <button
+            type="button"
+            onClick={() => setIsFilterOpen((prev) => !prev)}
+            className="filter-toggle-btn"
+            style={{
+              ...filterToggleBtnStyle,
+              backgroundColor: (isFilterOpen || activeFilterCount > 0) ? "#1B1F8C" : "#FFFFFF",
+              color: (isFilterOpen || activeFilterCount > 0) ? "#FFFFFF" : "#1E293B",
+              borderColor: (isFilterOpen || activeFilterCount > 0) ? "#1B1F8C" : "#E2E8F0"
+            }}
+          >
+            <SlidersHorizontal size={15} />
+            <span>Filter{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}</span>
           </button>
         </div>
 
+        {/* Results Count Line */}
         <div style={resultsCountStyle}>
-          Showing <strong>{filteredAccessories.length}</strong> of <strong>{selectedCategory === "all" ? ACCESSORY_PRODUCTS.length : (categoryCounts[selectedCategory] || filteredAccessories.length)}</strong> accessory products
+          Showing <strong>{filteredAccessories.length}</strong> {filteredAccessories.length === ACCESSORY_PRODUCTS.length ? "accessories" : <>of <strong>{ACCESSORY_PRODUCTS.length}</strong> accessories</>}
         </div>
+
+        {/* Active Filter Badges Summary */}
+        {activeFilterCount > 0 && (
+          <div style={activeBadgesRowStyle}>
+            <span style={activeBadgesLabelStyle}>Active Filters:</span>
+            {selectedFirmness !== "All" && (
+              <span style={activeBadgeStyle}>
+                {selectedFirmness}
+                <button type="button" onClick={() => setSelectedFirmness("All")} style={removeBadgeBtnStyle} aria-label="Remove firmness filter">
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+            {priceAvailability !== "All" && (
+              <span style={activeBadgeStyle}>
+                {priceAvailability === "Priced" ? "Priced Products" : "Contact for Price"}
+                <button type="button" onClick={() => setPriceAvailability("All")} style={removeBadgeBtnStyle} aria-label="Remove pricing filter">
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+            <button type="button" onClick={resetFilters} style={clearAllLinkStyle}>
+              Clear all
+            </button>
+          </div>
+        )}
+
+        {/* Collapsible Filter Panel */}
+        <AccessoryFilterPanel
+          isOpen={isFilterOpen}
+          onClose={() => setIsFilterOpen(false)}
+          selectedFirmness={selectedFirmness}
+          setSelectedFirmness={setSelectedFirmness}
+          priceAvailability={priceAvailability}
+          setPriceAvailability={setPriceAvailability}
+          sortBy={sortBy}
+          setSortBy={setSortBy}
+          resetFilters={resetFilters}
+        />
 
       </div>
 
       {/* ── ACCESSORIES GRID ─────────────────────────────────────────────────── */}
       {filteredAccessories.length > 0 ? (
-        <div style={gridStyle}>
+        <div className="catalog-grid" style={gridStyle}>
           {filteredAccessories.map((item) => (
-            <ProductCard key={item.id} product={item} />
+            <div key={item.id} style={{ height: "100%" }}>
+              <ProductCard product={item} />
+            </div>
           ))}
         </div>
       ) : (
@@ -188,12 +253,21 @@ export default function AccessoriesView({ categoryParam = "all" }) {
           <EmptyState
             iconType="search"
             title="No matching accessories found"
-            message="No accessory products match your search or category filter. Try clearing your filters."
+            message="No accessory products match your search or filter selection. Try clearing your filters."
             actionLabel="Reset Filters"
             onAction={resetFilters}
           />
         </div>
       )}
+
+      <style>{`
+        @media (max-width: 767px) {
+          .catalog-grid {
+            grid-template-columns: repeat(1, 1fr) !important;
+            gap: 16px !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
@@ -202,57 +276,23 @@ export default function AccessoriesView({ categoryParam = "all" }) {
 const containerStyle = {
   maxWidth: "1280px",
   margin: "0 auto",
-  padding: "32px 24px 80px 24px",
+  padding: "24px 24px 80px 24px",
   width: "100%"
-};
-
-const heroBannerStyle = {
-  textAlign: "center",
-  marginBottom: "32px",
-  padding: "36px 24px",
-  backgroundColor: "#FAFAFA",
-  borderRadius: "20px",
-  border: "1px solid #E7E7E2"
-};
-
-const heroEyebrowStyle = {
-  fontSize: "12px",
-  fontWeight: "800",
-  letterSpacing: "1px",
-  color: "#16A34A",
-  display: "block",
-  marginBottom: "8px"
-};
-
-const heroTitleStyle = {
-  fontSize: "34px",
-  fontWeight: "800",
-  color: "#1B1F8C",
-  margin: "0 0 10px 0"
-};
-
-const heroSubtextStyle = {
-  fontSize: "15px",
-  color: "#6B6B75",
-  maxWidth: "680px",
-  margin: "0 auto"
 };
 
 const filterBarContainerStyle = {
   display: "flex",
   flexDirection: "column",
-  gap: "16px",
-  marginBottom: "32px",
-  backgroundColor: "#FFFFFF",
-  padding: "20px",
-  borderRadius: "16px",
-  border: "1px solid #E7E7E2"
+  gap: "12px",
+  marginBottom: "24px",
+  padding: "0"
 };
 
-const categoryPillsWrapStyle = {
+const categoryRowWrapStyle = {
   display: "flex",
-  flexWrap: "wrap",
-  gap: "10px"
+  alignItems: "center",
+  gap: "10px",
+  flexWrap: "wrap"
 };
 
 const categoryPillBtnStyle = {
@@ -262,58 +302,73 @@ const categoryPillBtnStyle = {
   fontSize: "13px",
   fontWeight: "700",
   cursor: "pointer",
+  whiteSpace: "nowrap",
   transition: "all 0.2s ease"
 };
 
-const searchRowStyle = {
-  display: "flex",
-  gap: "12px",
+const filterToggleBtnStyle = {
+  display: "inline-flex",
   alignItems: "center",
-  flexWrap: "wrap"
+  gap: "6px",
+  height: "37px",
+  padding: "0 16px",
+  borderRadius: "999px",
+  border: "1.5px solid #E2E8F0",
+  fontSize: "13px",
+  fontWeight: "700",
+  cursor: "pointer",
+  whiteSpace: "nowrap",
+  flex: "0 0 auto",
+  transition: "all 0.2s ease"
 };
 
-const searchWrapStyle = {
+const activeBadgesRowStyle = {
   display: "flex",
   alignItems: "center",
   gap: "8px",
-  backgroundColor: "#F8F9FA",
-  border: "1px solid #E2E8F0",
-  borderRadius: "10px",
-  padding: "0 12px",
-  flex: "1 1 300px",
-  height: "42px"
+  flexWrap: "wrap",
+  paddingTop: "6px"
 };
 
-const searchInputStyle = {
-  border: "none",
-  background: "none",
-  outline: "none",
-  fontSize: "13px",
-  width: "100%",
-  color: "#14151A"
+const activeBadgesLabelStyle = {
+  fontSize: "12px",
+  fontWeight: "700",
+  color: "#64748B"
 };
 
-const clearSearchBtnStyle = {
-  border: "none",
-  background: "none",
-  fontSize: "16px",
-  cursor: "pointer",
-  color: "#94A3B8"
-};
-
-const resetBtnStyle = {
-  display: "flex",
+const activeBadgeStyle = {
+  display: "inline-flex",
   alignItems: "center",
   gap: "6px",
-  height: "42px",
-  padding: "0 14px",
-  borderRadius: "10px",
-  border: "1px solid #E2E8F0",
-  backgroundColor: "#F1F5F9",
-  color: "#475569",
-  fontSize: "13px",
+  padding: "4px 10px",
+  borderRadius: "999px",
+  backgroundColor: "#EEF2FF",
+  color: "#1B1F8C",
+  border: "1px solid #C7D2FE",
+  fontSize: "12px",
+  fontWeight: "700"
+};
+
+const removeBadgeBtnStyle = {
+  background: "none",
+  border: "none",
+  cursor: "pointer",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  color: "#1B1F8C",
+  padding: "2px"
+};
+
+const clearAllLinkStyle = {
+  background: "none",
+  border: "none",
+  cursor: "pointer",
+  color: "#E11D48",
+  fontSize: "12px",
   fontWeight: "700",
-  cursor: "pointer"
+  textDecoration: "underline",
+  padding: "2px 4px"
 };
 
 const resultsCountStyle = {
@@ -327,135 +382,6 @@ const gridStyle = {
   gap: "24px"
 };
 
-const cardStyle = {
-  backgroundColor: "#FFFFFF",
-  borderRadius: "16px",
-  border: "1px solid #E7E7E2",
-  overflow: "hidden",
-  display: "flex",
-  flexDirection: "column",
-  height: "100%",
-  transition: "transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1)"
-};
-
-const imageWrapStyle = {
-  position: "relative",
-  width: "100%",
-  aspectRatio: "1 / 0.75",
-  backgroundColor: "#FAFAFA",
-  overflow: "hidden"
-};
-
-const imageStyle = {
-  width: "100%",
-  height: "100%",
-  objectFit: "cover",
-  display: "block",
-  transition: "transform 0.35s ease"
-};
-
-const badgeStyle = {
-  position: "absolute",
-  top: "12px",
-  left: "12px",
-  backgroundColor: "#1B1F8C",
-  color: "#FFFFFF",
-  fontSize: "10px",
-  fontWeight: "800",
-  padding: "4px 10px",
-  borderRadius: "999px",
-  textTransform: "uppercase"
-};
-
-const cardBodyStyle = {
-  padding: "16px",
-  display: "flex",
-  flexDirection: "column",
-  gap: "10px",
-  flex: 1
-};
-
-const categoryTagStyle = {
-  fontSize: "10px",
-  fontWeight: "800",
-  color: "#16A34A",
-  textTransform: "uppercase",
-  letterSpacing: "0.04em"
-};
-
-const itemTitleStyle = {
-  fontSize: "18px",
-  fontWeight: "800",
-  color: "#1B1F8C",
-  margin: "2px 0 0 0",
-  lineHeight: "1.25"
-};
-
-const taglineStyle = {
-  fontSize: "12px",
-  color: "#6B6B75",
-  margin: "2px 0 0 0",
-  fontStyle: "italic"
-};
-
-const typeBadgeStyle = {
-  backgroundColor: "#F0F4FF",
-  border: "1px solid #DBE5FF",
-  borderRadius: "6px",
-  padding: "4px 8px",
-  alignSelf: "flex-start"
-};
-
-const specRowStyle = {
-  display: "flex",
-  gap: "6px",
-  flexWrap: "wrap"
-};
-
-const specPillStyle = {
-  fontSize: "11px",
-  fontWeight: "700",
-  color: "#334155",
-  backgroundColor: "#F1F5F9",
-  borderRadius: "6px",
-  padding: "4px 8px"
-};
-
-const cardFooterStyle = {
-  marginTop: "auto",
-  paddingTop: "10px",
-  borderTop: "1px solid #F1F5F9",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between"
-};
-
-const priceLabelStyle = {
-  display: "block",
-  fontSize: "10px",
-  fontWeight: "600",
-  color: "#6B6B75",
-  textTransform: "uppercase"
-};
-
-const contactPriceStyle = {
-  fontSize: "14px",
-  fontWeight: "800",
-  color: "#D97706"
-};
-
-const enquireBtnStyle = {
-  padding: "8px 14px",
-  backgroundColor: "#16A34A",
-  color: "#FFFFFF",
-  border: "none",
-  borderRadius: "8px",
-  fontSize: "11px",
-  fontWeight: "800",
-  cursor: "pointer",
-  letterSpacing: "0.04em"
-};
-
 const emptyWrapperStyle = {
   display: "flex",
   justifyContent: "center",
@@ -463,3 +389,4 @@ const emptyWrapperStyle = {
   width: "100%",
   padding: "60px 0"
 };
+

@@ -375,11 +375,30 @@ export function StoreProvider({ children }) {
     setAuthModal(modalType);
   }, []);
 
-  const navigateTo = (newView, productId = null) => {
-    if (productId) {
-      setSelectedProductId(productId);
+  const navigateTo = (newView, param = null) => {
+    // Explicit product detail navigation
+    if (newView === "detail" || newView === "product") {
+      const prodId = param || selectedProductId;
+      if (prodId) setSelectedProductId(prodId);
       if (router && typeof router.push === "function") {
-        router.push(`/product/${encodeURIComponent(String(productId).trim())}`);
+        router.push(`/product/${encodeURIComponent(String(prodId).trim())}`);
+      }
+      return;
+    }
+
+    // Explicit order confirmation navigation
+    if (newView === "confirmation" || newView === "order-confirmation") {
+      const ordId = param || selectedOrderId;
+      if (ordId) setSelectedOrderId(ordId);
+      const targetRoute = ordId
+        ? `/order-confirmation/${encodeURIComponent(String(ordId).trim())}`
+        : "/order-confirmation";
+      setView("confirmation");
+      if (router && typeof router.push === "function") {
+        router.push(targetRoute);
+      }
+      if (typeof window !== "undefined") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
       }
       return;
     }
@@ -418,7 +437,7 @@ export function StoreProvider({ children }) {
       profile: "/profile",
       checkout: "/checkout",
       payment: "/checkout/payment",
-      confirmation: "/order-confirmation",
+      confirmation: selectedOrderId ? `/order-confirmation/${selectedOrderId}` : "/order-confirmation",
       terms: "/terms",
       privacy: "/privacy",
       "return-policy": "/return-policy",
@@ -477,8 +496,66 @@ export function StoreProvider({ children }) {
       return updated;
     });
 
-    // Add the new order
-    setOrders((prevOrders) => [newOrder, ...prevOrders]);
+    // Add the new order & persist to localStorage with real-time sync
+    setOrders((prevOrders) => {
+      const updated = [newOrder, ...prevOrders];
+      try {
+        localStorage.setItem("mellosoft_orders", JSON.stringify(updated));
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("storage"));
+          window.dispatchEvent(new CustomEvent("mellosoft_orders_updated"));
+        }
+      } catch (e) {
+        console.error("Failed to save orders to localStorage on placeOrder:", e);
+      }
+      return updated;
+    });
+
+    // Also sync/create customer in mellosoft_customers
+    if (typeof window !== "undefined") {
+      try {
+        const savedCusts = localStorage.getItem("mellosoft_customers");
+        let custsList = savedCusts ? JSON.parse(savedCusts) : [];
+        if (!Array.isArray(custsList)) custsList = [];
+
+        const custId = newOrder.customerId || newOrder.userId || currentCustomerId || "C001";
+        const custEmail = newOrder.email || currentCustomer?.email || "customer@mellosoft.com";
+        const custName = newOrder.customerName || newOrder.deliveryAddress?.fullName || currentCustomer?.name || "Customer";
+        const custPhone = newOrder.phone || newOrder.deliveryAddress?.phone || currentCustomer?.phone || "";
+
+        const existingIdx = custsList.findIndex(
+          (c) => c.id === custId || (custEmail && c.email?.toLowerCase() === custEmail.toLowerCase())
+        );
+
+        if (existingIdx >= 0) {
+          custsList[existingIdx] = {
+            ...custsList[existingIdx],
+            name: custName || custsList[existingIdx].name,
+            phone: custPhone || custsList[existingIdx].phone,
+            email: custEmail || custsList[existingIdx].email,
+            status: custsList[existingIdx].status || "Active"
+          };
+        } else {
+          custsList.push({
+            id: custId,
+            name: custName,
+            email: custEmail,
+            phone: custPhone,
+            totalOrders: 1,
+            totalSpent: newOrder.totalAmount || 0,
+            status: "Active",
+            createdAt: new Date().toISOString().split("T")[0]
+          });
+        }
+        localStorage.setItem("mellosoft_customers", JSON.stringify(custsList));
+        window.dispatchEvent(new CustomEvent("mellosoft_customers_updated"));
+      } catch (e) {
+        console.error("Failed to sync customer on placeOrder:", e);
+      }
+    }
+
+    setCart([]);
+    setCheckoutItems([]);
   };
 
   const cancelOrder = (orderId) => {
@@ -646,7 +723,7 @@ export function StoreProvider({ children }) {
         newArrivalItems,
         bestSellerItems,
         currentCustomerId,
-        customerOrders: (orders || []).filter((o) => o.customerId === currentCustomerId),
+        customerOrders: (orders || []).filter((o) => o.customerId === currentCustomerId || o.userId === currentCustomerId || (currentCustomer?.email && o.email?.toLowerCase() === currentCustomer.email.toLowerCase())),
         // Checkout flow state
         checkoutItems,
         setCheckoutItems,

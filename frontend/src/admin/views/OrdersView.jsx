@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { useAdmin } from "../context/AdminContext";
 import DataTable from "../components/DataTable";
 import StatusBadge from "../components/StatusBadge";
-import { X, Package, User, CreditCard, Calendar, Hash } from "lucide-react";
+import { X, Package, User, Calendar, Hash, Search } from "lucide-react";
 import { formatPrice } from "../../utils/currency";
 
 const filterTabs = ["All", "Pending", "Processing", "Confirmed", "Shipped", "Out for Delivery", "Delivered", "Cancelled"];
@@ -15,6 +15,7 @@ const ORDER_STATUS_OPTIONS = ["Pending", "Processing", "Confirmed", "Shipped", "
 export default function OrdersView() {
   const { orders, customers, products, updateOrder, hasPermission } = useAdmin();
   const [activeFilter, setActiveFilter] = useState("All");
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [toast, setToast] = useState(null);
 
@@ -27,9 +28,51 @@ export default function OrdersView() {
 
   const filteredOrders = useMemo(() => {
     if (!orders || orders.length === 0) return [];
-    if (activeFilter === "All") return orders;
-    return orders.filter((o) => o.orderStatus === activeFilter);
-  }, [orders, activeFilter]);
+    
+    let result = orders;
+
+    // 1. Status tab filter
+    if (activeFilter !== "All") {
+      result = result.filter((o) => (o.orderStatus || "").toLowerCase() === activeFilter.toLowerCase());
+    }
+
+    // 2. Search query filter across Order ID, Customer Name/Email/Phone, Products, Payment, Status
+    const q = searchQuery.trim().toLowerCase();
+    if (q) {
+      result = result.filter((o) => {
+        const idMatch = (o.id || o.orderId || "").toLowerCase().includes(q);
+        const cust = (customers || []).find((c) => c.id === o.customerId) || {};
+        const custNameMatch = (o.customerName || cust.name || o.customer || "").toLowerCase().includes(q);
+        const custEmailMatch = (o.email || cust.email || "").toLowerCase().includes(q);
+        const custPhoneMatch = (o.phone || cust.phone || "").toLowerCase().includes(q);
+        const payMethodMatch = (o.paymentMethod || "").toLowerCase().includes(q);
+        const payStatusMatch = (o.paymentStatus || "").toLowerCase().includes(q);
+        const orderStatusMatch = (o.orderStatus || "").toLowerCase().includes(q);
+
+        let productMatch = false;
+        if (Array.isArray(o.items)) {
+          productMatch = o.items.some((i) =>
+            (i.name || i.productName || i.productId || "").toLowerCase().includes(q)
+          );
+        } else if (Array.isArray(o.products)) {
+          productMatch = o.products.some((p) => String(p).toLowerCase().includes(q));
+        }
+
+        return (
+          idMatch ||
+          custNameMatch ||
+          custEmailMatch ||
+          custPhoneMatch ||
+          payMethodMatch ||
+          payStatusMatch ||
+          orderStatusMatch ||
+          productMatch
+        );
+      });
+    }
+
+    return result;
+  }, [orders, activeFilter, searchQuery, customers]);
 
   const columns = [
     { key: "id", label: "ORDER ID", nowrap: true, render: (val) => <span style={{ fontWeight: 600, color: "#1B1F8C" }}>{val}</span> },
@@ -79,7 +122,7 @@ export default function OrdersView() {
   };
 
   return (
-    <div className="admin-fade-in" style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+    <div className="admin-fade-in" style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
       {/* Toast Notification */}
       {toast && (
         <div style={{
@@ -92,6 +135,46 @@ export default function OrdersView() {
         </div>
       )}
 
+      {/* Top Search Bar & Counter Row */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
+        <div style={{ position: "relative", flex: 1, minWidth: "280px" }}>
+          <Search size={18} color="#6B6B75" style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)" }} />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by order ID, customer, product, status..."
+            style={{
+              width: "100%",
+              height: "44px",
+              paddingLeft: "42px",
+              paddingRight: searchQuery ? "38px" : "16px",
+              borderRadius: "12px",
+              border: "1px solid #E7E7E2",
+              backgroundColor: "#FFFFFF",
+              fontSize: "14px",
+              color: "#14151A",
+              boxSizing: "border-box",
+              outline: "none"
+            }}
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              style={{
+                position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)",
+                border: "none", background: "none", cursor: "pointer", color: "#6B6B75", padding: "4px"
+              }}
+            >
+              <X size={16} />
+            </button>
+          )}
+        </div>
+        <div style={{ fontSize: "13px", fontWeight: "600", color: "#6B6B75" }}>
+          Showing {filteredOrders.length} of {orders?.length || 0} orders
+        </div>
+      </div>
+
       {/* Filter Tabs */}
       <div style={{ display: "flex", gap: "4px", backgroundColor: "#FFFFFF", borderRadius: "12px", padding: "4px", border: "1px solid #E7E7E2", flexWrap: "wrap" }}>
         {filterTabs.map((tab) => (
@@ -100,7 +183,7 @@ export default function OrdersView() {
             onClick={() => setActiveFilter(tab)}
             style={{
               height: "38px",
-              padding: "0 20px",
+              padding: "0 18px",
               border: "none",
               borderRadius: "8px",
               fontSize: "13px",
@@ -118,12 +201,16 @@ export default function OrdersView() {
         ))}
       </div>
 
-      {/* Orders Table without Action column */}
+      {/* Orders Table */}
       <DataTable
         columns={columns}
         data={filteredOrders}
         onRowClick={(order) => setSelectedOrderId(order.id)}
-        emptyMessage={`No ${activeFilter.toLowerCase()} orders found.`}
+        emptyMessage={
+          searchQuery
+            ? `No orders found matching "${searchQuery}". Try a different order ID, customer, or product.`
+            : `No ${activeFilter.toLowerCase()} orders found.`
+        }
       />
 
       {/* Order Details Modal loaded by Order ID */}
@@ -327,12 +414,44 @@ function OrderDetailsModal({ orderId, canEdit, onClose, onSave }) {
             );
           })()}
 
-          {/* Payment Method */}
-          {order.paymentMethod && (
-            <div style={{ fontSize: "13px", color: "#6B6B75", padding: "10px 14px", backgroundColor: "#F9FAFB", borderRadius: "8px", border: "1px solid #E5E7EB" }}>
-              <strong style={{ color: "#14151A" }}>Payment Method:</strong> {order.paymentMethod}
+          {/* Payment Breakdown */}
+          <div style={{ border: "1px solid #E7E7E2", borderRadius: "12px", padding: "16px", backgroundColor: "#FFFFFF" }}>
+            <h5 style={{ fontSize: "14px", fontWeight: 700, color: "#14151A", margin: "0 0 12px", display: "flex", alignItems: "center", gap: "8px" }}>
+              <CreditCard size={16} color="#1B1F8C" /> Payment Breakdown
+            </h5>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px", fontSize: "13px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "#6B6B75" }}>Subtotal</span>
+                <span>{formatPrice(order.subtotal || grandTotal)}</span>
+              </div>
+              {Number(order.productDiscount) > 0 && (
+                <div style={{ display: "flex", justifyContent: "space-between", color: "#16A34A" }}>
+                  <span>Product Discount</span>
+                  <span>-{formatPrice(order.productDiscount)}</span>
+                </div>
+              )}
+              {(Number(order.couponDiscount) > 0 || Number(order.discount) > 0) && (
+                <div style={{ display: "flex", justifyContent: "space-between", color: "#16A34A" }}>
+                  <span>Coupon Discount {order.couponCode ? `(${order.couponCode})` : ""}</span>
+                  <span>-{formatPrice(order.couponDiscount || order.discount)}</span>
+                </div>
+              )}
+              {(Number(order.gst) > 0 || Number(order.tax) > 0) && (
+                <div style={{ display: "flex", justifyContent: "space-between", color: "#6B6B75" }}>
+                  <span>GST ({order.gstRate || 18}%)</span>
+                  <span>{formatPrice(order.gst || order.tax)}</span>
+                </div>
+              )}
+              <div style={{ display: "flex", justifyContent: "space-between", color: "#6B6B75" }}>
+                <span>Shipping</span>
+                <span>{order.shipping === 0 || order.delivery === 0 ? "FREE" : formatPrice(order.shipping || order.delivery || 0)}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid #E7E7E2", paddingTop: "8px", marginTop: "4px", fontWeight: 700, fontSize: "15px", color: "#1B1F8C" }}>
+                <span>Total Amount</span>
+                <span>{formatPrice(order.totalAmount || order.total || grandTotal)}</span>
+              </div>
             </div>
-          )}
+          </div>
 
           {/* Status Settings */}
           <div style={{ borderTop: "1px solid #E7E7E2", paddingTop: "16px" }}>

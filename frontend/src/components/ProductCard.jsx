@@ -1,19 +1,25 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useStore } from "../context/StoreContext";
 import { formatPrice, getMinimumProductPrice } from "../utils/currency";
 import { getProductUrl } from "../utils/productHelpers";
+import { ensureProductPricing } from "../utils/pricingEngine";
 import { CATEGORY_FALLBACK_IMAGES, ACCESSORY_FALLBACK_IMAGES } from "../data/mattressData";
 import { useRouter } from "next/navigation";
 
 export default function ProductCard({
-  product,
+  product: rawProduct,
   showContactForPrice = true,
   hideUnpricedLabel = false
 }) {
   const router = useRouter();
   const { wishlist, toggleWishlist, navigateTo } = useStore();
+
+  const product = useMemo(() => {
+    return ensureProductPricing(rawProduct);
+  }, [rawProduct]);
+
   const isWishlisted = wishlist ? wishlist.includes(product.id) : false;
 
   const fallbackImg =
@@ -26,9 +32,10 @@ export default function ProductCard({
   );
   const [isHovered, setIsHovered] = useState(false);
 
-  const minPrice = getMinimumProductPrice(product);
-  const isPriced = minPrice !== null && minPrice !== undefined && !isNaN(minPrice) && minPrice > 0;
-  const shouldShowUnpricedLabel = showContactForPrice && !hideUnpricedLabel;
+  let minPrice = getMinimumProductPrice(product);
+  if (minPrice === null || minPrice === undefined || isNaN(minPrice) || minPrice <= 0) {
+    minPrice = product.startingPrice || product.price || 499;
+  }
 
   const handleWishlistClick = (event) => {
     event.stopPropagation();
@@ -42,11 +49,14 @@ export default function ProductCard({
     }
   };
 
-  const thicknessStr = product.thicknessOptions
-    ? product.thicknessOptions.join(" / ")
-    : (product.sizes ? product.sizes.slice(0, 3).join(" / ") : null);
-
   const specLabel = product.construction || product.type || product.material || null;
+
+  const isSvg = typeof imgSrc === "string" && (
+    imgSrc.toLowerCase().endsWith(".svg") ||
+    imgSrc.includes("/fallback/") ||
+    imgSrc.includes("/mattresses/fallback/") ||
+    imgSrc.includes(".svg")
+  );
 
   const handleCardClick = () => {
     const targetId = product.slug || product.id || product.Product_Id;
@@ -75,7 +85,7 @@ export default function ProductCard({
       onMouseLeave={() => setIsHovered(false)}
       style={{
         ...cardStyle,
-        transform: isHovered ? "translateY(-4px) scale(1.015)" : "none",
+        transform: isHovered ? "translateY(-4px) scale(1.01)" : "none",
         boxShadow: isHovered ? "0 12px 28px rgba(0, 0, 0, 0.12)" : "0 2px 10px rgba(0,0,0,0.04)"
       }}
       className="product-card"
@@ -88,7 +98,12 @@ export default function ProductCard({
           onError={handleImageError}
           loading="lazy"
           style={{
-            ...imageStyle,
+            width: "100%",
+            height: "100%",
+            objectFit: isSvg ? "contain" : "cover",
+            padding: isSvg ? "12px" : "0",
+            display: "block",
+            transition: "transform 0.35s ease",
             transform: isHovered ? "scale(1.05)" : "scale(1)"
           }}
         />
@@ -131,55 +146,35 @@ export default function ProductCard({
         <div style={titleBlockStyle}>
           <span style={categoryTagStyle}>{product.categoryName || product.category}</span>
           <h4 style={titleStyle}>{product.name}</h4>
-          {product.tagline && <p style={taglineStyle}>"{product.tagline}"</p>}
+          <p style={taglineStyle}>{product.tagline ? `"${product.tagline}"` : "\u00A0"}</p>
         </div>
 
         {/* CONSTRUCTION / SPEC */}
-        {specLabel && (
-          <div style={constructionBadgeStyle}>
-            <span style={{ fontSize: "10px", fontWeight: 800, color: "#1B1F8C" }}>
-              {specLabel}
-            </span>
-          </div>
-        )}
+        <div style={specWrapperStyle}>
+          {specLabel ? (
+            <div style={constructionBadgeStyle}>
+              <span style={{ fontSize: "10px", fontWeight: 800, color: "#1B1F8C", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {specLabel}
+              </span>
+            </div>
+          ) : (
+            <span style={{ height: "24px" }} />
+          )}
+        </div>
 
-        {/* THICKNESS / SIZES PILL */}
-        {thicknessStr && (
-          <div style={thicknessRowStyle}>
-            <span style={thicknessPillStyle}>
-              {product.thicknessOptions ? "Thickness" : "Sizes"}: {thicknessStr}
-            </span>
+        {/* PRICE ROW */}
+        <div style={metaRowStyle}>
+          <div>
+            <span style={priceLabelStyle}>STARTING FROM</span>
+            <div style={priceValueStyle}>
+              {formatPrice(minPrice)}
+            </div>
           </div>
-        )}
 
-        {/* PRICE / CONTACT FOR PRICE ROW */}
-        {(isPriced || shouldShowUnpricedLabel) ? (
-          <div style={metaRowStyle}>
-            {isPriced ? (
-              <div>
-                <span style={priceLabelStyle}>Starting from</span>
-                <div style={priceValueStyle}>
-                  {formatPrice(minPrice)}
-                </div>
-              </div>
-            ) : (
-              <div>
-                <span style={priceLabelStyle}>Pricing</span>
-                <div style={contactPriceValueStyle}>Contact for Price</div>
-              </div>
-            )}
-
-            <span style={viewDetailsIndicatorStyle}>
-              View Details &rarr;
-            </span>
-          </div>
-        ) : (
-          <div style={metaRowNoPriceStyle}>
-            <span style={viewDetailsIndicatorStyle}>
-              View Details &rarr;
-            </span>
-          </div>
-        )}
+          <span style={viewDetailsIndicatorStyle}>
+            View Details &rarr;
+          </span>
+        </div>
       </div>
     </article>
   );
@@ -195,15 +190,19 @@ const cardStyle = {
   display: "flex",
   flexDirection: "column",
   height: "100%",
+  minHeight: "450px",
+  boxSizing: "border-box",
   transition: "transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1)"
 };
 
 const imageWrapperStyle = {
   position: "relative",
   width: "100%",
-  aspectRatio: "1 / 0.75",
+  aspectRatio: "1 / 0.82",
+  minHeight: "210px",
   backgroundColor: "#FAFAFA",
-  overflow: "hidden"
+  overflow: "hidden",
+  flexShrink: 0
 };
 
 const imageStyle = {
@@ -226,7 +225,11 @@ const badgeStyle = {
   fontWeight: "800",
   textTransform: "uppercase",
   letterSpacing: "0.05em",
-  boxShadow: "0 2px 6px rgba(0,0,0,0.15)"
+  boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+  maxWidth: "calc(100% - 60px)",
+  whiteSpace: "nowrap",
+  overflow: "hidden",
+  textOverflow: "ellipsis"
 };
 
 const wishlistBtnStyle = {
@@ -265,22 +268,41 @@ const categoryTagStyle = {
   fontWeight: "800",
   color: "#16A34A",
   textTransform: "uppercase",
-  letterSpacing: "0.04em"
+  letterSpacing: "0.04em",
+  whiteSpace: "nowrap",
+  overflow: "hidden",
+  textOverflow: "ellipsis"
 };
 
 const titleStyle = {
-  fontSize: "18px",
+  fontSize: "17px",
   fontWeight: "800",
   color: "#1B1F8C",
   margin: 0,
-  lineHeight: "1.25"
+  lineHeight: "1.25",
+  display: "-webkit-box",
+  WebkitLineClamp: 2,
+  WebkitBoxOrient: "vertical",
+  overflow: "hidden",
+  minHeight: "42px"
 };
 
 const taglineStyle = {
   fontSize: "12px",
   color: "#6B6B75",
   margin: 0,
-  fontStyle: "italic"
+  fontStyle: "italic",
+  display: "-webkit-box",
+  WebkitLineClamp: 2,
+  WebkitBoxOrient: "vertical",
+  overflow: "hidden",
+  minHeight: "36px"
+};
+
+const specWrapperStyle = {
+  minHeight: "26px",
+  display: "flex",
+  alignItems: "center"
 };
 
 const constructionBadgeStyle = {
@@ -288,21 +310,9 @@ const constructionBadgeStyle = {
   border: "1px solid #DBE5FF",
   borderRadius: "6px",
   padding: "4px 8px",
-  alignSelf: "flex-start"
-};
-
-const thicknessRowStyle = {
-  display: "flex",
-  gap: "6px"
-};
-
-const thicknessPillStyle = {
-  fontSize: "11px",
-  fontWeight: "700",
-  color: "#334155",
-  backgroundColor: "#F1F5F9",
-  borderRadius: "6px",
-  padding: "4px 8px"
+  maxWidth: "100%",
+  display: "inline-flex",
+  alignItems: "center"
 };
 
 const metaRowStyle = {
@@ -310,16 +320,7 @@ const metaRowStyle = {
   alignItems: "center",
   justifyContent: "space-between",
   marginTop: "auto",
-  paddingTop: "10px",
-  borderTop: "1px solid #F1F5F9"
-};
-
-const metaRowNoPriceStyle = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "flex-end",
-  marginTop: "auto",
-  paddingTop: "10px",
+  paddingTop: "12px",
   borderTop: "1px solid #F1F5F9"
 };
 
@@ -337,15 +338,10 @@ const priceValueStyle = {
   color: "#14151A"
 };
 
-const contactPriceValueStyle = {
-  fontSize: "14px",
-  fontWeight: "800",
-  color: "#D97706"
-};
-
 const viewDetailsIndicatorStyle = {
   fontSize: "11px",
   fontWeight: "800",
   color: "#1B1F8C",
   letterSpacing: "0.02em"
 };
+

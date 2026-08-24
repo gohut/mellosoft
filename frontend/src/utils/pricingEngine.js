@@ -92,6 +92,7 @@ export function generateMattressPriceMatrix(product) {
 }
 
 /**
+/**
  * Generates deterministic pricing for accessory products.
  */
 export function generateAccessoryPricing(product) {
@@ -105,32 +106,81 @@ export function generateAccessoryPricing(product) {
   let prices = {};
   let sizePrices = {};
 
-  if (cat.includes("memory-foam-pillow") || idStr.includes("memory") || nameStr.includes("memory")) {
-    prices = { "Contour": 1450, "Soap": 1250 };
-  } else if (cat.includes("latex-pillow") || idStr.includes("latex") || nameStr.includes("latex")) {
-    prices = { "Contour": 1850, "Soap": 1650 };
-  } else if (cat.includes("fiber-pillow") || idStr.includes("fiber") || nameStr.includes("fiber")) {
-    prices = { "Small": 550, "Big": 750 };
-  } else if (cat.includes("mattress-protector") || idStr.includes("guard") || idStr.includes("shield") || idStr.includes("protector") || nameStr.includes("shield") || nameStr.includes("guard") || nameStr.includes("protector")) {
-    sizePrices = { "78 x 36": 850, "78 x 48": 1150, "78 x 60": 1450, "78 x 72": 1750 };
-  } else if (cat.includes("fitted-bedspread") || idStr.includes("fit") || nameStr.includes("fit") || nameStr.includes("bedspread")) {
-    sizePrices = { "75 x 36": 950, "75 x 48": 1250, "78 x 60": 1550, "78 x 72": 1850 };
-  } else if (cat.includes("blanket-duvet") || idStr.includes("duvet") || idStr.includes("blanket") || nameStr.includes("duvet") || nameStr.includes("blanket") || nameStr.includes("wrap")) {
-    sizePrices = { "90 x 60": 1950, "100 x 90": 2950 };
-  } else if (cat.includes("travel-bed") || idStr.includes("travel") || idStr.includes("fold") || idStr.includes("roll") || idStr.includes("camp") || nameStr.includes("travel") || nameStr.includes("bed")) {
-    prices = { "Quilt": 2250, "Folding Bed": 3450 };
-  } else {
-    prices = { "Standard": 990 };
+  // Preserve existing numeric prices if provided (e.g. from Admin or pre-set)
+  if (product.prices && typeof product.prices === "object" && Object.keys(product.prices).length > 0) {
+    const hasNumeric = Object.values(product.prices).some((v) => (typeof v === "number" && v > 0) || (v && typeof v === "object"));
+    if (hasNumeric) prices = { ...product.prices };
+  }
+  if (product.sizePrices && typeof product.sizePrices === "object" && Object.keys(product.sizePrices).length > 0) {
+    const hasNumeric = Object.values(product.sizePrices).some((v) => typeof v === "number" && v > 0);
+    if (hasNumeric) sizePrices = { ...product.sizePrices };
   }
 
-  // Adjust base rate by type/quality if applicable
-  if (typeStr.includes("luxury") || typeStr.includes("sovereign") || typeStr.includes("royal") || typeStr.includes("luxe")) {
-    Object.keys(prices).forEach((k) => { prices[k] = roundToNearest50(prices[k] * 1.3); });
-    Object.keys(sizePrices).forEach((k) => { sizePrices[k] = roundToNearest50(sizePrices[k] * 1.3); });
+  // Generate category-specific pricing if not already populated
+  if (Object.keys(prices).length === 0 && Object.keys(sizePrices).length === 0) {
+    if (cat.includes("memory-foam-pillow") || idStr.includes("memory") || nameStr.includes("memory")) {
+      prices = { "Contour": 1450, "Soap": 1250 };
+    } else if (cat.includes("latex-pillow") || idStr.includes("latex") || nameStr.includes("latex")) {
+      prices = { "Contour": 1850, "Soap": 1650 };
+    } else if (cat.includes("fiber-pillow") || idStr.includes("fiber") || nameStr.includes("fiber")) {
+      prices = { "Small": 550, "Big": 750 };
+    } else if (cat.includes("mattress-protector") || cat.includes("protector") || idStr.includes("protector") || nameStr.includes("shield") || nameStr.includes("guard") || nameStr.includes("protector")) {
+      sizePrices = { "78 x 36": 850, "78 x 48": 1150, "78 x 60": 1450, "78 x 72": 1750 };
+    } else if (cat.includes("fitted-bedspread") || cat.includes("bedspread") || idStr.includes("fit") || nameStr.includes("fit") || nameStr.includes("bedspread")) {
+      sizePrices = { "75 x 36": 950, "75 x 48": 1250, "78 x 60": 1550, "78 x 72": 1850 };
+    } else if (cat.includes("blanket-duvet") || cat.includes("duvet") || idStr.includes("duvet") || nameStr.includes("duvet") || nameStr.includes("blanket")) {
+      sizePrices = { "90 x 60": 1950, "100 x 90": 2950 };
+    } else if (cat.includes("travel-bed") || cat.includes("travel") || idStr.includes("travel") || idStr.includes("fold") || nameStr.includes("travel") || nameStr.includes("bed")) {
+      prices = {
+        "Quilt": { "72 x 30": 2250, "72 x 36": 2550, "72 x 48": 2950 },
+        "Folding Bed": { "72 x 30": 3450, "72 x 36": 3850, "72 x 48": 4450 }
+      };
+    } else {
+      prices = { "Standard": 990 };
+    }
+
+    // Apply quality multipliers based on name/type
+    let qualityMultiplier = 1.0;
+    if (typeStr.includes("luxury") || nameStr.includes("sovereign") || nameStr.includes("royal") || nameStr.includes("celestial") || typeStr.includes("sovereign") || typeStr.includes("royal")) {
+      qualityMultiplier = 1.35;
+    } else if (typeStr.includes("premium") || nameStr.includes("plush") || nameStr.includes("hotel") || nameStr.includes("luxe") || typeStr.includes("luxe")) {
+      qualityMultiplier = 1.20;
+    } else if (nameStr.includes("cool") || nameStr.includes("aero") || nameStr.includes("breeze") || nameStr.includes("aqua")) {
+      qualityMultiplier = 1.10;
+    }
+
+    if (qualityMultiplier !== 1.0) {
+      Object.keys(prices).forEach((k) => {
+        if (typeof prices[k] === "number") {
+          prices[k] = roundToNearest50(prices[k] * qualityMultiplier);
+        } else if (prices[k] && typeof prices[k] === "object") {
+          Object.keys(prices[k]).forEach((subK) => {
+            prices[k][subK] = roundToNearest50(prices[k][subK] * qualityMultiplier);
+          });
+        }
+      });
+
+      Object.keys(sizePrices).forEach((k) => {
+        if (typeof sizePrices[k] === "number") {
+          sizePrices[k] = roundToNearest50(sizePrices[k] * qualityMultiplier);
+        }
+      });
+    }
   }
 
-  const allVals = [...Object.values(prices), ...Object.values(sizePrices)].filter((v) => typeof v === "number" && v > 0);
-  const minVal = allVals.length > 0 ? Math.min(...allVals) : 499;
+  // Flatten all numeric prices to compute startingPrice
+  const allVals = [];
+  const extractNumeric = (val) => {
+    if (typeof val === "number" && val > 0) allVals.push(val);
+    else if (val && typeof val === "object") {
+      Object.values(val).forEach(extractNumeric);
+    }
+  };
+
+  Object.values(prices).forEach(extractNumeric);
+  Object.values(sizePrices).forEach(extractNumeric);
+
+  const minVal = allVals.length > 0 ? Math.min(...allVals) : (product.startingPrice || 499);
 
   return { prices, sizePrices, startingPrice: minVal };
 }
@@ -169,14 +219,14 @@ export function ensureProductPricing(product) {
   // 2. Check if product already has explicit matrix pricing from Admin
   if (product.prices && Object.keys(product.prices).length > 0) {
     const validPrices = [];
-    Object.values(product.prices).forEach((tPrices) => {
-      if (tPrices && typeof tPrices === "object") {
-        Object.values(tPrices).forEach((p) => {
-          const val = Number(p);
-          if (Number.isFinite(val) && val > 0) validPrices.push(val);
-        });
-      }
-    });
+    const extractPrices = (obj) => {
+      if (!obj || typeof obj !== "object") return;
+      Object.values(obj).forEach((val) => {
+        if (typeof val === "number" && val > 0) validPrices.push(val);
+        else if (val && typeof val === "object") extractPrices(val);
+      });
+    };
+    extractPrices(product.prices);
 
     if (validPrices.length > 0) {
       const minP = Math.min(...validPrices);
@@ -192,8 +242,21 @@ export function ensureProductPricing(product) {
     }
   }
 
-  // 3. Generate pricing for mattresses
-  const isAccessory = product.category === "accessories" || product.subCategory || (product.category && product.category.includes("pillow"));
+  // 3. Category check for accessory vs mattress
+  const ACCESSORY_CATEGORY_SLUGS = new Set([
+    "accessories",
+    "memory-foam-pillow",
+    "latex-pillow",
+    "fiber-pillow",
+    "mattress-protector",
+    "fitted-bedspread",
+    "blanket-duvet",
+    "travel-bed"
+  ]);
+
+  const catSlug = String(product.category || product.subCategory || "").toLowerCase();
+  const isAccessory = ACCESSORY_CATEGORY_SLUGS.has(catSlug) || catSlug.includes("pillow") || catSlug.includes("protector") || catSlug.includes("bedspread") || catSlug.includes("duvet") || catSlug.includes("travel");
+
   if (!isAccessory) {
     const generatedMatrix = generateMattressPriceMatrix(product);
     const validPrices = [];
@@ -220,8 +283,8 @@ export function ensureProductPricing(product) {
   const { prices: accPrices, sizePrices: accSizePrices, startingPrice: accMin } = generateAccessoryPricing(product);
   return {
     ...product,
-    prices: Object.keys(accPrices).length > 0 ? accPrices : product.prices,
-    sizePrices: Object.keys(accSizePrices).length > 0 ? accSizePrices : product.sizePrices,
+    prices: Object.keys(accPrices).length > 0 ? accPrices : (product.prices || {}),
+    sizePrices: Object.keys(accSizePrices).length > 0 ? accSizePrices : (product.sizePrices || {}),
     startingPrice: accMin,
     price: accMin,
     Actual_Price: accMin,

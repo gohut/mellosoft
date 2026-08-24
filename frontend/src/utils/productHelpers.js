@@ -1,6 +1,7 @@
 /**
  * Authoritative Central Product Lookup & Routing Utilities for Mellosoft
  */
+export { getMinimumProductPrice, formatPrice } from "./currency";
 
 export const ACCESSORY_CATEGORIES = {
   "memory-foam-pillow": {
