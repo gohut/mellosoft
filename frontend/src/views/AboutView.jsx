@@ -371,7 +371,7 @@ export default function AboutView() {
 // Inlined Layout & Design Token Styles
 const containerStyle = {
   width: "100%",
-  backgroundColor: "#F7F7F2",
+  backgroundColor: "#FFFFFF",
   color: "#14151A"
 };
 
@@ -495,7 +495,7 @@ const sectionWhiteStyle = {
 
 const sectionCreamStyle = {
   width: "100%",
-  backgroundColor: "#F7F7F2",
+  backgroundColor: "#FFFFFF",
   borderBottom: "1px solid #E7E7E2"
 };
 

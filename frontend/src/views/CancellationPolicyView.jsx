@@ -156,7 +156,7 @@ export default function CancellationPolicyView() {
 }
 
 const pageWrapperStyle = {
-  backgroundColor: "#F7F7F2",
+  backgroundColor: "#FFFFFF",
   minHeight: "80vh",
   padding: "40px 24px 60px",
   width: "100%",

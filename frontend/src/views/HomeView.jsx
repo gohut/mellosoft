@@ -721,6 +721,7 @@ const quiltTileSVG =
 
 const pageWrapperStyle = {
   width: "100%",
+  minHeight: "100vh",
   backgroundColor: "#F7F7F2",
   position: "relative",
   overflow: "hidden",
