@@ -76,8 +76,7 @@ export function StoreProvider({ children }) {
       { id: "promo-003", visible: true, type: "promo-banner", bannerId: "promo-003" },
       { id: "new-arrivals", visible: true, type: "global" },
       { id: "best-sellers", visible: true, type: "global" },
-      { id: "customer-reviews", visible: true, type: "global" },
-      { id: "about-us", visible: true, type: "global" },
+      { id: "customer-reviews", visible: true, type: "global" }
     ]
   });
 
