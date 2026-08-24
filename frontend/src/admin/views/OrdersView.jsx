@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { useAdmin } from "../context/AdminContext";
 import DataTable from "../components/DataTable";
 import StatusBadge from "../components/StatusBadge";
-import { X, Package, User, Calendar, Hash, Search } from "lucide-react";
+import { X, Package, User, Calendar, Hash, Search, CreditCard } from "lucide-react";
 import { formatPrice } from "../../utils/currency";
 
 const filterTabs = ["All", "Pending", "Processing", "Confirmed", "Shipped", "Out for Delivery", "Delivered", "Cancelled"];
