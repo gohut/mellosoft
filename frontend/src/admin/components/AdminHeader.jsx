@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useAdmin } from "../context/AdminContext";
-import { Search, Bell, Settings, Menu, ChevronRight } from "lucide-react";
+import { Bell, Settings, Menu, ChevronRight } from "lucide-react";
 
 const viewTitles = {
   dashboard: "Dashboard",
@@ -126,32 +126,8 @@ export default function AdminHeader() {
         </nav>
       </div>
 
-      {/* Right: search, notifications, profile */}
-      <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
-        {/* Search (desktop only) */}
-        <div className="admin-desktop-only" style={{ position: "relative", width: "220px" }}>
-          <Search size={16} color="#6B6B75" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)" }} />
-          <input
-            type="text"
-            placeholder="Search..."
-            style={{
-              width: "100%",
-              height: "38px",
-              border: "1px solid #E7E7E2",
-              borderRadius: "10px",
-              padding: "0 14px 0 38px",
-              fontSize: "13px",
-              color: "#14151A",
-              backgroundColor: "#FAFAF7",
-              fontFamily: "inherit",
-              outline: "none",
-              transition: "border-color 0.2s ease",
-            }}
-            onFocus={(e) => { e.target.style.borderColor = "#1B1F8C"; }}
-            onBlur={(e) => { e.target.style.borderColor = "#E7E7E2"; }}
-          />
-        </div>
-
+      {/* Right: notifications, profile */}
+      <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0, marginLeft: "auto" }}>
         {/* Notifications */}
         <div style={{ position: "relative" }}>
           <button

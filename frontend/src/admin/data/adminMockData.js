@@ -363,14 +363,14 @@ export const MOCK_ORDERS = [
 
 // Normalized Mock Customers
 export const MOCK_CUSTOMERS = [
-  { id: "C001", name: "Rahul Sharma", email: "rahul@example.com", phone: "+91 98765 43210", status: "Active", avatar: "R", createdAt: "2026-01-15", lastLogin: "2026-08-10 14:32" },
-  { id: "C002", name: "Priya Patel", email: "priya@example.com", phone: "+91 87654 32109", status: "Active", avatar: "P", createdAt: "2026-02-01", lastLogin: "2026-08-09 11:20" },
-  { id: "C003", name: "Ankit Gupta", email: "ankit@example.com", phone: "+91 76543 21098", status: "Active", avatar: "A", createdAt: "2026-03-10", lastLogin: "2026-08-08 16:45" },
-  { id: "C004", name: "Sneha Reddy", email: "sneha@example.com", phone: "+91 65432 10987", status: "Active", avatar: "S", createdAt: "2026-04-12", lastLogin: "2026-07-30 09:15" },
-  { id: "C005", name: "Vikram Singh", email: "vikram@example.com", phone: "+91 54321 09876", status: "Active", avatar: "V", createdAt: "2026-05-20", lastLogin: "2026-07-30 18:22" },
-  { id: "C006", name: "Meera Joshi", email: "meera@example.com", phone: "+91 43210 98765", status: "Active", avatar: "M", createdAt: "2026-06-05", lastLogin: "2026-07-29 12:10" },
-  { id: "C007", name: "Arjun Nair", email: "arjun@example.com", phone: "+91 32109 87654", status: "Inactive", avatar: "A", createdAt: "2026-06-18", lastLogin: "2026-07-25 14:05" },
-  { id: "C008", name: "Kavitha Menon", email: "kavitha@example.com", phone: "+91 21098 76543", status: "Active", avatar: "K", createdAt: "2026-07-01", lastLogin: "2026-07-27 10:30" },
+  { id: "C001", customerId: "CUS-0001", name: "Rahul Sharma", email: "rahul@example.com", phone: "+91 98765 43210", status: "Active", avatar: "R", createdAt: "2026-01-15", lastLogin: "2026-08-10 14:32" },
+  { id: "C002", customerId: "CUS-0002", name: "Priya Patel", email: "priya@example.com", phone: "+91 87654 32109", status: "Active", avatar: "P", createdAt: "2026-02-01", lastLogin: "2026-08-09 11:20" },
+  { id: "C003", customerId: "CUS-0003", name: "Ankit Gupta", email: "ankit@example.com", phone: "+91 76543 21098", status: "Active", avatar: "A", createdAt: "2026-03-10", lastLogin: "2026-08-08 16:45" },
+  { id: "C004", customerId: "CUS-0004", name: "Sneha Reddy", email: "sneha@example.com", phone: "+91 65432 10987", status: "Active", avatar: "S", createdAt: "2026-04-12", lastLogin: "2026-07-30 09:15" },
+  { id: "C005", customerId: "CUS-0005", name: "Vikram Singh", email: "vikram@example.com", phone: "+91 54321 09876", status: "Active", avatar: "V", createdAt: "2026-05-20", lastLogin: "2026-07-30 18:22" },
+  { id: "C006", customerId: "CUS-0006", name: "Meera Joshi", email: "meera@example.com", phone: "+91 43210 98765", status: "Active", avatar: "M", createdAt: "2026-06-05", lastLogin: "2026-07-29 12:10" },
+  { id: "C007", customerId: "CUS-0007", name: "Arjun Nair", email: "arjun@example.com", phone: "+91 32109 87654", status: "Inactive", avatar: "A", createdAt: "2026-06-18", lastLogin: "2026-07-25 14:05" },
+  { id: "C008", customerId: "CUS-0008", name: "Kavitha Menon", email: "kavitha@example.com", phone: "+91 21098 76543", status: "Active", avatar: "K", createdAt: "2026-07-01", lastLogin: "2026-07-27 10:30" },
 ];
 
 // Normalized Mock Wishlists
@@ -497,13 +497,14 @@ export const MOCK_CARTS = [
 
 // Mock reviews for moderation
 export const MOCK_REVIEWS = [
-  { id: "RV001", customerId: "C001", customer: "Helen M.", customerName: "Helen M.", productId: "classic-mattress", product: "Mellosoft Classic Mattress", productName: "Mellosoft Classic Mattress", rating: 5, review: "Excellent mattress! It conforms to the body and turns very sharply on the comfort. Best sleep I've had in years.", comment: "Excellent mattress! It conforms to the body and turns very sharply on the comfort. Best sleep I've had in years.", date: "2026-08-01", status: "Approved" },
-  { id: "RV002", customerId: "C002", customer: "Michael F.", customerName: "Michael F.", productId: "luxe-hybrid", product: "Mellosoft Luxe Hybrid", productName: "Mellosoft Luxe Hybrid", rating: 5, review: "This hybrid is outstanding. The pocket coils give it a nice bounce while the foam top cradles your body.", comment: "This hybrid is outstanding. The pocket coils give it a nice bounce while the foam top cradles your body.", date: "2026-07-31", status: "Approved" },
-  { id: "RV003", customerId: "C003", customer: "Diana C.", customerName: "Diana C.", productId: "latex-serene", product: "Mellosoft Latex Serene", productName: "Mellosoft Latex Serene", rating: 5, review: "I wanted a chemical-free mattress and this is perfect. It smells like sweet natural wool.", comment: "I wanted a chemical-free mattress and this is perfect. It smells like sweet natural wool.", date: "2026-07-30", status: "Pending" },
-  { id: "RV004", customerId: "C004", customer: "Gregory P.", customerName: "Gregory P.", productId: "ortho-support", product: "Mellosoft Ortho Support", productName: "Mellosoft Ortho Support", rating: 5, review: "Finally, a mattress that is actually firm. My chiropractor recommended it and it has drastically reduced my back aches.", comment: "Finally, a mattress that is actually firm. My chiropractor recommended it and it has drastically reduced my back aches.", date: "2026-07-29", status: "Approved" },
-  { id: "RV005", customerId: "C005", customer: "Laura W.", customerName: "Laura W.", productId: "ergo-air", product: "Mellosoft Ergo Air", productName: "Mellosoft Ergo Air", rating: 5, review: "This mattress is insanely comfortable. Like a soft hug but still supports you.", comment: "This mattress is insanely comfortable. Like a soft hug but still supports you.", date: "2026-07-28", status: "Pending" },
-  { id: "RV006", customerId: "C006", customer: "Tyler F.", customerName: "Tyler F.", productId: "organic-protector", product: "Organic Mattress Protector", productName: "Organic Mattress Protector", rating: 5, review: "Saved our new mattress from a coffee spill on day three. Totally waterproof. Lifesaver.", comment: "Saved our new mattress from a coffee spill on day three. Totally waterproof. Lifesaver.", date: "2026-07-27", status: "Approved" },
-  { id: "RV007", customerId: "C007", customer: "Anonymous", customerName: "Anonymous", productId: "classic-mattress", product: "Mellosoft Classic Mattress", productName: "Mellosoft Classic Mattress", rating: 1, review: "Very bad quality. Do not buy.", comment: "Very bad quality. Do not buy.", date: "2026-07-26", status: "Rejected" },
+  { id: "RV000", customerId: "CUS-0001", customer: "Rahul Sharma", customerName: "Rahul Sharma", author: "Rahul Sharma", productId: "oak-bedframe", product: "Oak Bed Frame", productName: "Oak Bed Frame", rating: 3, review: "love u", comment: "love u", feedback: "love u", date: "2026-08-25", status: "Approved", showOnHome: false, verifiedPurchase: true, images: ["/asset/img1.jpg"] },
+  { id: "RV001", customerId: "C001", customer: "Helen M.", customerName: "Helen M.", productId: "classic-mattress", product: "Mellosoft Classic Mattress", productName: "Mellosoft Classic Mattress", rating: 5, review: "Excellent mattress! It conforms to the body and turns very sharply on the comfort. Best sleep I've had in years.", comment: "Excellent mattress! It conforms to the body and turns very sharply on the comfort. Best sleep I've had in years.", date: "2026-08-01", status: "Approved", showOnHome: true },
+  { id: "RV002", customerId: "C002", customer: "Michael F.", customerName: "Michael F.", productId: "luxe-hybrid", product: "Mellosoft Luxe Hybrid", productName: "Mellosoft Luxe Hybrid", rating: 5, review: "This hybrid is outstanding. The pocket coils give it a nice bounce while the foam top cradles your body.", comment: "This hybrid is outstanding. The pocket coils give it a nice bounce while the foam top cradles your body.", date: "2026-07-31", status: "Approved", showOnHome: true },
+  { id: "RV003", customerId: "C003", customer: "Diana C.", customerName: "Diana C.", productId: "latex-serene", product: "Mellosoft Latex Serene", productName: "Mellosoft Latex Serene", rating: 5, review: "I wanted a chemical-free mattress and this is perfect. It smells like sweet natural wool.", comment: "I wanted a chemical-free mattress and this is perfect. It smells like sweet natural wool.", date: "2026-07-30", status: "Pending", showOnHome: false },
+  { id: "RV004", customerId: "C004", customer: "Gregory P.", customerName: "Gregory P.", productId: "ortho-support", product: "Mellosoft Ortho Support", productName: "Mellosoft Ortho Support", rating: 5, review: "Finally, a mattress that is actually firm. My chiropractor recommended it and it has drastically reduced my back aches.", comment: "Finally, a mattress that is actually firm. My chiropractor recommended it and it has drastically reduced my back aches.", date: "2026-07-29", status: "Approved", showOnHome: true },
+  { id: "RV005", customerId: "C005", customer: "Laura W.", customerName: "Laura W.", productId: "ergo-air", product: "Mellosoft Ergo Air", productName: "Mellosoft Ergo Air", rating: 5, review: "This mattress is insanely comfortable. Like a soft hug but still supports you.", comment: "This mattress is insanely comfortable. Like a soft hug but still supports you.", date: "2026-07-28", status: "Pending", showOnHome: false },
+  { id: "RV006", customerId: "C006", customer: "Tyler F.", customerName: "Tyler F.", productId: "organic-protector", product: "Organic Mattress Protector", productName: "Organic Mattress Protector", rating: 5, review: "Saved our new mattress from a coffee spill on day three. Totally waterproof. Lifesaver.", comment: "Saved our new mattress from a coffee spill on day three. Totally waterproof. Lifesaver.", date: "2026-07-27", status: "Approved", showOnHome: true },
+  { id: "RV007", customerId: "C007", customer: "Anonymous", customerName: "Anonymous", productId: "classic-mattress", product: "Mellosoft Classic Mattress", productName: "Mellosoft Classic Mattress", rating: 1, review: "Very bad quality. Do not buy.", comment: "Very bad quality. Do not buy.", date: "2026-07-26", status: "Rejected", showOnHome: false },
 ];
 
 // Mock coupons
@@ -515,13 +516,27 @@ export const MOCK_COUPONS = [
   { id: "CP005", code: "FREESHIP", discount: "Free Shipping", type: "shipping", usageCount: 210, usageLimit: 0, expiryDate: "2026-12-31", status: "Active" },
 ];
 
-// Mock categories
+// Mock categories (Hierarchical Structure)
 export const MOCK_CATEGORIES = [
-  { id: "CAT001", name: "Mattresses", slug: "mattress", productCount: 5, image: "/asset/img1.jpg", description: "Premium sleep mattresses" },
-  { id: "CAT002", name: "Pillows", slug: "pillows", productCount: 1, image: "/asset/pillow.png", description: "Luxury comfort pillows" },
-  { id: "CAT003", name: "Bed Frames", slug: "bed frames", productCount: 1, image: "/asset/bedframe.png", description: "Solid wood bed frames" },
-  { id: "CAT004", name: "Protectors", slug: "protectors", productCount: 1, image: "/asset/texture.png", description: "Mattress protectors" },
-  { id: "CAT005", name: "Accessories", slug: "accessories", productCount: 0, image: "/asset/texture.png", description: "Sleep accessories" },
+  // Top-Level Groups
+  { id: "CAT-MATTRESSES", name: "Mattresses", slug: "mattresses", parentId: null, isParent: true, image: "/asset/cat-memory-foam.svg", description: "Premium sleep mattresses" },
+  { id: "CAT-ACCESSORIES", name: "Accessories", slug: "accessories", parentId: null, isParent: true, image: "/asset/cat-pillows.svg", description: "Luxury sleep accessories" },
+
+  // Mattress Subcategories
+  { id: "foam", name: "Foam Mattress", slug: "foam", parentId: "CAT-MATTRESSES", parentSlug: "mattresses", image: "/asset/cat-memory-foam.svg", description: "Simple, supportive comfort designed for everyday rest." },
+  { id: "ortho", name: "Ortho Mattress", slug: "ortho", parentId: "CAT-MATTRESSES", parentSlug: "mattresses", image: "/asset/cat-firm.svg", description: "Balanced firmness and dependable orthopedic support." },
+  { id: "spring", name: "Spring Mattress", slug: "spring", parentId: "CAT-MATTRESSES", parentSlug: "mattresses", image: "/asset/cat-hybrid.svg", description: "Responsive support with breathable spring coils." },
+  { id: "latex", name: "Latex Mattress", slug: "latex", parentId: "CAT-MATTRESSES", parentSlug: "mattresses", image: "/asset/cat-firm.svg", description: "Naturally responsive comfort with premium resilience." },
+  { id: "memory-foam", name: "Memory Foam Mattress", slug: "memory-foam", parentId: "CAT-MATTRESSES", parentSlug: "mattresses", image: "/asset/cat-memory-foam.svg", description: "Adaptive comfort designed to contour around you." },
+
+  // Accessory Subcategories
+  { id: "memory-foam-pillow", name: "Memory Foam Pillow", slug: "memory-foam-pillow", parentId: "CAT-ACCESSORIES", parentSlug: "accessories", image: "/asset/cat-pillows.svg", description: "Adaptive memory foam pillows for neck support." },
+  { id: "latex-pillow", name: "Latex Pillow", slug: "latex-pillow", parentId: "CAT-ACCESSORIES", parentSlug: "accessories", image: "/asset/cat-pillows.svg", description: "Naturally responsive, breathable latex pillows." },
+  { id: "fiber-pillow", name: "Fiber Pillow", slug: "fiber-pillow", parentId: "CAT-ACCESSORIES", parentSlug: "accessories", image: "/asset/cat-pillows.svg", description: "Soft, lightweight fiber pillows for everyday comfort." },
+  { id: "mattress-protector", name: "Mattress Protector", slug: "mattress-protector", parentId: "CAT-ACCESSORIES", parentSlug: "accessories", image: "/asset/cat-protectors.svg", description: "Fitted waterproof protection for your mattress." },
+  { id: "fitted-bedspread", name: "Fitted Bedspread", slug: "fitted-bedspread", parentId: "CAT-ACCESSORIES", parentSlug: "accessories", image: "/asset/cat-protectors.svg", description: "Clean fitted bedspreads for a neat bedroom look." },
+  { id: "blanket-duvet", name: "Blanket / Duvet", slug: "blanket-duvet", parentId: "CAT-ACCESSORIES", parentSlug: "accessories", image: "/asset/cat-protectors.svg", description: "Cozy blankets & duvets for all seasons." },
+  { id: "travel-bed", name: "Travel Bed", slug: "travel-bed", parentId: "CAT-ACCESSORIES", parentSlug: "accessories", image: "/asset/cat-bedframes.svg", description: "Portable quilt & folding beds for travel and guests." }
 ];
 
 // Mock inventory
@@ -549,14 +564,16 @@ export const RECENT_ACTIVITY = [
   { id: 7, type: "order", text: "Sneha Reddy's order #MS-92838 delivered", time: "1 day ago" },
 ];
 
-// Mock promotional banners
+// Mock promotional banners & hero slides
 export const MOCK_BANNERS = [
+  // Hero Slides (type: "Offer")
   {
-    id: "banner-001",
-    title: "Enjoy 60% savings",
+    id: "hero-001",
+    productId: "classic-mattress",
+    title: "Mellosoft Classic Mattress",
     type: "Offer",
     image: "/asset/img2.jpg",
-    subtitle: "Limited mattress event",
+    subtitle: "Enjoy 60% savings",
     description: "Handcrafted memory foam & hybrid mattresses at up to 60% off.",
     ctaText: "Shop Now",
     ctaLink: "mattress",
@@ -564,7 +581,60 @@ export const MOCK_BANNERS = [
     displayOrder: 1
   },
   {
-    id: "banner-002",
+    id: "hero-002",
+    productId: "luxe-hybrid",
+    title: "Mellosoft Luxe Hybrid",
+    type: "Offer",
+    image: "/asset/img1.jpg",
+    subtitle: "Luxe Hybrid Comfort",
+    description: "Pocket coil bounce meets pressure-relieving memory foam layer.",
+    ctaText: "Shop Now",
+    ctaLink: "mattress",
+    isActive: true,
+    displayOrder: 2
+  },
+  {
+    id: "hero-003",
+    productId: "ortho-support",
+    title: "Mellosoft Ortho Support",
+    type: "Offer",
+    image: "/asset/img2.jpg",
+    subtitle: "Spinal Alignment Care",
+    description: "Extra firm orthopedic support for healthy spinal posture.",
+    ctaText: "Shop Now",
+    ctaLink: "mattress",
+    isActive: true,
+    displayOrder: 3
+  },
+  {
+    id: "hero-004",
+    productId: "ergo-air",
+    title: "Mellosoft Ergo Air",
+    type: "Offer",
+    image: "/asset/img1.jpg",
+    subtitle: "Breathable Airflow Tech",
+    description: "Advanced cooling gel foam with ergonomic body contours.",
+    ctaText: "Shop Now",
+    ctaLink: "mattress",
+    isActive: true,
+    displayOrder: 4
+  },
+
+  // 3 Homepage Promo Banners (type: "Promotion")
+  {
+    id: "promo-001",
+    title: "Classic Comfort",
+    type: "Promotion",
+    image: "/asset/img2.jpg",
+    subtitle: "Limited Mattress Event",
+    description: "Handcrafted memory foam & hybrid mattresses at up to 60% off.",
+    ctaText: "Shop Now",
+    ctaLink: "mattress",
+    isActive: true,
+    displayOrder: 1
+  },
+  {
+    id: "promo-002",
     title: "Get 30% off essentials",
     type: "Promotion",
     image: "/asset/pillow.png",
@@ -576,9 +646,9 @@ export const MOCK_BANNERS = [
     displayOrder: 2
   },
   {
-    id: "banner-003",
+    id: "promo-003",
     title: "Free assembly included",
-    type: "New Arrival",
+    type: "Promotion",
     image: "/asset/bedframe.png",
     subtitle: "New bed frame collection",
     description: "Handcrafted platform frames made from solid sustainable oak.",
@@ -588,3 +658,4 @@ export const MOCK_BANNERS = [
     displayOrder: 3
   }
 ];
+

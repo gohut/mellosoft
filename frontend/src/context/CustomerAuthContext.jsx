@@ -123,9 +123,12 @@ export function CustomerAuthProvider({ children }) {
       return { success: false, error: "An account with this email already exists." };
     }
 
-    const newId = `C${String(customers.length + 1).padStart(3, "0")}`;
+    const nextIndex = customers.length + 1;
+    const newId = `C${String(nextIndex).padStart(3, "0")}`;
+    const formattedCustId = `CUS-${String(nextIndex).padStart(4, "0")}`;
     const newCustomer = {
       id: newId,
+      customerId: formattedCustId,
       name: trimmedName,
       email: trimmedEmail,
       phone: trimmedPhone || "+91 98765 43210",

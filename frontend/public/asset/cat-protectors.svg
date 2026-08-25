@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 340" width="100%" height="100%" fill="none">
+  <defs>
+    <filter id="shadow-prot" x="-10%" y="-10%" width="130%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="10" flood-color="#D97706" flood-opacity="0.16"/>
+    </filter>
+    <linearGradient id="protectorQuilt" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#FEFCE8"/>
+    </linearGradient>
+    <linearGradient id="elasticSkirt" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#CA8A04"/>
+      <stop offset="100%" stop-color="#EAB308"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Ground Contact Shadow -->
+  <ellipse cx="250" cy="275" rx="190" ry="25" fill="#0F172A" opacity="0.12"/>
+
+  <!-- 3/4 Isometric Mattress Protector Fitted Cover Layer -->
+  <g filter="url(#shadow-prot)">
+    <!-- Base Mattress Core underneath -->
+    <path d="M60 165 L250 245 L250 270 L60 190 Z" fill="#94A3B8"/>
+    <path d="M250 245 L440 165 L440 190 L250 270 Z" fill="#64748B"/>
+    
+    <!-- Fitted Protector Surface Top -->
+    <path d="M60 140 L250 220 L440 140 L250 60 Z" fill="url(#protectorQuilt)" stroke="#FEF08A" stroke-width="1.5"/>
+
+    <!-- Quilted Diamond Waterproof Pattern -->
+    <path d="M100 120 L250 180 M140 100 L290 160 M180 80 L330 140 M220 60 L370 120" stroke="#EAB308" stroke-width="1.2" stroke-dasharray="3 3" opacity="0.5"/>
+    <path d="M200 160 L60 100 M250 140 L110 80 M300 120 L160 60 M350 100 L210 40" stroke="#EAB308" stroke-width="1.2" stroke-dasharray="3 3" opacity="0.5"/>
+
+    <!-- Fitted Elastic Skirt Hugging Side Left -->
+    <path d="M60 140 L250 220 L250 242 L60 162 Z" fill="url(#elasticSkirt)" opacity="0.9"/>
+    <!-- Fitted Elastic Skirt Hugging Side Right -->
+    <path d="M250 220 L440 140 L440 162 L250 242 Z" fill="#A16207" opacity="0.9"/>
+
+    <!-- Elastic Skirt Ribbed Fabric Texture -->
+    <path d="M80 149 V169 M110 162 V182 M140 174 V194 M170 187 V207 M200 200 V220 M230 212 V232" stroke="#FEF08A" stroke-width="1" opacity="0.6"/>
+
+    <!-- Waterproof Shield Badge Icon -->
+    <g transform="translate(235, 110)">
+      <path d="M15 0 L30 8 V20 C30 30 15 38 15 38 C15 38 0 30 0 20 V8 L15 0 Z" fill="#CA8A04" opacity="0.9"/>
+      <path d="M10 18 L14 22 L22 13" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+
+    <!-- Seamless Fitted Corner Elastic Edge -->
+    <path d="M60 140 L250 220 L440 140" fill="none" stroke="#CA8A04" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- Mellosoft Brand Tag -->
+    <rect x="135" y="185" width="46" height="12" rx="3" fill="#FFFFFF" transform="skewY(23)"/>
+    <text x="141" y="194" font-family="-apple-system, sans-serif" font-size="6" font-weight="900" fill="#CA8A04" transform="skewY(23)">PROTECT</text>
+  </g>
+</svg>

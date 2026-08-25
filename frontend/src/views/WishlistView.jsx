@@ -7,11 +7,12 @@ import ProductCard from "../components/ProductCard";
 import EmptyState from "../components/EmptyState";
 
 export default function WishlistView() {
-  const { wishlist, toggleWishlist, moveToCart, navigateTo } = useStore();
+  const { wishlist, toggleWishlist, moveToCart, navigateTo, products } = useStore();
 
   const savedProducts = useMemo(() => {
-    return MOCK_PRODUCTS.filter((product) => wishlist.includes(product.id));
-  }, [wishlist]);
+    const list = (products && products.length > 0) ? products : MOCK_PRODUCTS;
+    return list.filter((product) => wishlist.includes(product.id));
+  }, [wishlist, products]);
 
   const handleClearAll = () => {
     // Toggle all items off
@@ -63,7 +64,7 @@ export default function WishlistView() {
       {/* Grid of Saved Cards */}
       <div style={gridStyle} className="wishlist-grid">
         {savedProducts.map((product) => (
-          <div key={product.id} style={{ position: "relative" }}>
+          <div key={product.id} style={{ position: "relative", height: "100%" }}>
             <ProductCard product={product} />
             
             {/* Overlay a explicit Remove & Move to Cart panel below or around if needed */}
@@ -119,7 +120,9 @@ export default function WishlistView() {
 const containerStyle = {
   width: "100%",
   padding: "40px 48px 80px 48px",
-  boxSizing: "border-box"
+  boxSizing: "border-box",
+  backgroundColor: "#FFFFFF",
+  minHeight: "calc(100vh - 160px)",
 };
 
 const headerStyle = {
@@ -184,7 +187,11 @@ const emptyWrapperStyle = {
   display: "flex",
   justifyContent: "center",
   alignItems: "center",
-  padding: "80px 0"
+  padding: "80px 24px",
+  width: "100%",
+  boxSizing: "border-box",
+  backgroundColor: "#FFFFFF",
+  minHeight: "calc(100vh - 160px)",
 };
 
 // Wishlist Specific Card Footer Overlay
@@ -192,10 +199,11 @@ const wishlistCardOverlayStyle = {
   display: "flex",
   justifyContent: "space-between",
   alignItems: "center",
-  backgroundColor: "#F7F7F2",
+  backgroundColor: "#FFFFFF",
   padding: "10px 16px",
   borderRadius: 0,
-  marginTop: "10px"
+  marginTop: "10px",
+  border: "1px solid #E2E8F0"
 };
 
 const cardMoveCartBtnStyle = {

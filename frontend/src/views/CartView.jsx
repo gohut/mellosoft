@@ -1,105 +1,44 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { useStore } from "../context/StoreContext";
 import QuantityStepper from "../components/QuantityStepper";
 import EmptyState from "../components/EmptyState";
 import { formatPrice } from "../utils/currency";
 
 export default function CartView() {
-  const { cart, updateQty, removeFromCart, clearCart, navigateTo, placeOrder, products, currentCustomerId } = useStore();
-  const [checkoutStep, setCheckoutStep] = useState("cart"); // "cart" | "success"
-  const [orderNumber, setOrderNumber] = useState("");
+  const { cart, updateQty, removeFromCart, clearCart, navigateTo, products, currentCustomerId, setCheckoutItems } = useStore();
 
-  const subtotal = cart.reduce((acc, item) => acc + item.price * item.qty, 0);
-  const delivery = subtotal > 150 ? 0 : 30.0;
+  const subtotal = cart.reduce((acc, item) => acc + (item.price || item.discountPrice || 0) * (item.qty || item.quantity || 1), 0);
+  const delivery = subtotal >= 5000 || subtotal === 0 ? 0 : 150;
   const total = subtotal + delivery;
 
   const handleCheckout = () => {
-    // Generate a random order number
-    const rand = Math.floor(100000 + Math.random() * 900000);
-    const newOrderId = `MS-${rand}`;
-    setOrderNumber(newOrderId);
-
-    // Build relational order item array
-    const orderItems = cart.map((item) => {
-      const prod = (products || []).find((p) => p.id === item.id);
+    // Enrich cart items with full checkout fields and route to checkout
+    const enrichedItems = cart.map((item) => {
+      const prod = (products || []).find((p) => p.id === (item.productId || item.id));
       return {
-        productId: item.id,
-        name: item.name || prod?.name || "Product",
-        variantSize: item.size || "Queen",
-        variantFirmness: item.firmness || "Medium",
-        variantSKU: item.sku || `MEL-${(item.size || "QUEEN").toUpperCase().slice(0, 3)}-${(item.firmness || "MEDIUM").toUpperCase().slice(0, 3)}`,
-        quantity: item.qty,
-        price: item.price,
-        actualPrice: item.price,
-        discountPercent: prod?.discountPercent || 10,
-        image: item.image || prod?.images?.[0] || "/asset/img1.jpg",
+        ...item,
+        productId: item.productId || item.id,
+        productName: item.productName || item.name || prod?.name || "Product",
+        name: item.name || item.productName || prod?.name || "Product",
+        category: item.category || prod?.category || "mattress",
+        size: item.size || "Queen",
+        firmness: item.firmness || "Medium",
+        sku: item.sku || `MEL-${(item.size || "QUEEN").toUpperCase()}-${(item.firmness || "MEDIUM").toUpperCase()}`,
+        quantity: item.qty || item.quantity || 1,
+        qty: item.qty || item.quantity || 1,
+        actualPrice: item.actualPrice || item.price || 0,
+        price: item.price || item.discountPrice || 0,
+        discountPrice: item.discountPrice || item.price || 0,
+        image: item.image || prod?.images?.[0] || "/asset/img1.jpg"
       };
     });
 
-    const newOrder = {
-      id: newOrderId,
-      customerId: currentCustomerId || "C001",
-      items: orderItems,
-      totalAmount: total,
-      subtotal: subtotal,
-      delivery: delivery,
-      paymentStatus: "Paid",
-      orderStatus: "Processing",
-      createdAt: new Date().toISOString().split("T")[0],
-      shippingAddress: {
-        name: "Rahul Sharma",
-        street: "123 Green Park Extension",
-        city: "New Delhi",
-        state: "Delhi",
-        zip: "110016",
-        phone: "+91 98765 43210"
-      },
-      paymentMethod: "Credit Card (Visa ending in 4242)"
-    };
-
-    placeOrder(newOrder);
-    setCheckoutStep("success");
-    clearCart();
+    setCheckoutItems(enrichedItems);
+    navigateTo("checkout");
   };
 
-  // Sleep Tip of the Day for checkout success screen
-  const sleepTips = [
-    "Keep your bedroom cool (around 65°F / 18°C) for the deepest, most restorative sleep cycle.",
-    "Try to maintain a consistent sleep schedule, even on weekends, to regulate your circadian rhythm.",
-    "Avoid screens and bright blue lights at least 45 minutes before climbing into your Mellosoft bed.",
-    "Engaging in light stretching or deep breathing exercises before bed signals your body it is time to sleep."
-  ];
-  const [randomTip] = useState(() => sleepTips[Math.floor(Math.random() * sleepTips.length)]);
-
-  if (checkoutStep === "success") {
-    return (
-      <div style={successContainerStyle}>
-        <div style={successCardStyle} className="hover-lift">
-          <div style={successIconWrapperStyle}>
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="3">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-          </div>
-          <h2 style={successTitleStyle}>Your Order is Placed!</h2>
-          <p style={successOrderStyle}>Order ID: <strong>{orderNumber}</strong></p>
-          <p style={successDescStyle}>
-            Thank you for choosing Mellosoft. We have sent a confirmation email to your address. Your sleep products will arrive in 2-5 business days.
-          </p>
-
-          <div style={tipBoxStyle}>
-            <h5 style={tipTitleStyle}>💡 Sleep Tip of the Day</h5>
-            <p style={tipTextStyle}>{randomTip}</p>
-          </div>
-
-          <button onClick={() => navigateTo("home")} style={successHomeBtnStyle} className="hover-lift">
-            Return to Home
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   if (cart.length === 0) {
     return (
@@ -227,8 +166,10 @@ export default function CartView() {
 // Styling Object Configurations
 const containerStyle = {
   width: "100%",
-  padding: "20px 48px 80px 48px",
-  boxSizing: "border-box"
+  padding: "32px 48px 80px 48px",
+  boxSizing: "border-box",
+  backgroundColor: "#FFFFFF",
+  minHeight: "calc(100vh - 160px)",
 };
 
 const pageTitleStyle = {
@@ -254,11 +195,12 @@ const itemsListColStyle = {
 // Item Card
 const itemCardStyle = {
   backgroundColor: "#FFFFFF",
-  borderRadius: 0,
-  boxShadow: "none",
-  border: "1px solid #E7E7E2",
+  borderRadius: "12px",
+  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)",
+  border: "1px solid #E2E8F0",
   padding: 0,
   display: "flex",
+  overflow: "hidden",
   gap: 0,
 };
 
@@ -347,7 +289,9 @@ const summaryColStyle = {
 
 const summaryCardStyle = {
   backgroundColor: "#FFFFFF",
-  borderRadius: 0,
+  borderRadius: "16px",
+  border: "1px solid #E2E8F0",
+  boxShadow: "0 4px 16px rgba(0, 0, 0, 0.04)",
   padding: "30px 24px",
 };
 
@@ -420,7 +364,11 @@ const emptyWrapperStyle = {
   display: "flex",
   justifyContent: "center",
   alignItems: "center",
-  padding: "80px 0"
+  padding: "80px 24px",
+  width: "100%",
+  boxSizing: "border-box",
+  backgroundColor: "#FFFFFF",
+  minHeight: "calc(100vh - 160px)",
 };
 
 // Checkout Success Styles

@@ -8,11 +8,11 @@ import { Star, CheckCircle2, ChevronLeft, ChevronRight, X, ArrowRight } from "lu
 export default function CustomerReviewsSection() {
   const { reviews, products, navigateTo } = useStore();
 
-  // 1. Filter ONLY Approved Reviews
+  // 1. Filter ONLY Approved Reviews that are selected for Homepage display
   const approvedReviews = useMemo(() => {
     if (!reviews || !Array.isArray(reviews)) return [];
     return reviews.filter(
-      (r) => r.status === "Approved" || r.status === "approved"
+      (r) => (r.status === "Approved" || r.status === "approved") && r.showOnHome === true
     );
   }, [reviews]);
 

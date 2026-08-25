@@ -10,26 +10,53 @@ import QuantityStepper from "../components/QuantityStepper";
 import ProductCard from "../components/ProductCard";
 import { formatPrice, calculateDiscountedPrice } from "../utils/currency";
 import { getVariantForSelection } from "../utils/variantHelpers";
+import { useRouter } from "next/navigation";
+import { getProductByIdentifier, getRelatedProducts, getMattressRecommendations, getProductPrimaryImage, getProductGalleryImages } from "../utils/productHelpers";
+import { getResolvedImageUrlSync } from "../utils/imageStorage";
+import MattressSelector from "../components/MattressSelector";
 
-export default function ProductDetailView() {
+export default function ProductDetailView({ productId: initialProductId }) {
+  const router = useRouter();
   const { 
+    products,
     selectedProductId, 
     getProductById, 
     addToCart, 
     wishlist, 
     toggleWishlist, 
     navigateTo,
-    cart
+    cart,
+    setCheckoutItems,
+    setSearchQuery
   } = useStore();
 
   const cartCount = cart.reduce((acc, item) => acc + item.qty, 0);
 
-  const product = useMemo(() => getProductById(selectedProductId) || MOCK_PRODUCTS[0], [getProductById, selectedProductId]);
+  const product = useMemo(() => {
+    let target = initialProductId || selectedProductId;
+    if (typeof window !== "undefined") {
+      const match = window.location.pathname.match(/\/product\/([^/]+)/);
+      if (match && match[1]) {
+        try {
+          target = decodeURIComponent(match[1]).trim();
+        } catch (e) {
+          target = match[1].trim();
+        }
+      }
+    }
+    const storeProds = (products && products.length > 0) ? products : MOCK_PRODUCTS;
+    return getProductByIdentifier(target, storeProds) || getProductByIdentifier(selectedProductId, storeProds) || null;
+  }, [products, selectedProductId, initialProductId]);
+
+  const galleryImages = useMemo(() => {
+    return getProductGalleryImages(product);
+  }, [product]);
 
   // Gallery Active Image
   const [activeImgIndex, setActiveImgIndex] = useState(0);
   const [touchStartX, setTouchStartX] = useState(null);
   const [viewerOpen, setViewerOpen] = useState(false);
+  const [reviewModalImage, setReviewModalImage] = useState(null);
   const swipeMovedRef = useRef(false);
 
   // Selector options states
@@ -48,24 +75,39 @@ export default function ProductDetailView() {
       setSelectedSize((product.availableSizes || product.sizeOptions || product.sizes)?.[0] || "Twin");
       setQuantity(1);
       setActiveImgIndex(0);
+      setActiveTab("reviews");
     }, 0);
 
     return () => window.clearTimeout(timer);
-  }, [product]);
+  }, [product?.id, product?.slug]);
 
   // Resolve exact variant matching selectedSize + selectedFirmness
   const selectedVariant = useMemo(() => {
+    if (!product) return null;
     return getVariantForSelection(product, selectedSize, selectedFirmness);
   }, [product, selectedSize, selectedFirmness]);
 
   const discountPercent = useMemo(() => {
+    if (!product) return 0;
     const d = product?.discountPercent ?? product?.Discount_Percentage;
     return typeof d === "number" ? d : 10;
   }, [product]);
 
   const actualPriceForSize = useMemo(() => {
+    if (!product) return 0;
     if (selectedVariant && selectedVariant.Actual_Price !== undefined) {
       return Number(selectedVariant.Actual_Price);
+    }
+    if (product.prices && selectedFirmness && product.prices[selectedFirmness]) {
+      const val = product.prices[selectedFirmness];
+      if (typeof val === "number" && val > 0) return val;
+      if (val && typeof val === "object" && selectedSize && val[selectedSize]) {
+        return Number(val[selectedSize]);
+      }
+    }
+    if (product.prices && selectedSize && product.prices[selectedSize]) {
+      const val = Number(product.prices[selectedSize]);
+      if (val > 0) return val;
     }
     if (product.firmnessPrices && product.firmnessPrices[selectedFirmness]) {
       return Number(product.firmnessPrices[selectedFirmness]);
@@ -73,7 +115,7 @@ export default function ProductDetailView() {
     if (product.sizePrices && product.sizePrices[selectedSize]) {
       return Number(product.sizePrices[selectedSize]);
     }
-    return Number(product.Actual_Price ?? product.price);
+    return Number(product.startingPrice || product.Actual_Price || product.price || 0);
   }, [product, selectedVariant, selectedSize, selectedFirmness]);
 
   const discountedPriceForSize = useMemo(() => {
@@ -86,6 +128,24 @@ export default function ProductDetailView() {
     }
     return false;
   }, [selectedVariant]);
+
+  const [reviewsVersion, setReviewsVersion] = useState(0);
+
+  useEffect(() => {
+    const handleReviewsUpdate = () => {
+      setReviewsVersion((v) => v + 1);
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("storage", handleReviewsUpdate);
+      window.addEventListener("mellosoft_reviews_updated", handleReviewsUpdate);
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("storage", handleReviewsUpdate);
+        window.removeEventListener("mellosoft_reviews_updated", handleReviewsUpdate);
+      }
+    };
+  }, []);
 
   // Compute public approved reviews
   const approvedReviews = useMemo(() => {
@@ -111,42 +171,33 @@ export default function ProductDetailView() {
       .filter((r) => {
         const matchesProduct =
           r.productId === product.id ||
+          r.productId === product.slug ||
           (r.product && r.product.toLowerCase().includes((product.name || "").toLowerCase())) ||
-          (product.Product_Name && r.product && r.product.toLowerCase() === product.Product_Name.toLowerCase());
+          (r.productName && product.name && r.productName.toLowerCase() === product.name.toLowerCase());
         
-        return matchesProduct && r.status === "Approved";
-      })
-      .map((r) => ({
-        id: r.id,
-        author: r.customer || r.customerName || "Anonymous",
-        rating: Number(r.rating || 5),
-        date: r.date,
-        content: r.review || r.comment || "",
-        helpfulCount: r.helpfulCount || 12,
-        replyCount: r.replyCount || 0,
-      }));
+        return matchesProduct && (r.status === "Approved" || r.status === "approved");
+      });
 
-    const allAdminReviewIds = new Set(adminReviewsList.map((r) => r.id));
-    const notApprovedAdminIds = new Set(
-      adminReviewsList.filter((r) => r.status !== "Approved").map((r) => r.id)
-    );
+    return adminApprovedMatches.map((r) => {
+      const revImages = Array.isArray(r.images) && r.images.length > 0 ? r.images :
+                        Array.isArray(r.uploadedImages) && r.uploadedImages.length > 0 ? r.uploadedImages :
+                        Array.isArray(r.photos) && r.photos.length > 0 ? r.photos :
+                        Array.isArray(r.imageUrls) && r.imageUrls.length > 0 ? r.imageUrls :
+                        typeof r.image === "string" && r.image.trim() ? [r.image] : [];
 
-    const baseProductReviews = (product.reviews || []).filter((r) => {
-      if (allAdminReviewIds.has(r.id)) {
-        return !notApprovedAdminIds.has(r.id);
-      }
-      return true;
+      return {
+        ...r,
+        author: r.customerName || r.customer || r.author || "Rahul Sharma",
+        content: r.feedback || r.comment || r.review || r.content || "",
+        date: r.date || r.createdAt || "Recently",
+        rating: r.rating || 5,
+        images: revImages,
+        verifiedPurchase: r.verifiedPurchase ?? r.verified ?? true,
+        helpfulCount: r.helpfulCount || 0,
+        replyCount: r.replyCount || 0
+      };
     });
-
-    const combined = [...adminApprovedMatches];
-    baseProductReviews.forEach((b) => {
-      if (!combined.some((c) => c.id === b.id || (c.author === b.author && c.content === b.content))) {
-        combined.push(b);
-      }
-    });
-
-    return combined;
-  }, [product]);
+  }, [product, reviewsVersion]);
 
   // Compute rating stats
   const ratingStats = useMemo(() => {
@@ -175,7 +226,7 @@ export default function ProductDetailView() {
   }, [approvedReviews, product]);
 
   const handleAddToCart = () => {
-    if (isVariantOutOfStock) return;
+    if (!product || isVariantOutOfStock) return;
     addToCart(product, selectedFirmness, selectedSize, quantity);
   };
 
@@ -184,16 +235,42 @@ export default function ProductDetailView() {
   };
 
   const handleBuyNow = () => {
+    if (!product) return;
+    if (!selectedSize || !selectedFirmness) {
+      return;
+    }
     if (isVariantOutOfStock) return;
-    addToCart(product, selectedFirmness, selectedSize, quantity);
-    navigateTo("cart");
+
+    // Build a single checkout item from the selected variant
+    const checkoutItem = {
+      cartItemId: `buynow-${product.id}-${selectedFirmness}-${selectedSize}`,
+      productId: product.id,
+      id: product.id,
+      productName: product.name,
+      name: product.name,
+      category: product.category || "mattress",
+      size: selectedSize,
+      firmness: selectedFirmness,
+      sku: selectedVariant?.SKU || `MEL-${(selectedSize || "STD").toUpperCase()}-${(selectedFirmness || "STD").toUpperCase()}`,
+      quantity: quantity,
+      qty: quantity,
+      actualPrice: actualPriceForSize,
+      price: discountedPriceForSize,
+      discountPrice: discountedPriceForSize,
+      image: product.images?.[0] || "/asset/img1.jpg"
+    };
+
+    setCheckoutItems([checkoutItem]);
+    navigateTo("checkout");
   };
 
   const showPreviousImage = () => {
+    if (!product?.images?.length) return;
     setActiveImgIndex((current) => (current - 1 + product.images.length) % product.images.length);
   };
 
   const showNextImage = () => {
+    if (!product?.images?.length) return;
     setActiveImgIndex((current) => (current + 1) % product.images.length);
   };
 
@@ -219,21 +296,83 @@ export default function ProductDetailView() {
     setViewerOpen(true);
   };
 
-  const isWishlisted = wishlist.includes(product.id);
+  const isWishlisted = product ? wishlist.includes(product.id) : false;
 
-  // Filter out current product for "You may also like"
+  // Compute category-aware, de-duplicated recommendations (excludes current product)
   const recommendations = useMemo(() => {
-    return MOCK_PRODUCTS.filter((p) => p.id !== product.id).slice(0, 3);
-  }, [product]);
+    if (!product) return [];
+    const storeProds = (products && products.length > 0) ? products : MOCK_PRODUCTS;
+    const isAcc = product.subCategory || product.category === "accessories";
+    if (isAcc) {
+      return getRelatedProducts(product, storeProds, 4);
+    }
+    return getMattressRecommendations(product, storeProds, 4);
+  }, [product, products]);
+
+  if (!product) {
+    return (
+      <div style={{ padding: "80px 24px", textAlign: "center", maxWidth: "800px", margin: "0 auto", width: "100%" }}>
+        <h2 style={{ fontSize: "28px", fontWeight: "800", color: "#1B1F8C", marginBottom: "12px" }}>Product Not Found</h2>
+        <p style={{ fontSize: "15px", color: "#6B6B75", marginBottom: "24px" }}>
+          The product you are looking for could not be found or has been removed.
+        </p>
+        <button
+          type="button"
+          onClick={() => navigateTo("catalog")}
+          style={{
+            padding: "12px 24px",
+            backgroundColor: "#1B1F8C",
+            color: "#FFFFFF",
+            border: "none",
+            borderRadius: "8px",
+            fontWeight: "700",
+            cursor: "pointer"
+          }}
+        >
+          Return to Catalogue
+        </button>
+      </div>
+    );
+  }
+
+  const isAccessory = product.subCategory || product.category === "accessories";
+  const categorySlug = product.subCategory || product.category;
+  const categoryDisplayName = product.categoryName || (product.category ? (product.category.charAt(0).toUpperCase() + product.category.slice(1)) : "Category");
+
+  const handleBreadcrumbCategoryClick = () => {
+    if (router && typeof router.push === "function") {
+      if (isAccessory) {
+        router.push(`/accessories/${categorySlug}`);
+      } else {
+        router.push(`/mattresses/${categorySlug}`);
+      }
+    }
+  };
+
+  const handleBreadcrumbCatalogClick = () => {
+    if (router && typeof router.push === "function") {
+      if (isAccessory) {
+        router.push("/accessories");
+      } else {
+        router.push("/mattresses");
+      }
+    }
+  };
 
   return (
     <div style={detailContainerStyle} className="detail-page">
       
       {/* Breadcrumb */}
       <div style={breadcrumbStyle} className="detail-breadcrumb">
-        <span onClick={() => navigateTo("home")} style={breadcrumbLinkStyle}>Home</span>
+        <span onClick={() => { if (router && typeof router.push === "function") router.push("/"); }} style={breadcrumbLinkStyle}>Home</span>
         <span style={breadcrumbDividerStyle}>/</span>
-        <span onClick={() => navigateTo("catalog")} style={breadcrumbLinkStyle}>Catalog</span>
+        <span onClick={handleBreadcrumbCatalogClick} style={breadcrumbLinkStyle}>{isAccessory ? "Accessories" : "Mattresses"}</span>
+        {categorySlug && (
+          <>
+            <span style={breadcrumbDividerStyle}>/</span>
+            <span onClick={handleBreadcrumbCategoryClick} style={breadcrumbLinkStyle}>{categoryDisplayName}</span>
+          </>
+        )}
         <span style={breadcrumbDividerStyle}>/</span>
         <span style={breadcrumbActiveStyle}>{product.name}</span>
       </div>
@@ -251,10 +390,13 @@ export default function ProductDetailView() {
             onTouchEnd={handleImageTouchEnd}
           >
             <img 
-              src={product.images[activeImgIndex] || product.images[0]} 
+              src={galleryImages[activeImgIndex] || galleryImages[0] || getProductPrimaryImage(product)} 
               alt={product.name} 
               style={mainImageStyle} 
               className="detail-gallery-img"
+              onError={(e) => {
+                e.target.src = "/images/mattresses/foam/haven.jpg";
+              }}
             />
 
             <div style={floatingActionsWrapStyle} className="detail-floating-actions">
@@ -298,22 +440,31 @@ export default function ProductDetailView() {
             </div>
           </div>
           
-          {/* Thumbnail strip */}
-          <div style={thumbnailStripStyle} className="desktop-thumbnails">
-            {product.images.map((img, index) => (
-              <div 
-                key={index} 
-                onClick={() => setActiveImgIndex(index)}
-                style={{
-                  ...thumbnailWrapperStyle,
-                  borderColor: activeImgIndex === index ? "#1B1F8C" : "#E7E7E2",
-                  transform: activeImgIndex === index ? "scale(1.02)" : "scale(1)"
-                }}
-              >
-                <img src={img} alt={`${product.name} View ${index + 1}`} style={thumbnailImageStyle} />
-              </div>
-            ))}
-          </div>
+          {/* Thumbnail strip - ONLY rendered when product has > 1 valid distinct image */}
+          {galleryImages.length > 1 && (
+            <div style={thumbnailStripStyle} className="desktop-thumbnails">
+              {galleryImages.map((img, index) => (
+                <div 
+                  key={index} 
+                  onClick={() => setActiveImgIndex(index)}
+                  style={{
+                    ...thumbnailWrapperStyle,
+                    borderColor: activeImgIndex === index ? "#1B1F8C" : "#E7E7E2",
+                    transform: activeImgIndex === index ? "scale(1.02)" : "scale(1)"
+                  }}
+                >
+                  <img 
+                    src={img} 
+                    alt={`${product.name} thumbnail ${index + 1}`} 
+                    style={thumbnailImageStyle}
+                    onError={(e) => {
+                      e.target.src = "/images/mattresses/foam/haven.jpg";
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Right Column: Order Configuration */}
@@ -321,76 +472,127 @@ export default function ProductDetailView() {
           
           <span style={brandLabelStyle}>Mellosoft Premium Series</span>
           <h2 style={titleStyle}>{product.name}</h2>
+          {product.tagline && (
+            <p style={{ fontSize: "15px", fontStyle: "italic", color: "#1B1F8C", marginTop: "4px" }}>
+              "{product.tagline}"
+            </p>
+          )}
+
+          {product.construction && (
+            <div style={{ fontSize: "13px", fontWeight: "700", color: "#4B5563", marginTop: "6px" }}>
+              Construction: <span style={{ color: "#1B1F8C" }}>{product.construction}</span>
+            </div>
+          )}
           
           {/* Rating summary overlay */}
           <div style={ratingSummaryLineStyle}>
             <RatingStars rating={product.rating} count={product.reviewCount} />
           </div>
 
-          <div style={priceContainerStyle}>
-            <span style={priceStyle}>{formatPrice(discountedPriceForSize)}</span>
-            {discountPercent > 0 && actualPriceForSize > discountedPriceForSize && (
-              <span style={{ fontSize: "14px", color: "#6B6B75", alignSelf: "center", marginLeft: "10px" }}>
-                MRP: {formatPrice(actualPriceForSize)} ({discountPercent}% OFF)
-              </span>
-            )}
-            {isVariantOutOfStock && (
-              <span style={{ fontSize: "12px", fontWeight: 700, color: "#DC2626", backgroundColor: "#FEE2E2", padding: "4px 10px", borderRadius: "999px", marginLeft: "10px", alignSelf: "center" }}>
-                Out of Stock
-              </span>
-            )}
-          </div>
-          
           <div style={dividerStyle} />
 
-          <div style={optionControlsRowStyle} className="detail-option-row">
-            <FirmnessSizeSelector
-              label="Firmness"
-              options={product.firmnessOptions}
-              selected={selectedFirmness}
-              onChange={setSelectedFirmness}
+          {/* MATTRESS SELECTOR FOR MATTRESS PRODUCTS */}
+          {product.thicknessOptions ? (
+            <MattressSelector
+              product={product}
+              onSelectionChange={(selection) => {
+                if (selection.price) {
+                  setSelectedSize(selection.dimension);
+                  setSelectedFirmness(selection.thickness);
+                }
+              }}
+              onEnquire={(data) => {
+                setSearchQuery(`Enquiry for ${product.name} (${data.thickness}, size ${data.size})`);
+                navigateTo("contact");
+              }}
             />
-
-            <FirmnessSizeSelector
-              label="Size"
-              options={product.sizeOptions}
-              selected={selectedSize}
-              onChange={setSelectedSize}
-            />
-
-            <div style={qtyFieldStyle} className="detail-option-control detail-qty-field">
-              <label style={qtyLabelStyle}>Quantity</label>
-              <QuantityStepper qty={quantity} onChange={setQuantity} />
+          ) : (
+            <div style={priceContainerStyle}>
+              <span style={priceStyle}>{formatPrice(discountedPriceForSize)}</span>
+              {discountPercent > 0 && actualPriceForSize > discountedPriceForSize && (
+                <span style={{ fontSize: "14px", color: "#6B6B75", alignSelf: "center", marginLeft: "10px" }}>
+                  MRP: {formatPrice(actualPriceForSize)} ({discountPercent}% OFF)
+                </span>
+              )}
             </div>
-          </div>
+          )}
+
+          {!product.thicknessOptions && (
+            <div style={optionControlsRowStyle} className="detail-option-row">
+              <FirmnessSizeSelector
+                label="Variant"
+                options={product.firmnessOptions}
+                selected={selectedFirmness}
+                onChange={setSelectedFirmness}
+              />
+
+              <FirmnessSizeSelector
+                label="Size"
+                options={product.sizeOptions}
+                selected={selectedSize}
+                onChange={setSelectedSize}
+              />
+
+              <div style={qtyFieldStyle} className="detail-option-control detail-qty-field">
+                <label style={qtyLabelStyle}>Quantity</label>
+                <QuantityStepper qty={quantity} onChange={setQuantity} />
+              </div>
+            </div>
+          )}
 
           {/* Quantity & CTA buttons block */}
           <div style={purchaseBlockStyle}>
-            <div style={ctaButtonsGridStyle} className="detail-cta-grid">
-              <button 
-                onClick={handleAddToCart}
-                disabled={isVariantOutOfStock}
-                style={{
-                  ...addCartBtnStyle,
-                  opacity: isVariantOutOfStock ? 0.5 : 1,
-                  cursor: isVariantOutOfStock ? "not-allowed" : "pointer",
+            {product.startingPrice !== null ? (
+              <div style={ctaButtonsGridStyle} className="detail-cta-grid">
+                <button 
+                  onClick={handleAddToCart}
+                  disabled={isVariantOutOfStock}
+                  style={{
+                    ...addCartBtnStyle,
+                    opacity: isVariantOutOfStock ? 0.5 : 1,
+                    cursor: isVariantOutOfStock ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {isVariantOutOfStock ? "Out of Stock" : "Add to Cart"}
+                </button>
+                
+                <button 
+                  onClick={handleBuyNow}
+                  disabled={isVariantOutOfStock}
+                  style={{
+                    ...buyNowBtnStyle,
+                    opacity: isVariantOutOfStock ? 0.5 : 1,
+                    cursor: isVariantOutOfStock ? "not-allowed" : "pointer",
+                  }}
+                >
+                  Buy Now
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  if (typeof setSearchQuery === "function") {
+                    setSearchQuery(`Enquiry for ${product.name}`);
+                  }
+                  const params = new URLSearchParams({
+                    product: product.name || "",
+                    category: product.categoryName || product.category || ""
+                  });
+                  if (typeof window !== "undefined") {
+                    window.location.href = `/contact?${params.toString()}`;
+                  } else {
+                    navigateTo("contact");
+                  }
                 }}
-              >
-                {isVariantOutOfStock ? "Out of Stock" : "Add to Cart"}
-              </button>
-              
-              <button 
-                onClick={handleBuyNow}
-                disabled={isVariantOutOfStock}
                 style={{
                   ...buyNowBtnStyle,
-                  opacity: isVariantOutOfStock ? 0.5 : 1,
-                  cursor: isVariantOutOfStock ? "not-allowed" : "pointer",
+                  width: "100%",
+                  backgroundColor: "#1B1F8C"
                 }}
               >
-                Buy Now
+                Enquire for Price
               </button>
-            </div>
+            )}
 
             <p style={descriptionStyle}>{product.description}</p>
           </div>
@@ -421,8 +623,8 @@ export default function ProductDetailView() {
         <h3 style={carouselHeadingStyle}>You may also like</h3>
         <div style={recommendationsGridStyle} className="recommendations-row">
           {recommendations.map((rec) => (
-            <div key={rec.id} style={{ flex: "1 1 280px" }}>
-              <ProductCard product={rec} />
+            <div key={rec.id} style={{ flex: "1 1 280px", height: "100%" }}>
+              <ProductCard product={rec} showContactForPrice={false} />
             </div>
           ))}
         </div>
@@ -507,14 +709,50 @@ export default function ProductDetailView() {
                           {(rev.author || "A").split(" ").map(n => n[0]).join("")}
                         </div>
                         <div>
-                          <h5 style={{ fontWeight: "700", color: "#14151A" }}>{rev.author}</h5>
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                            <h5 style={{ fontWeight: "700", color: "#14151A", margin: 0 }}>{rev.author}</h5>
+                            {rev.verifiedPurchase && (
+                              <span style={{ fontSize: "10px", fontWeight: 700, backgroundColor: "#DCFCE7", color: "#16A34A", padding: "2px 6px", borderRadius: "12px", border: "1px solid #86EFAC" }}>
+                                Verified Purchase
+                              </span>
+                            )}
+                          </div>
                           <span style={{ fontSize: "11px", color: "#6B6B75" }}>{rev.date}</span>
                         </div>
                         <div style={{ marginLeft: "auto" }}>
                           <RatingStars rating={rev.rating} />
                         </div>
                       </div>
-                      <p style={reviewBodyStyle}>{rev.content}</p>
+                      <p style={reviewBodyStyle}>{rev.content || rev.feedback || rev.comment}</p>
+                      
+                      {rev.images && Array.isArray(rev.images) && rev.images.length > 0 && (
+                        <div style={{ display: "flex", gap: "8px", marginTop: "10px", flexWrap: "wrap" }}>
+                          {rev.images.map((imgUrl, i) => {
+                            const resolvedSrc = getResolvedImageUrlSync(imgUrl);
+                            return (
+                              <img
+                                key={i}
+                                src={resolvedSrc}
+                                alt={`Customer review photo ${i + 1}`}
+                                onClick={() => setReviewModalImage(resolvedSrc)}
+                                style={{
+                                  width: "72px",
+                                  height: "72px",
+                                  borderRadius: "8px",
+                                  objectFit: "cover",
+                                  border: "1px solid #E2E8F0",
+                                  cursor: "pointer",
+                                  backgroundColor: "#FAFAF7"
+                                }}
+                                className="hover-lift"
+                                onError={(e) => {
+                                  e.target.style.display = "none";
+                                }}
+                              />
+                            );
+                          })}
+                        </div>
+                      )}
                       
                       <div style={reviewFooterStyle}>
                         <button style={reviewActionBtnStyle}>
@@ -606,7 +844,74 @@ export default function ProductDetailView() {
 
           <span style={viewerCountStyle}>{activeImgIndex + 1} / {product.images.length}</span>
         </div>
-      )}      <style>{`
+      )}
+
+      {reviewModalImage && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.82)",
+            backdropFilter: "blur(4px)",
+            zIndex: 99999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px"
+          }}
+          onClick={() => setReviewModalImage(null)}
+        >
+          <div
+            style={{
+              position: "relative",
+              maxWidth: "90vw",
+              maxHeight: "90vh",
+              backgroundColor: "#1E293B",
+              borderRadius: "12px",
+              padding: "12px",
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)"
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setReviewModalImage(null)}
+              style={{
+                position: "absolute",
+                top: "-14px",
+                right: "-14px",
+                backgroundColor: "#FFFFFF",
+                color: "#0F172A",
+                border: "none",
+                borderRadius: "50%",
+                width: "32px",
+                height: "32px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
+                zIndex: 10
+              }}
+            >
+              ✕
+            </button>
+            <img
+              src={reviewModalImage}
+              alt="Customer review photo enlarged"
+              style={{
+                maxWidth: "100%",
+                maxHeight: "82vh",
+                objectFit: "contain",
+                borderRadius: "8px",
+                display: "block"
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      <style>{`
         @media (max-width: 767px) {
           .detail-breadcrumb {
             display: none !important;
@@ -827,9 +1132,10 @@ const galleryColStyle = {
 
 const mainImageWrapperStyle = {
   width: "100%",
-  paddingTop: "75%",
-  backgroundColor: "#FFFFFF",
-  borderRadius: 0,
+  aspectRatio: "1 / 1",
+  backgroundColor: "#FAFAF7",
+  borderRadius: "16px",
+  border: "1px solid #E7E7E2",
   position: "relative",
   overflow: "hidden",
   cursor: "zoom-in",
@@ -843,7 +1149,8 @@ const mainImageStyle = {
   width: "100%",
   height: "100%",
   objectFit: "cover",
-  objectPosition: "center center"
+  objectPosition: "center center",
+  display: "block"
 };
 
 const floatingActionsWrapStyle = {

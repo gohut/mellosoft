@@ -167,12 +167,7 @@ export default function Footer() {
               </li>
               <li>
                 <button
-                  onClick={() =>
-                    openInfoModal(
-                      "Contact Us",
-                      "We are here to assist with any questions. Reach us at support@mellosoft.com or call +91 98765 43210 (Mon-Sat, 9 AM - 7 PM IST)."
-                    )
-                  }
+                  onClick={() => handleNavClick("contact")}
                   style={linkItemBtnStyle}
                   className="footer-link-hover"
                 >

@@ -32,3 +32,52 @@ export function getProductPrices(product, selectedSize = null) {
 
   return { actualPrice, discountPercent, discountedPrice };
 }
+
+/**
+ * Calculates the smallest valid price available across all pricing matrices, sizes, and flat price attributes.
+ */
+export function getMinimumProductPrice(product) {
+  if (!product) return null;
+
+  const validPrices = [];
+
+  // 1. Matrix prices (e.g. product.prices["4 inch"]["72 x 30"] = 10411)
+  if (product.prices && typeof product.prices === "object") {
+    Object.values(product.prices).forEach((thicknessPrices) => {
+      if (thicknessPrices && typeof thicknessPrices === "object") {
+        Object.values(thicknessPrices).forEach((price) => {
+          const val = Number(price);
+          if (Number.isFinite(val) && val > 0) {
+            validPrices.push(val);
+          }
+        });
+      }
+    });
+  }
+
+  // 2. Size prices (e.g. product.sizePrices)
+  if (product.sizePrices && typeof product.sizePrices === "object") {
+    Object.values(product.sizePrices).forEach((price) => {
+      const val = Number(price);
+      if (Number.isFinite(val) && val > 0) {
+        validPrices.push(val);
+      }
+    });
+  }
+
+  // 3. Flat price properties if matrix prices are empty
+  if (validPrices.length === 0) {
+    [product.startingPrice, product.price, product.Actual_Price, product.Discounted_Price, product.discountPrice].forEach((p) => {
+      const val = Number(p);
+      if (Number.isFinite(val) && val > 0) {
+        validPrices.push(val);
+      }
+    });
+  }
+
+  if (validPrices.length === 0) {
+    return null;
+  }
+
+  return Math.min(...validPrices);
+}

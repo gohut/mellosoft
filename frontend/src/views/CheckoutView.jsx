@@ -143,14 +143,120 @@ export default function CheckoutView() {
   }
 
   return (
-    <div style={containerStyle}>
+    <div style={containerStyle} className="checkout-container">
+      <style>{`
+        .checkout-container {
+          width: 100% !important;
+          max-width: 1720px !important;
+          box-sizing: border-box !important;
+        }
+        .checkout-layout-grid {
+          width: 100% !important;
+          box-sizing: border-box !important;
+        }
+        .checkout-left-col, .checkout-right-col {
+          min-width: 0 !important;
+          width: 100% !important;
+          box-sizing: border-box !important;
+        }
+        .checkout-item-name, .checkout-address-text {
+          overflow-wrap: anywhere !important;
+          word-break: break-word !important;
+        }
+        .checkout-sku-chip {
+          overflow-wrap: anywhere !important;
+          word-break: break-all !important;
+        }
+        
+        @media (max-width: 992px) {
+          .checkout-layout-grid {
+            grid-template-columns: 1fr !important;
+            gap: 24px !important;
+          }
+          .checkout-right-col {
+            position: static !important;
+            top: auto !important;
+          }
+        }
+
+        @media (max-width: 768px) {
+          .checkout-container {
+            padding: 16px 16px 40px 16px !important;
+          }
+          .checkout-card-section {
+            padding: 20px 16px !important;
+            border-radius: 16px !important;
+          }
+          .checkout-summary-card {
+            padding: 20px 16px !important;
+            border-radius: 16px !important;
+          }
+          .checkout-header-nav {
+            margin-bottom: 20px !important;
+            gap: 12px !important;
+          }
+          .checkout-form-grid {
+            grid-template-columns: 1fr !important;
+            gap: 12px !important;
+          }
+        }
+
+        @media (max-width: 576px) {
+          .checkout-header-nav {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+          }
+          .checkout-stepper {
+            width: 100% !important;
+            justify-content: space-between !important;
+            font-size: 12px !important;
+            gap: 4px !important;
+          }
+          .checkout-item-row {
+            padding: 12px !important;
+            gap: 12px !important;
+          }
+          .checkout-item-image {
+            width: 72px !important;
+            height: 72px !important;
+          }
+          .checkout-item-name {
+            font-size: 14px !important;
+          }
+          .checkout-form-actions {
+            flex-direction: column !important;
+            width: 100% !important;
+          }
+          .checkout-save-btn, .checkout-cancel-btn {
+            width: 100% !important;
+            text-align: center !important;
+          }
+          .checkout-proceed-btn {
+            padding: 14px !important;
+            font-size: 15px !important;
+          }
+        }
+
+        @media (max-width: 380px) {
+          .checkout-container {
+            padding: 12px 12px 30px 12px !important;
+          }
+          .checkout-card-section, .checkout-summary-card {
+            padding: 16px 12px !important;
+          }
+          .checkout-stepper {
+            font-size: 11px !important;
+          }
+        }
+      `}</style>
+
       {/* Breadcrumb Header */}
-      <div style={headerNavStyle}>
-        <button onClick={() => navigateTo("cart")} style={backBtnStyle}>
+      <div style={headerNavStyle} className="checkout-header-nav">
+        <button onClick={() => navigateTo("cart")} style={backBtnStyle} className="checkout-back-btn">
           <ArrowLeft size={18} />
           <span>Back to Cart</span>
         </button>
-        <div style={stepperStyle}>
+        <div style={stepperStyle} className="checkout-stepper">
           <span style={activeStepStyle}>1. Delivery Address</span>
           <span style={stepDividerStyle}>→</span>
           <span style={inactiveStepStyle}>2. Payment</span>
@@ -159,28 +265,28 @@ export default function CheckoutView() {
         </div>
       </div>
 
-      <div style={layoutGridStyle}>
+      <div style={layoutGridStyle} className="checkout-layout-grid">
         {/* LEFT COLUMN: Order Items & Delivery Address */}
-        <div style={leftColStyle}>
+        <div style={leftColStyle} className="checkout-left-col">
           
           {/* SECTION 1: ORDER ITEMS */}
-          <div style={cardSectionStyle}>
+          <div style={cardSectionStyle} className="checkout-card-section">
             <h2 style={sectionTitleStyle}>
               <span>1. Order Items</span>
               <span style={countBadgeStyle}>{items.length} {items.length === 1 ? "Item" : "Items"}</span>
             </h2>
-            <div style={itemsListStyle}>
+            <div style={itemsListStyle} className="checkout-items-list">
               {items.map((item, index) => (
-                <div key={index} style={itemRowStyle}>
-                  <img src={item.image || "/asset/img1.jpg"} alt={item.name} style={itemImageStyle} />
-                  <div style={itemDetailsStyle}>
-                    <h4 style={itemNameStyle}>{item.name || item.productName}</h4>
-                    <div style={variantChipsRowStyle}>
+                <div key={index} style={itemRowStyle} className="checkout-item-row">
+                  <img src={item.image || "/asset/img1.jpg"} alt={item.name} style={itemImageStyle} className="checkout-item-image" />
+                  <div style={itemDetailsStyle} className="checkout-item-details">
+                    <h4 style={itemNameStyle} className="checkout-item-name">{item.name || item.productName}</h4>
+                    <div style={variantChipsRowStyle} className="checkout-variant-chips">
                       <span style={sizeChipStyle}>Size: <strong>{item.size}</strong></span>
                       <span style={firmnessChipStyle}>Firmness: <strong>{item.firmness}</strong></span>
-                      <span style={skuChipStyle}>SKU: {item.sku}</span>
+                      <span style={skuChipStyle} className="checkout-sku-chip">SKU: {item.sku}</span>
                     </div>
-                    <div style={itemPriceQtyRowStyle}>
+                    <div style={itemPriceQtyRowStyle} className="checkout-item-price-qty">
                       <span style={itemQtyStyle}>Qty: <strong>{item.qty || item.quantity}</strong></span>
                       <span style={itemPriceStyle}>{formatPrice((item.price || item.discountPrice) * (item.qty || item.quantity))}</span>
                     </div>
@@ -191,7 +297,7 @@ export default function CheckoutView() {
           </div>
 
           {/* SECTION 2: DELIVERY ADDRESS */}
-          <div style={cardSectionStyle}>
+          <div style={cardSectionStyle} className="checkout-card-section">
             <div style={sectionHeaderFlexStyle}>
               <h2 style={sectionTitleStyle}>2. Delivery Address</h2>
               {savedAddress && !editingAddress && (
@@ -209,7 +315,7 @@ export default function CheckoutView() {
             )}
 
             {savedAddress && !editingAddress ? (
-              <div style={addressDisplayCardStyle}>
+              <div style={addressDisplayCardStyle} className="checkout-address-display-card">
                 <div style={addressCardHeaderStyle}>
                   <div style={addressCardBadgeStyle}>
                     <CheckCircle2 size={16} color="#16A34A" />
@@ -217,12 +323,12 @@ export default function CheckoutView() {
                   </div>
                 </div>
                 <div style={addressBodyStyle}>
-                  <strong style={{ fontSize: "16px", color: "#14151A", display: "block" }}>{savedAddress.fullName}</strong>
-                  <p style={addressTextLineStyle}>{savedAddress.addressLine1}</p>
-                  {savedAddress.addressLine2 && <p style={addressTextLineStyle}>{savedAddress.addressLine2}</p>}
-                  <p style={addressTextLineStyle}>{savedAddress.city}, {savedAddress.state} - <strong>{savedAddress.pincode}</strong></p>
-                  {savedAddress.landmark && <p style={addressTextLineStyle}>Landmark: {savedAddress.landmark}</p>}
-                  <p style={{ ...addressTextLineStyle, marginTop: "6px", color: "#1B1F8C", fontWeight: "600" }}>📞 {savedAddress.phone}</p>
+                  <strong style={{ fontSize: "16px", color: "#14151A", display: "block" }} className="checkout-address-text">{savedAddress.fullName}</strong>
+                  <p style={addressTextLineStyle} className="checkout-address-text">{savedAddress.addressLine1}</p>
+                  {savedAddress.addressLine2 && <p style={addressTextLineStyle} className="checkout-address-text">{savedAddress.addressLine2}</p>}
+                  <p style={addressTextLineStyle} className="checkout-address-text">{savedAddress.city}, {savedAddress.state} - <strong>{savedAddress.pincode}</strong></p>
+                  {savedAddress.landmark && <p style={addressTextLineStyle} className="checkout-address-text">Landmark: {savedAddress.landmark}</p>}
+                  <p style={{ ...addressTextLineStyle, marginTop: "6px", color: "#1B1F8C", fontWeight: "600" }} className="checkout-address-text">📞 {savedAddress.phone}</p>
                 </div>
                 <button onClick={() => setEditingAddress(true)} style={changeAddrBtnStyle}>
                   <Plus size={14} />
@@ -230,8 +336,8 @@ export default function CheckoutView() {
                 </button>
               </div>
             ) : (
-              <form onSubmit={handleSaveAddressSubmit} style={addressFormStyle}>
-                <div style={formGridStyle}>
+              <form onSubmit={handleSaveAddressSubmit} style={addressFormStyle} className="checkout-address-form">
+                <div style={formGridStyle} className="checkout-form-grid">
                   <div style={fieldGroupStyle}>
                     <label style={labelStyle}>Full Name *</label>
                     <input
@@ -327,12 +433,12 @@ export default function CheckoutView() {
                   </div>
                 </div>
 
-                <div style={formActionsRowStyle}>
-                  <button type="submit" style={saveAddrBtnStyle}>
+                <div style={formActionsRowStyle} className="checkout-form-actions">
+                  <button type="submit" style={saveAddrBtnStyle} className="checkout-save-btn">
                     Save & Use Address
                   </button>
                   {savedAddress && (
-                    <button type="button" onClick={() => setEditingAddress(false)} style={cancelAddrBtnStyle}>
+                    <button type="button" onClick={() => setEditingAddress(false)} style={cancelAddrBtnStyle} className="checkout-cancel-btn">
                       Cancel
                     </button>
                   )}
@@ -343,8 +449,8 @@ export default function CheckoutView() {
         </div>
 
         {/* RIGHT COLUMN: ORDER SUMMARY */}
-        <div style={rightColStyle}>
-          <div style={summaryCardStyle}>
+        <div style={rightColStyle} className="checkout-right-col">
+          <div style={summaryCardStyle} className="checkout-summary-card">
             <h3 style={summaryTitleStyle}>Order Summary</h3>
 
             {/* Coupon Code Block */}
@@ -404,12 +510,12 @@ export default function CheckoutView() {
               <span style={totalValStyle}>{formatPrice(finalTotal)}</span>
             </div>
 
-            <button onClick={handleProceedToPayment} style={proceedBtnStyle}>
+            <button onClick={handleProceedToPayment} style={proceedBtnStyle} className="checkout-proceed-btn">
               <span>Proceed to Payment</span>
               <ArrowLeft size={16} style={{ transform: "rotate(180deg)" }} />
             </button>
 
-            <div style={trustBadgesRowStyle}>
+            <div style={trustBadgesRowStyle} className="checkout-trust-badges">
               <div style={trustBadgeItemStyle}>
                 <ShieldCheck size={16} color="#16A34A" />
                 <span>100-Night Trial Guarantee</span>

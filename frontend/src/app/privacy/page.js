@@ -17,7 +17,7 @@ export default function PrivacyPage() {
   return (
     <>
       <Header />
-      <main style={{ flexGrow: 1, display: "flex", flexDirection: "column", width: "100%", backgroundColor: "transparent" }}>
+      <main style={{ flexGrow: 1, display: "flex", flexDirection: "column", width: "100%", backgroundColor: "#FFFFFF" }}>
         <PrivacyView />
       </main>
       <Footer />

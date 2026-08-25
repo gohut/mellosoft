@@ -1,129 +1,309 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useStore } from "../context/StoreContext";
 import { MOCK_PRODUCTS } from "../data/products";
+import { MATTRESS_CATEGORY_LIST, getMattressCategoryMeta, isProductInCategory, getProductsByGroup, getCategoryCount } from "../utils/productHelpers";
 import ProductCard from "../components/ProductCard";
 import EmptyState from "../components/EmptyState";
+import MattressFilterPanel from "../components/MattressFilterPanel";
+import { SlidersHorizontal, X } from "lucide-react";
 
-export default function CatalogView() {
-  const { 
-    searchQuery, 
-    setSearchQuery, 
-    activeFilters, 
-    setActiveFilters 
-  } = useStore();
+export default function CatalogView({ categoryParam = "all" }) {
+  const { searchQuery, setSearchQuery, activeFilters, setActiveFilters, products } = useStore();
 
-  const resetFilters = () => {
-    setActiveFilters({
-      category: "All",
-      firmness: "All",
-      size: "All",
-      sort: "Recommended"
-    });
-    setSearchQuery("");
+  const [selectedCategory, setSelectedCategory] = useState(
+    categoryParam && categoryParam !== "all" && categoryParam !== "mattress"
+      ? categoryParam
+      : (activeFilters.category !== "All" && activeFilters.category !== "all" && activeFilters.category !== "mattress" ? activeFilters.category : "all")
+  );
+  const [selectedThickness, setSelectedThickness] = useState("All");
+  const [selectedSize, setSelectedSize] = useState("All");
+  const [priceAvailability, setPriceAvailability] = useState("All");
+  const [sortBy, setSortBy] = useState("Recommended");
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+
+  // Sync state if categoryParam changes via router
+  useEffect(() => {
+    if (categoryParam) {
+      const norm = categoryParam.toLowerCase().trim();
+      if (norm === "all" || norm === "mattress") {
+        setSelectedCategory("all");
+      } else {
+        setSelectedCategory(norm);
+      }
+    }
+  }, [categoryParam]);
+
+  const isValidCategoryParam = useMemo(() => {
+    if (!categoryParam || categoryParam.toLowerCase() === "all" || categoryParam.toLowerCase() === "mattress") return true;
+    return !!getMattressCategoryMeta(categoryParam);
+  }, [categoryParam]);
+
+  const handleCategorySelect = (slug) => {
+    setSelectedCategory(slug);
+    setActiveFilters((prev) => ({ ...prev, category: slug }));
+    const targetUrl = (slug === "all" || slug === "mattress") ? "/mattresses" : `/mattresses/${slug}`;
+    if (typeof window !== "undefined") {
+      window.history.pushState(null, "", targetUrl);
+    }
   };
+
+  const resetAllFilters = () => {
+    setSelectedCategory("all");
+    setSelectedThickness("All");
+    setSelectedSize("All");
+    setPriceAvailability("All");
+    setSortBy("Recommended");
+    setSearchQuery("");
+    setActiveFilters({ category: "all", firmness: "All", size: "All", sort: "Recommended" });
+    if (typeof window !== "undefined") {
+      window.history.pushState(null, "", "/mattresses");
+    }
+  };
+
+  // Master Mattress Products List (strictly excludes accessories)
+  const mattressOnlyProducts = useMemo(() => {
+    const list = (products && products.length > 0) ? products : MOCK_PRODUCTS;
+    return getProductsByGroup(list, "mattresses");
+  }, [products]);
 
   // Filter and sort products
   const filteredProducts = useMemo(() => {
-    const categorySelect = activeFilters.category || "All";
-    
-    return MOCK_PRODUCTS.filter((product) => {
-      // 1. Filter by global search query
+    return mattressOnlyProducts.filter((product) => {
+      // 1. Global Search Query
       if (searchQuery) {
-        const query = searchQuery.toLowerCase();
+        const query = searchQuery.toLowerCase().trim();
         const matchesName = product.name.toLowerCase().includes(query);
-        const matchesTagline = product.tagline.toLowerCase().includes(query);
-        const matchesCategory = product.category.toLowerCase().includes(query);
-        if (!matchesName && !matchesTagline && !matchesCategory) {
+        const matchesTagline = (product.tagline || "").toLowerCase().includes(query);
+        const matchesCategory = (product.category || "").toLowerCase().includes(query);
+        const matchesConstruction = (product.construction || "").toLowerCase().includes(query);
+        if (!matchesName && !matchesTagline && !matchesCategory && !matchesConstruction) {
           return false;
         }
       }
 
-      // 2. Filter by Category
-      if (categorySelect !== "All" && product.category !== categorySelect) {
-        return false;
+      // 2. Category Filter
+      if (selectedCategory !== "All" && selectedCategory !== "all" && selectedCategory !== "mattress") {
+        if (!isProductInCategory(product, selectedCategory)) return false;
       }
 
-      // 3. Filter by Firmness
-      if (
-        activeFilters.firmness !== "All" && 
-        !product.firmnessOptions.includes(activeFilters.firmness)
-      ) {
-        return false;
+      // 3. Thickness Filter
+      if (selectedThickness !== "All") {
+        const thicknessList = product.thicknessOptions || [];
+        const hasThickness = thicknessList.some((t) => String(t).includes(selectedThickness));
+        if (!hasThickness) return false;
       }
 
-      // 4. Filter by Size
-      if (
-        activeFilters.size !== "All" && 
-        !product.sizeOptions.includes(activeFilters.size)
-      ) {
-        return false;
+      // 4. Size Type Filter
+      if (selectedSize !== "All") {
+        const sizes = product.sizeOptions || ["Single", "Double", "Queen", "King"];
+        if (!sizes.includes(selectedSize)) return false;
+      }
+
+      // 5. Price Availability Filter
+      const hasPrice = (product.startingPrice && product.startingPrice > 0) || (product.price && product.price > 0);
+      if (priceAvailability === "Priced") {
+        if (!hasPrice) return false;
+      } else if (priceAvailability === "Contact") {
+        if (hasPrice) return false;
       }
 
       return true;
     }).sort((a, b) => {
-      // Sort logic
-      if (activeFilters.sort === "Price: Low to High") {
-        return a.price - b.price;
+      if (sortBy === "Price: Low to High") {
+        const priceA = a.startingPrice || a.price || 999999;
+        const priceB = b.startingPrice || b.price || 999999;
+        return priceA - priceB;
       }
-      if (activeFilters.sort === "Price: High to Low") {
-        return b.price - a.price;
+      if (sortBy === "Price: High to Low") {
+        const priceA = a.startingPrice || a.price || 0;
+        const priceB = b.startingPrice || b.price || 0;
+        return priceB - priceA;
       }
-      if (activeFilters.sort === "Rating") {
-        return b.rating - a.rating;
+      if (sortBy === "Rating") {
+        return (b.rating || 5) - (a.rating || 5);
       }
-      // "Recommended" uses default mock ordering
       return 0;
     });
-  }, [searchQuery, activeFilters]);
+  }, [mattressOnlyProducts, searchQuery, selectedCategory, selectedThickness, selectedSize, priceAvailability, sortBy]);
+
+  // Product counts by category
+  const categoryCounts = useMemo(() => {
+    const counts = { all: mattressOnlyProducts.length };
+    MATTRESS_CATEGORY_LIST.forEach((c) => {
+      counts[c.slug] = getCategoryCount(mattressOnlyProducts, c.slug);
+    });
+    return counts;
+  }, [mattressOnlyProducts]);
+
+  // Secondary active filter count
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (selectedThickness !== "All") count++;
+    if (selectedSize !== "All") count++;
+    if (priceAvailability !== "All") count++;
+    return count;
+  }, [selectedThickness, selectedSize, priceAvailability]);
+
+  if (!isValidCategoryParam) {
+    return (
+      <div style={{ padding: "80px 24px", textAlign: "center", maxWidth: "800px", margin: "0 auto", width: "100%" }}>
+        <EmptyState
+          iconType="search"
+          title="Category Not Found"
+          message="The mattress category you are looking for does not exist or has been moved."
+          actionLabel="View All Mattresses"
+          onAction={resetAllFilters}
+        />
+      </div>
+    );
+  }
 
   return (
-    <div style={catalogContainerStyle}>
-      
-      {/* Banner */}
-
-      {/* Search status summary if searching */}
-      {searchQuery && (
-        <div style={searchQueryStatusStyle}>
-          <span>Showing results for <strong>{searchQuery}</strong> ({filteredProducts.length} items)</span>
-          <button onClick={resetFilters} style={clearFiltersBtnStyle}>
-            Clear
+    <div style={containerStyle}>
+      {/* ── FILTERING & CONTROLS BAR ──────────────────────────────────── */}
+      <div style={filterBarContainerStyle}>
+        
+        {/* Category Pills & Filter Button in Single Flex Row */}
+        <div style={categoryRowWrapStyle}>
+          {/* Green Filter Toggle Button FIRST */}
+          <button
+            type="button"
+            onClick={() => setIsFilterOpen((prev) => !prev)}
+            className="filter-toggle-btn"
+            style={{
+              ...filterToggleBtnStyle,
+              backgroundColor: isFilterOpen ? "#15803D" : "#16A34A",
+              color: "#FFFFFF",
+              borderColor: isFilterOpen ? "#15803D" : "#16A34A"
+            }}
+          >
+            <SlidersHorizontal size={15} color="#FFFFFF" />
+            <span>Filter{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}</span>
           </button>
-        </div>
-      )}
 
-      {/* Grid / Empty State */}
+          <button
+            type="button"
+            onClick={() => handleCategorySelect("all")}
+            style={{
+              ...categoryPillBtnStyle,
+              backgroundColor: (selectedCategory === "all" || selectedCategory === "All" || selectedCategory === "mattress") ? "#1B1F8C" : "#FFFFFF",
+              color: (selectedCategory === "all" || selectedCategory === "All" || selectedCategory === "mattress") ? "#FFFFFF" : "#14151A",
+              borderColor: (selectedCategory === "all" || selectedCategory === "All" || selectedCategory === "mattress") ? "#1B1F8C" : "#E7E7E2"
+            }}
+          >
+            All Products ({categoryCounts.all})
+          </button>
+
+          {MATTRESS_CATEGORY_LIST.map((cat) => {
+            const isSelected = selectedCategory === cat.slug;
+            const count = categoryCounts[cat.slug] || 0;
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => handleCategorySelect(cat.slug)}
+                style={{
+                  ...categoryPillBtnStyle,
+                  backgroundColor: isSelected ? "#1B1F8C" : "#FFFFFF",
+                  color: isSelected ? "#FFFFFF" : "#14151A",
+                  borderColor: isSelected ? "#1B1F8C" : "#E7E7E2"
+                }}
+              >
+                {cat.name} ({count})
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Results Count Line */}
+        <div style={resultsCountStyle}>
+          Showing <strong>{filteredProducts.length}</strong> {filteredProducts.length === mattressOnlyProducts.length ? "mattresses" : <>of <strong>{mattressOnlyProducts.length}</strong> mattresses</>}
+        </div>
+
+        {/* Active Filter Badges Summary */}
+        {activeFilterCount > 0 && (
+          <div style={activeBadgesRowStyle}>
+            <span style={activeBadgesLabelStyle}>Active Filters:</span>
+            {selectedThickness !== "All" && (
+              <span style={activeBadgeStyle}>
+                {selectedThickness} Inch
+                <button type="button" onClick={() => setSelectedThickness("All")} style={removeBadgeBtnStyle} aria-label="Remove thickness filter">
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+            {selectedSize !== "All" && (
+              <span style={activeBadgeStyle}>
+                {selectedSize}
+                <button type="button" onClick={() => setSelectedSize("All")} style={removeBadgeBtnStyle} aria-label="Remove size filter">
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+            {priceAvailability !== "All" && (
+              <span style={activeBadgeStyle}>
+                {priceAvailability === "Priced" ? "Priced Products" : "Contact for Price"}
+                <button type="button" onClick={() => setPriceAvailability("All")} style={removeBadgeBtnStyle} aria-label="Remove pricing filter">
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+            <button type="button" onClick={resetAllFilters} style={clearAllLinkStyle}>
+              Clear all
+            </button>
+          </div>
+        )}
+
+        {/* Collapsible Filter Panel */}
+        <MattressFilterPanel
+          isOpen={isFilterOpen}
+          onClose={() => setIsFilterOpen(false)}
+          selectedThickness={selectedThickness}
+          setSelectedThickness={setSelectedThickness}
+          selectedSize={selectedSize}
+          setSelectedSize={setSelectedSize}
+          priceAvailability={priceAvailability}
+          setPriceAvailability={setPriceAvailability}
+          sortBy={sortBy}
+          setSortBy={setSortBy}
+          resetAllFilters={resetAllFilters}
+        />
+
+      </div>
+
+      {/* ── PRODUCT GRID ────────────────────────────────────────────────────── */}
       {filteredProducts.length > 0 ? (
         <div className="catalog-grid" style={gridStyle}>
           {filteredProducts.map((product) => (
-            <div key={product.id}>
+            <div key={product.id} style={{ height: "100%" }}>
               <ProductCard product={product} />
             </div>
           ))}
         </div>
       ) : (
         <div style={emptyWrapperStyle}>
-          <EmptyState 
-            iconType="search" 
-            title="No matches found" 
-            message="We couldn't find any products matching your specific combinations. Try resetting the filters or search term." 
-            actionLabel="Reset filters" 
-            onAction={resetFilters} 
+          <EmptyState
+            iconType="search"
+            title="No matching mattresses"
+            message="No products match your active filter selection. Try clearing filters to see all 66 products."
+            actionLabel="Reset All Filters"
+            onAction={resetAllFilters}
           />
         </div>
       )}
+
       <style>{`
+        .filter-toggle-btn:hover {
+          background-color: #15803D !important;
+          border-color: #15803D !important;
+          color: #FFFFFF !important;
+        }
         @media (max-width: 767px) {
           .catalog-grid {
-            display: grid !important;
-            grid-template-columns: repeat(2, 1fr) !important;
-            gap: 12px !important;
-          }
-        }
-        @media (max-width: 420px) {
-          .catalog-grid {
-            gap: 10px !important;
+            grid-template-columns: repeat(1, 1fr) !important;
+            gap: 16px !important;
           }
         }
       `}</style>
@@ -131,73 +311,120 @@ export default function CatalogView() {
   );
 }
 
-// Styling Object Configurations
-const catalogContainerStyle = {
-  maxWidth: "1200px",
+// ── STYLING OBJECTS ──────────────────────────────────────────────────────────
+const containerStyle = {
+  maxWidth: "1280px",
   margin: "0 auto",
-  padding: "40px 24px 80px 24px",
+  padding: "24px 24px 80px 24px",
   width: "100%"
 };
 
-const bannerStyle = {
-  textAlign: "center",
-  marginBottom: "48px",
-  padding: "34px 24px 42px",
-  borderBottom: "1px solid #E7E7E2"
-};
-
-const eyebrowStyle = {
-  fontSize: "14px",
-  fontWeight: "700",
-  textTransform: "uppercase",
-  letterSpacing: "0.08em",
-  color: "#16A34A",
-  display: "block",
-  marginBottom: "12px"
-};
-
-const headingStyle = {
-  fontSize: "36px",
-  fontWeight: "800",
-  color: "#1B1F8C",
-  marginBottom: "16px"
-};
-
-const subheadingStyle = {
-  fontSize: "15px",
-  color: "#6B6B75",
-  lineHeight: "1.6",
-  maxWidth: "600px",
-  margin: "0 auto"
-};
-
-const clearFiltersBtnStyle = {
-  backgroundColor: "transparent",
-  color: "#1B1F8C",
-  border: "none",
-  fontSize: "14px",
-  fontWeight: "700",
-  cursor: "pointer",
-  textDecoration: "underline",
-  padding: "8px 12px"
-};
-
-const searchQueryStatusStyle = {
+const filterBarContainerStyle = {
+  display: "flex",
+  flexDirection: "column",
+  gap: "12px",
   marginBottom: "24px",
-  fontSize: "15px",
-  color: "#6B6B75",
+  padding: "0"
+};
+
+const categoryRowWrapStyle = {
   display: "flex",
   alignItems: "center",
-  justifyContent: "space-between",
-  gap: "12px",
+  gap: "10px",
   flexWrap: "wrap"
 };
 
-// Grid layout
+const categoryPillBtnStyle = {
+  padding: "8px 16px",
+  borderRadius: "999px",
+  borderWidth: "1.5px",
+  borderStyle: "solid",
+  borderColor: "#E7E7E2",
+  fontSize: "13px",
+  fontWeight: "700",
+  cursor: "pointer",
+  whiteSpace: "nowrap",
+  transition: "all 0.2s ease"
+};
+
+const filterToggleBtnStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "6px",
+  height: "37px",
+  padding: "0 16px",
+  borderRadius: "999px",
+  borderWidth: "1.5px",
+  borderStyle: "solid",
+  borderColor: "#16A34A",
+  backgroundColor: "#16A34A",
+  color: "#FFFFFF",
+  fontSize: "13px",
+  fontWeight: "700",
+  cursor: "pointer",
+  whiteSpace: "nowrap",
+  flex: "0 0 auto",
+  transition: "all 0.2s ease"
+};
+
+const activeBadgesRowStyle = {
+  display: "flex",
+  alignItems: "center",
+  gap: "8px",
+  flexWrap: "wrap",
+  paddingTop: "6px"
+};
+
+const activeBadgesLabelStyle = {
+  fontSize: "12px",
+  fontWeight: "700",
+  color: "#64748B"
+};
+
+const activeBadgeStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "6px",
+  padding: "4px 10px",
+  borderRadius: "999px",
+  backgroundColor: "#EEF2FF",
+  color: "#1B1F8C",
+  border: "1px solid #C7D2FE",
+  fontSize: "12px",
+  fontWeight: "700"
+};
+
+const removeBadgeBtnStyle = {
+  background: "none",
+  border: "none",
+  cursor: "pointer",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  color: "#1B1F8C",
+  padding: "2px"
+};
+
+const clearAllLinkStyle = {
+  background: "none",
+  border: "none",
+  cursor: "pointer",
+  color: "#E11D48",
+  fontSize: "12px",
+  fontWeight: "700",
+  textDecoration: "underline",
+  padding: "2px 4px"
+};
+
+const resultsCountStyle = {
+  fontSize: "13px",
+  color: "#6B6B75"
+};
+
 const gridStyle = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-  gap: "30px"
+  gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+  gap: "24px"
 };
 
 const emptyWrapperStyle = {
@@ -205,5 +432,7 @@ const emptyWrapperStyle = {
   justifyContent: "center",
   alignItems: "center",
   width: "100%",
-  padding: "40px 0"
+  padding: "60px 0"
 };
+
+

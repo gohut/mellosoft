@@ -5,67 +5,380 @@ import { createPortal } from "react-dom";
 import { useAdmin } from "../context/AdminContext";
 import DataTable from "../components/DataTable";
 import StatusBadge from "../components/StatusBadge";
-import { X, ShoppingBag, DollarSign, TrendingUp, Package, Clock, Heart, ShoppingCart } from "lucide-react";
+import { X, Search, RotateCcw, ShoppingBag, DollarSign, TrendingUp, Package, Clock, Heart, ShoppingCart } from "lucide-react";
 import { formatPrice, calculateDiscountedPrice } from "../../utils/currency";
+
+export function getCustomerDisplayId(customer, index = 0) {
+  if (!customer) return `CUS-0001`;
+  if (customer.customerId && typeof customer.customerId === "string") {
+    return customer.customerId;
+  }
+  if (customer.id && typeof customer.id === "string" && customer.id.startsWith("CUS-")) {
+    return customer.id;
+  }
+  if (customer.id && typeof customer.id === "string" && customer.id.startsWith("C")) {
+    const num = parseInt(customer.id.substring(1), 10);
+    if (!isNaN(num)) {
+      return `CUS-${String(num).padStart(4, "0")}`;
+    }
+  }
+  return `CUS-${String(index + 1).padStart(4, "0")}`;
+}
+
+const filterSelectStyle = {
+  width: "100%",
+  height: "40px",
+  backgroundColor: "#F7F7F2",
+  border: "1px solid #E7E7E2",
+  borderRadius: "8px",
+  padding: "0 12px",
+  fontSize: "13px",
+  color: "#14151A",
+  fontWeight: 600,
+  outline: "none",
+  cursor: "pointer",
+};
 
 export default function CustomersView() {
   const { customers, orders, products, wishlists, updateCustomerStatus, hasPermission } = useAdmin();
   const [selectedCustomerId, setSelectedCustomerId] = useState(null);
 
+  // Filter States
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [ordersFilter, setOrdersFilter] = useState("All");
+  const [spendingFilter, setSpendingFilter] = useState("All");
+
   const canEditCustomers = hasPermission("customers", "edit");
 
   // Calculate dynamic customer table rows based strictly on customerId relationships
   const customerTableRows = useMemo(() => {
-    return (customers || []).map((c) => {
-      const custOrders = (orders || []).filter((o) => o.customerId === c.id);
+    return (customers || []).map((c, idx) => {
+      const displayId = getCustomerDisplayId(c, idx);
+      const custOrders = (orders || []).filter(
+        (o) => o.customerId === c.id || o.customerId === c.customerId || o.customerId === displayId
+      );
       const ordersCount = custOrders.length;
       const totalSpent = custOrders
-        .filter((o) => o.paymentStatus === "Paid" || o.orderStatus === "Delivered")
+        .filter((o) => o.orderStatus !== "Cancelled" && (o.paymentStatus === "Paid" || o.orderStatus === "Delivered" || o.orderStatus === "Processing" || o.orderStatus === "Shipped" || o.totalAmount > 0))
         .reduce((sum, o) => sum + (o.totalAmount || 0), 0);
 
       return {
         ...c,
+        displayId,
         ordersCount,
         totalSpent,
       };
     });
   }, [customers, orders]);
 
+  // Combined Filters Logic (AND)
+  const filteredCustomers = useMemo(() => {
+    return customerTableRows.filter((c) => {
+      // 1. Search Query (Customer ID, Name, Email, Phone)
+      const term = searchQuery.toLowerCase().trim();
+      if (term) {
+        const matchId = (c.displayId || "").toLowerCase().includes(term);
+        const matchName = (c.name || "").toLowerCase().includes(term);
+        const matchEmail = (c.email || "").toLowerCase().includes(term);
+        const matchPhone = (c.phone || "").toLowerCase().includes(term);
+        if (!matchId && !matchName && !matchEmail && !matchPhone) return false;
+      }
+
+      // 2. Status Filter
+      if (statusFilter !== "All") {
+        if ((c.status || "").toLowerCase() !== statusFilter.toLowerCase()) return false;
+      }
+
+      // 3. Orders Filter
+      if (ordersFilter !== "All") {
+        const count = c.ordersCount || 0;
+        if (ordersFilter === "0" && count !== 0) return false;
+        if (ordersFilter === "1-2" && (count < 1 || count > 2)) return false;
+        if (ordersFilter === "3-5" && (count < 3 || count > 5)) return false;
+        if (ordersFilter === "6+" && count < 6) return false;
+      }
+
+      // 4. Spending Filter
+      if (spendingFilter !== "All") {
+        const spent = c.totalSpent || 0;
+        if (spendingFilter === "0" && spent !== 0) return false;
+        if (spendingFilter === "1-2000" && (spent < 1 || spent > 2000)) return false;
+        if (spendingFilter === "2001-5000" && (spent < 2001 || spent > 5000)) return false;
+        if (spendingFilter === "5001-10000" && (spent < 5001 || spent > 10000)) return false;
+        if (spendingFilter === "10000+" && spent <= 10000) return false;
+      }
+
+      return true;
+    });
+  }, [customerTableRows, searchQuery, statusFilter, ordersFilter, spendingFilter]);
+
+  const hasActiveFilters =
+    searchQuery.trim() !== "" ||
+    statusFilter !== "All" ||
+    ordersFilter !== "All" ||
+    spendingFilter !== "All";
+
+  const handleResetFilters = () => {
+    setSearchQuery("");
+    setStatusFilter("All");
+    setOrdersFilter("All");
+    setSpendingFilter("All");
+  };
+
   const columns = [
     {
-      key: "avatar", label: "", width: "48px",
+      key: "displayId",
+      label: "CUSTOMER ID",
+      nowrap: true,
+      render: (val, row, idx) => {
+        const idText = val || row.displayId || getCustomerDisplayId(row, idx);
+        return (
+          <span style={{
+            fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+            fontWeight: 700,
+            color: "#1B1F8C",
+            backgroundColor: "#EEF0FF",
+            padding: "4px 8px",
+            borderRadius: "6px",
+            fontSize: "12px",
+            letterSpacing: "0.02em",
+            display: "inline-block"
+          }}>
+            {idText}
+          </span>
+        );
+      },
+    },
+    {
+      key: "name",
+      label: "NAME",
       render: (val, row) => (
-        <div style={{
-          width: "38px", height: "38px", borderRadius: "10px",
-          backgroundColor: "#E8E9F8", color: "#1B1F8C", display: "flex",
-          alignItems: "center", justifyContent: "center", fontSize: "14px", fontWeight: 700,
-        }}>
-          {val || row.name.charAt(0).toUpperCase()}
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <div style={{
+            width: "36px", height: "36px", borderRadius: "10px",
+            backgroundColor: "#E8E9F8", color: "#1B1F8C", display: "flex",
+            alignItems: "center", justifyContent: "center", fontSize: "14px", fontWeight: 700,
+            flexShrink: 0, overflow: "hidden"
+          }}>
+            {row.avatar && (row.avatar.startsWith("/") || row.avatar.startsWith("http")) ? (
+              <img src={row.avatar} alt={val} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            ) : row.profileImage ? (
+              <img src={row.profileImage} alt={val} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            ) : (
+              row.avatar || (val ? val.charAt(0).toUpperCase() : "C")
+            )}
+          </div>
+          <span style={{ fontWeight: 600, color: "#14151A" }}>{val}</span>
         </div>
       ),
     },
-    { key: "name", label: "NAME", render: (val) => <span style={{ fontWeight: 600 }}>{val}</span> },
-    { key: "email", label: "EMAIL", render: (val) => <span style={{ color: "#6B6B75", fontSize: "13px" }}>{val}</span> },
+    {
+      key: "email",
+      label: "EMAIL",
+      render: (val) => <span style={{ color: "#6B6B75", fontSize: "13px" }}>{val}</span>
+    },
     { key: "phone", label: "PHONE", nowrap: true },
-    { key: "ordersCount", label: "ORDERS", align: "center", render: (val) => <span style={{ fontWeight: 600 }}>{val}</span> },
-    { key: "totalSpent", label: "SPENDING", nowrap: true, render: (val) => <span style={{ fontWeight: 600 }}>{formatPrice(val)}</span> },
-    { key: "status", label: "STATUS", render: (val) => <StatusBadge status={val} /> },
+    {
+      key: "ordersCount",
+      label: "ORDERS",
+      align: "center",
+      render: (val) => <span style={{ fontWeight: 600 }}>{val}</span>
+    },
+    {
+      key: "totalSpent",
+      label: "SPENDING",
+      nowrap: true,
+      render: (val) => <span style={{ fontWeight: 600, color: "#16A34A" }}>{formatPrice(val)}</span>
+    },
+    {
+      key: "status",
+      label: "STATUS",
+      render: (val) => <StatusBadge status={val} />
+    },
   ];
 
   return (
     <div className="admin-fade-in" style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
       <div>
         <h3 style={{ fontSize: "18px", fontWeight: 700, color: "#14151A", margin: 0 }}>Customer Management</h3>
-        <p style={{ fontSize: "13px", color: "#6B6B75", marginTop: "4px" }}>{customerTableRows.length} registered customers</p>
+        <p style={{ fontSize: "13px", color: "#6B6B75", marginTop: "4px" }}>
+          {hasActiveFilters ? (
+            <>Showing <strong style={{ color: "#1B1F8C" }}>{filteredCustomers.length}</strong> of {customerTableRows.length} registered customers</>
+          ) : (
+            <>{customerTableRows.length} registered customers</>
+          )}
+        </p>
       </div>
 
-      {/* Relational Customers Table without ACTIONS column */}
-      <DataTable
-        columns={columns}
-        data={customerTableRows}
-        onRowClick={(cust) => setSelectedCustomerId(cust.id)}
-        emptyMessage="No customers found."
-      />
+      {/* Customer Filters Bar */}
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "12px",
+        flexWrap: "wrap",
+        backgroundColor: "#FFFFFF",
+        padding: "16px 20px",
+        borderRadius: "14px",
+        border: "1px solid #E7E7E2",
+        boxShadow: "0 1px 3px rgba(0, 0, 0, 0.04)",
+      }}>
+        {/* Search Input */}
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          backgroundColor: "#F7F7F2",
+          border: "1px solid #E7E7E2",
+          borderRadius: "8px",
+          padding: "0 12px",
+          height: "40px",
+          flex: "1 1 240px",
+          minWidth: "200px"
+        }}>
+          <Search size={16} color="#6B6B75" />
+          <input
+            type="text"
+            placeholder="Search customers (ID, name, email, phone)..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              border: "none",
+              backgroundColor: "transparent",
+              outline: "none",
+              width: "100%",
+              fontSize: "13px",
+              color: "#14151A"
+            }}
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              style={{ border: "none", background: "none", cursor: "pointer", padding: 0, display: "flex" }}
+            >
+              <X size={14} color="#6B6B75" />
+            </button>
+          )}
+        </div>
+
+        {/* Status Filter */}
+        <div style={{ flex: "0 1 auto", minWidth: "130px" }}>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            style={filterSelectStyle}
+          >
+            <option value="All">Status: All</option>
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+          </select>
+        </div>
+
+        {/* Orders Filter */}
+        <div style={{ flex: "0 1 auto", minWidth: "140px" }}>
+          <select
+            value={ordersFilter}
+            onChange={(e) => setOrdersFilter(e.target.value)}
+            style={filterSelectStyle}
+          >
+            <option value="All">Orders: All</option>
+            <option value="0">0 Orders</option>
+            <option value="1-2">1–2 Orders</option>
+            <option value="3-5">3–5 Orders</option>
+            <option value="6+">6+ Orders</option>
+          </select>
+        </div>
+
+        {/* Spending Filter */}
+        <div style={{ flex: "0 1 auto", minWidth: "160px" }}>
+          <select
+            value={spendingFilter}
+            onChange={(e) => setSpendingFilter(e.target.value)}
+            style={filterSelectStyle}
+          >
+            <option value="All">Spending: All</option>
+            <option value="0">₹0</option>
+            <option value="1-2000">₹1 – ₹2,000</option>
+            <option value="2001-5000">₹2,001 – ₹5,000</option>
+            <option value="5001-10000">₹5,001 – ₹10,000</option>
+            <option value="10000+">₹10,000+</option>
+          </select>
+        </div>
+
+        {/* Reset Button */}
+        {hasActiveFilters && (
+          <button
+            type="button"
+            onClick={handleResetFilters}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              height: "40px",
+              padding: "0 14px",
+              borderRadius: "8px",
+              fontSize: "13px",
+              fontWeight: 600,
+              border: "1px solid #E7E7E2",
+              backgroundColor: "#F7F7F2",
+              color: "#4B5563",
+              cursor: "pointer",
+              transition: "all 0.15s ease",
+            }}
+          >
+            <RotateCcw size={14} />
+            Reset
+          </button>
+        )}
+      </div>
+
+      {/* Relational Customers Table with Empty State */}
+      {filteredCustomers.length === 0 ? (
+        <div style={{
+          backgroundColor: "#FFFFFF",
+          borderRadius: "14px",
+          border: "1px solid #E7E7E2",
+          padding: "48px 24px",
+          textAlign: "center",
+          color: "#6B6B75"
+        }}>
+          <Search size={36} color="#9CA3AF" style={{ marginBottom: "12px" }} />
+          <h4 style={{ fontSize: "16px", fontWeight: 700, color: "#14151A", margin: "0 0 6px" }}>
+            No matching customers found
+          </h4>
+          <p style={{ fontSize: "13px", color: "#6B6B75", margin: "0 0 16px" }}>
+            Try changing or resetting your filters.
+          </p>
+          <button
+            type="button"
+            onClick={handleResetFilters}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "8px 16px",
+              borderRadius: "8px",
+              fontSize: "13px",
+              fontWeight: 700,
+              border: "1px solid #1B1F8C",
+              backgroundColor: "#EEF0FF",
+              color: "#1B1F8C",
+              cursor: "pointer"
+            }}
+          >
+            <RotateCcw size={14} />
+            Reset Filters
+          </button>
+        </div>
+      ) : (
+        <DataTable
+          columns={columns}
+          data={filteredCustomers}
+          onRowClick={(cust) => setSelectedCustomerId(cust.id)}
+          emptyMessage="No customers found."
+        />
+      )}
 
       {/* Customer Profile Modal loaded via customerId */}
       {selectedCustomerId && (
@@ -208,9 +521,22 @@ function CustomerDetailsModal({ customerId, canEdit, onClose, onStatusToggle }) 
               )}
             </div>
             <div style={{ minWidth: 0 }}>
-              <h4 style={{ fontSize: "18px", fontWeight: 700, margin: 0, color: "#14151A" }}>
-                {customer.name}
-              </h4>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <h4 style={{ fontSize: "18px", fontWeight: 700, margin: 0, color: "#14151A" }}>
+                  {customer.name}
+                </h4>
+                <span style={{
+                  fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+                  fontWeight: 700,
+                  color: "#1B1F8C",
+                  backgroundColor: "#EEF0FF",
+                  padding: "2px 6px",
+                  borderRadius: "4px",
+                  fontSize: "12px"
+                }}>
+                  {customer.customerId || getCustomerDisplayId(customer)}
+                </span>
+              </div>
               <div style={{ fontSize: "12px", color: "#6B6B75", marginTop: "2px", display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
                 <span>{customer.email}</span>
                 <span>•</span>

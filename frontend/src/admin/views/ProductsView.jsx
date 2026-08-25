@@ -9,6 +9,7 @@ import ConfirmDialog from "../components/ConfirmDialog";
 import Pagination from "../components/Pagination";
 import { Plus } from "lucide-react";
 import { formatPrice, calculateDiscountedPrice } from "../../utils/currency";
+import { getProductPrimaryImage, isProductInCategory, isAccessoryProduct, getProductCategoryLabel } from "../../utils/productHelpers";
 
 function getProductStatus(p) {
   if (p.status) return p.status;
@@ -26,13 +27,55 @@ export default function ProductsView() {
   const [page, setPage] = useState(1);
   const perPage = 6;
 
+  const categoryCounts = useMemo(() => {
+    const counts = {
+      all: products.length,
+      mattresses: 0,
+      accessories: 0,
+      foam: 0,
+      ortho: 0,
+      spring: 0,
+      latex: 0,
+      "memory-foam": 0,
+      "memory-foam-pillow": 0,
+      "latex-pillow": 0,
+      "fiber-pillow": 0,
+      "mattress-protector": 0,
+      "fitted-bedspread": 0,
+      "blanket-duvet": 0,
+      "travel-bed": 0
+    };
+
+    products.forEach((p) => {
+      if (isAccessoryProduct(p)) {
+        counts.accessories++;
+      } else {
+        counts.mattresses++;
+      }
+
+      Object.keys(counts).forEach((k) => {
+        if (k !== "all" && k !== "mattresses" && k !== "accessories") {
+          if (isProductInCategory(p, k)) {
+            counts[k]++;
+          }
+        }
+      });
+    });
+
+    return counts;
+  }, [products]);
+
   const filtered = useMemo(() => {
     return products.filter((p) => {
       const pName = (p.Product_Name || p.name || "").toLowerCase();
       const pId = (p.Product_Id || p.id || "").toLowerCase();
       const query = search.toLowerCase();
       if (search && !pName.includes(query) && !pId.includes(query)) return false;
-      if (categoryFilter !== "All" && p.category !== categoryFilter) return false;
+
+      if (categoryFilter !== "All" && categoryFilter !== "all") {
+        if (!isProductInCategory(p, categoryFilter)) return false;
+      }
+
       if (statusFilter !== "All" && getProductStatus(p) !== statusFilter) return false;
       return true;
     });
@@ -48,7 +91,7 @@ export default function ProductsView() {
       width: "60px",
       render: (_, row) => (
         <img
-          src={Array.isArray(row.images) ? row.images[0] : row.image}
+          src={getProductPrimaryImage(row)}
           alt={row.Product_Name || row.name}
           style={{ width: "44px", height: "44px", objectFit: "cover", borderRadius: "8px", backgroundColor: "#F7F7F2" }}
         />
@@ -76,7 +119,7 @@ export default function ProductsView() {
       key: "category",
       label: "CATEGORY",
       nowrap: true,
-      render: (val) => <span style={{ textTransform: "capitalize" }}>{val}</span>,
+      render: (_, row) => <span>{getProductCategoryLabel(row)}</span>,
     },
     {
       key: "price",
@@ -122,16 +165,15 @@ export default function ProductsView() {
     {
       key: "status",
       label: "STATUS",
+      nowrap: true,
       render: (_, row) => <StatusBadge status={getProductStatus(row)} />,
     },
   ];
 
-  const categories = ["All", ...new Set(products.map((p) => p.category))];
-
   return (
-    <div className="admin-fade-in" style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-      {/* Top bar */}
-      <div className="admin-products-topbar" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", flexWrap: "wrap" }}>
+    <div className="admin-fade-in" style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+      {/* Top Bar */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
         <div style={{ display: "flex", gap: "12px", alignItems: "center", flex: 1, flexWrap: "wrap" }}>
           <SearchBar value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="Search products..." style={{ width: "260px", minWidth: "180px" }} />
           <select
@@ -139,9 +181,25 @@ export default function ProductsView() {
             onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }}
             style={selectStyle}
           >
-            {categories.map((c) => (
-              <option key={c} value={c}>{c === "All" ? "All Categories" : c.charAt(0).toUpperCase() + c.slice(1)}</option>
-            ))}
+            <option value="All">All Categories ({categoryCounts.all})</option>
+            <optgroup label="Mattresses">
+              <option value="mattresses">All Mattresses ({categoryCounts.mattresses})</option>
+              <option value="foam">Foam Mattress ({categoryCounts.foam})</option>
+              <option value="ortho">Ortho Mattress ({categoryCounts.ortho})</option>
+              <option value="spring">Spring Mattress ({categoryCounts.spring})</option>
+              <option value="latex">Latex Mattress ({categoryCounts.latex})</option>
+              <option value="memory-foam">Memory Foam Mattress ({categoryCounts["memory-foam"]})</option>
+            </optgroup>
+            <optgroup label="Accessories">
+              <option value="accessories">All Accessories ({categoryCounts.accessories})</option>
+              <option value="memory-foam-pillow">Memory Foam Pillow ({categoryCounts["memory-foam-pillow"]})</option>
+              <option value="latex-pillow">Latex Pillow ({categoryCounts["latex-pillow"]})</option>
+              <option value="fiber-pillow">Fiber Pillow ({categoryCounts["fiber-pillow"]})</option>
+              <option value="mattress-protector">Mattress Protector ({categoryCounts["mattress-protector"]})</option>
+              <option value="fitted-bedspread">Fitted Bedspread ({categoryCounts["fitted-bedspread"]})</option>
+              <option value="blanket-duvet">Blanket / Duvet ({categoryCounts["blanket-duvet"]})</option>
+              <option value="travel-bed">Travel Bed ({categoryCounts["travel-bed"]})</option>
+            </optgroup>
           </select>
           <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} style={selectStyle}>
             <option value="All">All Status</option>

@@ -11,6 +11,7 @@ import AdminProductDetailView from "../../../admin/views/AdminProductDetailView"
 import EditProductView from "../../../admin/views/EditProductView";
 import CategoriesView from "../../../admin/views/CategoriesView";
 import BannersView from "../../../admin/views/BannersView";
+import ContentView from "../../../admin/views/ContentView";
 import OrdersView from "../../../admin/views/OrdersView";
 import CustomersView from "../../../admin/views/CustomersView";
 import ReviewsView from "../../../admin/views/ReviewsView";
@@ -35,8 +36,12 @@ export default function AdminPage() {
         if (!hasPermission("products", "view")) return <AccessDeniedPanel moduleName="Categories" onBack={() => navigateTo("dashboard")} />;
         return <CategoriesView />;
       case "banners":
-        if (!hasPermission("products", "view")) return <AccessDeniedPanel moduleName="Banners" onBack={() => navigateTo("dashboard")} />;
-        return <BannersView />;
+        // Legacy route — redirect to Content section
+        navigateTo("content");
+        return null;
+      case "content":
+        if (!hasPermission("products", "view")) return <AccessDeniedPanel moduleName="Content" onBack={() => navigateTo("dashboard")} />;
+        return <ContentView />;
       case "add-product":
         if (!hasPermission("products", "create")) return <AccessDeniedPanel moduleName="Add Product" onBack={() => navigateTo("dashboard")} />;
         return <AddProductView />;

@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 340" width="100%" height="100%" fill="none">
+  <defs>
+    <filter id="shadow-hybrid" x="-10%" y="-10%" width="130%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="10" flood-color="#D97706" flood-opacity="0.16"/>
+    </filter>
+    <linearGradient id="hybridQuilt" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#FFF7ED"/>
+    </linearGradient>
+    <linearGradient id="springLayer" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#EA580C"/>
+      <stop offset="100%" stop-color="#F97316"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Ground Contact Shadow -->
+  <ellipse cx="250" cy="275" rx="190" ry="25" fill="#0F172A" opacity="0.12"/>
+
+  <!-- 3/4 Isometric Hybrid Mattress -->
+  <g filter="url(#shadow-hybrid)">
+    <!-- Base Core Side Left -->
+    <path d="M60 165 L250 245 L250 270 L60 190 Z" fill="#94A3B8"/>
+    <!-- Base Core Side Right -->
+    <path d="M250 245 L440 165 L440 190 L250 270 Z" fill="#64748B"/>
+    
+    <!-- Top Euro Pillowtop Body -->
+    <path d="M60 135 L250 215 L440 135 L250 55 Z" fill="url(#hybridQuilt)" stroke="#FED7AA" stroke-width="1.5"/>
+
+    <!-- Pillowtop Cushion Front Side -->
+    <path d="M60 135 L250 215 L250 165 L60 85 Z" fill="#FFEDD5" opacity="0.7"/>
+    
+    <!-- Hybrid Coil Indicator Accent Band Left -->
+    <path d="M60 155 L250 235 L250 248 L60 168 Z" fill="url(#springLayer)"/>
+    <!-- Hybrid Coil Indicator Accent Band Right -->
+    <path d="M250 235 L440 155 L440 168 L250 248 Z" fill="#C2410C"/>
+
+    <!-- Wave Quilting Lines -->
+    <path d="M100 115 Q175 140 250 175 Q325 140 400 115" fill="none" stroke="#F97316" stroke-width="1.5" opacity="0.4"/>
+    <path d="M130 95 Q205 120 280 155 Q355 120 430 95" fill="none" stroke="#F97316" stroke-width="1.5" opacity="0.4"/>
+
+    <!-- Pocket Coil Icon Accents on Band -->
+    <circle cx="120" cy="188" r="4" fill="#FFFFFF" opacity="0.9"/>
+    <circle cx="150" cy="201" r="4" fill="#FFFFFF" opacity="0.9"/>
+    <circle cx="180" cy="214" r="4" fill="#FFFFFF" opacity="0.9"/>
+    <circle cx="210" cy="227" r="4" fill="#FFFFFF" opacity="0.9"/>
+
+    <!-- Double Piping Euro Top Trim -->
+    <path d="M60 135 L250 215 L440 135" fill="none" stroke="#EA580C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M60 145 L250 225 L440 145" fill="none" stroke="#F97316" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- Mellosoft Brand Tag -->
+    <rect x="135" y="190" width="48" height="12" rx="3" fill="#FFFFFF" transform="skewY(23)"/>
+    <text x="141" y="199" font-family="-apple-system, sans-serif" font-size="6" font-weight="900" fill="#EA580C" transform="skewY(23)">HYBRID</text>
+  </g>
+</svg>

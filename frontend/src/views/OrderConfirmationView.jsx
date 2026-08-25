@@ -3,7 +3,8 @@
 import React, { useMemo } from "react";
 import { useStore } from "../context/StoreContext";
 import { formatPrice } from "../utils/currency";
-import { CheckCircle2, Package, MapPin, CreditCard, Calendar, ArrowRight, ShoppingBag } from "lucide-react";
+import { CheckCircle2, Package, MapPin, Calendar, ArrowRight, ShoppingBag } from "lucide-react";
+import DownloadOrderPdf from "../components/DownloadOrderPdf";
 
 export default function OrderConfirmationView() {
   const { selectedOrderId, orders, navigateTo } = useStore();
@@ -11,7 +12,7 @@ export default function OrderConfirmationView() {
   const currentOrder = useMemo(() => {
     if (!orders || orders.length === 0) return null;
     if (selectedOrderId) {
-      return orders.find((o) => o.id === selectedOrderId || o.orderId === selectedOrderId) || orders[0];
+      return orders.find((o) => o.id === selectedOrderId || o.orderId === selectedOrderId) || null;
     }
     return orders[0];
   }, [orders, selectedOrderId]);
@@ -20,11 +21,16 @@ export default function OrderConfirmationView() {
     return (
       <div style={emptyContainerStyle}>
         <div style={emptyCardStyle}>
-          <h2 style={{ fontSize: "24px", color: "#1B1F8C", margin: "0 0 12px 0" }}>No Order Found</h2>
-          <p style={{ color: "#6B6B75", marginBottom: "20px" }}>You have not placed any recent orders yet.</p>
-          <button onClick={() => navigateTo("catalog")} style={primaryBtnStyle}>
-            Explore Sleep Catalog
-          </button>
+          <h2 style={{ fontSize: "24px", color: "#1B1F8C", margin: "0 0 12px 0" }}>Order Not Found</h2>
+          <p style={{ color: "#6B6B75", marginBottom: "20px" }}>We couldn't find the order you are looking for.</p>
+          <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
+            <button onClick={() => navigateTo("orders")} style={primaryBtnStyle}>
+              View My Orders
+            </button>
+            <button onClick={() => navigateTo("catalog")} style={primaryBtnStyle}>
+              Return to Store
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -126,7 +132,7 @@ export default function OrderConfirmationView() {
             <div style={paymentMetaBoxStyle}>
               <div style={metaRowStyle}>
                 <span style={metaLabelStyle}>Payment Method</span>
-                <span style={metaValStyle}>{currentOrder.paymentMethod || "UPI / Card"}</span>
+                <span style={metaValStyle}>{currentOrder.paymentMethod || "UPI / COD"}</span>
               </div>
               <div style={metaRowStyle}>
                 <span style={metaLabelStyle}>Payment Status</span>
@@ -179,6 +185,9 @@ export default function OrderConfirmationView() {
             </div>
 
             <div style={actionButtonsGroupStyle}>
+              {/* PDF Download — prominently placed above navigation actions */}
+              <DownloadOrderPdf order={currentOrder} variant="primary" />
+
               <button onClick={() => navigateTo("orders")} style={viewOrdersBtnStyle}>
                 <ShoppingBag size={16} />
                 <span>View My Orders</span>

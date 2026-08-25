@@ -77,7 +77,7 @@ export default function DataTable({ columns, data, emptyMessage = "No data found
                       whiteSpace: col.nowrap ? "nowrap" : "normal",
                     }}
                   >
-                    {col.render ? col.render(row[col.key], row) : row[col.key]}
+                    {col.render ? col.render(row[col.key], row, rowIndex) : row[col.key]}
                   </td>
                 ))}
               </tr>

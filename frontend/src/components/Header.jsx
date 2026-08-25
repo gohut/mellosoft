@@ -1,12 +1,16 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { useStore } from "../context/StoreContext";
 import { useCustomerAuth } from "../context/CustomerAuthContext";
 import { MOCK_PRODUCTS } from "../data/products";
 import { formatPrice } from "../utils/currency";
 
 export default function Header() {
+  const pathname = usePathname() || "/";
+  const router = useRouter();
+
   const {
     view,
     navigateTo,
@@ -25,20 +29,33 @@ export default function Header() {
   const [mobileFocused, setMobileFocused] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  // Dropdown states for Desktop
+  const [mattressDropdown, setMattressDropdown] = useState(false);
+  const [accessoriesDropdown, setAccessoriesDropdown] = useState(false);
+
+  // Mobile accordion states
+  const [mobileMattressOpen, setMobileMattressOpen] = useState(false);
+  const [mobileAccessoriesOpen, setMobileAccessoriesOpen] = useState(false);
+
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const cartCount = cart.reduce((acc, item) => acc + item.qty, 0);
+  const cartCount = cart.reduce((acc, item) => acc + (item.qty || item.quantity || 1), 0);
   const wishlistCount = wishlist.length;
   const displayCartCount = mounted ? cartCount : 0;
   const displayWishlistCount = mounted ? wishlistCount : 0;
 
-  const isNestedMobileView = view !== "home";
-  const isDetailView = view === "detail";
+  const isHome = pathname === "/";
+  const isMattressActive = pathname === "/mattresses" || pathname.startsWith("/mattresses/");
+  const isAccessoriesActive = pathname === "/accessories" || pathname.startsWith("/accessories/");
+  const isAboutActive = pathname === "/about";
+  const isContactActive = pathname === "/contact";
 
-  // Dynamic body padding for mobile sticky header vs. detail view
+  const isNestedMobileView = !isHome;
+  const isDetailView = pathname.startsWith("/product/");
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     const style = document.body.style;
@@ -70,8 +87,9 @@ export default function Header() {
     return MOCK_PRODUCTS.filter((product) => {
       return (
         product.name.toLowerCase().includes(query) ||
-        product.category.toLowerCase().includes(query) ||
-        product.tagline.toLowerCase().includes(query)
+        (product.category && product.category.toLowerCase().includes(query)) ||
+        (product.tagline && product.tagline.toLowerCase().includes(query)) ||
+        (product.construction && product.construction.toLowerCase().includes(query))
       );
     }).slice(0, 5);
   };
@@ -79,16 +97,36 @@ export default function Header() {
   const desktopSuggestions = searchProducts(desktopSearch);
   const mobileSuggestions = searchProducts(mobileSearch);
 
-  const goToCategory = (category) => {
+  const handleNavClick = (targetPath) => {
+    setMattressDropdown(false);
+    setAccessoriesDropdown(false);
+    setMobileMenuOpen(false);
+    if (router && typeof router.push === "function") {
+      router.push(targetPath);
+    }
+  };
+
+  const goToCategory = (categorySlug) => {
     setActiveFilters({
-      category,
+      category: categorySlug,
       firmness: "All",
       size: "All",
       sort: "Recommended"
     });
     setSearchQuery("");
-    navigateTo("catalog");
+    setMattressDropdown(false);
+    setAccessoriesDropdown(false);
     setMobileMenuOpen(false);
+    handleNavClick(`/mattresses/${categorySlug}`);
+  };
+
+  const goToProduct = (productId) => {
+    setDesktopFocused(false);
+    setMobileFocused(false);
+    setMattressDropdown(false);
+    setAccessoriesDropdown(false);
+    setMobileMenuOpen(false);
+    handleNavClick(`/product/${encodeURIComponent(String(productId).trim())}`);
   };
 
   const goToSearchResults = (term) => {
@@ -96,31 +134,17 @@ export default function Header() {
     if (!query) return;
     setSearchQuery(query);
     setActiveFilters((prev) => ({ ...prev, category: "All" }));
-    navigateTo("search");
     setDesktopFocused(false);
     setMobileFocused(false);
-  };
-
-  const goToProduct = (productId) => {
-    navigateTo("detail", productId);
-    setDesktopFocused(false);
-    setMobileFocused(false);
-  };
-
-  const scrollToSection = (id) => {
-    navigateTo("home");
-    setMobileMenuOpen(false);
-    setTimeout(() => {
-      document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
-    }, 100);
+    handleNavClick("/search");
   };
 
   const goBack = () => {
-    if (view === "detail") {
-      navigateTo("catalog");
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
       return;
     }
-    navigateTo("home");
+    handleNavClick("/");
   };
 
   const handleMobileBack = () => {
@@ -134,27 +158,137 @@ export default function Header() {
 
   return (
     <>
+      {/* DESKTOP HEADER */}
       <header style={desktopHeaderStyle} className="desktop-only">
         <div style={headerContainerStyle}>
-          <button onClick={() => navigateTo("home")} style={logoContainerStyle} aria-label="Go home">
-            <img src="/asset/logo.png" alt="Mellosoft" style={logoImageStyle} />
+          <button onClick={() => handleNavClick("/")} style={logoContainerStyle} aria-label="Go home">
+            <img src="/asset/logo.png" alt="Mellosoft Mattress" style={logoImageStyle} />
           </button>
 
           <nav style={navLinksStyle} aria-label="Primary navigation">
-            <button onClick={() => navigateTo("home")} style={{ ...navLinkButtonStyle, color: view === "home" ? "#1B1F8C" : "#6B6B75", fontWeight: view === "home" ? "700" : "500" }}>
-              Home
+            <button
+              onClick={() => handleNavClick("/")}
+              style={{
+                ...navLinkButtonStyle,
+                color: isHome ? "#1B1F8C" : "#6B6B75",
+                fontWeight: isHome ? "700" : "500"
+              }}
+            >
+              HOME
             </button>
-            <button onClick={() => goToCategory("mattress")} style={{ ...navLinkButtonStyle, color: activeCatalogColor(view) }}>
-              Mattresses
+
+            {/* MATTRESS DROPDOWN */}
+            <div
+              style={dropdownWrapStyle}
+              onMouseEnter={() => setMattressDropdown(true)}
+              onMouseLeave={() => setMattressDropdown(false)}
+            >
+              <button
+                onClick={() => handleNavClick("/mattresses")}
+                style={{
+                  ...navLinkButtonStyle,
+                  color: isMattressActive ? "#1B1F8C" : "#6B6B75",
+                  fontWeight: isMattressActive ? "700" : "500"
+                }}
+              >
+                MATTRESS <ChevronDownIcon />
+              </button>
+
+              {mattressDropdown && (
+                <div style={dropdownMenuStyle}>
+                  <button onClick={() => handleNavClick("/mattresses/foam")} style={dropdownItemStyle}>
+                    Foam Mattress
+                  </button>
+                  <button onClick={() => handleNavClick("/mattresses/ortho")} style={dropdownItemStyle}>
+                    Ortho Mattress
+                  </button>
+                  <button onClick={() => handleNavClick("/mattresses/spring")} style={dropdownItemStyle}>
+                    Spring Mattress
+                  </button>
+                  <button onClick={() => handleNavClick("/mattresses/latex")} style={dropdownItemStyle}>
+                    Latex Mattress
+                  </button>
+                  <button onClick={() => handleNavClick("/mattresses/memory-foam")} style={dropdownItemStyle}>
+                    Memory Foam Mattress
+                  </button>
+                  <div style={{ borderTop: "1px solid #E7E7E2", marginTop: "4px", paddingTop: "4px" }}>
+                    <button onClick={() => handleNavClick("/mattresses")} style={{ ...dropdownItemStyle, fontWeight: "700", color: "#1B1F8C" }}>
+                      View All Mattresses →
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ACCESSORIES DROPDOWN */}
+            <div
+              style={dropdownWrapStyle}
+              onMouseEnter={() => setAccessoriesDropdown(true)}
+              onMouseLeave={() => setAccessoriesDropdown(false)}
+            >
+              <button
+                onClick={() => handleNavClick("/accessories")}
+                style={{
+                  ...navLinkButtonStyle,
+                  color: isAccessoriesActive ? "#1B1F8C" : "#6B6B75",
+                  fontWeight: isAccessoriesActive ? "700" : "500"
+                }}
+              >
+                ACCESSORIES <ChevronDownIcon />
+              </button>
+
+              {accessoriesDropdown && (
+                <div style={dropdownMenuStyle}>
+                  <button onClick={() => handleNavClick("/accessories/memory-foam-pillow")} style={dropdownItemStyle}>
+                    Memory Foam Pillow
+                  </button>
+                  <button onClick={() => handleNavClick("/accessories/latex-pillow")} style={dropdownItemStyle}>
+                    Latex Pillow
+                  </button>
+                  <button onClick={() => handleNavClick("/accessories/fiber-pillow")} style={dropdownItemStyle}>
+                    Fiber Pillow
+                  </button>
+                  <button onClick={() => handleNavClick("/accessories/mattress-protector")} style={dropdownItemStyle}>
+                    Mattress Protector
+                  </button>
+                  <button onClick={() => handleNavClick("/accessories/fitted-bedspread")} style={dropdownItemStyle}>
+                    Fitted Bedspread
+                  </button>
+                  <button onClick={() => handleNavClick("/accessories/blanket-duvet")} style={dropdownItemStyle}>
+                    Blanket / Duvet
+                  </button>
+                  <button onClick={() => handleNavClick("/accessories/travel-bed")} style={dropdownItemStyle}>
+                    Travel Bed
+                  </button>
+                  <div style={{ borderTop: "1px solid #E7E7E2", marginTop: "4px", paddingTop: "4px" }}>
+                    <button onClick={() => handleNavClick("/accessories")} style={{ ...dropdownItemStyle, fontWeight: "700", color: "#1B1F8C" }}>
+                      View All Accessories →
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={() => handleNavClick("/about")}
+              style={{
+                ...navLinkButtonStyle,
+                color: isAboutActive ? "#1B1F8C" : "#6B6B75",
+                fontWeight: isAboutActive ? "700" : "500"
+              }}
+            >
+              OUR STORY
             </button>
-            <button onClick={() => goToCategory("pillows")} style={navLinkButtonStyle}>
-              Pillows
-            </button>
-            <button onClick={() => goToCategory("bed frames")} style={navLinkButtonStyle}>
-              Bed Frames
-            </button>
-            <button onClick={() => scrollToSection("about-section")} style={navLinkButtonStyle}>
-              About
+
+            <button
+              onClick={() => handleNavClick("/contact")}
+              style={{
+                ...navLinkButtonStyle,
+                color: isContactActive ? "#1B1F8C" : "#6B6B75",
+                fontWeight: isContactActive ? "700" : "500"
+              }}
+            >
+              CONTACT
             </button>
           </nav>
 
@@ -189,8 +323,8 @@ export default function Header() {
             <button
               onClick={() => navigateTo(isAuthenticated ? "profile" : "login")}
               style={iconButtonStyle}
-              aria-label={isAuthenticated ? "Customer Account" : "Sign In"}
-              title={isAuthenticated ? (currentCustomer?.name || "Account") : "Sign In"}
+              aria-label={isAuthenticated ? "Customer Account" : "LOGIN"}
+              title={isAuthenticated ? (currentCustomer?.name || "Account") : "LOGIN"}
             >
               <UserIcon active={view === "profile" || view === "login"} />
             </button>
@@ -198,6 +332,7 @@ export default function Header() {
         </div>
       </header>
 
+      {/* MOBILE HEADER */}
       {!isDetailView && (
         <header style={mobileHeaderStyle} className="mobile-only">
           <div style={mobileTopRowStyle}>
@@ -252,12 +387,62 @@ export default function Header() {
             </button>
           </div>
 
+          {/* MOBILE ACCORDION NAVIGATION */}
           {mobileMenuOpen && (
-            <nav style={mobileMenuStyle} aria-label="Mobile category navigation">
-              <button onClick={() => goToCategory("mattress")} style={mobileMenuItemStyle}>Mattresses</button>
-              <button onClick={() => goToCategory("pillows")} style={mobileMenuItemStyle}>Pillows</button>
-              <button onClick={() => goToCategory("bed frames")} style={mobileMenuItemStyle}>Bed Frames</button>
-              <button onClick={() => goToCategory("protectors")} style={mobileMenuItemStyle}>Protectors</button>
+            <nav style={mobileNavContainerStyle} aria-label="Mobile main navigation">
+              <button onClick={() => { navigateTo("home"); setMobileMenuOpen(false); }} style={mobileMainLinkStyle}>
+                HOME
+              </button>
+
+              <div>
+                <button
+                  onClick={() => setMobileMattressOpen((prev) => !prev)}
+                  style={mobileMainLinkWithSubStyle}
+                >
+                  MATTRESS <span>{mobileMattressOpen ? "−" : "+"}</span>
+                </button>
+                {mobileMattressOpen && (
+                  <div style={mobileSubMenuStyle}>
+                    <button onClick={() => goToCategory("foam")} style={mobileSubLinkStyle}>Foam Mattress</button>
+                    <button onClick={() => goToCategory("ortho")} style={mobileSubLinkStyle}>Ortho Mattress</button>
+                    <button onClick={() => goToCategory("spring")} style={mobileSubLinkStyle}>Spring Mattress</button>
+                    <button onClick={() => goToCategory("latex")} style={mobileSubLinkStyle}>Latex Mattress</button>
+                    <button onClick={() => goToCategory("memory-foam")} style={mobileSubLinkStyle}>Memory Foam Mattress</button>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <button
+                  onClick={() => setMobileAccessoriesOpen((prev) => !prev)}
+                  style={mobileMainLinkWithSubStyle}
+                >
+                  ACCESSORIES <span>{mobileAccessoriesOpen ? "−" : "+"}</span>
+                </button>
+                {mobileAccessoriesOpen && (
+                  <div style={mobileSubMenuStyle}>
+                    <button onClick={() => goToProduct("memory-foam-pillow")} style={mobileSubLinkStyle}>Memory Foam Pillow</button>
+                    <button onClick={() => goToProduct("latex-pillow")} style={mobileSubLinkStyle}>Latex Pillow</button>
+                    <button onClick={() => goToProduct("fiber-pillow")} style={mobileSubLinkStyle}>Fiber Pillow</button>
+                    <button onClick={() => goToProduct("mattress-protector")} style={mobileSubLinkStyle}>Mattress Protector</button>
+                    <button onClick={() => goToProduct("fitted-bedspread")} style={mobileSubLinkStyle}>Fitted Bedspread</button>
+                    <button onClick={() => goToProduct("blanket-duvet")} style={mobileSubLinkStyle}>Blanket / Duvet</button>
+                    <button onClick={() => goToProduct("travel-bed")} style={mobileSubLinkStyle}>Travel Bed</button>
+                  </div>
+                )}
+              </div>
+
+              <button onClick={() => { navigateTo("about"); setMobileMenuOpen(false); }} style={mobileMainLinkStyle}>
+                OUR STORY
+              </button>
+
+              <button onClick={() => { navigateTo("contact"); setMobileMenuOpen(false); }} style={mobileMainLinkStyle}>
+                CONTACT
+              </button>
+
+              <button onClick={() => { navigateTo(isAuthenticated ? "profile" : "login"); setMobileMenuOpen(false); }} style={mobileMainLinkStyle}>
+                {isAuthenticated ? "MY ACCOUNT" : "LOGIN"}
+              </button>
             </nav>
           )}
         </header>
@@ -284,8 +469,8 @@ function SearchBox({ value, onChange, suggestions, focused, setFocused, onProduc
           value={value}
           onChange={(event) => onChange(event.target.value)}
           onFocus={() => setFocused(true)}
-          onBlur={() => window.setTimeout(() => setFocused(false), 120)}
-          placeholder="Search mattresses..."
+          onBlur={() => window.setTimeout(() => setFocused(false), 150)}
+          placeholder="Search mattresses, accessories..."
           style={searchInputStyle}
           aria-label="Search Mellosoft products"
         />
@@ -299,7 +484,7 @@ function SearchBox({ value, onChange, suggestions, focused, setFocused, onProduc
                 <img src={product.images[0]} alt="" style={suggestionImageStyle} />
                 <span style={suggestionTextStyle}>
                   <strong>{product.name}</strong>
-                  <span>{formatPrice(product.price)}</span>
+                  <span>{product.startingPrice ? formatPrice(product.startingPrice) : "Contact for Price"}</span>
                 </span>
               </button>
             ))
@@ -315,8 +500,12 @@ function SearchBox({ value, onChange, suggestions, focused, setFocused, onProduc
   );
 }
 
-function activeCatalogColor(view) {
-  return view === "catalog" ? "#1B1F8C" : "#6B6B75";
+function ChevronDownIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: "4px" }}>
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  );
 }
 
 function CartIcon() {
@@ -365,11 +554,13 @@ function ArrowLeftIcon() {
   );
 }
 
+// ─── STYLING OBJECTS ─────────────────────────────────────────────────────────
+
 const desktopHeaderStyle = {
   position: "sticky",
   top: 0,
   width: "100%",
-  backgroundColor: "rgba(255, 255, 255, 0.92)",
+  backgroundColor: "rgba(255, 255, 255, 0.96)",
   backdropFilter: "blur(12px)",
   borderBottom: "1px solid #E7E7E2",
   zIndex: 1000
@@ -397,7 +588,7 @@ const logoContainerStyle = {
 };
 
 const logoImageStyle = {
-  height: "32px",
+  height: "36px",
   width: "auto",
   objectFit: "contain"
 };
@@ -411,22 +602,56 @@ const navLinksStyle = {
 const navLinkButtonStyle = {
   border: "none",
   background: "none",
-  fontSize: "15px",
-  fontWeight: "500",
+  fontSize: "14px",
+  fontWeight: "600",
+  letterSpacing: "0.5px",
   color: "#6B6B75",
   cursor: "pointer",
-  padding: "8px 0"
+  padding: "8px 0",
+  display: "flex",
+  alignItems: "center"
+};
+
+const dropdownWrapStyle = {
+  position: "relative"
+};
+
+const dropdownMenuStyle = {
+  position: "absolute",
+  top: "100%",
+  left: "0",
+  minWidth: "220px",
+  backgroundColor: "#FFFFFF",
+  border: "1px solid #E7E7E2",
+  borderRadius: "12px",
+  boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
+  padding: "8px 0",
+  zIndex: 1100,
+  display: "flex",
+  flexDirection: "column"
+};
+
+const dropdownItemStyle = {
+  border: "none",
+  background: "none",
+  textAlign: "left",
+  padding: "10px 18px",
+  fontSize: "14px",
+  fontWeight: "500",
+  color: "#14151A",
+  cursor: "pointer",
+  transition: "background 0.2s ease"
 };
 
 const desktopActionsStyle = {
   display: "flex",
   alignItems: "center",
-  gap: "10px"
+  gap: "12px"
 };
 
 const desktopSearchFormStyle = {
   position: "relative",
-  width: "250px"
+  width: "240px"
 };
 
 const mobileSearchFormStyle = {
@@ -451,7 +676,7 @@ const searchInputStyle = {
   minWidth: 0,
   border: "none",
   background: "transparent",
-  fontSize: "14px",
+  fontSize: "13px",
   fontWeight: "500",
   color: "#14151A"
 };
@@ -605,7 +830,7 @@ const mobileIconButtonStyle = {
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  cursor: "pointer",
+  cursor: "pointer"
 };
 
 const mobileCartBadgeStyle = {
@@ -614,20 +839,49 @@ const mobileCartBadgeStyle = {
   right: "-7px"
 };
 
-const mobileMenuStyle = {
-  display: "grid",
-  gridTemplateColumns: "repeat(2, 1fr)",
-  gap: "8px",
-  padding: "0 14px 14px"
+const mobileNavContainerStyle = {
+  display: "flex",
+  flexDirection: "column",
+  gap: "4px",
+  padding: "10px 16px 20px",
+  borderTop: "1px solid #E7E7E2",
+  backgroundColor: "#FFFFFF"
 };
 
-const mobileMenuItemStyle = {
-  border: "1px solid #E7E7E2",
-  backgroundColor: "#FFFFFF",
-  color: "#1B1F8C",
-  borderRadius: "12px",
-  padding: "11px",
-  fontSize: "13px",
+const mobileMainLinkStyle = {
+  border: "none",
+  background: "none",
+  textAlign: "left",
+  fontSize: "15px",
   fontWeight: "700",
+  color: "#1B1F8C",
+  padding: "12px 0",
+  borderBottom: "1px solid #F2F2EE",
+  cursor: "pointer"
+};
+
+const mobileMainLinkWithSubStyle = {
+  ...mobileMainLinkStyle,
+  width: "100%",
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center"
+};
+
+const mobileSubMenuStyle = {
+  display: "flex",
+  flexDirection: "column",
+  gap: "2px",
+  padding: "4px 0 8px 16px"
+};
+
+const mobileSubLinkStyle = {
+  border: "none",
+  background: "none",
+  textAlign: "left",
+  fontSize: "14px",
+  fontWeight: "500",
+  color: "#14151A",
+  padding: "8px 0",
   cursor: "pointer"
 };

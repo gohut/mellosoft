@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="533" viewBox="0 0 800 533">
+  <defs>
+    <linearGradient id="bgGrad_foam" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F8FAF9" />
+      <stop offset="100%" stop-color="#FFFFFF" />
+    </linearGradient>
+    <linearGradient id="mattressGrad_foam" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#F1F5F9" />
+    </linearGradient>
+    <linearGradient id="accentGrad_foam" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#2563EB" />
+      <stop offset="100%" stop-color="#1B1F8C" />
+    </linearGradient>
+    <filter id="shadow_foam" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#0F172A" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+  <rect width="800" height="533" fill="url(#bgGrad_foam)" />
+  <path d="M0 133 H800 M0 266 H800 M0 400 H800" stroke="#E2E8F0" stroke-width="1" stroke-dasharray="4 4" opacity="0.6"/>
+  <g filter="url(#shadow_foam)">
+    <rect x="120" y="150" width="560" height="250" rx="20" fill="url(#mattressGrad_foam)" stroke="#E2E8F0" stroke-width="2"/>
+    <rect x="135" y="165" width="530" height="75" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5"/>
+    <path d="M160 165 V240 M220 165 V240 M280 165 V240 M340 165 V240 M400 165 V240 M460 165 V240 M520 165 V240 M580 165 V240 M640 165 V240" stroke="#E2E8F0" stroke-width="1" stroke-dasharray="3 3"/>
+    <rect x="135" y="244" width="530" height="8" fill="url(#accentGrad_foam)"/>
+    <rect x="135" y="258" width="530" height="128" rx="6" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1"/>
+  </g>
+  <rect x="160" y="188" width="140" height="28" rx="14" fill="#2563EB"/>
+  <text x="230" y="206" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="800" fill="#FFFFFF" text-anchor="middle" letter-spacing="1.2">FOAM COMFORT</text>
+  <text x="400" y="315" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="28" font-weight="800" fill="#1B1F8C" text-anchor="middle">HAVEN</text>
+  <text x="400" y="344" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="500" fill="#64748B" text-anchor="middle" font-style="italic">"a sanctuary of rest"</text>
+  <text x="400" y="368" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="700" fill="#2563EB" text-anchor="middle">PU FOAM</text>
+  <text x="640" y="440" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="800" fill="#1B1F8C" opacity="0.4" text-anchor="end">MELLOSOFT</text>
+</svg>
