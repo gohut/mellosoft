@@ -9,7 +9,7 @@ import ConfirmDialog from "../components/ConfirmDialog";
 import Pagination from "../components/Pagination";
 import { Plus } from "lucide-react";
 import { formatPrice, calculateDiscountedPrice } from "../../utils/currency";
-import { getProductPrimaryImage, isProductInCategory, isAccessoryProduct, isBedFrameProduct, getProductCategoryLabel, getMainCategoryProductCount, getSubcategoryProductCount } from "../../utils/productHelpers";
+import { getProductPrimaryImage, isProductInCategory, isAccessoryProduct, isBedFrameProduct, getProductCategoryLabel, getCatalogCategoryTree } from "../../utils/productHelpers";
 
 function getProductStatus(p) {
   if (p.status) return p.status;
@@ -20,58 +20,16 @@ function getProductStatus(p) {
 }
 
 export default function ProductsView() {
-  const { navigateTo, products, categories, hasPermission } = useAdmin();
+  const { navigateTo, products = [], categories = [], hasPermission } = useAdmin();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
   const [page, setPage] = useState(1);
   const perPage = 6;
 
-  const categoryCounts = useMemo(() => {
-    const counts = {
-      all: products.length,
-      mattresses: 0,
-      accessories: 0,
-      "bed-frames": 0,
-      // Mattress subcategories
-      foam: 0,
-      ortho: 0,
-      spring: 0,
-      latex: 0,
-      "memory-foam": 0,
-      // Accessory subcategories
-      "memory-foam-pillow": 0,
-      "latex-pillow": 0,
-      "fiber-pillow": 0,
-      "mattress-protector": 0,
-      "fitted-bedspread": 0,
-      "blanket-duvet": 0,
-      "travel-bed": 0,
-      // Bed Frame subcategories
-      "wooden-bed-frame": 0,
-      "platform-bed": 0
-    };
-
-    products.forEach((p) => {
-      if (isBedFrameProduct(p)) {
-        counts["bed-frames"]++;
-      } else if (isAccessoryProduct(p)) {
-        counts.accessories++;
-      } else {
-        counts.mattresses++;
-      }
-
-      Object.keys(counts).forEach((k) => {
-        if (k !== "all" && k !== "mattresses" && k !== "accessories" && k !== "bed-frames") {
-          if (isProductInCategory(p, k)) {
-            counts[k]++;
-          }
-        }
-      });
-    });
-
-    return counts;
-  }, [products]);
+  const { totalCount, tree: categoryTree } = useMemo(() => {
+    return getCatalogCategoryTree(products, categories);
+  }, [products, categories]);
 
   const filtered = useMemo(() => {
     return products.filter((p) => {
@@ -189,25 +147,17 @@ export default function ProductsView() {
             onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }}
             style={selectStyle}
           >
-            <option value="All">All Categories ({products.length})</option>
-            {(categories || []).map((mainCat) => {
-              const mainCount = getMainCategoryProductCount(mainCat, products, categories);
-              const subs = mainCat.subcategories || [];
-
-              return (
-                <optgroup key={mainCat.id} label={mainCat.name}>
-                  <option value={mainCat.slug || mainCat.id}>All {mainCat.name} ({mainCount})</option>
-                  {subs.map((sub) => {
-                    const subCount = getSubcategoryProductCount(sub, products, categories);
-                    return (
-                      <option key={sub.id} value={sub.slug || sub.id}>
-                        {sub.name} ({subCount})
-                      </option>
-                    );
-                  })}
-                </optgroup>
-              );
-            })}
+            <option value="All">All Categories ({totalCount})</option>
+            {categoryTree.map((mainCat) => (
+              <optgroup key={mainCat.id} label={`${mainCat.name} (${mainCat.count})`}>
+                <option value={mainCat.slug || mainCat.id}>All {mainCat.name} ({mainCat.count})</option>
+                {(mainCat.subcategories || []).map((sub) => (
+                  <option key={sub.id} value={sub.slug || sub.id}>
+                    {sub.name} ({sub.count})
+                  </option>
+                ))}
+              </optgroup>
+            ))}
           </select>
           <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} style={selectStyle}>
             <option value="All">All Status</option>

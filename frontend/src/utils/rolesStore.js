@@ -106,6 +106,23 @@ export function updateStoredUser(userId, updatedData) {
   if (index === -1) return null;
 
   const existing = activeUsers[index];
+
+  // Super Admin Protection checks
+  if (existing.roleId === "role-super-admin" && existing.status === "Active") {
+    const activeSuperAdmins = activeUsers.filter(
+      (u) => u.roleId === "role-super-admin" && u.status === "Active"
+    );
+
+    if (activeSuperAdmins.length <= 1) {
+      if (updatedData.status && updatedData.status !== "Active") {
+        throw new Error("At least one active Super Admin is required. You cannot deactivate the last Super Admin.");
+      }
+      if (updatedData.roleId && updatedData.roleId !== "role-super-admin") {
+        throw new Error("At least one active Super Admin is required. You cannot demote the last Super Admin.");
+      }
+    }
+  }
+
   const updatedUser = {
     ...existing,
     name: updatedData.name !== undefined ? updatedData.name.trim() : existing.name,
@@ -151,9 +168,9 @@ export function deleteStoredUser(userId) {
   if (!user) return { success: false, error: "User not found." };
 
   if (user.roleId === "role-super-admin") {
-    const superAdmins = activeUsers.filter((u) => u.roleId === "role-super-admin");
-    if (superAdmins.length <= 1) {
-      return { success: false, error: "Cannot delete the last Super Admin account." };
+    const activeSuperAdmins = activeUsers.filter((u) => u.roleId === "role-super-admin" && u.status === "Active");
+    if (activeSuperAdmins.length <= 1) {
+      return { success: false, error: "At least one active Super Admin is required. You cannot delete the last Super Admin." };
     }
   }
 

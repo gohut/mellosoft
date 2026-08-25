@@ -92,8 +92,10 @@ export function saveSettingsToStorage(newSettings) {
   try {
     const normalized = normalizeSettings(newSettings);
     localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(normalized));
-    window.dispatchEvent(new Event("storage"));
-    window.dispatchEvent(new CustomEvent(SETTINGS_UPDATED_EVENT, { detail: normalized }));
+    setTimeout(() => {
+      window.dispatchEvent(new Event("storage"));
+      window.dispatchEvent(new CustomEvent(SETTINGS_UPDATED_EVENT, { detail: normalized }));
+    }, 0);
     return true;
   } catch (e) {
     console.error("Failed to save settings to storage:", e);

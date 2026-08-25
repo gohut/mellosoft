@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useStore } from "../context/StoreContext";
 import { MOCK_PRODUCTS } from "../data/products";
-import { MOCK_REVIEWS } from "../admin/data/adminMockData";
 import RatingStars from "../components/RatingStars";
 import FirmnessSizeSelector from "../components/FirmnessSizeSelector";
 import QuantityStepper from "../components/QuantityStepper";
@@ -163,7 +162,7 @@ export default function ProductDetailView({ productId: initialProductId }) {
     };
   }, []);
 
-  // Compute public approved reviews
+  // Compute public approved reviews strictly from stored real reviews
   const approvedReviews = useMemo(() => {
     if (!product) return [];
 
@@ -179,8 +178,8 @@ export default function ProductDetailView({ productId: initialProductId }) {
       }
     }
 
-    if (!adminReviewsList || adminReviewsList.length === 0) {
-      adminReviewsList = MOCK_REVIEWS || [];
+    if (!Array.isArray(adminReviewsList)) {
+      adminReviewsList = [];
     }
 
     const adminApprovedMatches = adminReviewsList
@@ -203,10 +202,10 @@ export default function ProductDetailView({ productId: initialProductId }) {
 
       return {
         ...r,
-        author: r.customerName || r.customer || r.author || "Rahul Sharma",
+        author: r.customerName || r.customer || r.author || "Customer",
         content: r.feedback || r.comment || r.review || r.content || "",
         date: r.date || r.createdAt || "Recently",
-        rating: r.rating || 5,
+        rating: Number(r.rating) || 5,
         images: revImages,
         verifiedPurchase: r.verifiedPurchase ?? r.verified ?? true,
         helpfulCount: r.helpfulCount || 0,
@@ -214,6 +213,12 @@ export default function ProductDetailView({ productId: initialProductId }) {
       };
     });
   }, [product, reviewsVersion]);
+
+  const averageRating = useMemo(() => {
+    if (!approvedReviews || approvedReviews.length === 0) return 0;
+    const sum = approvedReviews.reduce((acc, r) => acc + (Number(r.rating) || 5), 0);
+    return parseFloat((sum / approvedReviews.length).toFixed(1));
+  }, [approvedReviews]);
 
   // Compute rating stats
   const ratingStats = useMemo(() => {
@@ -277,6 +282,11 @@ export default function ProductDetailView({ productId: initialProductId }) {
     };
 
     setCheckoutItems([checkoutItem]);
+    if (typeof window !== "undefined") {
+      try {
+        sessionStorage.setItem("mellosoft_checkout_items", JSON.stringify([checkoutItem]));
+      } catch {}
+    }
     navigateTo("checkout");
   };
 
@@ -506,9 +516,15 @@ export default function ProductDetailView({ productId: initialProductId }) {
           )}
           
           {/* Rating summary overlay */}
-          <div style={ratingSummaryLineStyle}>
-            <RatingStars rating={product.rating} count={product.reviewCount} />
-          </div>
+          {approvedReviews.length > 0 ? (
+            <div style={ratingSummaryLineStyle}>
+              <RatingStars rating={Number(averageRating)} count={approvedReviews.length} />
+            </div>
+          ) : (
+            <div style={{ fontSize: "13px", color: "#6B6B75", margin: "6px 0" }}>
+              No reviews yet
+            </div>
+          )}
 
           <div style={dividerStyle} />
 

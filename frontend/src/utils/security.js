@@ -67,9 +67,47 @@ export function verifyPassword(password, storedHash, salt = "mellosoft_salt_2026
  * Check if a role has specific module permission
  */
 export function checkPermission(role, moduleName, action) {
-  if (!role || !role.permissions) return false;
+  if (!role) return false;
+
+  // 1. Super Admin role always has full access to all modules and actions
+  const roleName = (role.name || "").toLowerCase();
+  const roleId = (role.id || "").toLowerCase();
+  if (
+    roleName.includes("super admin") ||
+    roleId.includes("super-admin") ||
+    roleId.includes("super_admin") ||
+    roleId === "role-super-admin"
+  ) {
+    return true;
+  }
+
+  if (!role.permissions) return false;
   const modulePerms = role.permissions[moduleName];
-  if (!modulePerms || !Array.isArray(modulePerms)) return false;
-  return modulePerms.includes(action);
+  if (!modulePerms) return false;
+
+  // Normalize action checks with common aliases
+  const isUpdateStatus = action === "updateStatus" || action === "update";
+  const isModerate = action === "moderate" || action === "approve" || action === "reject";
+  const isShowOnHome = action === "featureOnHome" || action === "showOnHome";
+
+  // 2. Handle array format: e.g. ["view", "create", "edit", "delete"]
+  if (Array.isArray(modulePerms)) {
+    if (modulePerms.includes(action)) return true;
+    if (isUpdateStatus && (modulePerms.includes("updateStatus") || modulePerms.includes("update"))) return true;
+    if (isModerate && (modulePerms.includes("moderate") || modulePerms.includes("approve") || modulePerms.includes("reject"))) return true;
+    if (isShowOnHome && (modulePerms.includes("featureOnHome") || modulePerms.includes("showOnHome"))) return true;
+    return false;
+  }
+
+  // 3. Handle object format: e.g. { view: true, create: true }
+  if (typeof modulePerms === "object") {
+    if (modulePerms[action] === true) return true;
+    if (isUpdateStatus && (modulePerms.updateStatus === true || modulePerms.update === true)) return true;
+    if (isModerate && (modulePerms.moderate === true || modulePerms.approve === true || modulePerms.reject === true)) return true;
+    if (isShowOnHome && (modulePerms.featureOnHome === true || modulePerms.showOnHome === true)) return true;
+    return false;
+  }
+
+  return false;
 }
 

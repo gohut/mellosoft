@@ -183,9 +183,29 @@ export default function SettingsView() {
     }
   };
 
+  const canEdit = hasPermission("settings", "edit");
+
   return (
     <div className="admin-fade-in" style={{ paddingBottom: "40px" }}>
       {/* Alert / Toast Messages */}
+      {!canEdit && (
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "10px",
+          padding: "12px 16px",
+          backgroundColor: "#FFFBEB",
+          border: "1px solid #FDE68A",
+          borderRadius: "10px",
+          color: "#92400E",
+          fontSize: "14px",
+          marginBottom: "16px"
+        }}>
+          <AlertCircle size={18} color="#D97706" />
+          <span><strong>View-Only Mode:</strong> You have permission to view store settings, but saving changes is disabled. Contact your Super Admin to edit.</span>
+        </div>
+      )}
+
       {saveStatus === "success" && (
         <div style={successAlertStyle}>
           <CheckCircle2 size={18} color="#16A34A" />
@@ -216,6 +236,7 @@ export default function SettingsView() {
               onChange={(v) => updateField("storeName", v)}
               error={errors.storeName}
               placeholder="e.g. Mellosoft"
+              disabled={!canEdit}
             />
             <Field
               label="Contact Email *"
@@ -224,6 +245,7 @@ export default function SettingsView() {
               onChange={(v) => updateField("email", v)}
               error={errors.email}
               placeholder="e.g. admin@mellosoft.in"
+              disabled={!canEdit}
             />
             <Field
               label="Customer Phone *"
@@ -231,6 +253,7 @@ export default function SettingsView() {
               onChange={(v) => updateField("phone", v)}
               error={errors.phone}
               placeholder="e.g. +91 98765 43210"
+              disabled={!canEdit}
             />
             <Field
               label="GST Number"
@@ -238,6 +261,7 @@ export default function SettingsView() {
               onChange={(v) => updateField("gst", v)}
               error={errors.gst}
               placeholder="e.g. 07AABCM1234A1Z5"
+              disabled={!canEdit}
             />
           </div>
 
@@ -249,6 +273,7 @@ export default function SettingsView() {
               error={errors.address}
               placeholder="Full official business address"
               isTextarea
+              disabled={!canEdit}
             />
           </div>
         </div>
@@ -275,28 +300,30 @@ export default function SettingsView() {
                   />
                 </div>
 
-                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
-                  <button
-                    type="button"
-                    onClick={() => logoInputRef.current?.click()}
-                    style={uploadActionBtnStyle}
-                  >
-                    <Upload size={14} />
-                    {form.logo && form.logo !== DEFAULT_SETTINGS.website.logo ? "Change Logo" : "Upload Logo"}
-                  </button>
-
-                  {form.logo && form.logo !== DEFAULT_SETTINGS.website.logo && (
+                {canEdit && (
+                  <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
                     <button
                       type="button"
-                      onClick={() => updateField("logo", DEFAULT_SETTINGS.website.logo)}
-                      style={removeActionBtnStyle}
-                      title="Reset to default Mellosoft logo"
+                      onClick={() => logoInputRef.current?.click()}
+                      style={uploadActionBtnStyle}
                     >
-                      <Trash2 size={14} />
-                      Reset
+                      <Upload size={14} />
+                      {form.logo && form.logo !== DEFAULT_SETTINGS.website.logo ? "Change Logo" : "Upload Logo"}
                     </button>
-                  )}
-                </div>
+
+                    {form.logo && form.logo !== DEFAULT_SETTINGS.website.logo && (
+                      <button
+                        type="button"
+                        onClick={() => updateField("logo", DEFAULT_SETTINGS.website.logo)}
+                        style={removeActionBtnStyle}
+                        title="Reset to default Mellosoft logo"
+                      >
+                        <Trash2 size={14} />
+                        Reset
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
 
               <input
@@ -334,27 +361,29 @@ export default function SettingsView() {
                   </div>
                 )}
 
-                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
-                  <button
-                    type="button"
-                    onClick={() => bannerInputRef.current?.click()}
-                    style={uploadActionBtnStyle}
-                  >
-                    <Upload size={14} />
-                    {form.banner ? "Change Banner" : "Upload Banner"}
-                  </button>
-
-                  {form.banner && (
+                {canEdit && (
+                  <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
                     <button
                       type="button"
-                      onClick={() => updateField("banner", "")}
-                      style={removeActionBtnStyle}
+                      onClick={() => bannerInputRef.current?.click()}
+                      style={uploadActionBtnStyle}
                     >
-                      <Trash2 size={14} />
-                      Remove
+                      <Upload size={14} />
+                      {form.banner ? "Change Banner" : "Upload Banner"}
                     </button>
-                  )}
-                </div>
+
+                    {form.banner && (
+                      <button
+                        type="button"
+                        onClick={() => updateField("banner", "")}
+                        style={removeActionBtnStyle}
+                      >
+                        <Trash2 size={14} />
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
 
               <input
@@ -389,6 +418,7 @@ export default function SettingsView() {
               onChange={(v) => updateField("freeShippingAmount", v)}
               error={errors.freeShippingAmount}
               placeholder="e.g. 5000"
+              disabled={!canEdit}
             />
             <Field
               label="Standard Shipping Charge (₹)"
@@ -397,6 +427,7 @@ export default function SettingsView() {
               onChange={(v) => updateField("shippingCharge", v)}
               error={errors.shippingCharge}
               placeholder="e.g. 150"
+              disabled={!canEdit}
             />
           </div>
           <div style={{ marginTop: "10px" }}>
@@ -419,18 +450,21 @@ export default function SettingsView() {
               description="Accept payments via Google Pay, PhonePe, Paytm, BHIM and net banking"
               checked={form.razorpay}
               onChange={(v) => updateField("razorpay", v)}
+              disabled={!canEdit}
             />
             <ToggleRow
               label="International Card Processing (Stripe)"
               description="Accept international Visa, Mastercard and American Express cards"
               checked={form.stripe}
               onChange={(v) => updateField("stripe", v)}
+              disabled={!canEdit}
             />
             <ToggleRow
               label="Cash on Delivery (COD)"
               description="Allow customers to pay via Cash or doorstep UPI QR on delivery"
               checked={form.cod}
               onChange={(v) => updateField("cod", v)}
+              disabled={!canEdit}
             />
           </div>
         </div>
@@ -481,16 +515,17 @@ export default function SettingsView() {
   );
 }
 
-function Field({ label, value, onChange, type = "text", isTextarea = false, placeholder = "", error = "" }) {
+function Field({ label, value, onChange, type = "text", isTextarea = false, placeholder = "", error = "", disabled = false }) {
   const Component = isTextarea ? "textarea" : "input";
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "6px", width: "100%" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "6px", width: "100%", opacity: disabled ? 0.8 : 1 }}>
       <label style={fieldLabelStyle}>{label}</label>
       <Component
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
+        disabled={disabled}
         rows={isTextarea ? 3 : undefined}
         style={{
           height: isTextarea ? "auto" : "42px",
@@ -499,7 +534,8 @@ function Field({ label, value, onChange, type = "text", isTextarea = false, plac
           borderRadius: "10px",
           fontSize: "14px",
           color: "#14151A",
-          backgroundColor: "#FFFFFF",
+          backgroundColor: disabled ? "#F7F7F2" : "#FFFFFF",
+          cursor: disabled ? "not-allowed" : "text",
           fontFamily: "inherit",
           outline: "none",
           width: "100%",
@@ -507,19 +543,20 @@ function Field({ label, value, onChange, type = "text", isTextarea = false, plac
           resize: isTextarea ? "vertical" : "none",
           transition: "border-color 0.2s ease",
         }}
-        onFocus={(e) => { if (!error) e.target.style.borderColor = "#1B1F8C"; }}
-        onBlur={(e) => { if (!error) e.target.style.borderColor = "#E7E7E2"; }}
+        onFocus={(e) => { if (!error && !disabled) e.target.style.borderColor = "#1B1F8C"; }}
+        onBlur={(e) => { if (!error && !disabled) e.target.style.borderColor = "#E7E7E2"; }}
       />
       {error && <span style={errorTextStyle}>{error}</span>}
     </div>
   );
 }
 
-function ToggleRow({ label, description, checked, onChange }) {
+function ToggleRow({ label, description, checked, onChange, disabled = false }) {
   return (
     <div style={{
       display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px",
-      backgroundColor: "#FAFAF7", borderRadius: "10px", border: "1px solid #F0F0EC", gap: "16px"
+      backgroundColor: "#FAFAF7", borderRadius: "10px", border: "1px solid #F0F0EC", gap: "16px",
+      opacity: disabled ? 0.8 : 1
     }}>
       <div>
         <p style={{ fontSize: "14px", fontWeight: 600, color: "#14151A", margin: 0 }}>{label}</p>
@@ -527,10 +564,11 @@ function ToggleRow({ label, description, checked, onChange }) {
       </div>
       <button
         type="button"
+        disabled={disabled}
         onClick={() => onChange(!checked)}
         style={{
           width: "48px", height: "26px", borderRadius: "999px", border: "none",
-          backgroundColor: checked ? "#1B1F8C" : "#E7E7E2", cursor: "pointer",
+          backgroundColor: checked ? "#1B1F8C" : "#E7E7E2", cursor: disabled ? "not-allowed" : "pointer",
           position: "relative", transition: "background-color 0.2s ease", flexShrink: 0,
         }}
         aria-label={`Toggle ${label}`}

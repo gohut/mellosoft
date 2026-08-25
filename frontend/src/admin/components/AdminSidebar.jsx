@@ -47,14 +47,14 @@ export default function AdminSidebar() {
 
   const isNavVisible = (id) => {
     switch (id) {
-      case "dashboard":    return hasPermission("dashboard", "view");
-      case "products-group": return hasPermission("products", "view");
-      case "orders":       return hasPermission("orders", "view");
-      case "customers":    return hasPermission("customers", "view");
-      case "reviews":      return hasPermission("reviews", "view");
-      case "content":      return hasPermission("products", "view");
-      case "users-roles":  return hasPermission("users", "view") || hasPermission("roles", "view");
-      case "settings":     return hasPermission("settings", "view");
+      case "dashboard":      return hasPermission("dashboard", "view");
+      case "products-group": return hasPermission("products", "view") || hasPermission("products", "create");
+      case "orders":         return hasPermission("orders", "view");
+      case "customers":      return hasPermission("customers", "view");
+      case "reviews":        return hasPermission("reviews", "view");
+      case "content":        return hasPermission("content", "view");
+      case "users-roles":    return hasPermission("users", "view") || hasPermission("roles", "view");
+      case "settings":       return hasPermission("settings", "view");
       default: return true;
     }
   };

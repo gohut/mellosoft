@@ -19,11 +19,26 @@ const DESTINATION_OPTIONS = [
 ];
 
 export default function BannersView() {
-  const { banners, addBanner, updateBanner, deleteBanner, toggleBannerStatus, bannerTypes = [], addBannerType, deleteBannerType } = useAdmin();
+  const { banners, addBanner, updateBanner, deleteBanner, toggleBannerStatus, bannerTypes = [], addBannerType, deleteBannerType, categories = [] } = useAdmin();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("All");
   const [filterStatus, setFilterStatus] = useState("All");
+
+  const dynamicDestinationOptions = React.useMemo(() => {
+    const defaultOptions = [
+      { label: "All Products Catalog", value: "All" },
+    ];
+    if (!categories || categories.length === 0) return DESTINATION_OPTIONS;
+    const dynamicOpts = [];
+    categories.forEach((c) => {
+      dynamicOpts.push({ label: `${c.name} Collection`, value: c.slug || c.id });
+      (c.subcategories || []).forEach((sub) => {
+        dynamicOpts.push({ label: `  • ${sub.name}`, value: sub.slug || sub.id });
+      });
+    });
+    return [...dynamicOpts, ...defaultOptions];
+  }, [categories]);
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -534,7 +549,7 @@ export default function BannersView() {
                     onChange={(e) => setFormData((prev) => ({ ...prev, ctaLink: e.target.value }))}
                     style={selectStyle}
                   >
-                    {DESTINATION_OPTIONS.map((opt) => (
+                    {dynamicDestinationOptions.map((opt) => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
                   </select>

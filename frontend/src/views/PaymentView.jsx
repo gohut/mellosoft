@@ -1,17 +1,18 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useStore } from "../context/StoreContext";
 import { useCustomerAuth } from "../context/CustomerAuthContext";
 import { formatPrice } from "../utils/currency";
 import { calculateOrderTotals } from "../utils/settingsHelpers";
-import { ArrowLeft, CheckCircle2, ShieldCheck, Lock, Smartphone, Banknote } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ShieldCheck, Lock, Smartphone, Banknote, Loader2 } from "lucide-react";
 
 export default function PaymentView() {
   const {
     checkoutItems,
     cart,
     selectedAddress,
+    userAddresses,
     placeOrder,
     navigateTo,
     setSelectedOrderId,
@@ -21,32 +22,60 @@ export default function PaymentView() {
   const { currentCustomer } = useCustomerAuth();
   const userId = currentCustomer ? currentCustomer.id : "C001";
 
-  // Items for payment summary
+  const [isHydrated, setIsHydrated] = useState(false);
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
+
+  // Items for payment summary (with fallback to sessionStorage)
   const items = useMemo(() => {
-    return checkoutItems && checkoutItems.length > 0 ? checkoutItems : cart;
+    if (checkoutItems && checkoutItems.length > 0) return checkoutItems;
+    if (cart && cart.length > 0) return cart;
+    if (typeof window !== "undefined") {
+      try {
+        const saved = sessionStorage.getItem("mellosoft_checkout_items");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch {}
+    }
+    return [];
   }, [checkoutItems, cart]);
 
-  // Active delivery address
-  const address = selectedAddress || {
-    fullName: "Rahul Sharma",
-    phone: "+91 98765 43210",
-    addressLine1: "123 Indiranagar 100ft Road",
-    addressLine2: "Near Metro Station",
-    city: "Bengaluru",
-    state: "Karnataka",
-    pincode: "560038"
-  };
+  // Active delivery address (with fallback to sessionStorage / userAddresses)
+  const address = useMemo(() => {
+    if (selectedAddress && selectedAddress.fullName && selectedAddress.addressLine1) return selectedAddress;
+    if (typeof window !== "undefined") {
+      try {
+        const saved = sessionStorage.getItem("mellosoft_selected_address");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && parsed.fullName && parsed.addressLine1) return parsed;
+        }
+      } catch {}
+    }
+    if (userAddresses && userAddresses[userId]) return userAddresses[userId];
+    return {
+      fullName: currentCustomer?.name || "Rahul Sharma",
+      phone: currentCustomer?.phone || "+91 98765 43210",
+      addressLine1: "123 Indiranagar 100ft Road",
+      addressLine2: "Near Metro Station",
+      city: "Bengaluru",
+      state: "Karnataka",
+      pincode: "560038"
+    };
+  }, [selectedAddress, userAddresses, userId, currentCustomer]);
 
   // Payment Method Selection: "upi" | "cod"
-  const [paymentMethod, setPaymentMethod] = useState("upi");
+  const [paymentMethod, setPaymentMethod] = useState("cod");
   
   // Payment Method Details Form State
   const [upiId, setUpiId] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentError, setPaymentError] = useState("");
 
-  // Price calculations
-  // Dynamic price & shipping calculations from settings
+  // Price calculations from settings
   const {
     subtotal,
     rawTotal,
@@ -60,6 +89,8 @@ export default function PaymentView() {
   } = useMemo(() => calculateOrderTotals(items, settings), [items, settings]);
 
   const handleCompleteOrder = () => {
+    if (isProcessing) return;
+
     if (paymentMethod === "upi") {
       const trimmedUpi = upiId.trim();
       if (!trimmedUpi) {
@@ -72,17 +103,24 @@ export default function PaymentView() {
       }
     }
 
+    if (!items || items.length === 0) {
+      setPaymentError("No items found in your checkout session.");
+      return;
+    }
+
     setIsProcessing(true);
     setPaymentError("");
 
-    setTimeout(() => {
+    try {
       // Generate Order ID
       const randNum = Math.floor(10000 + Math.random() * 90000);
       const generatedOrderId = `MS-${randNum}`;
 
-      const paymentMethodLabel =
-        paymentMethod === "upi" ? `UPI (${upiId.trim()})` : "COD";
+      const paymentMethodLabel = paymentMethod === "upi" ? `UPI (${upiId.trim()})` : "COD";
+      const paymentStatusVal = paymentMethod === "cod" ? "Pending" : "Paid";
+      const orderStatusVal = paymentMethod === "cod" ? "Confirmed" : "Processing";
 
+      // Build complete order payload locally
       const newOrder = {
         id: generatedOrderId,
         orderId: generatedOrderId,
@@ -111,8 +149,8 @@ export default function PaymentView() {
         deliveryAddress: address,
         shippingAddress: address,
         paymentMethod: paymentMethodLabel,
-        paymentStatus: paymentMethod === "cod" ? "Pending" : "Paid",
-        orderStatus: "Processing",
+        paymentStatus: paymentStatusVal,
+        orderStatus: orderStatusVal,
         subtotal: subtotal,
         productDiscount: discountSavings,
         couponDiscount: 0,
@@ -138,12 +176,40 @@ export default function PaymentView() {
         }
       };
 
-      placeOrder(newOrder);
-      setSelectedOrderId(generatedOrderId);
+      const createdOrder = placeOrder(newOrder);
+      const targetId = createdOrder?.id || generatedOrderId;
+      setSelectedOrderId(targetId);
+      navigateTo("confirmation", targetId);
+    } catch (err) {
+      console.error("Order placement error:", err);
+      setPaymentError("An error occurred while creating your order. Please try again.");
       setIsProcessing(false);
-      navigateTo("confirmation", generatedOrderId);
-    }, 800);
+    }
   };
+
+  if (!isHydrated) {
+    return (
+      <div style={emptyContainerStyle}>
+        <div style={emptyCardStyle}>
+          <p style={{ color: "#6B6B75", margin: 0 }}>Loading checkout details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isProcessing) {
+    return (
+      <div style={emptyContainerStyle}>
+        <div style={emptyCardStyle}>
+          <div style={{ display: "inline-flex", padding: "16px", borderRadius: "50%", backgroundColor: "#F4F5FF", marginBottom: "16px" }}>
+            <CheckCircle2 size={40} color="#1B1F8C" />
+          </div>
+          <h2 style={{ fontSize: "22px", color: "#1B1F8C", margin: "0 0 8px 0" }}>Placing Your Order...</h2>
+          <p style={{ color: "#6B6B75", margin: 0 }}>Please wait while your order is being confirmed.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!items || items.length === 0) {
     return (

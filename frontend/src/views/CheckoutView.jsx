@@ -101,6 +101,14 @@ export default function CheckoutView() {
       return;
     }
     setSelectedAddress(addr);
+    if (typeof window !== "undefined") {
+      try {
+        sessionStorage.setItem("mellosoft_selected_address", JSON.stringify(addr));
+        if (items && items.length > 0) {
+          sessionStorage.setItem("mellosoft_checkout_items", JSON.stringify(items));
+        }
+      } catch {}
+    }
     navigateTo("payment");
   };
 

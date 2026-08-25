@@ -39,10 +39,44 @@ export function StoreProvider({ children }) {
   const [products, setProducts] = useState(MOCK_PRODUCTS);
 
   // Orders State synchronized with localStorage ("mellosoft_orders")
-  const [orders, setOrders] = useState(MOCK_ORDERS);
+  const [orders, setOrders] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const isReset = localStorage.getItem("mellosoft_orders_reset_v1");
+        if (isReset !== "completed") {
+          localStorage.setItem("mellosoft_orders", JSON.stringify([]));
+          localStorage.setItem("mellosoft_admin_orders", JSON.stringify([]));
+          localStorage.setItem("mellosoft_admin_notifications", JSON.stringify([]));
+          localStorage.setItem("mellosoft_orders_reset_v1", "completed");
+          return [];
+        }
+        const saved = localStorage.getItem("mellosoft_orders");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) return parsed;
+        }
+      } catch (e) {
+        console.error("Failed to load orders from localStorage:", e);
+      }
+    }
+    return [];
+  });
 
   // Reviews State synchronized with localStorage ("mellosoft_reviews")
-  const [reviews, setReviews] = useState(MOCK_REVIEWS);
+  const [reviews, setReviews] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("mellosoft_reviews");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) return parsed;
+        }
+      } catch (e) {
+        console.error("Failed to load reviews from localStorage:", e);
+      }
+    }
+    return [];
+  });
 
   const [banners, setBanners] = useState(MOCK_BANNERS);
 
@@ -127,11 +161,59 @@ export function StoreProvider({ children }) {
     ]
   });
 
-  // ─── Checkout Flow State ─────────────────────────────────────────────────────
-  const [checkoutItems, setCheckoutItems] = useState([]);
-  const [selectedAddress, setSelectedAddress] = useState(null);
+  // ─── Checkout Flow State (persisted to sessionStorage for navigation reliability) ─
+  const [checkoutItems, setCheckoutItems] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = sessionStorage.getItem("mellosoft_checkout_items");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch {}
+    }
+    return [];
+  });
+
+  const [selectedAddress, setSelectedAddress] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = sessionStorage.getItem("mellosoft_selected_address");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && typeof parsed === "object") return parsed;
+        }
+      } catch {}
+    }
+    return null;
+  });
+
   const [userAddresses, setUserAddresses] = useState({});
   const [selectedOrderId, setSelectedOrderId] = useState(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        if (checkoutItems && checkoutItems.length > 0) {
+          sessionStorage.setItem("mellosoft_checkout_items", JSON.stringify(checkoutItems));
+        } else {
+          sessionStorage.removeItem("mellosoft_checkout_items");
+        }
+      } catch {}
+    }
+  }, [checkoutItems]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        if (selectedAddress) {
+          sessionStorage.setItem("mellosoft_selected_address", JSON.stringify(selectedAddress));
+        } else {
+          sessionStorage.removeItem("mellosoft_selected_address");
+        }
+      } catch {}
+    }
+  }, [selectedAddress]);
 
   // ─── Typed banner selectors — each section has its own data source ─────────
   const sortedBanners = (banners || [])
@@ -151,11 +233,11 @@ export function StoreProvider({ children }) {
         const savedReviews = localStorage.getItem("mellosoft_reviews");
         if (savedReviews) {
           const parsed = JSON.parse(savedReviews);
-          if (Array.isArray(parsed) && parsed.length > 0) {
+          if (Array.isArray(parsed)) {
             setReviews((prev) => (JSON.stringify(prev) === JSON.stringify(parsed) ? prev : parsed));
           }
         } else {
-          setReviews((prev) => (JSON.stringify(prev) === JSON.stringify(MOCK_REVIEWS) ? prev : MOCK_REVIEWS));
+          setReviews([]);
         }
       } catch (e) {
         console.error("Failed to load reviews from localStorage:", e);
@@ -324,9 +406,11 @@ export function StoreProvider({ children }) {
         const savedOrders = localStorage.getItem("mellosoft_orders");
         if (savedOrders) {
           const parsed = JSON.parse(savedOrders);
-          if (Array.isArray(parsed) && parsed.length > 0) {
+          if (Array.isArray(parsed)) {
             setOrders((prev) => (JSON.stringify(prev) === JSON.stringify(parsed) ? prev : parsed));
           }
+        } else {
+          setOrders([]);
         }
       } catch (e) {
         console.error("Failed to load orders from localStorage:", e);
@@ -608,19 +692,23 @@ export function StoreProvider({ children }) {
       }
     };
 
-    setOrders((prevOrders) => {
-      const updated = [orderWithSnapshot, ...prevOrders];
+    setOrders((prevOrders) => [orderWithSnapshot, ...prevOrders]);
+
+    // Persist order & dispatch events asynchronously
+    if (typeof window !== "undefined") {
       try {
-        localStorage.setItem("mellosoft_orders", JSON.stringify(updated));
-        if (typeof window !== "undefined") {
+        const currentSaved = localStorage.getItem("mellosoft_orders");
+        const parsedSaved = currentSaved ? JSON.parse(currentSaved) : [];
+        const updatedOrders = [orderWithSnapshot, ...(Array.isArray(parsedSaved) ? parsedSaved : [])];
+        localStorage.setItem("mellosoft_orders", JSON.stringify(updatedOrders));
+        setTimeout(() => {
           window.dispatchEvent(new Event("storage"));
           window.dispatchEvent(new CustomEvent("mellosoft_orders_updated"));
-        }
+        }, 0);
       } catch (e) {
         console.error("Failed to save orders to localStorage on placeOrder:", e);
       }
-      return updated;
-    });
+    }
 
     // Also sync/create customer in mellosoft_customers
     if (typeof window !== "undefined") {
@@ -659,14 +747,58 @@ export function StoreProvider({ children }) {
           });
         }
         localStorage.setItem("mellosoft_customers", JSON.stringify(custsList));
-        window.dispatchEvent(new CustomEvent("mellosoft_customers_updated"));
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent("mellosoft_customers_updated"));
+        }, 0);
       } catch (e) {
         console.error("Failed to sync customer on placeOrder:", e);
       }
     }
 
+    // Create admin notification in mellosoft_admin_notifications
+    if (typeof window !== "undefined") {
+      try {
+        const savedNotifs = localStorage.getItem("mellosoft_admin_notifications");
+        let notifsList = savedNotifs ? JSON.parse(savedNotifs) : [];
+        if (!Array.isArray(notifsList)) notifsList = [];
+
+        const custName = newOrder.customerName || newOrder.deliveryAddress?.fullName || currentCustomer?.name || "Customer";
+        const totalFormatted = Number(orderWithSnapshot.totalAmount ?? orderWithSnapshot.total ?? 0).toLocaleString("en-IN");
+
+        const exists = notifsList.some((n) => n.orderId === orderWithSnapshot.id && n.type === "new_order");
+        if (!exists) {
+          const newNotif = {
+            id: `notif-${orderWithSnapshot.id}-${Date.now()}`,
+            type: "new_order",
+            orderId: orderWithSnapshot.id,
+            title: "New Order",
+            message: `${custName} placed order #${orderWithSnapshot.id} for ₹${totalFormatted}.`,
+            text: `${custName} placed order #${orderWithSnapshot.id} for ₹${totalFormatted}.`,
+            read: false,
+            createdAt: new Date().toISOString(),
+            time: "Just now"
+          };
+          notifsList.unshift(newNotif);
+          localStorage.setItem("mellosoft_admin_notifications", JSON.stringify(notifsList));
+          setTimeout(() => {
+            window.dispatchEvent(new Event("storage"));
+            window.dispatchEvent(new CustomEvent("mellosoft_notifications_updated"));
+          }, 0);
+        }
+      } catch (e) {
+        console.error("Failed to save admin notification on placeOrder:", e);
+      }
+    }
+
     setCart([]);
     setCheckoutItems([]);
+    if (typeof window !== "undefined") {
+      try {
+        sessionStorage.removeItem("mellosoft_checkout_items");
+        sessionStorage.removeItem("mellosoft_selected_address");
+      } catch {}
+    }
+    return orderWithSnapshot;
   };
 
   const cancelOrder = (orderId) => {
@@ -833,9 +965,14 @@ export function StoreProvider({ children }) {
         homepageConfig,
         newArrivalItems,
         bestSellerItems,
-        currentCustomerId,
-        customerOrders: (orders || []).filter((o) => o.customerId === currentCustomerId || o.userId === currentCustomerId || (currentCustomer?.email && o.email?.toLowerCase() === currentCustomer.email.toLowerCase())),
-        // Checkout flow state
+        customerOrders: (orders || []).filter((o) => {
+          if (!currentCustomer && !currentCustomerId) return false;
+          const matchId = currentCustomerId && (o.customerId === currentCustomerId || o.userId === currentCustomerId);
+          const matchCustObjId = currentCustomer?.id && (o.customerId === currentCustomer.id || o.userId === currentCustomer.id);
+          const matchCustCode = currentCustomer?.customerId && (o.customerId === currentCustomer.customerId);
+          const matchEmail = currentCustomer?.email && (o.email?.toLowerCase() === currentCustomer.email.toLowerCase() || o.customerEmail?.toLowerCase() === currentCustomer.email.toLowerCase());
+          return Boolean(matchId || matchCustObjId || matchCustCode || matchEmail);
+        }),
         checkoutItems,
         setCheckoutItems,
         selectedAddress,

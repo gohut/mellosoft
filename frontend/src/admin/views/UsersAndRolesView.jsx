@@ -25,7 +25,7 @@ const ALL_MODULES = [
     label: "Orders",
     actions: [
       { id: "view", label: "View" },
-      { id: "update", label: "Update Status" },
+      { id: "updateStatus", label: "Update Status" },
     ],
   },
   {
@@ -43,6 +43,19 @@ const ALL_MODULES = [
     label: "Reviews",
     actions: [
       { id: "view", label: "View" },
+      { id: "approve", label: "Approve / Moderate" },
+      { id: "reject", label: "Reject" },
+      { id: "delete", label: "Delete" },
+      { id: "featureOnHome", label: "Show on Home" },
+    ],
+  },
+  {
+    id: "content",
+    label: "Content",
+    actions: [
+      { id: "view", label: "View" },
+      { id: "create", label: "Create" },
+      { id: "edit", label: "Edit" },
       { id: "delete", label: "Delete" },
     ],
   },
@@ -1081,17 +1094,47 @@ function RoleModal({ isOpen, onClose, role, roles, onSaveRole }) {
 
   if (!isOpen || typeof document === "undefined") return null;
 
+  const isSuperAdmin = role?.id === "role-super-admin" || role?.name === "Super Admin";
+
   const toggleAction = (moduleId, actionId) => {
+    if (isSuperAdmin) return;
     setPermissions((prev) => {
       const current = prev[moduleId] || [];
-      const updated = current.includes(actionId)
-        ? current.filter((a) => a !== actionId)
-        : [...current, actionId];
+      let updated;
+      if (current.includes(actionId)) {
+        if (actionId === "view") {
+          // If view is disabled, disable all actions for this module
+          updated = [];
+        } else {
+          updated = current.filter((a) => a !== actionId);
+        }
+      } else {
+        if (actionId !== "view" && !current.includes("view")) {
+          // If any action is enabled, auto-enable view
+          updated = [...current, "view", actionId];
+        } else {
+          updated = [...current, actionId];
+        }
+      }
       return { ...prev, [moduleId]: updated };
     });
   };
 
+  const toggleModuleAll = (moduleId) => {
+    if (isSuperAdmin) return;
+    const mod = ALL_MODULES.find((m) => m.id === moduleId);
+    if (!mod) return;
+    const current = permissions[moduleId] || [];
+    const allActions = mod.actions.map((a) => a.id);
+    const isAllSelected = allActions.every((a) => current.includes(a));
+    setPermissions((prev) => ({
+      ...prev,
+      [moduleId]: isAllSelected ? [] : allActions,
+    }));
+  };
+
   const handleSelectAll = () => {
+    if (isSuperAdmin) return;
     const p = {};
     ALL_MODULES.forEach((m) => {
       p[m.id] = m.actions.map((a) => a.id);
@@ -1100,6 +1143,7 @@ function RoleModal({ isOpen, onClose, role, roles, onSaveRole }) {
   };
 
   const handleClearAll = () => {
+    if (isSuperAdmin) return;
     const p = {};
     ALL_MODULES.forEach((m) => {
       p[m.id] = [];
@@ -1121,7 +1165,7 @@ function RoleModal({ isOpen, onClose, role, roles, onSaveRole }) {
     onSaveRole({
       name: name.trim(),
       description: description.trim(),
-      permissions,
+      permissions: isSuperAdmin ? role.permissions : permissions,
     });
     onClose();
   };
@@ -1163,27 +1207,49 @@ function RoleModal({ isOpen, onClose, role, roles, onSaveRole }) {
           {/* Permissions Matrix Header */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "8px" }}>
             <h5 style={{ fontSize: "14px", fontWeight: 700, color: "#14151A", margin: 0 }}>Module Permissions</h5>
-            <div style={{ display: "flex", gap: "8px" }}>
-              <button type="button" onClick={handleSelectAll} style={{ ...outlineBtnStyle, fontSize: "11px", padding: "4px 8px" }}>Select All</button>
-              <button type="button" onClick={handleClearAll} style={{ ...outlineBtnStyle, fontSize: "11px", padding: "4px 8px" }}>Clear All</button>
-            </div>
+            {!isSuperAdmin && (
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button type="button" onClick={handleSelectAll} style={{ ...outlineBtnStyle, fontSize: "11px", padding: "4px 8px" }}>Select All</button>
+                <button type="button" onClick={handleClearAll} style={{ ...outlineBtnStyle, fontSize: "11px", padding: "4px 8px" }}>Clear All</button>
+              </div>
+            )}
+            {isSuperAdmin && (
+              <span style={{ fontSize: "11px", fontWeight: 600, color: "#4F46E5", backgroundColor: "#EEF2FF", padding: "2px 8px", borderRadius: "999px" }}>
+                Full System Access Protected
+              </span>
+            )}
           </div>
 
           {/* Grouped Permission Checkboxes */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
             {ALL_MODULES.map((mod) => {
-              const currentActions = permissions[mod.id] || [];
+              const currentActions = isSuperAdmin ? mod.actions.map((a) => a.id) : (permissions[mod.id] || []);
+              const allModActions = mod.actions.map((a) => a.id);
+              const isModAllSelected = allModActions.every((a) => currentActions.includes(a));
+
               return (
                 <div key={mod.id} style={{ border: "1px solid #E7E7E2", borderRadius: "10px", padding: "12px", backgroundColor: "#FAFAF7" }}>
-                  <div style={{ fontSize: "13px", fontWeight: 700, color: "#14151A", marginBottom: "8px" }}>{mod.label}</div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                    <div style={{ fontSize: "13px", fontWeight: 700, color: "#14151A" }}>{mod.label}</div>
+                    {!isSuperAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => toggleModuleAll(mod.id)}
+                        style={{ background: "none", border: "none", color: "#1B1F8C", fontSize: "11px", fontWeight: 600, cursor: "pointer", padding: 0 }}
+                      >
+                        {isModAllSelected ? "Deselect" : "Select All"}
+                      </button>
+                    )}
+                  </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                     {mod.actions.map((act) => {
                       const isChecked = currentActions.includes(act.id);
                       return (
-                        <label key={act.id} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: "#4B5563", cursor: "pointer" }}>
+                        <label key={act.id} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: "#4B5563", cursor: isSuperAdmin ? "default" : "pointer" }}>
                           <input
                             type="checkbox"
                             checked={isChecked}
+                            disabled={isSuperAdmin}
                             onChange={() => toggleAction(mod.id, act.id)}
                           />
                           {act.label}

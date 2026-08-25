@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useStore } from "../context/StoreContext";
 import { formatPrice } from "../utils/currency";
 import { CheckCircle2, Package, MapPin, Calendar, ArrowRight, ShoppingBag } from "lucide-react";
@@ -8,6 +8,11 @@ import DownloadOrderPdf from "../components/DownloadOrderPdf";
 
 export default function OrderConfirmationView() {
   const { selectedOrderId, orders, navigateTo, settings } = useStore();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const currentOrder = useMemo(() => {
     if (!orders || orders.length === 0) return null;
@@ -16,6 +21,20 @@ export default function OrderConfirmationView() {
     }
     return orders[0];
   }, [orders, selectedOrderId]);
+
+  if (!mounted) {
+    return (
+      <div style={containerStyle}>
+        <div style={bannerCardStyle}>
+          <div style={{ ...iconBadgeStyle, backgroundColor: "#E7E7E2" }}>
+            <Package size={36} color="#6B6B75" />
+          </div>
+          <h1 style={titleStyle}>Order Confirmation</h1>
+          <p style={subtitleStyle}>Loading order details...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!currentOrder) {
     return (
@@ -41,8 +60,13 @@ export default function OrderConfirmationView() {
 
   // Estimated delivery date (3-5 days from creation)
   const orderDate = new Date(currentOrder.createdAt || Date.now());
-  const estDeliveryMin = new Date(orderDate.getTime() + 3 * 24 * 60 * 60 * 1000).toLocaleDateString("en-IN", { month: "short", day: "numeric" });
-  const estDeliveryMax = new Date(orderDate.getTime() + 5 * 24 * 60 * 60 * 1000).toLocaleDateString("en-IN", { month: "short", day: "numeric" });
+  const formatEstDate = (d) => {
+    if (!d || isNaN(d.getTime())) return "";
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return `${months[d.getMonth()]} ${d.getDate()}`;
+  };
+  const estDeliveryMin = formatEstDate(new Date(orderDate.getTime() + 3 * 24 * 60 * 60 * 1000));
+  const estDeliveryMax = formatEstDate(new Date(orderDate.getTime() + 5 * 24 * 60 * 60 * 1000));
 
   return (
     <div style={containerStyle}>

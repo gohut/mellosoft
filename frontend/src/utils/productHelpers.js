@@ -219,6 +219,48 @@ export function getSubcategoryProductCount(subcategory, productsList = [], categ
 }
 
 /**
+ * Authoritative helper returning dynamic category hierarchy with live product counts.
+ * Synchronized across Admin Products, Content Management modals, and Storefront routing.
+ */
+export function getCatalogCategoryTree(productsList = [], categoriesList = DEFAULT_CATEGORIES_TREE) {
+  const cats = ensureRequiredCategories(categoriesList || DEFAULT_CATEGORIES_TREE);
+  const activeProducts = Array.isArray(productsList)
+    ? productsList.filter((p) => p && !isProductDeleted(p.id || p.Product_Id || p.slug) && (p.status ? p.status === "Active" : true))
+    : [];
+
+  const totalCount = activeProducts.length;
+
+  const tree = cats.map((mainCat) => {
+    const mainCount = getMainCategoryProductCount(mainCat, activeProducts, cats);
+    const subcategories = (mainCat.subcategories || []).map((sub) => {
+      const subCount = getSubcategoryProductCount(sub, activeProducts, cats);
+      return {
+        id: sub.id,
+        name: sub.name,
+        slug: sub.slug || sub.id,
+        count: subCount,
+        active: sub.active !== false,
+      };
+    });
+
+    return {
+      id: mainCat.id,
+      name: mainCat.name,
+      slug: mainCat.slug || mainCat.id,
+      count: mainCount,
+      order: mainCat.order || 99,
+      active: mainCat.active !== false,
+      subcategories,
+    };
+  });
+
+  return {
+    totalCount,
+    tree,
+  };
+}
+
+/**
  * Calculates price from product pricing matrix
  */
 export function getCalculatedPrice(product, thickness, size) {
@@ -798,30 +840,56 @@ export function getProductCategoryLabel(product) {
 }
 
 /**
- * Universal predicate checking if a product belongs to a group/category key.
+ * Universal predicate checking if a product belongs to a group/category key or ID.
  */
-export function isProductInCategory(product, categoryKey) {
+export function isProductInCategory(product, categoryKey, categoriesList = DEFAULT_CATEGORIES_TREE) {
   if (!product || !categoryKey) return false;
   const targetKey = normalizeCategoryKey(categoryKey);
   if (targetKey === "all" || targetKey === "all-categories" || targetKey === "all-products") return true;
 
-  if (targetKey === "mattresses" || targetKey === "mattress" || targetKey === "all-mattresses") {
+  if (
+    targetKey === "mattresses" ||
+    targetKey === "mattress" ||
+    targetKey === "all-mattresses" ||
+    targetKey === "cat-mattresses"
+  ) {
     return getProductGroupKey(product) === "mattresses";
   }
-  if (targetKey === "accessories" || targetKey === "accessory" || targetKey === "all-accessories") {
+  if (
+    targetKey === "accessories" ||
+    targetKey === "accessory" ||
+    targetKey === "all-accessories" ||
+    targetKey === "cat-accessories"
+  ) {
     return getProductGroupKey(product) === "accessories";
   }
-  if (targetKey === "bed-frames" || targetKey === "bedframes" || targetKey === "bedframe" || targetKey === "all-bed-frames") {
+  if (
+    targetKey === "bed-frames" ||
+    targetKey === "bedframes" ||
+    targetKey === "bedframe" ||
+    targetKey === "all-bed-frames" ||
+    targetKey === "cat-bed-frames"
+  ) {
     return getProductGroupKey(product) === "bed-frames";
   }
 
   const subKey = getProductCategoryKey(product);
   const catKey = normalizeCategoryKey(product.category || product.categoryId);
   const catNameKey = normalizeCategoryKey(product.categoryName || product.categoryLabel);
+  const prodSubId = normalizeCategoryKey(product.subcategoryId || product.subCategoryId);
+  const prodParentId = normalizeCategoryKey(product.mainCategoryId || product.parentCategory || product.parentCategoryId);
 
-  if (subKey === targetKey || catKey === targetKey || catNameKey === targetKey) return true;
+  if (
+    subKey === targetKey ||
+    catKey === targetKey ||
+    catNameKey === targetKey ||
+    prodSubId === targetKey ||
+    prodParentId === targetKey
+  ) {
+    return true;
+  }
 
-  return isProductInMainCategory(product, categoryKey) || isProductInSubcategory(product, categoryKey);
+  return isProductInMainCategory(product, categoryKey, categoriesList) || isProductInSubcategory(product, categoryKey, categoriesList);
 }
 
 /**

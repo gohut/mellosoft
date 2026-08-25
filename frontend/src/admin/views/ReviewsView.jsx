@@ -21,6 +21,11 @@ const getReviewImages = (r) => {
 export default function ReviewsView() {
   const { reviews, approveReview, rejectReview, deleteReview, restoreReview, toggleShowOnHome, hasPermission } = useAdmin();
   
+  const canApprove = hasPermission("reviews", "approve") || hasPermission("reviews", "moderate") || hasPermission("reviews", "edit");
+  const canReject = hasPermission("reviews", "reject") || hasPermission("reviews", "moderate") || hasPermission("reviews", "edit");
+  const canDelete = hasPermission("reviews", "delete");
+  const canFeatureOnHome = hasPermission("reviews", "featureOnHome") || hasPermission("reviews", "showOnHome") || hasPermission("reviews", "moderate") || hasPermission("reviews", "edit");
+
   const allReviews = useMemo(() => reviews || [], [reviews]);
 
   const pendingReviews = useMemo(() => allReviews.filter((r) => r.status === "Pending" || r.status === "pending"), [allReviews]);
@@ -577,29 +582,33 @@ export default function ReviewsView() {
                     <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap", paddingTop: "4px" }}>
                       {activeTab === "pending" && (
                         <>
-                          <button
-                            type="button"
-                            disabled={isProcessing}
-                            onClick={() => handleApprove(review.id)}
-                            style={{ ...actionBtnStyle, borderColor: "#DCFCE7", opacity: isProcessing ? 0.6 : 1 }}
-                            title="Approve review"
-                            aria-label="Approve review"
-                          >
-                            <CheckCircle size={16} color="#16A34A" />
-                          </button>
+                          {canApprove && (
+                            <button
+                              type="button"
+                              disabled={isProcessing}
+                              onClick={() => handleApprove(review.id)}
+                              style={{ ...actionBtnStyle, borderColor: "#DCFCE7", opacity: isProcessing ? 0.6 : 1 }}
+                              title="Approve review"
+                              aria-label="Approve review"
+                            >
+                              <CheckCircle size={16} color="#16A34A" />
+                            </button>
+                          )}
 
-                          <button
-                            type="button"
-                            disabled={isProcessing}
-                            onClick={() => handleReject(review.id)}
-                            style={{ ...actionBtnStyle, borderColor: "#FEF3C7", opacity: isProcessing ? 0.6 : 1 }}
-                            title="Reject review"
-                            aria-label="Reject review"
-                          >
-                            <XCircle size={16} color="#F59E0B" />
-                          </button>
+                          {canReject && (
+                            <button
+                              type="button"
+                              disabled={isProcessing}
+                              onClick={() => handleReject(review.id)}
+                              style={{ ...actionBtnStyle, borderColor: "#FEF3C7", opacity: isProcessing ? 0.6 : 1 }}
+                              title="Reject review"
+                              aria-label="Reject review"
+                            >
+                              <XCircle size={16} color="#F59E0B" />
+                            </button>
+                          )}
 
-                          {hasPermission("reviews", "delete") && (
+                          {canDelete && (
                             <button
                               type="button"
                               disabled={isProcessing}
@@ -616,43 +625,47 @@ export default function ReviewsView() {
 
                       {activeTab === "approved" && (
                         <>
-                          <button
-                            type="button"
-                            disabled={isProcessing}
-                            onClick={() => toggleShowOnHome(review.id)}
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "6px",
-                              backgroundColor: review.showOnHome ? "#DCFCE7" : "#F3F4F6",
-                              color: review.showOnHome ? "#15803D" : "#4B5563",
-                              border: `1px solid ${review.showOnHome ? "#86EFAC" : "#D1D5DB"}`,
-                              borderRadius: "999px",
-                              padding: "6px 12px",
-                              fontSize: "12px",
-                              fontWeight: "700",
-                              cursor: "pointer",
-                              transition: "all 0.2s ease",
-                              boxShadow: review.showOnHome ? "0 2px 6px rgba(22, 163, 74, 0.15)" : "none"
-                            }}
-                            title={review.showOnHome ? "Click to remove from Homepage" : "Click to feature on Homepage"}
-                          >
-                            {review.showOnHome ? <Star size={13} fill="#15803D" color="#15803D" /> : <Star size={13} color="#6B7280" />}
-                            <span>{review.showOnHome ? "✓ Showing on Home" : "☆ Show on Home"}</span>
-                          </button>
+                          {canFeatureOnHome && (
+                            <button
+                              type="button"
+                              disabled={isProcessing}
+                              onClick={() => toggleShowOnHome(review.id)}
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                backgroundColor: review.showOnHome ? "#DCFCE7" : "#F3F4F6",
+                                color: review.showOnHome ? "#15803D" : "#4B5563",
+                                border: `1px solid ${review.showOnHome ? "#86EFAC" : "#D1D5DB"}`,
+                                borderRadius: "999px",
+                                padding: "6px 12px",
+                                fontSize: "12px",
+                                fontWeight: "700",
+                                cursor: "pointer",
+                                transition: "all 0.2s ease",
+                                boxShadow: review.showOnHome ? "0 2px 6px rgba(22, 163, 74, 0.15)" : "none"
+                              }}
+                              title={review.showOnHome ? "Click to remove from Homepage" : "Click to feature on Homepage"}
+                            >
+                              {review.showOnHome ? <Star size={13} fill="#15803D" color="#15803D" /> : <Star size={13} color="#6B7280" />}
+                              <span>{review.showOnHome ? "✓ Showing on Home" : "☆ Show on Home"}</span>
+                            </button>
+                          )}
 
-                          <button
-                            type="button"
-                            disabled={isProcessing}
-                            onClick={() => handleReject(review.id)}
-                            style={{ ...actionBtnStyle, borderColor: "#FEF3C7", opacity: isProcessing ? 0.6 : 1 }}
-                            title="Reject review"
-                            aria-label="Reject review"
-                          >
-                            <XCircle size={16} color="#F59E0B" />
-                          </button>
+                          {canReject && (
+                            <button
+                              type="button"
+                              disabled={isProcessing}
+                              onClick={() => handleReject(review.id)}
+                              style={{ ...actionBtnStyle, borderColor: "#FEF3C7", opacity: isProcessing ? 0.6 : 1 }}
+                              title="Reject review"
+                              aria-label="Reject review"
+                            >
+                              <XCircle size={16} color="#F59E0B" />
+                            </button>
+                          )}
 
-                          {hasPermission("reviews", "delete") && (
+                          {canDelete && (
                             <button
                               type="button"
                               disabled={isProcessing}
@@ -687,46 +700,50 @@ export default function ReviewsView() {
                             <span>✓ Showing on Home</span>
                           </div>
 
-                          <button
-                            type="button"
-                            disabled={isProcessing}
-                            onClick={() => toggleShowOnHome(review.id)}
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "6px",
-                              backgroundColor: "#FEF2F2",
-                              color: "#DC2626",
-                              border: "1px solid #FCA5A5",
-                              borderRadius: "8px",
-                              padding: "6px 12px",
-                              fontSize: "12px",
-                              fontWeight: "700",
-                              cursor: "pointer",
-                            }}
-                            title="Remove from Homepage"
-                            aria-label="Remove from Homepage"
-                          >
-                            <XCircle size={14} color="#DC2626" />
-                            <span>Remove from Home</span>
-                          </button>
+                          {canFeatureOnHome && (
+                            <button
+                              type="button"
+                              disabled={isProcessing}
+                              onClick={() => toggleShowOnHome(review.id)}
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                backgroundColor: "#FEF2F2",
+                                color: "#DC2626",
+                                border: "1px solid #FCA5A5",
+                                borderRadius: "8px",
+                                padding: "6px 12px",
+                                fontSize: "12px",
+                                fontWeight: "700",
+                                cursor: "pointer",
+                              }}
+                              title="Remove from Homepage"
+                              aria-label="Remove from Homepage"
+                            >
+                              <XCircle size={14} color="#DC2626" />
+                              <span>Remove from Home</span>
+                            </button>
+                          )}
                         </>
                       )}
 
                       {activeTab === "rejected" && (
                         <>
-                          <button
-                            type="button"
-                            disabled={isProcessing}
-                            onClick={() => handleApprove(review.id)}
-                            style={{ ...actionBtnStyle, borderColor: "#DCFCE7", opacity: isProcessing ? 0.6 : 1 }}
-                            title="Approve review"
-                            aria-label="Approve review"
-                          >
-                            <CheckCircle size={16} color="#16A34A" />
-                          </button>
+                          {canApprove && (
+                            <button
+                              type="button"
+                              disabled={isProcessing}
+                              onClick={() => handleApprove(review.id)}
+                              style={{ ...actionBtnStyle, borderColor: "#DCFCE7", opacity: isProcessing ? 0.6 : 1 }}
+                              title="Approve review"
+                              aria-label="Approve review"
+                            >
+                              <CheckCircle size={16} color="#16A34A" />
+                            </button>
+                          )}
 
-                          {hasPermission("reviews", "delete") && (
+                          {canDelete && (
                             <button
                               type="button"
                               disabled={isProcessing}
@@ -741,7 +758,7 @@ export default function ReviewsView() {
                         </>
                       )}
 
-                      {activeTab === "deleted" && (
+                      {activeTab === "deleted" && canApprove && (
                         <button
                           type="button"
                           disabled={isProcessing}

@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { useAdmin } from "../../../admin/context/AdminContext";
 import AdminSidebar from "../../../admin/components/AdminSidebar";
 import AdminHeader from "../../../admin/components/AdminHeader";
@@ -19,49 +19,63 @@ import UsersAndRolesView from "../../../admin/views/UsersAndRolesView";
 import SettingsView from "../../../admin/views/SettingsView";
 
 export default function AdminPage() {
-  const { adminView, sidebarCollapsed, hasPermission, navigateTo } = useAdmin();
+  const { adminView, sidebarCollapsed, hasPermission, navigateTo, getFirstAllowedAdminView, currentUserRole } = useAdmin();
+
+  // On mount or role change, if current view is not permitted, auto-route to first allowed view
+  useEffect(() => {
+    if (!currentUserRole) return;
+    const canAccessDashboard = hasPermission("dashboard", "view");
+    if (adminView === "dashboard" && !canAccessDashboard) {
+      const firstAllowed = getFirstAllowedAdminView ? getFirstAllowedAdminView() : "products";
+      if (firstAllowed && firstAllowed !== "dashboard") {
+        navigateTo(firstAllowed);
+      }
+    }
+  }, [adminView, currentUserRole, hasPermission, getFirstAllowedAdminView, navigateTo]);
+
+  const firstAllowedRoute = getFirstAllowedAdminView ? getFirstAllowedAdminView() : "dashboard";
 
   const renderView = () => {
     switch (adminView) {
       case "dashboard":
-        if (!hasPermission("dashboard", "view")) return <AccessDeniedPanel moduleName="Dashboard" onBack={() => navigateTo("dashboard")} />;
+        if (!hasPermission("dashboard", "view")) return <AccessDeniedPanel moduleName="Dashboard" onBack={() => navigateTo(firstAllowedRoute)} />;
         return <DashboardView />;
       case "products":
-        if (!hasPermission("products", "view")) return <AccessDeniedPanel moduleName="Products" onBack={() => navigateTo("dashboard")} />;
+        if (!hasPermission("products", "view")) return <AccessDeniedPanel moduleName="Products" onBack={() => navigateTo(firstAllowedRoute)} />;
         return <ProductsView />;
       case "product-details":
-        if (!hasPermission("products", "view")) return <AccessDeniedPanel moduleName="Products" onBack={() => navigateTo("dashboard")} />;
+        if (!hasPermission("products", "view")) return <AccessDeniedPanel moduleName="Products" onBack={() => navigateTo(firstAllowedRoute)} />;
         return <AdminProductDetailView />;
       case "categories":
-        if (!hasPermission("products", "view")) return <AccessDeniedPanel moduleName="Categories" onBack={() => navigateTo("dashboard")} />;
+        if (!hasPermission("products", "view")) return <AccessDeniedPanel moduleName="Categories" onBack={() => navigateTo(firstAllowedRoute)} />;
         return <CategoriesView />;
       case "banners":
         // Legacy route — redirect to Content section
         navigateTo("content");
         return null;
       case "content":
-        if (!hasPermission("products", "view")) return <AccessDeniedPanel moduleName="Content" onBack={() => navigateTo("dashboard")} />;
+        if (!hasPermission("content", "view")) return <AccessDeniedPanel moduleName="Content" onBack={() => navigateTo(firstAllowedRoute)} />;
         return <ContentView />;
       case "add-product":
-        if (!hasPermission("products", "create")) return <AccessDeniedPanel moduleName="Add Product" onBack={() => navigateTo("dashboard")} />;
+        if (!hasPermission("products", "create")) return <AccessDeniedPanel moduleName="Add Product" onBack={() => navigateTo(firstAllowedRoute)} />;
         return <AddProductView />;
       case "edit-product":
-        if (!hasPermission("products", "edit")) return <AccessDeniedPanel moduleName="Edit Product" onBack={() => navigateTo("dashboard")} />;
+        if (!hasPermission("products", "edit")) return <AccessDeniedPanel moduleName="Edit Product" onBack={() => navigateTo(firstAllowedRoute)} />;
         return <EditProductView />;
       case "orders":
-        if (!hasPermission("orders", "view")) return <AccessDeniedPanel moduleName="Orders" onBack={() => navigateTo("dashboard")} />;
+        if (!hasPermission("orders", "view")) return <AccessDeniedPanel moduleName="Orders" onBack={() => navigateTo(firstAllowedRoute)} />;
         return <OrdersView />;
       case "customers":
-        if (!hasPermission("customers", "view")) return <AccessDeniedPanel moduleName="Customers" onBack={() => navigateTo("dashboard")} />;
+        if (!hasPermission("customers", "view")) return <AccessDeniedPanel moduleName="Customers" onBack={() => navigateTo(firstAllowedRoute)} />;
         return <CustomersView />;
       case "reviews":
-        if (!hasPermission("reviews", "view")) return <AccessDeniedPanel moduleName="Reviews" onBack={() => navigateTo("dashboard")} />;
+        if (!hasPermission("reviews", "view")) return <AccessDeniedPanel moduleName="Reviews" onBack={() => navigateTo(firstAllowedRoute)} />;
         return <ReviewsView />;
       case "users-roles":
-        if (!hasPermission("users", "view") && !hasPermission("roles", "view")) return <AccessDeniedPanel moduleName="Users & Roles" onBack={() => navigateTo("dashboard")} />;
+        if (!hasPermission("users", "view") && !hasPermission("roles", "view")) return <AccessDeniedPanel moduleName="Users & Roles" onBack={() => navigateTo(firstAllowedRoute)} />;
         return <UsersAndRolesView />;
       case "settings":
-        if (!hasPermission("settings", "view")) return <AccessDeniedPanel moduleName="Settings" onBack={() => navigateTo("dashboard")} />;
+        if (!hasPermission("settings", "view")) return <AccessDeniedPanel moduleName="Settings" onBack={() => navigateTo(firstAllowedRoute)} />;
         return <SettingsView />;
       default:
         return <DashboardView />;
@@ -112,7 +126,7 @@ function AccessDeniedPanel({ moduleName, onBack }) {
         You don't have permission to access {moduleName ? `the ${moduleName}` : "this"} page. Contact your Super Admin for access.
       </p>
       <button onClick={onBack} style={{ height: "40px", padding: "0 20px", backgroundColor: "#1B1F8C", color: "#FFFFFF", border: "none", borderRadius: "10px", fontWeight: 600, fontSize: "14px", cursor: "pointer" }}>
-        Back to Dashboard
+        Go to Accessible Section
       </button>
     </div>
   );
