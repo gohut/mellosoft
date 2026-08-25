@@ -3,12 +3,13 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { MOCK_PRODUCTS } from "../data/products";
-import { MOCK_ORDERS, MOCK_CARTS, MOCK_WISHLISTS, MOCK_BANNERS, MOCK_REVIEWS } from "../admin/data/adminMockData";
+import { MOCK_ORDERS, MOCK_CARTS, MOCK_WISHLISTS, MOCK_BANNERS, MOCK_REVIEWS, MOCK_CATEGORIES } from "../admin/data/adminMockData";
 import { calculateDiscountedPrice } from "../utils/currency";
 import { getVariantForSelection } from "../utils/variantHelpers";
 import { ensureProductPricing } from "../utils/pricingEngine";
-import { getProductPrimaryImage, getDeletedProductIds, isProductDeleted } from "../utils/productHelpers";
+import { getProductPrimaryImage, getDeletedProductIds, isProductDeleted, ensureRequiredCategories } from "../utils/productHelpers";
 import { useCustomerAuth } from "./CustomerAuthContext";
+import { getSavedSettings, saveSettingsToStorage, normalizeSettings, SETTINGS_UPDATED_EVENT } from "../utils/settingsHelpers";
 
 const StoreContext = createContext();
 
@@ -44,6 +45,51 @@ export function StoreProvider({ children }) {
   const [reviews, setReviews] = useState(MOCK_REVIEWS);
 
   const [banners, setBanners] = useState(MOCK_BANNERS);
+
+  // Global Store Settings synchronized with localStorage ("mellosoft_settings")
+  const [settings, setSettings] = useState(() => getSavedSettings());
+
+  useEffect(() => {
+    const handleSync = () => {
+      setSettings(getSavedSettings());
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("storage", handleSync);
+      window.addEventListener(SETTINGS_UPDATED_EVENT, handleSync);
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("storage", handleSync);
+        window.removeEventListener(SETTINGS_UPDATED_EVENT, handleSync);
+      }
+    };
+  }, []);
+
+  const updateSettings = useCallback((newSettings) => {
+    const success = saveSettingsToStorage(newSettings);
+    if (success) {
+      setSettings(normalizeSettings(newSettings));
+    }
+    return success;
+  }, []);
+
+  // Categories — loaded from localStorage (set by AdminContext) or fall back to defaults
+  const [categories, setCategories] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("mellosoft_categories");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return ensureRequiredCategories(parsed);
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+    return ensureRequiredCategories(MOCK_CATEGORIES);
+  });
 
   // New Arrival Config State synchronized with localStorage ("mellosoft_new_arrivals_config")
   const [newArrivalItems, setNewArrivalItems] = useState([
@@ -174,11 +220,11 @@ export function StoreProvider({ children }) {
       // Sync products (merging stored overrides with master catalogue, minus persistent tombstones & respecting v3 migration)
       try {
         const currentVer = localStorage.getItem("mellosoft_catalogue_version");
-        if (currentVer !== "v5-real-images") {
+        if (currentVer !== "v6-bed-frames") {
           localStorage.removeItem("mellosoft_deleted_product_ids");
           localStorage.removeItem("mellosoft_products");
           localStorage.removeItem("mellosoft_admin_products");
-          localStorage.setItem("mellosoft_catalogue_version", "v5-real-images");
+          localStorage.setItem("mellosoft_catalogue_version", "v6-bed-frames");
           localStorage.setItem("mellosoft_products", JSON.stringify(MOCK_PRODUCTS));
           setProducts(MOCK_PRODUCTS);
           return;
@@ -432,6 +478,7 @@ export function StoreProvider({ children }) {
     if (newView === "detail" || newView === "product") {
       const prodId = param || selectedProductId;
       if (prodId) setSelectedProductId(prodId);
+      setView("detail");
       if (router && typeof router.push === "function") {
         router.push(`/product/${encodeURIComponent(String(prodId).trim())}`);
       }
@@ -549,8 +596,20 @@ export function StoreProvider({ children }) {
     });
 
     // Add the new order & persist to localStorage with real-time sync
+    const orderWithSnapshot = {
+      ...newOrder,
+      storeSnapshot: newOrder.storeSnapshot || {
+        storeName: settings?.store?.name || "Mellosoft",
+        email: settings?.store?.email || "admin@mellosoft.in",
+        phone: settings?.store?.phone || "+91 98765 43210",
+        gstNumber: settings?.store?.gstNumber || "07AABCM1234A1Z5",
+        address: settings?.store?.address || "42, MG Road, Bengaluru, Karnataka 560001",
+        logo: settings?.website?.logo || "/asset/logo.png"
+      }
+    };
+
     setOrders((prevOrders) => {
-      const updated = [newOrder, ...prevOrders];
+      const updated = [orderWithSnapshot, ...prevOrders];
       try {
         localStorage.setItem("mellosoft_orders", JSON.stringify(updated));
         if (typeof window !== "undefined") {
@@ -801,6 +860,10 @@ export function StoreProvider({ children }) {
         setAuthModal,
         openAuthModal,
         closeAuthModal,
+        categories,
+        settings,
+        storeSettings: settings,
+        updateSettings,
       }}
     >
       {children}

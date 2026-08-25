@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 180" width="100%" height="100%">
+  <defs>
+    <filter id="drop-shadow-pr" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="8" flood-color="#0f172a" flood-opacity="0.15" />
+    </filter>
+
+    <linearGradient id="pr-top" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="70%" stop-color="#FEF3C7"/>
+      <stop offset="100%" stop-color="#FDE68A"/>
+    </linearGradient>
+
+    <linearGradient id="pr-skirt-front" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#F59E0B"/>
+      <stop offset="50%" stop-color="#D97706"/>
+      <stop offset="100%" stop-color="#78350F"/>
+    </linearGradient>
+
+    <linearGradient id="pr-skirt-side" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#D97706"/>
+      <stop offset="100%" stop-color="#451A03"/>
+    </linearGradient>
+  </defs>
+
+  <g filter="url(#drop-shadow-pr)">
+    <ellipse cx="120" cy="152" rx="90" ry="14" fill="#0f172a" opacity="0.12" />
+
+    <!-- Fitted Elastic Skirt - Right Side -->
+    <path d="M 120 72 L 205 110 C 205 125, 200 138, 120 102 Z" fill="url(#pr-skirt-side)" />
+
+    <!-- Fitted Elastic Skirt - Front Left -->
+    <path d="M 35 110 L 120 72 L 120 102 C 55 138, 35 125, 35 110 Z" fill="url(#pr-skirt-front)" />
+
+    <!-- Elastic Corner Band Detail -->
+    <path d="M 35 110 C 35 122, 50 132, 70 128" fill="none" stroke="#FBBF24" stroke-width="3" />
+    <path d="M 120 102 C 140 125, 180 122, 205 110" fill="none" stroke="#FBBF24" stroke-width="3" />
+
+    <!-- Top Quilted Waterproof Surface -->
+    <path d="M 120 32 L 205 70 L 120 108 L 35 70 Z" fill="url(#pr-top)" />
+
+    <!-- Diamond Waterproof Quilt Stitching -->
+    <g stroke="#F59E0B" stroke-width="1.2" opacity="0.5">
+      <line x1="56" y1="60" x2="141" y2="98" />
+      <line x1="77" y1="50" x2="162" y2="88" />
+      <line x1="98" y1="40" x2="183" y2="78" />
+
+      <line x1="77" y1="88" x2="162" y2="50" />
+      <line x1="56" y1="78" x2="141" y2="40" />
+      <line x1="98" y1="98" x2="183" y2="60" />
+    </g>
+
+    <!-- Water droplet shield icon overlay indicator -->
+    <g transform="translate(110, 58)" opacity="0.85">
+      <path d="M 10 0 C 10 0, 0 12, 0 17 C 0 22.5, 4.5 27, 10 27 C 15.5 27, 20 22.5, 20 17 C 20 12, 10 0, 10 0 Z" fill="#38BDF8" />
+      <path d="M 7 14 C 7 14, 4 17, 5 20" fill="none" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" />
+    </g>
+
+    <!-- Edge Piping Trim -->
+    <path d="M 120 32 L 205 70 L 120 108 L 35 70 Z" fill="none" stroke="#FFFFFF" stroke-width="3" />
+    <path d="M 120 32 L 205 70 L 120 108 L 35 70 Z" fill="none" stroke="#F59E0B" stroke-width="1.5" opacity="0.8" />
+  </g>
+</svg>

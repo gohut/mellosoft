@@ -4,6 +4,7 @@ import React, { useState, useMemo } from "react";
 import { useStore } from "../context/StoreContext";
 import { useCustomerAuth } from "../context/CustomerAuthContext";
 import { formatPrice } from "../utils/currency";
+import { calculateOrderTotals } from "../utils/settingsHelpers";
 import { ArrowLeft, CheckCircle2, ShieldCheck, Lock, Smartphone, Banknote } from "lucide-react";
 
 export default function PaymentView() {
@@ -13,7 +14,8 @@ export default function PaymentView() {
     selectedAddress,
     placeOrder,
     navigateTo,
-    setSelectedOrderId
+    setSelectedOrderId,
+    settings
   } = useStore();
 
   const { currentCustomer } = useCustomerAuth();
@@ -44,27 +46,18 @@ export default function PaymentView() {
   const [paymentError, setPaymentError] = useState("");
 
   // Price calculations
-  const subtotal = useMemo(() => {
-    return items.reduce((acc, item) => {
-      const price = item.price || item.discountPrice || item.actualPrice || 0;
-      const qty = item.qty || item.quantity || 1;
-      return acc + price * qty;
-    }, 0);
-  }, [items]);
-
-  const rawTotal = useMemo(() => {
-    return items.reduce((acc, item) => {
-      const actual = item.actualPrice || item.price || 0;
-      const qty = item.qty || item.quantity || 1;
-      return acc + actual * qty;
-    }, 0);
-  }, [items]);
-
-  const discountSavings = Math.max(0, rawTotal - subtotal);
-  const couponDiscount = Math.round(subtotal * 0.1); // 10% coupon
-  const tax = Math.round(subtotal * 0.18); // 18% GST
-  const shipping = subtotal >= 5000 || subtotal === 0 ? 0 : 150;
-  const finalTotal = subtotal + tax + shipping - couponDiscount;
+  // Dynamic price & shipping calculations from settings
+  const {
+    subtotal,
+    rawTotal,
+    discountSavings,
+    gstRate,
+    tax,
+    shipping,
+    isFreeShipping,
+    freeShippingThreshold,
+    finalTotal
+  } = useMemo(() => calculateOrderTotals(items, settings), [items, settings]);
 
   const handleCompleteOrder = () => {
     if (paymentMethod === "upi") {
@@ -122,9 +115,9 @@ export default function PaymentView() {
         orderStatus: "Processing",
         subtotal: subtotal,
         productDiscount: discountSavings,
-        couponDiscount: couponDiscount,
-        couponCode: couponDiscount > 0 ? "SLEEP10" : null,
-        discount: discountSavings + couponDiscount,
+        couponDiscount: 0,
+        couponCode: null,
+        discount: discountSavings,
         gst: tax,
         tax: tax,
         gstRate: 18,
@@ -134,7 +127,15 @@ export default function PaymentView() {
         total: finalTotal,
         createdAt: new Date().toISOString().split("T")[0],
         expectedDeliveryStart: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-        expectedDeliveryEnd: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
+        expectedDeliveryEnd: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+        storeSnapshot: {
+          storeName: settings?.store?.name || "Mellosoft",
+          email: settings?.store?.email || "admin@mellosoft.in",
+          phone: settings?.store?.phone || "+91 98765 43210",
+          gstNumber: settings?.store?.gstNumber || "07AABCM1234A1Z5",
+          address: settings?.store?.address || "42, MG Road, Bengaluru, Karnataka 560001",
+          logo: settings?.website?.logo || "/asset/logo.png"
+        }
       };
 
       placeOrder(newOrder);
@@ -303,10 +304,12 @@ export default function PaymentView() {
                 <span style={summaryLabelStyle}>Subtotal</span>
                 <span style={summaryValStyle}>{formatPrice(subtotal)}</span>
               </div>
-              <div style={summaryRowStyle}>
-                <span style={summaryLabelStyle}>Product & Promo Discount</span>
-                <span style={{ ...summaryValStyle, color: "#16A34A" }}>–{formatPrice(discountSavings + couponDiscount)}</span>
-              </div>
+              {discountSavings > 0 && (
+                <div style={summaryRowStyle}>
+                  <span style={summaryLabelStyle}>Product Discount</span>
+                  <span style={{ ...summaryValStyle, color: "#16A34A" }}>–{formatPrice(discountSavings)}</span>
+                </div>
+              )}
               <div style={summaryRowStyle}>
                 <span style={summaryLabelStyle}>18% GST Tax</span>
                 <span style={summaryValStyle}>{formatPrice(tax)}</span>

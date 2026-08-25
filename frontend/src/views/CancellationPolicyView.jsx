@@ -5,7 +5,7 @@ import { useStore } from "../context/StoreContext";
 import { XCircle, ShieldCheck, ArrowLeft, Mail, Phone, Clock } from "lucide-react";
 
 export default function CancellationPolicyView() {
-  const { navigateTo } = useStore();
+  const { navigateTo, settings } = useStore();
 
   const handleBackHome = () => {
     navigateTo("home");
@@ -64,7 +64,7 @@ export default function CancellationPolicyView() {
             </p>
             <ul style={listStyle}>
               <li>You can request cancellation directly from your <button onClick={handleGoToOrders} style={inlineBtnLinkStyle}>My Orders</button> page on our website.</li>
-              <li>Alternatively, contact support immediately at <code style={codeTagStyle}>support@mellosoft.com</code> or <code style={codeTagStyle}>+91 98765 43210</code>.</li>
+              <li>Alternatively, contact support immediately at <code style={codeTagStyle}>{settings?.store?.email || "support@mellosoft.com"}</code> or <code style={codeTagStyle}>{settings?.store?.phone || "+91 98765 43210"}</code>.</li>
               <li>Pre-shipment cancellations are processed immediately with zero penalty or cancellation fee.</li>
             </ul>
           </section>
@@ -116,7 +116,7 @@ export default function CancellationPolicyView() {
               <li>Log in to your Mellosoft customer account and navigate to <button onClick={handleGoToOrders} style={inlineBtnLinkStyle}>My Orders</button>.</li>
               <li>Locate your active order card (<code style={codeTagStyle}>MS-XXXXX</code>).</li>
               <li>If eligible for pre-shipment cancellation, click the <strong>Cancel Order</strong> button.</li>
-              <li>Alternatively, email <code style={codeTagStyle}>support@mellosoft.com</code> with your Order ID and subject &quot;Order Cancellation Request&quot;.</li>
+              <li>Alternatively, email <code style={codeTagStyle}>{settings?.store?.email || "support@mellosoft.com"}</code> with your Order ID and subject &quot;Order Cancellation Request&quot;.</li>
             </ol>
           </section>
 
@@ -130,11 +130,11 @@ export default function CancellationPolicyView() {
             <div style={contactBoxStyle}>
               <div style={contactItemStyle}>
                 <Mail size={16} color="#16A34A" />
-                <span>Email: support@mellosoft.com</span>
+                <span>Email: {settings?.store?.email || "support@mellosoft.com"}</span>
               </div>
               <div style={contactItemStyle}>
                 <Phone size={16} color="#16A34A" />
-                <span>Phone: +91 98765 43210 (Mon-Sat, 9 AM - 7 PM IST)</span>
+                <span>Phone: {settings?.store?.phone || "+91 98765 43210"} (Mon-Sat, 9 AM - 7 PM IST)</span>
               </div>
             </div>
           </section>

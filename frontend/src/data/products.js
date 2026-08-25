@@ -1,4 +1,4 @@
-import { MATTRESS_PRODUCTS, ACCESSORY_PRODUCTS, ACCESSORIES_CATEGORIES } from "./mattressData";
+import { MATTRESS_PRODUCTS, ACCESSORY_PRODUCTS, ACCESSORIES_CATEGORIES, BED_FRAME_PRODUCTS } from "./mattressData";
 import { ensureProductPricing } from "../utils/pricingEngine";
 import { getProductCategoryLabel } from "../utils/productHelpers";
 
@@ -106,7 +106,53 @@ const accessoryProductsFormatted = (ACCESSORY_PRODUCTS || []).map((rawAcc) => {
   };
 });
 
+// Helper to convert BED_FRAME_PRODUCTS to full format
+const bedFrameProductsFormatted = (BED_FRAME_PRODUCTS || []).map((rawFrame) => {
+  const frame = ensureProductPricing(rawFrame);
+  const minP = frame.startingPrice || 14999;
+  const subCat = frame.category || frame.subCategory || "wooden-bed-frame";
+  const catLabel = frame.categoryName || frame.categoryLabel || "Wooden Bed Frame";
+
+  return {
+    ...frame,
+    isNewArrival: frame.isNewArrival ?? false,
+    newArrivalOrder: frame.newArrivalOrder ?? 999,
+    // Preserve the bed-frame specific category fields — do NOT remap to "accessories"
+    category: subCat,
+    parentCategory: "bed-frames",
+    parentCategoryId: "CAT-BED-FRAMES",
+    mainCategoryId: "CAT-BED-FRAMES",
+    subCategory: subCat,
+    subcategory: subCat,
+    subcategoryId: frame.subcategoryId || subCat,
+    categoryName: catLabel,
+    categoryLabel: catLabel,
+    Product_Id: `PROD-${frame.id.toUpperCase().replace(/-/g, "")}`,
+    Product_Name: frame.name,
+    price: minP,
+    Actual_Price: minP,
+    discountPercent: 0,
+    discountPrice: minP,
+    Discounted_Price: minP,
+    rating: 4.8,
+    reviewCount: 18,
+    badge: catLabel,
+    specs: `${frame.type || "Bed Frame"} ${frame.material ? `• ${frame.material}` : ""} • ${(frame.sizes || ["Queen", "King"]).join(" / ")}`,
+    features: [
+      `Type: ${frame.type || "Bed Frame"}`,
+      frame.material ? `Material: ${frame.material}` : "Premium Solid Wood Construction",
+      `Available Sizes: ${(frame.sizes || ["Queen", "King"]).join(", ")}`,
+      "Official Manufacturer Warranty & Easy Returns"
+    ],
+    firmnessOptions: ["Standard"],
+    sizeOptions: frame.sizes || ["Queen", "King"],
+    sizePrices: frame.sizePrices || {}
+  };
+});
+
 export const MOCK_PRODUCTS = [
   ...mattressProductsFormatted,
-  ...accessoryProductsFormatted
+  ...accessoryProductsFormatted,
+  ...bedFrameProductsFormatted
 ];
+

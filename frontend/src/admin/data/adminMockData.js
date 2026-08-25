@@ -518,26 +518,32 @@ export const MOCK_COUPONS = [
 
 // Mock categories (Hierarchical Structure)
 export const MOCK_CATEGORIES = [
-  // Top-Level Groups
-  { id: "CAT-MATTRESSES", name: "Mattresses", slug: "mattresses", parentId: null, isParent: true, image: "/asset/cat-memory-foam.svg", description: "Premium sleep mattresses" },
-  { id: "CAT-ACCESSORIES", name: "Accessories", slug: "accessories", parentId: null, isParent: true, image: "/asset/cat-pillows.svg", description: "Luxury sleep accessories" },
+  // Top-Level Main Categories
+  { id: "CAT-MATTRESSES", name: "Mattresses", slug: "mattresses", parentId: null, isParent: true, type: "main", showInNavigation: true, active: true, order: 1, image: "/assets/categories/memory-foam.jpg", description: "Premium sleep mattresses handcrafted for deep rest" },
+  { id: "CAT-ACCESSORIES", name: "Accessories", slug: "accessories", parentId: null, isParent: true, type: "main", showInNavigation: true, active: true, order: 2, image: "/assets/categories/pillows.jpg", description: "Luxury pillows, protectors & sleep essentials" },
+  { id: "CAT-BED-FRAMES", name: "Bed Frames", slug: "bed-frames", parentId: null, isParent: true, type: "main", showInNavigation: true, active: true, order: 3, image: "/assets/categories/bed-frames.jpg", description: "Bed frames designed for stylish and supportive sleep spaces." },
 
   // Mattress Subcategories
-  { id: "foam", name: "Foam Mattress", slug: "foam", parentId: "CAT-MATTRESSES", parentSlug: "mattresses", image: "/asset/cat-memory-foam.svg", description: "Simple, supportive comfort designed for everyday rest." },
-  { id: "ortho", name: "Ortho Mattress", slug: "ortho", parentId: "CAT-MATTRESSES", parentSlug: "mattresses", image: "/asset/cat-firm.svg", description: "Balanced firmness and dependable orthopedic support." },
-  { id: "spring", name: "Spring Mattress", slug: "spring", parentId: "CAT-MATTRESSES", parentSlug: "mattresses", image: "/asset/cat-hybrid.svg", description: "Responsive support with breathable spring coils." },
-  { id: "latex", name: "Latex Mattress", slug: "latex", parentId: "CAT-MATTRESSES", parentSlug: "mattresses", image: "/asset/cat-firm.svg", description: "Naturally responsive comfort with premium resilience." },
-  { id: "memory-foam", name: "Memory Foam Mattress", slug: "memory-foam", parentId: "CAT-MATTRESSES", parentSlug: "mattresses", image: "/asset/cat-memory-foam.svg", description: "Adaptive comfort designed to contour around you." },
+  { id: "foam", name: "Foam Mattress", slug: "foam", parentId: "CAT-MATTRESSES", parentSlug: "mattresses", image: "/assets/categories/memory-foam.svg", description: "Simple, supportive comfort designed for everyday rest." },
+  { id: "ortho", name: "Ortho Mattress", slug: "ortho", parentId: "CAT-MATTRESSES", parentSlug: "mattresses", image: "/assets/categories/firm.svg", description: "Balanced firmness and dependable orthopedic support." },
+  { id: "spring", name: "Spring Mattress", slug: "spring", parentId: "CAT-MATTRESSES", parentSlug: "mattresses", image: "/assets/categories/hybrid.svg", description: "Responsive support with breathable spring coils." },
+  { id: "latex", name: "Latex Mattress", slug: "latex", parentId: "CAT-MATTRESSES", parentSlug: "mattresses", image: "/assets/categories/firm.svg", description: "Naturally responsive comfort with premium resilience." },
+  { id: "memory-foam", name: "Memory Foam Mattress", slug: "memory-foam", parentId: "CAT-MATTRESSES", parentSlug: "mattresses", image: "/assets/categories/memory-foam.svg", description: "Adaptive comfort designed to contour around you." },
 
-  // Accessory Subcategories
-  { id: "memory-foam-pillow", name: "Memory Foam Pillow", slug: "memory-foam-pillow", parentId: "CAT-ACCESSORIES", parentSlug: "accessories", image: "/asset/cat-pillows.svg", description: "Adaptive memory foam pillows for neck support." },
-  { id: "latex-pillow", name: "Latex Pillow", slug: "latex-pillow", parentId: "CAT-ACCESSORIES", parentSlug: "accessories", image: "/asset/cat-pillows.svg", description: "Naturally responsive, breathable latex pillows." },
-  { id: "fiber-pillow", name: "Fiber Pillow", slug: "fiber-pillow", parentId: "CAT-ACCESSORIES", parentSlug: "accessories", image: "/asset/cat-pillows.svg", description: "Soft, lightweight fiber pillows for everyday comfort." },
-  { id: "mattress-protector", name: "Mattress Protector", slug: "mattress-protector", parentId: "CAT-ACCESSORIES", parentSlug: "accessories", image: "/asset/cat-protectors.svg", description: "Fitted waterproof protection for your mattress." },
-  { id: "fitted-bedspread", name: "Fitted Bedspread", slug: "fitted-bedspread", parentId: "CAT-ACCESSORIES", parentSlug: "accessories", image: "/asset/cat-protectors.svg", description: "Clean fitted bedspreads for a neat bedroom look." },
-  { id: "blanket-duvet", name: "Blanket / Duvet", slug: "blanket-duvet", parentId: "CAT-ACCESSORIES", parentSlug: "accessories", image: "/asset/cat-protectors.svg", description: "Cozy blankets & duvets for all seasons." },
-  { id: "travel-bed", name: "Travel Bed", slug: "travel-bed", parentId: "CAT-ACCESSORIES", parentSlug: "accessories", image: "/asset/cat-bedframes.svg", description: "Portable quilt & folding beds for travel and guests." }
+  // Accessory Subcategories (bed-frames removed — now its own main category)
+  { id: "memory-foam-pillow", name: "Memory Foam Pillow", slug: "memory-foam-pillow", parentId: "CAT-ACCESSORIES", parentSlug: "accessories", image: "/assets/categories/pillows.jpg", description: "Adaptive memory foam pillows for neck support." },
+  { id: "latex-pillow", name: "Latex Pillow", slug: "latex-pillow", parentId: "CAT-ACCESSORIES", parentSlug: "accessories", image: "/assets/categories/pillows.jpg", description: "Naturally responsive, breathable latex pillows." },
+  { id: "fiber-pillow", name: "Fiber Pillow", slug: "fiber-pillow", parentId: "CAT-ACCESSORIES", parentSlug: "accessories", image: "/assets/categories/pillows.jpg", description: "Soft, lightweight fiber pillows for everyday comfort." },
+  { id: "mattress-protector", name: "Mattress Protector", slug: "mattress-protector", parentId: "CAT-ACCESSORIES", parentSlug: "accessories", image: "/assets/categories/protectors.jpg", description: "Fitted waterproof protection for your mattress." },
+  { id: "fitted-bedspread", name: "Fitted Bedspread", slug: "fitted-bedspread", parentId: "CAT-ACCESSORIES", parentSlug: "accessories", image: "/assets/categories/protectors.jpg", description: "Clean fitted bedspreads for a neat bedroom look." },
+  { id: "blanket-duvet", name: "Blanket / Duvet", slug: "blanket-duvet", parentId: "CAT-ACCESSORIES", parentSlug: "accessories", image: "/assets/categories/protectors.jpg", description: "Cozy blankets & duvets for all seasons." },
+  { id: "travel-bed", name: "Travel Bed", slug: "travel-bed", parentId: "CAT-ACCESSORIES", parentSlug: "accessories", image: "/assets/categories/bed-frames.jpg", description: "Portable quilt & folding beds for travel and guests." },
+
+  // Bed Frame Subcategories (under Bed Frames main category)
+  { id: "wooden-bed-frame", name: "Wooden Bed Frame", slug: "wooden-bed-frame", parentId: "CAT-BED-FRAMES", parentSlug: "bed-frames", image: "/assets/categories/bed-frames.jpg", description: "Handcrafted solid wooden bed frames for timeless style." },
+  { id: "platform-bed", name: "Platform Bed", slug: "platform-bed", parentId: "CAT-BED-FRAMES", parentSlug: "bed-frames", image: "/assets/categories/bed-frames.jpg", description: "Sleek platform beds with slatted support for modern bedrooms." }
 ];
+
 
 // Mock inventory
 export const MOCK_INVENTORY = [

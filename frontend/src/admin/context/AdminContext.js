@@ -8,8 +8,9 @@ import { DEFAULT_USERS } from "../../data/usersData";
 import { hashPassword, checkPermission } from "../../utils/security";
 import { useAdminAuth } from "../../context/AdminAuthContext";
 import { buildInitialTrackingHistory } from "../../utils/trackingHelpers";
-import { getProductPrimaryImage, getDeletedProductIds, saveDeletedProductId, isProductDeleted, isSameProduct } from "../../utils/productHelpers";
+import { getProductPrimaryImage, getDeletedProductIds, saveDeletedProductId, isProductDeleted, isSameProduct, ensureRequiredCategories, getMainCategoryProductCount, getSubcategoryProductCount } from "../../utils/productHelpers";
 import { migrateProductsBase64, migrateReviewsBase64 } from "../../utils/imageStorage";
+import { getSavedSettings, saveSettingsToStorage, normalizeSettings, SETTINGS_UPDATED_EVENT } from "../../utils/settingsHelpers";
 
 const AdminContext = createContext();
 
@@ -124,7 +125,7 @@ const sanitizeHomepageConfig = (configSections, currentBanners, isInitialHydrati
   return { sections: result };
 };
 
-export const MELLOSOFT_CATALOGUE_VERSION = "v5-real-images";
+export const MELLOSOFT_CATALOGUE_VERSION = "v6-bed-frames";
 
 export function AdminProvider({ children }) {
   const [adminView, setAdminView] = useState("dashboard");
@@ -135,6 +136,33 @@ export function AdminProvider({ children }) {
   const [selectedRoleId, setSelectedRoleId] = useState(null);
   const [returnToNewArrivals, setReturnToNewArrivals] = useState(false);
   const [contentActiveTab, setContentActiveTab] = useState("homepage-layout");
+
+  // Global Store Settings synchronized with localStorage ("mellosoft_settings")
+  const [settings, setSettings] = useState(() => getSavedSettings());
+
+  useEffect(() => {
+    const handleSync = () => {
+      setSettings(getSavedSettings());
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("storage", handleSync);
+      window.addEventListener(SETTINGS_UPDATED_EVENT, handleSync);
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("storage", handleSync);
+        window.removeEventListener(SETTINGS_UPDATED_EVENT, handleSync);
+      }
+    };
+  }, []);
+
+  const updateSettings = useCallback((newSettings) => {
+    const success = saveSettingsToStorage(newSettings);
+    if (success) {
+      setSettings(normalizeSettings(newSettings));
+    }
+    return success;
+  }, []);
 
   // Hydrate products from localStorage if available, enforcing persistent deletion tombstones & v3 catalogue reset
   const [products, setProducts] = useState(() => {
@@ -221,7 +249,7 @@ export function AdminProvider({ children }) {
     return MOCK_PRODUCTS;
   });
 
-  // Hydrate categories from localStorage if available, or default to MOCK_CATEGORIES
+  // Hydrate categories from localStorage if available, enforcing hierarchical structure
   const [categories, setCategories] = useState(() => {
     if (typeof window !== "undefined") {
       try {
@@ -229,14 +257,14 @@ export function AdminProvider({ children }) {
         if (saved) {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed;
+            return ensureRequiredCategories(parsed);
           }
         }
       } catch (e) {
         console.error("Failed to load categories from localStorage:", e);
       }
     }
-    return MOCK_CATEGORIES;
+    return ensureRequiredCategories(MOCK_CATEGORIES);
   });
 
   const [roles, setRoles] = useState(() => {
@@ -1095,79 +1123,6 @@ export function AdminProvider({ children }) {
     }
   }, []);
 
-  /** Category Handlers */
-  const addCategory = useCallback((newCatData) => {
-    const slug = newCatData.slug || newCatData.name.toLowerCase().replace(/\s+/g, "-");
-    const newCategory = {
-      id: newCatData.id || `CAT${Date.now()}`,
-      name: newCatData.name,
-      slug,
-      image: newCatData.image || "/asset/texture.png",
-      description: newCatData.description || `${newCatData.name} category`,
-    };
-    setCategories((prev) => [newCategory, ...prev]);
-    return newCategory;
-  }, []);
-
-  const updateCategory = useCallback((catId, updatedData) => {
-    setCategories((prev) => {
-      const oldCat = prev.find((c) => c.id === catId);
-      const newSlug = updatedData.name ? updatedData.name.toLowerCase().replace(/\s+/g, "-") : oldCat?.slug;
-      
-      if (oldCat && updatedData.name && oldCat.name !== updatedData.name) {
-        const oldSlug = oldCat.slug || oldCat.name.toLowerCase();
-        setProducts((prevProds) =>
-          prevProds.map((p) =>
-            (p.category || "").toLowerCase() === oldSlug ? { ...p, category: newSlug } : p
-          )
-        );
-      }
-
-      return prev.map((c) =>
-        c.id === catId
-          ? {
-              ...c,
-              name: updatedData.name || c.name,
-              slug: newSlug || c.slug,
-              image: updatedData.image || c.image,
-              description: updatedData.description || c.description,
-            }
-          : c
-      );
-    });
-  }, []);
-
-  const deleteCategory = useCallback(
-    (catId) => {
-      const cat = categories.find((c) => c.id === catId);
-      if (!cat) return { success: false, error: "Category not found." };
-
-      const catSlug = (cat.slug || cat.name || "").toLowerCase();
-      const catName = (cat.name || "").toLowerCase();
-
-      const assignedProducts = products.filter((p) => {
-        const pCat = (p.category || "").toLowerCase();
-        return (
-          pCat === catSlug ||
-          pCat === catName ||
-          pCat + "s" === catName ||
-          pCat === catName.replace(/s$/, "")
-        );
-      });
-
-      if (assignedProducts.length > 0) {
-        return {
-          success: false,
-          error: `Cannot delete "${cat.name}" category because ${assignedProducts.length} product${assignedProducts.length > 1 ? "s are" : " is"} assigned to it.`,
-        };
-      }
-
-      setCategories((prev) => prev.filter((c) => c.id !== catId));
-      return { success: true };
-    },
-    [categories, products]
-  );
-
   /** User Handlers */
   const addUser = useCallback((userData) => {
     const newUser = {
@@ -1576,6 +1531,198 @@ export function AdminProvider({ children }) {
     return { success: true };
   }, []);
 
+  const addCategory = useCallback((newCatData) => {
+    const newMainCat = {
+      id: newCatData.id || `CAT-${(newCatData.name || "NEW").toUpperCase().replace(/[^A-Z0-9]/g, "")}`,
+      name: newCatData.name.trim(),
+      slug: newCatData.slug || newCatData.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+      image: newCatData.image || "/assets/categories/memory-foam.jpg",
+      description: newCatData.description || "",
+      type: "main",
+      active: newCatData.active !== false && newCatData.status !== "Inactive",
+      order: newCatData.order || Date.now(),
+      subcategories: newCatData.subcategories || []
+    };
+
+    setCategories((prev) => {
+      const updated = [...prev, newMainCat];
+      try {
+        localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(updated));
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("storage"));
+          window.dispatchEvent(new CustomEvent("mellosoft_categories_updated"));
+        }
+      } catch (e) {
+        console.error("Failed to save categories:", e);
+      }
+      return updated;
+    });
+  }, []);
+
+  const updateCategory = useCallback((catId, updatedData) => {
+    setCategories((prev) => {
+      const updated = prev.map((cat) => {
+        if (cat.id === catId || cat.slug === catId) {
+          return {
+            ...cat,
+            ...updatedData,
+            name: updatedData.name ? updatedData.name.trim() : cat.name,
+            slug: updatedData.slug || (updatedData.name ? updatedData.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") : cat.slug),
+          };
+        }
+        return cat;
+      });
+      try {
+        localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(updated));
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("storage"));
+          window.dispatchEvent(new CustomEvent("mellosoft_categories_updated"));
+        }
+      } catch (e) {
+        console.error("Failed to save edited category:", e);
+      }
+      return updated;
+    });
+  }, []);
+
+  const deleteCategory = useCallback((catId) => {
+    const targetCat = categories.find((c) => c.id === catId || c.slug === catId);
+    if (!targetCat) return { success: false, error: "Category not found." };
+
+    const prodCount = getMainCategoryProductCount(targetCat, products, categories);
+    const subCount = (targetCat.subcategories || []).length;
+
+    if (prodCount > 0 || subCount > 0) {
+      return {
+        success: false,
+        error: `Cannot delete "${targetCat.name}". It contains ${prodCount} product(s) and ${subCount} subcategory/subcategories. Please remove or reassign products and subcategories first.`
+      };
+    }
+
+    setCategories((prev) => {
+      const updated = prev.filter((c) => c.id !== catId && c.slug !== catId);
+      try {
+        localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(updated));
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("storage"));
+          window.dispatchEvent(new CustomEvent("mellosoft_categories_updated"));
+        }
+      } catch (e) {
+        console.error("Failed to save categories after delete:", e);
+      }
+      return updated;
+    });
+
+    return { success: true };
+  }, [categories, products]);
+
+  const addSubcategory = useCallback((parentId, subData) => {
+    const newSub = {
+      id: subData.id || `SUB-${(subData.name || "SUB").toUpperCase().replace(/[^A-Z0-9]/g, "")}`,
+      parentId: parentId,
+      name: subData.name.trim(),
+      slug: subData.slug || subData.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+      aliases: subData.aliases || [subData.name.toLowerCase().trim()],
+      active: subData.active !== false && subData.status !== "Inactive",
+      order: subData.order || Date.now()
+    };
+
+    setCategories((prev) => {
+      const updated = prev.map((cat) => {
+        if (cat.id === parentId || cat.slug === parentId) {
+          const subs = cat.subcategories || [];
+          return { ...cat, subcategories: [...subs, newSub] };
+        }
+        return cat;
+      });
+      try {
+        localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(updated));
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("storage"));
+          window.dispatchEvent(new CustomEvent("mellosoft_categories_updated"));
+        }
+      } catch (e) {
+        console.error("Failed to save subcategory:", e);
+      }
+      return updated;
+    });
+  }, []);
+
+  const updateSubcategory = useCallback((parentId, subId, updatedData) => {
+    setCategories((prev) => {
+      const updated = prev.map((cat) => {
+        if (cat.id === parentId || cat.slug === parentId) {
+          const subs = (cat.subcategories || []).map((sub) => {
+            if (sub.id === subId || sub.slug === subId) {
+              return {
+                ...sub,
+                ...updatedData,
+                name: updatedData.name ? updatedData.name.trim() : sub.name,
+                slug: updatedData.slug || (updatedData.name ? updatedData.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") : sub.slug),
+              };
+            }
+            return sub;
+          });
+          return { ...cat, subcategories: subs };
+        }
+        return cat;
+      });
+      try {
+        localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(updated));
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("storage"));
+          window.dispatchEvent(new CustomEvent("mellosoft_categories_updated"));
+        }
+      } catch (e) {
+        console.error("Failed to save edited subcategory:", e);
+      }
+      return updated;
+    });
+  }, []);
+
+  const deleteSubcategory = useCallback((parentId, subId) => {
+    let targetSub = null;
+    for (const mainCat of categories) {
+      const found = (mainCat.subcategories || []).find((s) => s.id === subId || s.slug === subId);
+      if (found) {
+        targetSub = found;
+        break;
+      }
+    }
+
+    if (!targetSub) return { success: false, error: "Subcategory not found." };
+
+    const prodCount = getSubcategoryProductCount(targetSub, products, categories);
+    if (prodCount > 0) {
+      return {
+        success: false,
+        error: `Cannot delete subcategory "${targetSub.name}". It contains ${prodCount} product(s). Please reassign or remove products first.`
+      };
+    }
+
+    setCategories((prev) => {
+      const updated = prev.map((cat) => {
+        if (cat.id === parentId || cat.slug === parentId) {
+          const subs = (cat.subcategories || []).filter((s) => s.id !== subId && s.slug !== subId);
+          return { ...cat, subcategories: subs };
+        }
+        return cat;
+      });
+      try {
+        localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(updated));
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("storage"));
+          window.dispatchEvent(new CustomEvent("mellosoft_categories_updated"));
+        }
+      } catch (e) {
+        console.error("Failed to save categories after subcategory delete:", e);
+      }
+      return updated;
+    });
+
+    return { success: true };
+  }, [categories, products]);
+
   return (
     <AdminContext.Provider
       value={{
@@ -1597,6 +1744,9 @@ export function AdminProvider({ children }) {
         addCategory,
         updateCategory,
         deleteCategory,
+        addSubcategory,
+        updateSubcategory,
+        deleteSubcategory,
         banners,
         addBanner,
         updateBanner,
@@ -1650,6 +1800,9 @@ export function AdminProvider({ children }) {
         currentUser,
         currentUserRole,
         hasPermission,
+        settings,
+        updateSettings,
+        saveSettings: updateSettings,
       }}
     >
       {children}

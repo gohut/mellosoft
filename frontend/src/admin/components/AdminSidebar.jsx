@@ -31,7 +31,7 @@ const navItems = [
 ];
 
 export default function AdminSidebar() {
-  const { adminView, navigateTo, sidebarCollapsed, sidebarMobileOpen, toggleMobileSidebar, toggleSidebar, hasPermission } = useAdmin();
+  const { adminView, navigateTo, sidebarCollapsed, sidebarMobileOpen, toggleMobileSidebar, toggleSidebar, hasPermission, settings } = useAdmin();
   const { logout } = useAdminAuth();
   const router = useRouter();
   const [productsOpen, setProductsOpen] = useState(true);
@@ -152,9 +152,8 @@ export default function AdminSidebar() {
         height: "64px",
       }}>
         {!sidebarCollapsed && (
-          <span style={{ fontSize: "20px", fontWeight: 800, letterSpacing: "-0.02em" }}>
-            <span style={{ color: "#16A34A" }}>m</span>
-            <span style={{ color: "#1B1F8C" }}>ellosoft</span>
+          <span style={{ fontSize: "18px", fontWeight: 800, letterSpacing: "-0.02em", color: "#1B1F8C", maxWidth: "160px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {settings?.store?.name || "Mellosoft"}
           </span>
         )}
         <button

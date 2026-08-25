@@ -2,6 +2,7 @@
 
 import React, { useMemo, useRef, useState } from "react";
 import { useStore } from "../context/StoreContext";
+import { useRouter } from "next/navigation";
 import { MOCK_PRODUCTS } from "../data/products";
 import ProductCard from "../components/ProductCard";
 import CustomerReviewsSection from "../components/CustomerReviewsSection";
@@ -10,17 +11,28 @@ import PromoBannerCard from "../components/PromoBannerCard";
 import HeroSlideCard from "../components/HeroSlideCard";
 import { formatPrice } from "../utils/currency";
 
+export const CATEGORY_IMAGES = {
+  "memory-foam": "/assets/categories/memory-foam.jpg",
+  "hybrid": "/assets/categories/hybrid.jpg",
+  "firm": "/assets/categories/firm.jpg",
+  "pillows": "/assets/categories/pillows.jpg",
+  "bed-frames": "/assets/categories/bed-frames.jpg",
+  "protectors": "/assets/categories/protectors.jpg",
+};
+
+// route: 'mattress' = filter in mattress catalog; others are explicit Next.js href paths
 const categories = [
-  { label: "Memory Foam", category: "mattress", image: "/asset/cat-memory-foam.svg", color: "#DCEBFA" },
-  { label: "Hybrid", category: "mattress", image: "/asset/cat-hybrid.svg", color: "#FBE2D0" },
-  { label: "Firm", category: "mattress", image: "/asset/cat-firm.svg", firmness: "Firm", color: "#DDF2E8" },
-  { label: "Pillows", category: "pillows", image: "/asset/cat-pillows.svg", color: "#F8DDE3" },
-  { label: "Bed Frames", category: "bed frames", image: "/asset/cat-bedframes.svg", color: "#E9E3FA" },
-  { label: "Protectors", category: "protectors", image: "/asset/cat-protectors.svg", color: "#F8EACD" }
+  { id: "memory-foam", label: "Memory Foam", category: "mattress", subcategory: "memory-foam", image: CATEGORY_IMAGES["memory-foam"], color: "#DCEBFA", scale: 1.18 },
+  { id: "hybrid", label: "Hybrid", category: "mattress", subcategory: null, firmness: "Hybrid", image: CATEGORY_IMAGES["hybrid"], color: "#FBE2D0", scale: 1.18 },
+  { id: "firm", label: "Firm", category: "mattress", subcategory: null, firmness: "Firm", image: CATEGORY_IMAGES["firm"], color: "#DDF2E8", scale: 1.18 },
+  { id: "pillows", label: "Pillows", href: "/accessories/memory-foam-pillow", image: CATEGORY_IMAGES["pillows"], color: "#F8DDE3", scale: 1.22 },
+  { id: "bed-frames", label: "Bed Frames", href: "/bed-frames", image: CATEGORY_IMAGES["bed-frames"], color: "#E9E3FA", scale: 1.18 },
+  { id: "protectors", label: "Protectors", href: "/accessories/mattress-protector", image: CATEGORY_IMAGES["protectors"], color: "#F8EACD", scale: 1.20 }
 ];
 
 export default function HomeView() {
-  const { navigateTo, setActiveFilters, setSearchQuery, activeHeroBanners, activePromoBanners, homepageConfig, newArrivalItems, bestSellerItems, products } = useStore();
+  const { navigateTo, setActiveFilters, setSearchQuery, activeHeroBanners, activePromoBanners, homepageConfig, newArrivalItems, bestSellerItems, products, settings } = useStore();
+  const router = useRouter();
   const sliderTrackRef = useRef(null);
   const [activeSlide, setActiveSlide] = useState(0);
 
@@ -105,9 +117,10 @@ export default function HomeView() {
     }
 
     // Fallback featured products
+    const defaultHeroImage = settings?.website?.banner || null;
     return featuredMattresses.map((product) => ({
       id: product.id,
-      image: product.images[0],
+      image: defaultHeroImage || product.images[0],
       type: "Offer",
       badge: "Offer",
       subtitle: product.tagline || product.subtitle || "Premium Sleep Experience",
@@ -120,7 +133,7 @@ export default function HomeView() {
       product,
       isAdminBanner: false
     }));
-  }, [activeHeroBanners, featuredMattresses, products]);
+  }, [activeHeroBanners, featuredMattresses, products, settings]);
 
   const handleSliderScroll = () => {
     if (!sliderTrackRef.current) return;
@@ -245,12 +258,34 @@ export default function HomeView() {
                       <button
                         key={item.label}
                         type="button"
-                        onClick={() => goToCatalog(item.category, item.firmness || "All")}
+                        onClick={() => {
+                          // Items with an explicit href (bed-frames, pillows, protectors) navigate via router
+                          if (item.href) {
+                            router.push(item.href);
+                            return;
+                          }
+                          // Mattress subcategory routing
+                          if (item.subcategory) {
+                            router.push(`/mattresses/${item.subcategory}`);
+                            return;
+                          }
+                          // Fallback: use internal catalog filter for mattresses
+                          goToCatalog(item.category, item.firmness || "All");
+                        }}
                         style={{ ...categoryTileStyle, backgroundColor: item.color }}
                         className="category-tile"
                       >
                         <span style={categoryLabelStyle}>{item.label}</span>
-                        <img src={item.image} alt="" style={categoryImageStyle} />
+                        <div style={categoryImageWrapperStyle} className="category-img-wrapper">
+                          <img
+                            src={item.image}
+                            alt={item.label}
+                            style={{
+                              ...categoryImageStyle,
+                              transform: `scale(${item.scale || 1.18})`
+                            }}
+                          />
+                        </div>
                       </button>
                     ))}
                   </div>
@@ -348,6 +383,16 @@ export default function HomeView() {
 
 
       <style>{`
+        .category-tile img,
+        .category-img-wrapper {
+          background: transparent !important;
+          background-color: transparent !important;
+          border: none !important;
+          box-shadow: none !important;
+          outline: none !important;
+          object-fit: contain !important;
+          mix-blend-mode: multiply !important;
+        }
         .view-more-btn:hover {
           background-color: #1B1F8C;
           color: #FFFFFF;
@@ -907,38 +952,60 @@ const categoryTileStyle = {
   overflow: "hidden",
   border: "none",
   borderRadius: "clamp(12px, 9cqi, 20px)",
-  padding: "clamp(8px, 7cqi, 16px)",
+  padding: "clamp(10px, 6cqi, 16px)",
   cursor: "pointer",
   display: "flex",
   alignItems: "center",
+  justifyContent: "space-between",
   textAlign: "left",
   flex: "1 1 0",
   minWidth: 0,
-  aspectRatio: "2.8 / 1",
-  transition: "transform 0.2s ease, box-shadow 0.2s ease"
+  aspectRatio: "2.4 / 1",
+  transition: "transform 0.2s ease, box-shadow 0.2s ease",
+  background: "transparent",
+  boxShadow: "none"
+};
+
+const categoryImageWrapperStyle = {
+  position: "relative",
+  zIndex: 1,
+  width: "128px",
+  height: "98px",
+  maxWidth: "60%",
+  maxHeight: "98%",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: "0",
+  margin: "0",
+  background: "transparent",
+  backgroundColor: "transparent",
+  border: "none",
+  boxShadow: "none",
+  pointerEvents: "none",
+  overflow: "visible"
 };
 
 const categoryImageStyle = {
-  position: "absolute",
-  zIndex: 0,
-  width: "48%",
-  height: "92%",
-  right: "4%",
-  top: "4%",
-  borderRadius: "0",
+  width: "100%",
+  height: "100%",
   objectFit: "contain",
   objectPosition: "center",
   pointerEvents: "none",
   background: "transparent",
+  backgroundColor: "transparent",
   border: "none",
-  boxShadow: "none"
+  boxShadow: "none",
+  mixBlendMode: "multiply",
+  filter: "contrast(1.04) brightness(1.01)",
+  transformOrigin: "center center"
 };
 
 const categoryLabelStyle = {
   position: "relative",
   zIndex: 1,
   display: "block",
-  maxWidth: "48%",
+  maxWidth: "46%",
   fontSize: "clamp(11px, 7.5cqi, 15px)",
   fontWeight: "800",
   color: "#14151A",

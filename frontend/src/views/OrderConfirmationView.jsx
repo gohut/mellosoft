@@ -7,7 +7,7 @@ import { CheckCircle2, Package, MapPin, Calendar, ArrowRight, ShoppingBag } from
 import DownloadOrderPdf from "../components/DownloadOrderPdf";
 
 export default function OrderConfirmationView() {
-  const { selectedOrderId, orders, navigateTo } = useStore();
+  const { selectedOrderId, orders, navigateTo, settings } = useStore();
 
   const currentOrder = useMemo(() => {
     if (!orders || orders.length === 0) return null;
@@ -118,7 +118,7 @@ export default function OrderConfirmationView() {
                 <div style={estDateValStyle}>
                   {estDeliveryMin} – {estDeliveryMax}
                 </div>
-                <span style={estNoteStyle}>Standard Doorstep Delivery via Mellosoft Express</span>
+                <span style={estNoteStyle}>Standard Doorstep Delivery via {currentOrder.storeSnapshot?.storeName || settings?.store?.name || "Mellosoft"} Express</span>
               </div>
             </div>
           </div>

@@ -3,10 +3,11 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useStore } from "../context/StoreContext";
+import { getResolvedImageUrlSync } from "../utils/imageStorage";
 import { X } from "lucide-react";
 
 export default function Footer() {
-  const { navigateTo, setActiveFilters } = useStore();
+  const { navigateTo, setActiveFilters, settings } = useStore();
   const router = useRouter();
 
   // Info Modal state (for Contact, Policy, etc.)
@@ -49,9 +50,14 @@ export default function Footer() {
             <button
               onClick={() => handleNavClick("home")}
               style={logoButtonResetStyle}
-              aria-label="Mellosoft Home"
+              aria-label={`${settings?.store?.name || "Mellosoft"} Home`}
             >
-              <img src="/asset/logo.png" alt="Mellosoft" style={logoImgStyle} />
+              <img
+                src={getResolvedImageUrlSync(settings?.website?.logo, "/asset/logo.png")}
+                alt={settings?.store?.name || "Mellosoft"}
+                style={logoImgStyle}
+                onError={(e) => { e.currentTarget.src = "/asset/logo.png"; }}
+              />
             </button>
             <p style={brandDescStyle}>
               Premium comfort designed for better nights and brighter mornings.
@@ -186,7 +192,7 @@ export default function Footer() {
                   onClick={() =>
                     openInfoModal(
                       "Customer Support",
-                      "Our sleep specialists are available to help you select the ideal mattress and variant for your sleep profile."
+                      `Our sleep specialists are available to help you select the ideal mattress and variant for your sleep profile. Reach us at ${settings?.store?.email || "support@mellosoft.com"} or call ${settings?.store?.phone || "+91 98765 43210"}.`
                     )
                   }
                   style={linkItemBtnStyle}
@@ -200,7 +206,7 @@ export default function Footer() {
                   onClick={() =>
                     openInfoModal(
                       "Shipping & Returns",
-                      "Enjoy free contactless doorstep shipping across India on orders above ₹5,000. Hassle-free 100-night trial returns with complimentary pickup."
+                      `Enjoy free contactless doorstep shipping across India on orders above ₹${Number(settings?.shipping?.freeShippingAmount || 5000).toLocaleString("en-IN")}. Hassle-free 100-night trial returns with complimentary pickup.`
                     )
                   }
                   style={linkItemBtnStyle}
@@ -296,7 +302,7 @@ export default function Footer() {
         {/* 6. COPYRIGHT SECTION */}
         <div style={copyrightRowStyle}>
           <p style={copyrightTextStyle}>
-            © 2026 Mellosoft. All rights reserved.
+            © 2026 {settings?.store?.name || "Mellosoft"}. All rights reserved.
           </p>
         </div>
       </div>

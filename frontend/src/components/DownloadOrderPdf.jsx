@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Download } from "lucide-react";
 import { useCustomerAuth } from "../context/CustomerAuthContext";
+import { useStore } from "../context/StoreContext";
 
 /**
  * DownloadOrderPdf — Reusable component to generate and download a
@@ -38,7 +39,7 @@ function checkPageBreak(doc, currentY, margin, pageHeight, lineHeight = 8) {
   return currentY;
 }
 
-async function generateOrderPdf(order, currentCustomer) {
+async function generateOrderPdf(order, currentCustomer, settings) {
   // Dynamic import — keeps jsPDF out of SSR bundle
   const { jsPDF } = await import("jspdf");
 
@@ -51,6 +52,12 @@ async function generateOrderPdf(order, currentCustomer) {
 
   let y = margin;
 
+  const storeName = order.storeSnapshot?.storeName || settings?.store?.name || "Mellosoft";
+  const storeEmail = order.storeSnapshot?.email || settings?.store?.email || "support@mellosoft.com";
+  const storePhone = order.storeSnapshot?.phone || settings?.store?.phone || "+91 98765 43210";
+  const storeGst = order.storeSnapshot?.gstNumber || settings?.store?.gstNumber || "";
+  const storeAddress = order.storeSnapshot?.address || settings?.store?.address || "";
+
   // ── HEADER BAND ────────────────────────────────────────────────────────────
   doc.setFillColor(27, 31, 140); // Mellosoft indigo
   doc.rect(0, 0, pageWidth, 38, "F");
@@ -58,15 +65,16 @@ async function generateOrderPdf(order, currentCustomer) {
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(20);
-  doc.text("MELLOSOFT", pageWidth / 2, 16, { align: "center" });
+  doc.text(storeName.toUpperCase(), pageWidth / 2, 16, { align: "center" });
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.text("Premium Comfort & Better Sleep", pageWidth / 2, 23, { align: "center" });
+  const tagText = storeGst ? `GSTIN: ${storeGst}  |  Premium Sleep Experience` : "Premium Comfort & Better Sleep";
+  doc.text(tagText, pageWidth / 2, 23, { align: "center" });
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
-  doc.text("ORDER CONFIRMATION", pageWidth / 2, 32, { align: "center" });
+  doc.text("ORDER CONFIRMATION & INVOICE", pageWidth / 2, 32, { align: "center" });
 
   y = 48;
 
@@ -371,11 +379,11 @@ async function generateOrderPdf(order, currentCustomer) {
   doc.setFont("helvetica", "italic");
   doc.setFontSize(9);
   doc.setTextColor(107, 107, 117);
-  doc.text("Thank you for shopping with Mellosoft.", pageWidth / 2, y, { align: "center" });
+  doc.text(`Thank you for shopping with ${storeName}.`, pageWidth / 2, y, { align: "center" });
   y += 6;
-  doc.text("For support, contact us at support@mellosoft.com or visit mellosoft.com/support", pageWidth / 2, y, { align: "center" });
+  doc.text(`For support, contact us at ${storeEmail} or call ${storePhone}`, pageWidth / 2, y, { align: "center" });
   y += 6;
-  doc.text("100-Night Risk-Free Trial | Free Returns | Premium Sleep Guarantee", pageWidth / 2, y, { align: "center" });
+  doc.text("100-Night Risk-Free Trial | Free Returns | Official Manufacturer Guarantee", pageWidth / 2, y, { align: "center" });
   y += 8;
 
   // Page number
@@ -394,6 +402,7 @@ async function generateOrderPdf(order, currentCustomer) {
 
 export default function DownloadOrderPdf({ order, variant = "primary" }) {
   const { currentCustomer, isAuthenticated } = useCustomerAuth();
+  const { settings } = useStore();
   const [status, setStatus] = useState("idle"); // idle | loading | error
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -427,9 +436,10 @@ export default function DownloadOrderPdf({ order, variant = "primary" }) {
     setErrorMsg("");
 
     try {
-      const doc = await generateOrderPdf(order, currentCustomer);
+      const doc = await generateOrderPdf(order, currentCustomer, settings);
       const orderId = order.orderId || order.id || "order";
-      doc.save(`Mellosoft-Order-${orderId}.pdf`);
+      const brandClean = (order.storeSnapshot?.storeName || settings?.store?.name || "Mellosoft").replace(/\s+/g, "-");
+      doc.save(`${brandClean}-Order-${orderId}.pdf`);
       setStatus("idle");
     } catch (err) {
       console.error("PDF generation failed:", err);
