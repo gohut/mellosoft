@@ -6,6 +6,17 @@ import {
   CheckCircle, XCircle, Trash2, Star, AlertCircle, X, RotateCcw, Calendar,
   Search, Filter, ChevronDown
 } from "lucide-react";
+import { getResolvedImageUrlSync } from "../../utils/imageStorage";
+
+const getReviewImages = (r) => {
+  if (!r) return [];
+  if (Array.isArray(r.images) && r.images.length > 0) return r.images;
+  if (Array.isArray(r.uploadedImages) && r.uploadedImages.length > 0) return r.uploadedImages;
+  if (Array.isArray(r.photos) && r.photos.length > 0) return r.photos;
+  if (Array.isArray(r.imageUrls) && r.imageUrls.length > 0) return r.imageUrls;
+  if (typeof r.image === "string" && r.image.trim()) return [r.image];
+  return [];
+};
 
 export default function ReviewsView() {
   const { reviews, approveReview, rejectReview, deleteReview, restoreReview, toggleShowOnHome, hasPermission } = useAdmin();
@@ -28,6 +39,7 @@ export default function ReviewsView() {
 
   const [reviewToDelete, setReviewToDelete] = useState(null);
   const [reviewToRestore, setReviewToRestore] = useState(null);
+  const [previewImage, setPreviewImage] = useState(null);
   const [actionError, setActionError] = useState("");
   const [processingId, setProcessingId] = useState(null);
 
@@ -524,8 +536,42 @@ export default function ReviewsView() {
 
                     {/* Third Row: Review Comment */}
                     <p style={{ fontSize: "13.5px", color: "#2D2E33", lineHeight: 1.5, margin: 0, wordBreak: "break-word" }}>
-                      {review.review || review.comment}
+                      {review.review || review.comment || review.feedback}
                     </p>
+
+                    {/* Uploaded Review Images (Mobile) */}
+                    {(() => {
+                      const revImages = getReviewImages(review);
+                      if (!revImages.length) return null;
+                      return (
+                        <div style={{ display: "flex", gap: "8px", marginTop: "8px", flexWrap: "wrap" }}>
+                          {revImages.map((img, idx) => {
+                            const resolvedSrc = getResolvedImageUrlSync(img);
+                            return (
+                              <img
+                                key={idx}
+                                src={resolvedSrc}
+                                alt={`Review attachment ${idx + 1}`}
+                                onClick={() => setPreviewImage(resolvedSrc)}
+                                style={{
+                                  width: "80px",
+                                  height: "80px",
+                                  borderRadius: "8px",
+                                  objectFit: "cover",
+                                  border: "1px solid #CBD5E1",
+                                  cursor: "pointer",
+                                  backgroundColor: "#F8FAFC"
+                                }}
+                                className="hover-lift"
+                                onError={(e) => {
+                                  e.target.style.display = "none";
+                                }}
+                              />
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
 
                     {/* Fourth Row: Action Buttons */}
                     <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap", paddingTop: "4px" }}>
@@ -739,8 +785,42 @@ export default function ReviewsView() {
                         </div>
 
                         <p style={{ fontSize: "13.5px", color: "#2D2E33", lineHeight: 1.5, margin: "6px 0 0" }}>
-                          {review.review || review.comment}
+                          {review.review || review.comment || review.feedback}
                         </p>
+
+                        {/* Uploaded Review Images (Desktop) */}
+                        {(() => {
+                          const revImages = getReviewImages(review);
+                          if (!revImages.length) return null;
+                          return (
+                            <div style={{ display: "flex", gap: "8px", marginTop: "10px", flexWrap: "wrap" }}>
+                              {revImages.map((img, idx) => {
+                                const resolvedSrc = getResolvedImageUrlSync(img);
+                                return (
+                                  <img
+                                    key={idx}
+                                    src={resolvedSrc}
+                                    alt={`Review attachment ${idx + 1}`}
+                                    onClick={() => setPreviewImage(resolvedSrc)}
+                                    style={{
+                                      width: "80px",
+                                      height: "80px",
+                                      borderRadius: "8px",
+                                      objectFit: "cover",
+                                      border: "1px solid #CBD5E1",
+                                      cursor: "pointer",
+                                      backgroundColor: "#F8FAFC"
+                                    }}
+                                    className="hover-lift"
+                                    onError={(e) => {
+                                      e.target.style.display = "none";
+                                    }}
+                                  />
+                                );
+                              })}
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
 
@@ -1052,6 +1132,73 @@ export default function ReviewsView() {
                 Restore to {reviewToRestore.previousStatus || "Approved"}
               </button>
             </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* IMAGE PREVIEW LIGHTBOX MODAL */}
+      {previewImage && typeof document !== "undefined" && createPortal(
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.82)",
+            backdropFilter: "blur(4px)",
+            zIndex: 99999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px"
+          }}
+          onClick={() => setPreviewImage(null)}
+        >
+          <div
+            style={{
+              position: "relative",
+              maxWidth: "90vw",
+              maxHeight: "90vh",
+              backgroundColor: "#1E293B",
+              borderRadius: "12px",
+              padding: "12px",
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)"
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setPreviewImage(null)}
+              style={{
+                position: "absolute",
+                top: "-14px",
+                right: "-14px",
+                backgroundColor: "#FFFFFF",
+                color: "#0F172A",
+                border: "none",
+                borderRadius: "50%",
+                width: "32px",
+                height: "32px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
+                zIndex: 10
+              }}
+            >
+              <X size={18} />
+            </button>
+            <img
+              src={previewImage}
+              alt="Review attachment preview"
+              style={{
+                maxWidth: "100%",
+                maxHeight: "82vh",
+                objectFit: "contain",
+                borderRadius: "8px",
+                display: "block"
+              }}
+            />
           </div>
         </div>,
         document.body

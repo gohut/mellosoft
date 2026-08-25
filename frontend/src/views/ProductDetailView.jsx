@@ -56,6 +56,7 @@ export default function ProductDetailView({ productId: initialProductId }) {
   const [activeImgIndex, setActiveImgIndex] = useState(0);
   const [touchStartX, setTouchStartX] = useState(null);
   const [viewerOpen, setViewerOpen] = useState(false);
+  const [reviewModalImage, setReviewModalImage] = useState(null);
   const swipeMovedRef = useRef(false);
 
   // Selector options states
@@ -128,6 +129,24 @@ export default function ProductDetailView({ productId: initialProductId }) {
     return false;
   }, [selectedVariant]);
 
+  const [reviewsVersion, setReviewsVersion] = useState(0);
+
+  useEffect(() => {
+    const handleReviewsUpdate = () => {
+      setReviewsVersion((v) => v + 1);
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("storage", handleReviewsUpdate);
+      window.addEventListener("mellosoft_reviews_updated", handleReviewsUpdate);
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("storage", handleReviewsUpdate);
+        window.removeEventListener("mellosoft_reviews_updated", handleReviewsUpdate);
+      }
+    };
+  }, []);
+
   // Compute public approved reviews
   const approvedReviews = useMemo(() => {
     if (!product) return [];
@@ -152,33 +171,33 @@ export default function ProductDetailView({ productId: initialProductId }) {
       .filter((r) => {
         const matchesProduct =
           r.productId === product.id ||
+          r.productId === product.slug ||
           (r.product && r.product.toLowerCase().includes((product.name || "").toLowerCase())) ||
-          (product.Product_Name && r.product && r.product.toLowerCase() === product.Product_Name.toLowerCase());
+          (r.productName && product.name && r.productName.toLowerCase() === product.name.toLowerCase());
         
-        return matchesProduct && r.status === "Approved";
+        return matchesProduct && (r.status === "Approved" || r.status === "approved");
       });
 
-    const allAdminReviewIds = new Set(adminReviewsList.map((r) => r.id));
-    const notApprovedAdminIds = new Set(
-      adminReviewsList.filter((r) => r.status !== "Approved").map((r) => r.id)
-    );
+    return adminApprovedMatches.map((r) => {
+      const revImages = Array.isArray(r.images) && r.images.length > 0 ? r.images :
+                        Array.isArray(r.uploadedImages) && r.uploadedImages.length > 0 ? r.uploadedImages :
+                        Array.isArray(r.photos) && r.photos.length > 0 ? r.photos :
+                        Array.isArray(r.imageUrls) && r.imageUrls.length > 0 ? r.imageUrls :
+                        typeof r.image === "string" && r.image.trim() ? [r.image] : [];
 
-    const baseProductReviews = (product.reviews || []).filter((r) => {
-      if (allAdminReviewIds.has(r.id)) {
-        return !notApprovedAdminIds.has(r.id);
-      }
-      return true;
+      return {
+        ...r,
+        author: r.customerName || r.customer || r.author || "Rahul Sharma",
+        content: r.feedback || r.comment || r.review || r.content || "",
+        date: r.date || r.createdAt || "Recently",
+        rating: r.rating || 5,
+        images: revImages,
+        verifiedPurchase: r.verifiedPurchase ?? r.verified ?? true,
+        helpfulCount: r.helpfulCount || 0,
+        replyCount: r.replyCount || 0
+      };
     });
-
-    const combined = [...adminApprovedMatches];
-    baseProductReviews.forEach((b) => {
-      if (!combined.some((c) => c.id === b.id || (c.author === b.author && c.content === b.content))) {
-        combined.push(b);
-      }
-    });
-
-    return combined;
-  }, [product]);
+  }, [product, reviewsVersion]);
 
   // Compute rating stats
   const ratingStats = useMemo(() => {
@@ -690,7 +709,14 @@ export default function ProductDetailView({ productId: initialProductId }) {
                           {(rev.author || "A").split(" ").map(n => n[0]).join("")}
                         </div>
                         <div>
-                          <h5 style={{ fontWeight: "700", color: "#14151A" }}>{rev.author}</h5>
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                            <h5 style={{ fontWeight: "700", color: "#14151A", margin: 0 }}>{rev.author}</h5>
+                            {rev.verifiedPurchase && (
+                              <span style={{ fontSize: "10px", fontWeight: 700, backgroundColor: "#DCFCE7", color: "#16A34A", padding: "2px 6px", borderRadius: "12px", border: "1px solid #86EFAC" }}>
+                                Verified Purchase
+                              </span>
+                            )}
+                          </div>
                           <span style={{ fontSize: "11px", color: "#6B6B75" }}>{rev.date}</span>
                         </div>
                         <div style={{ marginLeft: "auto" }}>
@@ -701,14 +727,30 @@ export default function ProductDetailView({ productId: initialProductId }) {
                       
                       {rev.images && Array.isArray(rev.images) && rev.images.length > 0 && (
                         <div style={{ display: "flex", gap: "8px", marginTop: "10px", flexWrap: "wrap" }}>
-                          {rev.images.map((imgUrl, i) => (
-                            <img
-                              key={i}
-                              src={imgUrl}
-                              alt="Customer review photo"
-                              style={{ width: "60px", height: "60px", borderRadius: "8px", objectFit: "cover", border: "1px solid #E2E8F0" }}
-                            />
-                          ))}
+                          {rev.images.map((imgUrl, i) => {
+                            const resolvedSrc = getResolvedImageUrlSync(imgUrl);
+                            return (
+                              <img
+                                key={i}
+                                src={resolvedSrc}
+                                alt={`Customer review photo ${i + 1}`}
+                                onClick={() => setReviewModalImage(resolvedSrc)}
+                                style={{
+                                  width: "72px",
+                                  height: "72px",
+                                  borderRadius: "8px",
+                                  objectFit: "cover",
+                                  border: "1px solid #E2E8F0",
+                                  cursor: "pointer",
+                                  backgroundColor: "#FAFAF7"
+                                }}
+                                className="hover-lift"
+                                onError={(e) => {
+                                  e.target.style.display = "none";
+                                }}
+                              />
+                            );
+                          })}
                         </div>
                       )}
                       
@@ -802,7 +844,74 @@ export default function ProductDetailView({ productId: initialProductId }) {
 
           <span style={viewerCountStyle}>{activeImgIndex + 1} / {product.images.length}</span>
         </div>
-      )}      <style>{`
+      )}
+
+      {reviewModalImage && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.82)",
+            backdropFilter: "blur(4px)",
+            zIndex: 99999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px"
+          }}
+          onClick={() => setReviewModalImage(null)}
+        >
+          <div
+            style={{
+              position: "relative",
+              maxWidth: "90vw",
+              maxHeight: "90vh",
+              backgroundColor: "#1E293B",
+              borderRadius: "12px",
+              padding: "12px",
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)"
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setReviewModalImage(null)}
+              style={{
+                position: "absolute",
+                top: "-14px",
+                right: "-14px",
+                backgroundColor: "#FFFFFF",
+                color: "#0F172A",
+                border: "none",
+                borderRadius: "50%",
+                width: "32px",
+                height: "32px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
+                zIndex: 10
+              }}
+            >
+              ✕
+            </button>
+            <img
+              src={reviewModalImage}
+              alt="Customer review photo enlarged"
+              style={{
+                maxWidth: "100%",
+                maxHeight: "82vh",
+                objectFit: "contain",
+                borderRadius: "8px",
+                display: "block"
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      <style>{`
         @media (max-width: 767px) {
           .detail-breadcrumb {
             display: none !important;

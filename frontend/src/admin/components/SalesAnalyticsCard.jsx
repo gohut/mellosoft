@@ -361,8 +361,11 @@ function LowStockPanel({ navigateTo }) {
 export default function SalesAnalyticsCard({ navigateTo }) {
   const [selectedPeriod, setSelectedPeriod] = useState("today");
   const [hiddenLines, setHiddenLines]       = useState({});
-  // key trick: change forces Recharts to re-mount → triggers entry animation
-  const [chartKey, setChartKey]             = useState(0);
+  const [isMounted, setIsMounted]           = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // ── Derived data via useMemo ─────────────────────────────────────────────
   const dashboardData = useMemo(() => {
@@ -374,8 +377,6 @@ export default function SalesAnalyticsCard({ navigateTo }) {
   // ── Handle filter click ──────────────────────────────────────────────────
   const handleFilterChange = useCallback((periodId) => {
     setSelectedPeriod(periodId);
-    // bump key so Recharts rerenders with its built-in entry animation
-    setChartKey((k) => k + 1);
   }, []);
 
   const toggleLine = useCallback((dataKey) => {
@@ -479,82 +480,86 @@ export default function SalesAnalyticsCard({ navigateTo }) {
           ))}
         </div>
 
-        {/* The chart – key change forces remount + entry animation */}
-        <div className="analytics-chart-container" style={{ width: "100%", height: "280px", minWidth: 0 }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart key={chartKey} data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-              <defs>
-                <linearGradient id="analyticsOrdersGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="#1B1F8C" stopOpacity={0.18} />
-                  <stop offset="95%" stopColor="#1B1F8C" stopOpacity={0}    />
-                </linearGradient>
-                <linearGradient id="analyticsRevenueGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="#16A34A" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#16A34A" stopOpacity={0}    />
-                </linearGradient>
-              </defs>
+        {/* The chart – key on AreaChart forces re-animation without remounting ResponsiveContainer */}
+        <div className="analytics-chart-container" style={{ position: "relative", width: "100%", height: "280px", minWidth: 0, minHeight: 0 }}>
+          {isMounted ? (
+            <ResponsiveContainer width="99%" height="100%" debounce={100}>
+              <AreaChart key={selectedPeriod} data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="analyticsOrdersGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor="#1B1F8C" stopOpacity={0.18} />
+                    <stop offset="95%" stopColor="#1B1F8C" stopOpacity={0}    />
+                  </linearGradient>
+                  <linearGradient id="analyticsRevenueGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor="#16A34A" stopOpacity={0.15} />
+                    <stop offset="95%" stopColor="#16A34A" stopOpacity={0}    />
+                  </linearGradient>
+                </defs>
 
-              <CartesianGrid strokeDasharray="3 3" stroke="#E7E7E2" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#E7E7E2" vertical={false} />
 
-              <XAxis
-                dataKey="label"
-                tick={{ fontSize: 11, fill: "#9CA3AF", fontFamily: "inherit" }}
-                axisLine={false}
-                tickLine={false}
-                dy={6}
-              />
-              <YAxis
-                yAxisId="orders"
-                orientation="left"
-                tick={{ fontSize: 10, fill: "#9CA3AF", fontFamily: "inherit" }}
-                axisLine={false}
-                tickLine={false}
-                width={28}
-              />
-              <YAxis
-                yAxisId="revenue"
-                orientation="right"
-                tick={{ fontSize: 10, fill: "#9CA3AF", fontFamily: "inherit" }}
-                axisLine={false}
-                tickLine={false}
-                width={48}
-                tickFormatter={(v) => `₹${v >= 100000 ? `${(v / 100000).toFixed(1)}L` : v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`}
-              />
-
-              <Tooltip content={<CustomTooltip />} />
-
-              {!hiddenLines.orders && (
-                <Area
+                <XAxis
+                  dataKey="label"
+                  tick={{ fontSize: 11, fill: "#9CA3AF", fontFamily: "inherit" }}
+                  axisLine={false}
+                  tickLine={false}
+                  dy={6}
+                />
+                <YAxis
                   yAxisId="orders"
-                  type="monotone"
-                  dataKey="orders"
-                  name="orders"
-                  stroke="#1B1F8C"
-                  strokeWidth={2.5}
-                  fill="url(#analyticsOrdersGrad)"
-                  dot={false}
-                  activeDot={{ r: 5, strokeWidth: 2, stroke: "#fff", fill: "#1B1F8C" }}
-                  animationDuration={750}
-                  animationEasing="ease-out"
+                  orientation="left"
+                  tick={{ fontSize: 10, fill: "#9CA3AF", fontFamily: "inherit" }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={28}
                 />
-              )}
-              {!hiddenLines.revenue && (
-                <Area
+                <YAxis
                   yAxisId="revenue"
-                  type="monotone"
-                  dataKey="revenue"
-                  name="revenue"
-                  stroke="#16A34A"
-                  strokeWidth={2.5}
-                  fill="url(#analyticsRevenueGrad)"
-                  dot={false}
-                  activeDot={{ r: 5, strokeWidth: 2, stroke: "#fff", fill: "#16A34A" }}
-                  animationDuration={750}
-                  animationEasing="ease-out"
+                  orientation="right"
+                  tick={{ fontSize: 10, fill: "#9CA3AF", fontFamily: "inherit" }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={48}
+                  tickFormatter={(v) => `₹${v >= 100000 ? `${(v / 100000).toFixed(1)}L` : v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`}
                 />
-              )}
-            </AreaChart>
-          </ResponsiveContainer>
+
+                <Tooltip content={<CustomTooltip />} />
+
+                {!hiddenLines.orders && (
+                  <Area
+                    yAxisId="orders"
+                    type="monotone"
+                    dataKey="orders"
+                    name="orders"
+                    stroke="#1B1F8C"
+                    strokeWidth={2.5}
+                    fill="url(#analyticsOrdersGrad)"
+                    dot={false}
+                    activeDot={{ r: 5, strokeWidth: 2, stroke: "#fff", fill: "#1B1F8C" }}
+                    animationDuration={300}
+                    animationEasing="ease-out"
+                  />
+                )}
+                {!hiddenLines.revenue && (
+                  <Area
+                    yAxisId="revenue"
+                    type="monotone"
+                    dataKey="revenue"
+                    name="revenue"
+                    stroke="#16A34A"
+                    strokeWidth={2.5}
+                    fill="url(#analyticsRevenueGrad)"
+                    dot={false}
+                    activeDot={{ r: 5, strokeWidth: 2, stroke: "#fff", fill: "#16A34A" }}
+                    animationDuration={300}
+                    animationEasing="ease-out"
+                  />
+                )}
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <div style={{ width: "100%", height: "280px" }} />
+          )}
         </div>
       </div>
 

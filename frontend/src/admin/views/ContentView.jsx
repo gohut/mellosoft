@@ -75,6 +75,7 @@ export default function ContentView() {
 
   const [activeTab, setActiveTab] = useState(contentActiveTab || "homepage-layout");
   const [toastMessage, setToastMessage] = useState(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   React.useEffect(() => {
     if (contentActiveTab) {
@@ -87,8 +88,124 @@ export default function ContentView() {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
+  // Derive dynamic tabs (built-in + custom sections) without infinite loop
+  const dynamicTabs = React.useMemo(() => {
+    const builtInTabs = [
+      { id: "homepage-layout", label: "Homepage Layout", icon: LayoutList },
+      { id: "hero-slides",     label: "Hero Slides",     icon: Star },
+      { id: "promo-banners",   label: "Promo Banners",   icon: Tag },
+      { id: "new-arrivals",    label: "New Arrivals",    icon: Zap },
+      { id: "best-sellers",    label: "Best Sellers",    icon: Award },
+    ];
+
+    const customSections = (homepageConfig?.sections || []).filter((s) => s.isCustom);
+    const customTabs = customSections.map((s) => ({
+      id: s.id,
+      label: s.name || s.label || "Custom Section",
+      icon: Package,
+      isCustom: true,
+      section: s,
+    }));
+
+    return [...builtInTabs, ...customTabs];
+  }, [homepageConfig]);
+
+  const activeTabRef = useRef(null);
+
+  React.useEffect(() => {
+    if (activeTabRef.current) {
+      activeTabRef.current.scrollIntoView({
+        behavior: "smooth",
+        inline: "center",
+        block: "nearest"
+      });
+    }
+  }, [activeTab]);
+
   return (
-    <div style={containerStyle} className="admin-fade-in">
+    <div style={containerStyle} className="admin-fade-in content-page-container">
+      <style>{`
+        .content-tab-list::-webkit-scrollbar {
+          display: none;
+        }
+        .content-tab-list {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+
+        .content-mobile-cards {
+          display: none;
+        }
+
+        @media (max-width: 768px) {
+          .admin-fade-in, .content-page-container {
+            padding: 12px 12px 40px 12px !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+          }
+          .content-header-row {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 12px !important;
+            margin-bottom: 16px !important;
+          }
+          .content-title-text {
+            font-size: 20px !important;
+          }
+          .content-subtitle-text {
+            font-size: 12.5px !important;
+          }
+          .content-stats-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 10px !important;
+          }
+          .content-filter-bar {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 10px !important;
+          }
+          .content-search-wrap, .content-select-filter {
+            width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+          }
+          .content-create-btn {
+            width: 100% !important;
+            justify-content: center !important;
+            padding: 12px !important;
+          }
+          .content-desktop-table {
+            display: none !important;
+          }
+          .content-mobile-cards {
+            display: flex !important;
+          }
+          .content-modal-card {
+            width: calc(100vw - 24px) !important;
+            max-width: 100vw !important;
+            padding: 16px !important;
+            border-radius: 14px !important;
+          }
+          .content-form-grid {
+            grid-template-columns: 1fr !important;
+            gap: 12px !important;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .content-stats-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 8px !important;
+          }
+          .content-stat-card {
+            padding: 12px 10px !important;
+          }
+          .content-stat-val {
+            font-size: 20px !important;
+          }
+        }
+      `}</style>
+
       {/* Toast */}
       {toastMessage && (
         <div style={toastStyle} role="alert">
@@ -98,7 +215,7 @@ export default function ContentView() {
       )}
 
       {/* Page Header */}
-      <div style={headerRowStyle}>
+      <div style={headerRowStyle} className="content-header-row">
         <div>
           <div style={badgeRowStyle}>
             <span style={adminBadgeStyle}>
@@ -106,28 +223,46 @@ export default function ContentView() {
               Homepage Management
             </span>
           </div>
-          <h1 style={titleStyle}>Homepage Content</h1>
-          <p style={subtitleStyle}>
+          <h1 style={titleStyle} className="content-title-text">Homepage Content</h1>
+          <p style={subtitleStyle} className="content-subtitle-text">
             Manage and customize your user homepage — control layout, promotional banners, hero slides, and featured sections from one place.
           </p>
         </div>
       </div>
 
-      {/* Tab Bar */}
-      <div style={tabBarStyle}>
-        <div style={tabListStyle}>
-          {TABS.map((tab) => {
+      {/* Tab Bar with Horizontal Overflow & Plus Button */}
+      <div style={tabBarStyle} className="content-tab-bar">
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            overflowX: "auto",
+            flexWrap: "nowrap",
+            width: "100%",
+            paddingBottom: "4px",
+            boxSizing: "border-box"
+          }}
+          className="content-tab-list"
+        >
+          {dynamicTabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
+                ref={isActive ? activeTabRef : null}
                 onClick={() => setActiveTab(tab.id)}
                 style={{
                   ...tabBtnStyle,
                   backgroundColor: isActive ? "#1B1F8C" : "transparent",
                   color: isActive ? "#FFFFFF" : "#6B6B75",
                   borderColor: isActive ? "#1B1F8C" : "#E7E7E2",
+                  whiteSpace: "nowrap",
+                  flexShrink: 0,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px"
                 }}
                 onMouseEnter={(e) => {
                   if (!isActive) {
@@ -149,6 +284,39 @@ export default function ContentView() {
               </button>
             );
           })}
+
+          {/* Compact Plus Button for Creating Custom Homepage Product Section */}
+          <button
+            type="button"
+            onClick={() => setIsCreateModalOpen(true)}
+            title="Create Homepage Product Section"
+            style={{
+              ...tabBtnStyle,
+              backgroundColor: "#F0F0FB",
+              color: "#1B1F8C",
+              borderColor: "#C7CAF0",
+              fontWeight: "800",
+              padding: "8px 14px",
+              whiteSpace: "nowrap",
+              flexShrink: 0,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "4px",
+              cursor: "pointer"
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = "#1B1F8C";
+              e.currentTarget.style.color = "#FFFFFF";
+              e.currentTarget.style.borderColor = "#1B1F8C";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "#F0F0FB";
+              e.currentTarget.style.color = "#1B1F8C";
+              e.currentTarget.style.borderColor = "#C7CAF0";
+            }}
+          >
+            <Plus size={16} />
+          </button>
         </div>
       </div>
 
@@ -209,7 +377,30 @@ export default function ContentView() {
         {activeTab === "best-sellers" && (
           <BestSellersTab showToast={showToast} />
         )}
+
+        {/* Custom Section Tab Renderer */}
+        {dynamicTabs.some((t) => t.isCustom && t.id === activeTab) && (
+          <CustomSectionTab
+            sectionId={activeTab}
+            homepageConfig={homepageConfig}
+            updateHomepageConfig={updateHomepageConfig}
+            showToast={showToast}
+            setActiveTab={setActiveTab}
+          />
+        )}
       </div>
+
+      {/* Modal for Creating New Custom Section */}
+      {isCreateModalOpen && (
+        <CreateSectionModal
+          isOpen={isCreateModalOpen}
+          onClose={() => setIsCreateModalOpen(false)}
+          homepageConfig={homepageConfig}
+          updateHomepageConfig={updateHomepageConfig}
+          showToast={showToast}
+          setActiveTab={setActiveTab}
+        />
+      )}
     </div>
   );
 }
@@ -704,36 +895,37 @@ function BannerTab({
   return (
     <div>
       {/* Tab header */}
-      <div style={tabSectionHeaderStyle}>
+      <div style={tabSectionHeaderStyle} className="content-header-row">
         <div>
           <h2 style={tabSectionTitleStyle}>{title}</h2>
           <p style={tabSectionSubStyle}>{description}</p>
         </div>
-        <button onClick={handleOpenCreate} style={createBtnStyle}>
+        <button onClick={handleOpenCreate} style={createBtnStyle} className="content-create-btn">
           <Plus size={16} />
           {createLabel}
         </button>
       </div>
 
       {/* Stats */}
-      <div style={statsRowStyle}>
-        <div style={statCardStyle}>
+      <div style={statsRowStyle} className="content-stats-grid">
+        <div style={statCardStyle} className="content-stat-card">
           <span style={statLabelStyle}>Total</span>
-          <strong style={statValStyle}>{totalInType.length}</strong>
+          <strong style={statValStyle} className="content-stat-val">{totalInType.length}</strong>
           <span style={statSubStyle}>Configured in system</span>
         </div>
-        <div style={statCardStyle}>
+        <div style={statCardStyle} className="content-stat-card">
           <span style={statLabelStyle}>Active</span>
-          <strong style={{ ...statValStyle, color: "#16A34A" }}>{activeCount}</strong>
+          <strong style={{ ...statValStyle, color: "#16A34A" }} className="content-stat-val">{activeCount}</strong>
           <span style={statSubStyle}>Live on storefront</span>
         </div>
-        <div style={statCardStyle}>
+        <div style={statCardStyle} className="content-stat-card">
           <span style={statLabelStyle}>Inactive</span>
-          <strong style={{ ...statValStyle, color: "#DC2626" }}>{inactiveCount}</strong>
+          <strong style={{ ...statValStyle, color: "#DC2626" }} className="content-stat-val">{inactiveCount}</strong>
           <span style={statSubStyle}>Hidden from customers</span>
         </div>
         <div
           style={{ ...statCardStyle, cursor: "pointer" }}
+          className="content-stat-card"
           onClick={() => setIsManageTypesModalOpen(true)}
           title="Click to view and manage types"
         >
@@ -763,7 +955,7 @@ function BannerTab({
               Manage Types
             </button>
           </div>
-          <strong style={{ ...statValStyle, color: "#1B1F8C" }}>{availableTypes.length}</strong>
+          <strong style={{ ...statValStyle, color: "#1B1F8C" }} className="content-stat-val">{availableTypes.length}</strong>
           <span style={statSubStyle}>
             {availableTypes.slice(0, 4).join(", ")}{availableTypes.length > 4 ? "..." : ""}
           </span>
@@ -771,8 +963,8 @@ function BannerTab({
       </div>
 
       {/* Search + Filter bar */}
-      <div style={filterBarStyle}>
-        <div style={searchWrapStyle}>
+      <div style={filterBarStyle} className="content-filter-bar">
+        <div style={searchWrapStyle} className="content-search-wrap">
           <Search size={16} color="#6B6B75" />
           <input
             type="text"
@@ -786,6 +978,7 @@ function BannerTab({
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
           style={selectFilterStyle}
+          className="content-select-filter"
         >
           <option value="All">All Statuses</option>
           <option value="Active">Active Only</option>
@@ -793,8 +986,8 @@ function BannerTab({
         </select>
       </div>
 
-      {/* Data Table */}
-      <div style={tableWrapStyle}>
+      {/* Desktop Data Table */}
+      <div style={tableWrapStyle} className="content-desktop-table">
         <table style={tableStyle}>
           <thead>
             <tr style={tableHeaderRowStyle}>
@@ -951,10 +1144,85 @@ function BannerTab({
         </table>
       </div>
 
+      {/* Mobile Card List View for Banners & Hero Slides */}
+      <div className="content-mobile-cards" style={{ display: "none", flexDirection: "column", gap: "12px" }}>
+        {filteredBanners.length === 0 ? (
+          <div style={{ backgroundColor: "#FFFFFF", border: "1px solid #E7E7E2", borderRadius: "14px", padding: "24px", textAlign: "center" }}>
+            <ImageIcon size={32} color="#9CA3AF" style={{ marginBottom: "8px" }} />
+            <p style={{ margin: 0, fontWeight: 600, color: "#6B6B75" }}>No items found.</p>
+            <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#9CA3AF" }}>{emptyMsg}</p>
+          </div>
+        ) : (
+          filteredBanners.map((banner, index) => {
+            const isActive = banner.isActive !== false;
+            const associatedProduct = (products || []).find((p) => p.id === banner.productId || p.id === banner.id);
+            const displayProductName = associatedProduct
+              ? (associatedProduct.name || associatedProduct.title)
+              : banner.title;
+            const displayImage = banner.image || (associatedProduct ? (associatedProduct.image || (associatedProduct.images && associatedProduct.images[0])) : "/asset/img2.jpg");
+
+            return (
+              <div key={banner.id} style={{ backgroundColor: "#FFFFFF", border: "1px solid #E7E7E2", borderRadius: "14px", padding: "14px", display: "flex", gap: "12px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+                <img src={displayImage} alt="" style={{ width: "80px", height: "80px", objectFit: "cover", borderRadius: "10px", flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "4px" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "6px" }}>
+                    <span style={orderBadgeStyle}>#{banner.displayOrder || (index + 1)}</span>
+                    <span style={getTypeBadgeStyle(banner.type)}>{banner.type || defaultType || "Offer"}</span>
+                  </div>
+                  <strong style={{ fontSize: "14px", color: "#1B1F8C", overflowWrap: "anywhere", marginTop: "2px" }}>{displayProductName}</strong>
+                  {associatedProduct && banner.title && banner.title !== displayProductName && (
+                    <span style={{ fontSize: "12px", fontWeight: "600", color: "#374151" }}>{banner.title}</span>
+                  )}
+                  {banner.subtitle && <span style={{ fontSize: "11.5px", color: "#6B6B75" }}>{banner.subtitle}</span>}
+                  {banner.description && (
+                    <p style={{ fontSize: "11px", color: "#9CA3AF", margin: "2px 0 0 0", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                      {banner.description}
+                    </p>
+                  )}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "10px", paddingTop: "8px", borderTop: "1px solid #F3F4F6" }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        toggleBannerStatus(banner.id);
+                        showToast(`Slide "${banner.title}" is now ${isActive ? "Inactive" : "Active"}`);
+                      }}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "4px",
+                        backgroundColor: isActive ? "#DCFCE7" : "#F3F4F6",
+                        color: isActive ? "#15803D" : "#4B5563",
+                        border: `1px solid ${isActive ? "#86EFAC" : "#D1D5DB"}`,
+                        borderRadius: "999px",
+                        padding: "4px 10px",
+                        fontSize: "11.5px",
+                        fontWeight: "700",
+                        cursor: "pointer"
+                      }}
+                    >
+                      {isActive ? <CheckCircle2 size={12} color="#15803D" /> : <XCircle size={12} color="#6B7280" />}
+                      {isActive ? "Active" : "Inactive"}
+                    </button>
+                    <div style={{ display: "flex", gap: "6px" }}>
+                      <button onClick={() => handleOpenEdit(banner)} style={iconBtnStyle} title="Edit">
+                        <Edit2 size={14} color="#1B1F8C" />
+                      </button>
+                      <button onClick={() => setDeleteModalBanner(banner)} style={iconBtnDangerStyle} title="Delete">
+                        <Trash2 size={14} color="#DC2626" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
       {/* CREATE / EDIT MODAL */}
       {isModalOpen && (
         <div style={modalBackdropStyle} onClick={() => setIsModalOpen(false)}>
-          <div style={modalCardStyle} onClick={(e) => e.stopPropagation()}>
+          <div style={modalCardStyle} className="content-modal-card" onClick={(e) => e.stopPropagation()}>
             <div style={modalHeaderStyle}>
               <h2 style={modalTitleStyle}>
                 {editingBanner ? `Edit ${title.replace(/s$/, "")}` : `Create New ${title.replace(/s$/, "")}`}
@@ -1610,46 +1878,46 @@ function NewArrivalsTab({ showToast }) {
   return (
     <div>
       {/* Header */}
-      <div style={tabSectionHeaderStyle}>
+      <div style={tabSectionHeaderStyle} className="content-header-row">
         <div>
           <h2 style={tabSectionTitleStyle}>New Arrivals</h2>
           <p style={tabSectionSubStyle}>
             Select store products to showcase in the homepage New Arrivals section, set display order, and toggle storefront visibility.
           </p>
         </div>
-        <button onClick={handleOpenSelectModal} style={createBtnStyle}>
+        <button onClick={handleOpenSelectModal} style={createBtnStyle} className="content-create-btn">
           <Plus size={16} />
           Add New Arrival
         </button>
       </div>
 
       {/* Stats */}
-      <div style={statsRowStyle}>
-        <div style={statCardStyle}>
+      <div style={statsRowStyle} className="content-stats-grid">
+        <div style={statCardStyle} className="content-stat-card">
           <span style={statLabelStyle}>Total New Arrivals</span>
-          <strong style={statValStyle}>{resolvedArrivals.length}</strong>
+          <strong style={statValStyle} className="content-stat-val">{resolvedArrivals.length}</strong>
           <span style={statSubStyle}>Configured for section</span>
         </div>
-        <div style={statCardStyle}>
+        <div style={statCardStyle} className="content-stat-card">
           <span style={statLabelStyle}>Active Products</span>
-          <strong style={{ ...statValStyle, color: "#16A34A" }}>{activeCount}</strong>
+          <strong style={{ ...statValStyle, color: "#16A34A" }} className="content-stat-val">{activeCount}</strong>
           <span style={statSubStyle}>Live on storefront</span>
         </div>
-        <div style={statCardStyle}>
+        <div style={statCardStyle} className="content-stat-card">
           <span style={statLabelStyle}>Inactive Products</span>
-          <strong style={{ ...statValStyle, color: "#DC2626" }}>{inactiveCount}</strong>
+          <strong style={{ ...statValStyle, color: "#DC2626" }} className="content-stat-val">{inactiveCount}</strong>
           <span style={statSubStyle}>Hidden from customers</span>
         </div>
-        <div style={statCardStyle}>
+        <div style={statCardStyle} className="content-stat-card">
           <span style={statLabelStyle}>Store Catalog</span>
-          <strong style={{ ...statValStyle, color: "#1B1F8C" }}>{products.length}</strong>
+          <strong style={{ ...statValStyle, color: "#1B1F8C" }} className="content-stat-val">{products.length}</strong>
           <span style={statSubStyle}>Total store products</span>
         </div>
       </div>
 
       {/* Search & Filter */}
-      <div style={filterBarStyle}>
-        <div style={searchWrapStyle}>
+      <div style={filterBarStyle} className="content-filter-bar">
+        <div style={searchWrapStyle} className="content-search-wrap">
           <Search size={16} color="#6B6B75" />
           <input
             type="text"
@@ -1663,6 +1931,7 @@ function NewArrivalsTab({ showToast }) {
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
           style={selectFilterStyle}
+          className="content-select-filter"
         >
           <option value="All">All Statuses</option>
           <option value="Active">Active Only</option>
@@ -1670,8 +1939,8 @@ function NewArrivalsTab({ showToast }) {
         </select>
       </div>
 
-      {/* Data Table */}
-      <div style={tableWrapStyle}>
+      {/* Desktop Data Table */}
+      <div style={tableWrapStyle} className="content-desktop-table">
         <table style={tableStyle}>
           <thead>
             <tr style={tableHeaderRowStyle}>
@@ -1697,7 +1966,6 @@ function NewArrivalsTab({ showToast }) {
             ) : (
               filteredRows.map((item, index) => {
                 const prod = item.product;
-                const imgSrc = prod.image || (prod.images && prod.images[0]) || "/asset/img2.jpg";
                 const isDragging = draggingId === item.id;
                 const isDragOver = dragOverId === item.id;
                 return (
@@ -1788,6 +2056,53 @@ function NewArrivalsTab({ showToast }) {
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile Cards View for New Arrivals */}
+      <div className="content-mobile-cards" style={{ display: "none", flexDirection: "column", gap: "12px" }}>
+        {filteredRows.length === 0 ? (
+          <div style={{ backgroundColor: "#FFFFFF", border: "1px solid #E7E7E2", borderRadius: "14px", padding: "24px", textAlign: "center" }}>
+            <Package size={32} color="#9CA3AF" style={{ marginBottom: "8px" }} />
+            <p style={{ margin: 0, fontWeight: 600, color: "#6B6B75" }}>No New Arrival products found.</p>
+            <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#9CA3AF" }}>Click "+ Add New Arrival" to select existing products.</p>
+          </div>
+        ) : (
+          filteredRows.map((item, index) => {
+            const prod = item.product;
+            const imgSrc = getProductPrimaryImage(prod);
+            return (
+              <div key={item.id} style={{ backgroundColor: "#FFFFFF", border: "1px solid #E7E7E2", borderRadius: "14px", padding: "14px", display: "flex", gap: "12px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+                <img src={imgSrc} alt="" style={{ width: "80px", height: "80px", objectFit: "cover", borderRadius: "10px", flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "4px" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "6px" }}>
+                    <span style={orderBadgeStyle}>#{item.displayOrder || (index + 1)}</span>
+                    <span style={{ fontSize: "11px", fontWeight: "700", color: "#4B5563" }}>{getProductCategoryLabel(prod)}</span>
+                  </div>
+                  <strong style={{ fontSize: "14px", color: "#14151A", overflowWrap: "anywhere", marginTop: "2px" }}>{prod.name || prod.title}</strong>
+                  <span style={{ fontSize: "13px", fontWeight: "700", color: "#16A34A" }}>{formatPrice(getMinimumProductPrice(prod))}</span>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "8px", paddingTop: "8px", borderTop: "1px solid #F3F4F6" }}>
+                    <button
+                      type="button"
+                      onClick={() => toggleNewArrivalStatus && toggleNewArrivalStatus(item.id)}
+                      style={item.isActive ? activeStatusBtnStyle : inactiveStatusBtnStyle}
+                    >
+                      {item.isActive ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
+                      {item.isActive ? "Active" : "Inactive"}
+                    </button>
+                    <div style={{ display: "flex", gap: "6px" }}>
+                      <button type="button" onClick={() => handleOpenEditItem(item)} style={iconBtnStyle} title="Edit settings">
+                        <Edit2 size={14} color="#6B6B75" />
+                      </button>
+                      <button type="button" onClick={() => setItemToRemove(item)} style={iconBtnDangerStyle} title="Remove">
+                        <Trash2 size={14} color="#DC2626" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
 
       {/* SHARED SELECTION MODAL */}
@@ -2162,6 +2477,9 @@ const modalCardStyle = {
   zIndex: 100000,
 };
 
+const modalOverlayStyle = modalBackdropStyle;
+const modalContentStyle = modalCardStyle;
+
 const modalHeaderStyle = {
   display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px",
 };
@@ -2451,59 +2769,49 @@ function BestSellersTab({ showToast }) {
     dragOverItemRef.current = null;
   };
 
-  // Catalog products for selection modal
-  const modalCatalogProducts = (products || []).filter((p) => {
-    const term = modalSearch.toLowerCase();
-    const pName = (p.name || p.title || "").toLowerCase();
-    const pCat = (p.category || "").toLowerCase();
-    const matchSearch = pName.includes(term) || pCat.includes(term);
-    const matchCat = modalCategory === "All" || p.category === modalCategory;
-    return matchSearch && matchCat;
-  });
-
   return (
     <div>
       {/* Header */}
-      <div style={tabSectionHeaderStyle}>
+      <div style={tabSectionHeaderStyle} className="content-header-row">
         <div>
           <h2 style={tabSectionTitleStyle}>Best Sellers</h2>
           <p style={tabSectionSubStyle}>
             Select store products to showcase in the homepage Best Sellers section, set display order, and toggle storefront visibility.
           </p>
         </div>
-        <button onClick={handleOpenSelectModal} style={createBtnStyle}>
+        <button onClick={handleOpenSelectModal} style={createBtnStyle} className="content-create-btn">
           <Plus size={16} />
           Add Best Seller
         </button>
       </div>
 
       {/* Stats */}
-      <div style={statsRowStyle}>
-        <div style={statCardStyle}>
+      <div style={statsRowStyle} className="content-stats-grid">
+        <div style={statCardStyle} className="content-stat-card">
           <span style={statLabelStyle}>Total Best Sellers</span>
-          <strong style={statValStyle}>{resolvedBestSellers.length}</strong>
+          <strong style={statValStyle} className="content-stat-val">{resolvedBestSellers.length}</strong>
           <span style={statSubStyle}>Configured for section</span>
         </div>
-        <div style={statCardStyle}>
+        <div style={statCardStyle} className="content-stat-card">
           <span style={statLabelStyle}>Active Products</span>
-          <strong style={{ ...statValStyle, color: "#16A34A" }}>{activeCount}</strong>
+          <strong style={{ ...statValStyle, color: "#16A34A" }} className="content-stat-val">{activeCount}</strong>
           <span style={statSubStyle}>Live on storefront</span>
         </div>
-        <div style={statCardStyle}>
+        <div style={statCardStyle} className="content-stat-card">
           <span style={statLabelStyle}>Inactive Products</span>
-          <strong style={{ ...statValStyle, color: "#DC2626" }}>{inactiveCount}</strong>
+          <strong style={{ ...statValStyle, color: "#DC2626" }} className="content-stat-val">{inactiveCount}</strong>
           <span style={statSubStyle}>Hidden from customers</span>
         </div>
-        <div style={statCardStyle}>
+        <div style={statCardStyle} className="content-stat-card">
           <span style={statLabelStyle}>Store Catalog</span>
-          <strong style={{ ...statValStyle, color: "#1B1F8C" }}>{products.length}</strong>
+          <strong style={{ ...statValStyle, color: "#1B1F8C" }} className="content-stat-val">{products.length}</strong>
           <span style={statSubStyle}>Total store products</span>
         </div>
       </div>
 
       {/* Search & Filter */}
-      <div style={filterBarStyle}>
-        <div style={searchWrapStyle}>
+      <div style={filterBarStyle} className="content-filter-bar">
+        <div style={searchWrapStyle} className="content-search-wrap">
           <Search size={16} color="#6B6B75" />
           <input
             type="text"
@@ -2517,6 +2825,7 @@ function BestSellersTab({ showToast }) {
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
           style={selectFilterStyle}
+          className="content-select-filter"
         >
           <option value="All">All Statuses</option>
           <option value="Active">Active Only</option>
@@ -2524,8 +2833,8 @@ function BestSellersTab({ showToast }) {
         </select>
       </div>
 
-      {/* Data Table */}
-      <div style={tableWrapStyle}>
+      {/* Desktop Data Table */}
+      <div style={tableWrapStyle} className="content-desktop-table">
         <table style={tableStyle}>
           <thead>
             <tr style={tableHeaderRowStyle}>
@@ -3017,6 +3326,657 @@ function ProductSelectionModal({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Color Helper Functions ───────────────────────────────────────────────────
+const isValidHex = (hex) => /^#([0-9A-F]{3}){1,2}$/i.test(hex || "");
+
+const isDarkHex = (hex) => {
+  if (!isValidHex(hex)) return false;
+  let c = hex.replace("#", "");
+  if (c.length === 3) c = c.split("").map((x) => x + x).join("");
+  if (c.length !== 6) return false;
+  const r = parseInt(c.substring(0, 2), 16);
+  const g = parseInt(c.substring(2, 4), 16);
+  const b = parseInt(c.substring(4, 6), 16);
+  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+  return brightness < 140;
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Create Homepage Product Section Modal
+// ═══════════════════════════════════════════════════════════════════════════════
+function CreateSectionModal({ isOpen, onClose, homepageConfig, updateHomepageConfig, showToast, setActiveTab }) {
+  const { products = [], categories = [] } = useAdmin();
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [backgroundColor, setBackgroundColor] = useState("#FFFFFF");
+  const [visible, setVisible] = useState(true);
+  const [selectedProductIds, setSelectedProductIds] = useState([]);
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("All");
+
+  if (!isOpen) return null;
+
+  const filteredProducts = products.filter((p) => {
+    const pName = (p.name || p.title || "").toLowerCase();
+    const matchSearch = pName.includes(search.toLowerCase());
+    const matchCategory = category === "All" || isProductInCategory(p, category);
+    return matchSearch && matchCategory;
+  });
+
+  const handleToggleSelect = (pid) => {
+    setSelectedProductIds((prev) =>
+      prev.includes(pid) ? prev.filter((id) => id !== pid) : [...prev, pid]
+    );
+  };
+
+  const handleCreate = (e) => {
+    e.preventDefault();
+    if (!name.trim()) {
+      showToast("Please enter a section name.");
+      return;
+    }
+    if (!description.trim()) {
+      showToast("Please enter a short description.");
+      return;
+    }
+    const cleanHex = backgroundColor.trim().toUpperCase();
+    if (!isValidHex(cleanHex)) {
+      showToast("Please enter a valid Hex color code (e.g. #FFFFFF or #20289A).");
+      return;
+    }
+
+    const newId = "custom-section-" + Date.now();
+    const newSection = {
+      id: newId,
+      type: "product-section",
+      isCustom: true,
+      name: name.trim(),
+      label: name.trim(),
+      description: description.trim(),
+      backgroundColor: cleanHex,
+      styles: { backgroundColor: cleanHex },
+      productIds: selectedProductIds,
+      visible: visible !== false,
+      displayOrder: (homepageConfig?.sections?.length || 0) + 1
+    };
+
+    const existingSections = homepageConfig?.sections || [];
+    updateHomepageConfig({
+      ...homepageConfig,
+      sections: [...existingSections, newSection]
+    });
+
+    showToast(`Created section "${newSection.name}" and added to Homepage Layout!`);
+    setName("");
+    setDescription("");
+    setBackgroundColor("#FFFFFF");
+    setSelectedProductIds([]);
+    onClose();
+    setActiveTab(newId);
+  };
+
+  return (
+    <div style={modalOverlayStyle}>
+      <div style={{ ...modalContentStyle, maxWidth: "680px", maxHeight: "90vh", overflowY: "auto" }}>
+        <div style={modalHeaderStyle}>
+          <div>
+            <h2 style={modalTitleStyle}>Create Homepage Product Section</h2>
+            <p style={{ fontSize: "13px", color: "#6B6B75", margin: "4px 0 0 0" }}>
+              Create a custom section that will appear as a new tab in Content and on the customer homepage.
+            </p>
+          </div>
+          <button type="button" onClick={onClose} style={modalCloseBtnStyle}>✕</button>
+        </div>
+
+        <form onSubmit={handleCreate} style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "16px" }}>
+          <div>
+            <label style={labelStyle}>Section Name *</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Trending Products"
+              style={inputStyle}
+              required
+            />
+          </div>
+
+          <div>
+            <label style={labelStyle}>Short Description / Subtitle *</label>
+            <input
+              type="text"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="e.g. Popular comfort choices this week."
+              style={inputStyle}
+              required
+            />
+          </div>
+
+          {/* Background Color Field & Live Preview */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            <label style={labelStyle}>Background Color *</label>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <input
+                type="color"
+                value={isValidHex(backgroundColor) ? backgroundColor : "#FFFFFF"}
+                onChange={(e) => setBackgroundColor(e.target.value.toUpperCase())}
+                style={{
+                  width: "44px",
+                  height: "38px",
+                  padding: "2px",
+                  border: "1px solid #E7E7E2",
+                  borderRadius: "8px",
+                  cursor: "pointer",
+                  backgroundColor: "#FFFFFF",
+                  flexShrink: 0
+                }}
+              />
+              <input
+                type="text"
+                value={backgroundColor}
+                onChange={(e) => {
+                  let val = e.target.value;
+                  if (!val.startsWith("#") && val.length > 0) val = "#" + val;
+                  setBackgroundColor(val);
+                }}
+                placeholder="#FFFFFF"
+                style={{ ...inputStyle, width: "130px", textTransform: "uppercase", fontFamily: "monospace", fontWeight: "700" }}
+              />
+              <button
+                type="button"
+                onClick={() => setBackgroundColor("#FFFFFF")}
+                style={{
+                  backgroundColor: "#F3F4F6",
+                  color: "#4B5563",
+                  border: "1px solid #D1D5DB",
+                  borderRadius: "8px",
+                  padding: "8px 14px",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap"
+                }}
+              >
+                Reset to Default
+              </button>
+            </div>
+
+            {/* Live Section Color Preview */}
+            <div
+              style={{
+                marginTop: "10px",
+                padding: "16px 20px",
+                borderRadius: "12px",
+                backgroundColor: isValidHex(backgroundColor) ? backgroundColor : "#FFFFFF",
+                border: "1px solid #E7E7E2",
+                transition: "background-color 0.2s ease"
+              }}
+            >
+              <div style={{ fontSize: "11px", fontWeight: "800", textTransform: "uppercase", letterSpacing: "0.05em", color: isDarkHex(backgroundColor) ? "#94A3B8" : "#6B6B75", marginBottom: "4px" }}>
+                Live Section Background Preview
+              </div>
+              <div style={{ fontSize: "16px", fontWeight: "800", color: isDarkHex(backgroundColor) ? "#FFFFFF" : "#1B1F8C" }}>
+                {name || "Section Name Preview"}
+              </div>
+              <div style={{ fontSize: "12px", color: isDarkHex(backgroundColor) ? "#CBD5E1" : "#6B6B75" }}>
+                {description || "Section subtitle preview text..."}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <input
+              type="checkbox"
+              id="visible-check-create"
+              checked={visible}
+              onChange={(e) => setVisible(e.target.checked)}
+              style={{ width: "18px", height: "18px", accentColor: "#1B1F8C" }}
+            />
+            <label htmlFor="visible-check-create" style={{ fontSize: "14px", fontWeight: "600", color: "#14151A", cursor: "pointer" }}>
+              Visible on Customer Homepage
+            </label>
+          </div>
+
+          <div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+              <label style={labelStyle}>Select Products * ({selectedProductIds.length} selected)</label>
+            </div>
+
+            {/* Filter controls */}
+            <div style={{ display: "flex", gap: "10px", marginBottom: "12px" }}>
+              <div style={{ flex: 1, position: "relative" }}>
+                <Search size={14} color="#9CA3AF" style={{ position: "absolute", left: "10px", top: "11px" }} />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search catalogue products..."
+                  style={{ ...inputStyle, paddingLeft: "32px", fontSize: "13px" }}
+                />
+              </div>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                style={{ ...inputStyle, width: "160px", fontSize: "13px" }}
+              >
+                <option value="All">All Categories</option>
+                {categories.map((c) => (
+                  <option key={c.id || c.name} value={c.name}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Product list checklist */}
+            <div style={{ border: "1px solid #E7E7E2", borderRadius: "10px", maxHeight: "240px", overflowY: "auto", padding: "8px" }}>
+              {filteredProducts.length === 0 ? (
+                <p style={{ textAlign: "center", color: "#6B6B75", padding: "16px", fontSize: "13px" }}>No products match filters.</p>
+              ) : (
+                filteredProducts.map((p) => {
+                  const isSelected = selectedProductIds.includes(p.id);
+                  const img = getProductPrimaryImage(p);
+                  const catLabel = getProductCategoryLabel(p);
+                  const price = getMinimumProductPrice(p);
+                  return (
+                    <div
+                      key={p.id}
+                      onClick={() => handleToggleSelect(p.id)}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "12px",
+                        padding: "8px 12px",
+                        borderRadius: "8px",
+                        cursor: "pointer",
+                        backgroundColor: isSelected ? "#EEF0FF" : "transparent",
+                        marginBottom: "4px"
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => {}}
+                        style={{ width: "16px", height: "16px", accentColor: "#1B1F8C" }}
+                      />
+                      <img src={img} alt="" style={{ width: "36px", height: "36px", objectFit: "cover", borderRadius: "6px" }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <strong style={{ fontSize: "13px", color: "#14151A", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {p.name || p.title}
+                        </strong>
+                        <span style={{ fontSize: "11px", color: "#6B7280" }}>
+                          {catLabel} • {formatPrice(price)}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          <div style={{ ...modalFooterStyle, marginTop: "12px" }}>
+            <button type="button" onClick={onClose} style={cancelBtnStyle}>Cancel</button>
+            <button type="submit" style={saveBtnStyle}>Create Section</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Custom Section Management View
+// ═══════════════════════════════════════════════════════════════════════════════
+function CustomSectionTab({ sectionId, homepageConfig, updateHomepageConfig, showToast, setActiveTab }) {
+  const { products = [] } = useAdmin();
+  const section = (homepageConfig?.sections || []).find((s) => s.id === sectionId);
+
+  const [name, setName] = useState(section?.name || section?.label || "");
+  const [description, setDescription] = useState(section?.description || "");
+  const [backgroundColor, setBackgroundColor] = useState(section?.backgroundColor || section?.styles?.backgroundColor || "#FFFFFF");
+  const [visible, setVisible] = useState(section?.visible !== false);
+  const [productIds, setProductIds] = useState(section?.productIds || []);
+
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+
+  React.useEffect(() => {
+    if (section) {
+      setName(section.name || section.label || "");
+      setDescription(section.description || "");
+      setBackgroundColor(section.backgroundColor || section.styles?.backgroundColor || "#FFFFFF");
+      setVisible(section.visible !== false);
+      setProductIds(section.productIds || []);
+    }
+  }, [sectionId, homepageConfig]);
+
+  if (!section) {
+    return <p style={{ padding: "24px", color: "#6B6B75" }}>Section not found or has been deleted.</p>;
+  }
+
+  // Resolved product objects for selected IDs
+  const resolvedProducts = productIds
+    .map((pid) => products.find((p) => String(p.id).trim().toLowerCase() === String(pid).trim().toLowerCase()))
+    .filter(Boolean);
+
+  const handleSave = (e) => {
+    e.preventDefault();
+    if (!name.trim()) {
+      showToast("Section Name cannot be empty.");
+      return;
+    }
+    if (!description.trim()) {
+      showToast("Short Description cannot be empty.");
+      return;
+    }
+    const cleanHex = backgroundColor.trim().toUpperCase();
+    if (!isValidHex(cleanHex)) {
+      showToast("Please enter a valid Hex color code (e.g. #FFFFFF or #20289A).");
+      return;
+    }
+
+    const updatedSections = (homepageConfig?.sections || []).map((s) => {
+      if (s.id === sectionId) {
+        return {
+          ...s,
+          name: name.trim(),
+          label: name.trim(),
+          description: description.trim(),
+          backgroundColor: cleanHex,
+          styles: { ...s.styles, backgroundColor: cleanHex },
+          visible: visible !== false,
+          productIds
+        };
+      }
+      return s;
+    });
+
+    updateHomepageConfig({ ...homepageConfig, sections: updatedSections });
+    showToast(`Saved changes for "${name.trim()}"!`);
+  };
+
+  const handleDeleteSection = () => {
+    const updatedSections = (homepageConfig?.sections || []).filter((s) => s.id !== sectionId);
+    updateHomepageConfig({ ...homepageConfig, sections: updatedSections });
+    showToast(`Deleted section "${name}"`);
+    setIsDeleteModalOpen(false);
+    setActiveTab("homepage-layout");
+  };
+
+  const handleRemoveProduct = (pid) => {
+    setProductIds((prev) => prev.filter((id) => id !== pid));
+  };
+
+  const handleAddProducts = (newIds) => {
+    setProductIds((prev) => Array.from(new Set([...prev, ...newIds])));
+    setIsAddModalOpen(false);
+    showToast("Added products to section!");
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+      {/* Top Header Card */}
+      <div style={{ backgroundColor: "#FFFFFF", border: "1px solid #E7E7E2", borderRadius: "16px", padding: "24px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" }}>
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <span style={{ fontSize: "12px", fontWeight: "700", backgroundColor: "#EEF0FF", color: "#1B1F8C", padding: "3px 10px", borderRadius: "999px" }}>
+              Custom Section
+            </span>
+            {visible ? (
+              <span style={{ fontSize: "12px", fontWeight: "700", backgroundColor: "#DCFCE7", color: "#16A34A", padding: "3px 10px", borderRadius: "999px" }}>
+                ✓ Visible on Homepage
+              </span>
+            ) : (
+              <span style={{ fontSize: "12px", fontWeight: "700", backgroundColor: "#FEE2E2", color: "#DC2626", padding: "3px 10px", borderRadius: "999px" }}>
+                Hidden from Homepage
+              </span>
+            )}
+          </div>
+          <h2 style={{ fontSize: "22px", fontWeight: "800", color: "#1B1F8C", margin: "8px 0 4px 0" }}>{name || "Custom Section"}</h2>
+          <p style={{ fontSize: "14px", color: "#6B6B75", margin: 0 }}>{description || "No description set."}</p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setIsDeleteModalOpen(true)}
+          style={{
+            backgroundColor: "#FEF2F2",
+            color: "#DC2626",
+            border: "1px solid #FCA5A5",
+            borderRadius: "10px",
+            padding: "10px 18px",
+            fontSize: "13px",
+            fontWeight: "700",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: "6px"
+          }}
+        >
+          <Trash2 size={15} />
+          Delete Section
+        </button>
+      </div>
+
+      {/* Section Form */}
+      <form onSubmit={handleSave} style={{ backgroundColor: "#FFFFFF", border: "1px solid #E7E7E2", borderRadius: "16px", padding: "24px", display: "flex", flexDirection: "column", gap: "20px" }}>
+        <h3 style={{ fontSize: "16px", fontWeight: "700", color: "#14151A", margin: 0 }}>Section Configuration</h3>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+          <div>
+            <label style={labelStyle}>Section Name *</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              style={inputStyle}
+              required
+            />
+          </div>
+
+          <div>
+            <label style={labelStyle}>Short Description / Subtitle *</label>
+            <input
+              type="text"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              style={inputStyle}
+              required
+            />
+          </div>
+        </div>
+
+        {/* Background Color Field & Live Preview */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+          <label style={labelStyle}>Background Color *</label>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <input
+              type="color"
+              value={isValidHex(backgroundColor) ? backgroundColor : "#FFFFFF"}
+              onChange={(e) => setBackgroundColor(e.target.value.toUpperCase())}
+              style={{
+                width: "44px",
+                height: "38px",
+                padding: "2px",
+                border: "1px solid #E7E7E2",
+                borderRadius: "8px",
+                cursor: "pointer",
+                backgroundColor: "#FFFFFF",
+                flexShrink: 0
+              }}
+            />
+            <input
+              type="text"
+              value={backgroundColor}
+              onChange={(e) => {
+                let val = e.target.value;
+                if (!val.startsWith("#") && val.length > 0) val = "#" + val;
+                setBackgroundColor(val);
+              }}
+              placeholder="#FFFFFF"
+              style={{ ...inputStyle, width: "130px", textTransform: "uppercase", fontFamily: "monospace", fontWeight: "700" }}
+            />
+            <button
+              type="button"
+              onClick={() => setBackgroundColor("#FFFFFF")}
+              style={{
+                backgroundColor: "#F3F4F6",
+                color: "#4B5563",
+                border: "1px solid #D1D5DB",
+                borderRadius: "8px",
+                padding: "8px 14px",
+                fontSize: "12px",
+                fontWeight: "600",
+                cursor: "pointer",
+                whiteSpace: "nowrap"
+              }}
+            >
+              Reset to Default
+            </button>
+          </div>
+
+          {/* Live Section Color Preview */}
+          <div
+            style={{
+              marginTop: "10px",
+              padding: "16px 20px",
+              borderRadius: "12px",
+              backgroundColor: isValidHex(backgroundColor) ? backgroundColor : "#FFFFFF",
+              border: "1px solid #E7E7E2",
+              transition: "background-color 0.2s ease"
+            }}
+          >
+            <div style={{ fontSize: "11px", fontWeight: "800", textTransform: "uppercase", letterSpacing: "0.05em", color: isDarkHex(backgroundColor) ? "#94A3B8" : "#6B6B75", marginBottom: "4px" }}>
+              Live Section Background Preview
+            </div>
+            <div style={{ fontSize: "16px", fontWeight: "800", color: isDarkHex(backgroundColor) ? "#FFFFFF" : "#1B1F8C" }}>
+              {name || "Section Name Preview"}
+            </div>
+            <div style={{ fontSize: "12px", color: isDarkHex(backgroundColor) ? "#CBD5E1" : "#6B6B75" }}>
+              {description || "Section subtitle preview text..."}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <input
+            type="checkbox"
+            id="visible-check-edit"
+            checked={visible}
+            onChange={(e) => setVisible(e.target.checked)}
+            style={{ width: "18px", height: "18px", accentColor: "#1B1F8C" }}
+          />
+          <label htmlFor="visible-check-edit" style={{ fontSize: "14px", fontWeight: "600", color: "#14151A", cursor: "pointer" }}>
+            Visible on Customer Homepage
+          </label>
+        </div>
+
+        {/* Selected Products Section */}
+        <div style={{ borderTop: "1px solid #E7E7E2", paddingTop: "20px", marginTop: "4px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+            <div>
+              <h4 style={{ fontSize: "15px", fontWeight: "700", color: "#14151A", margin: 0 }}>Selected Products ({resolvedProducts.length})</h4>
+              <p style={{ fontSize: "12px", color: "#6B6B75", margin: "2px 0 0 0" }}>Manage products displayed in this homepage section.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsAddModalOpen(true)}
+              style={{ ...saveBtnStyle, padding: "8px 16px", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px" }}
+            >
+              <Plus size={14} /> Add Products
+            </button>
+          </div>
+
+          {resolvedProducts.length === 0 ? (
+            <div style={{ padding: "32px", textAlign: "center", backgroundColor: "#FAFAF7", borderRadius: "12px", border: "1px dashed #E7E7E2" }}>
+              <p style={{ color: "#6B6B75", margin: "0 0 12px 0" }}>No products added to this custom section yet.</p>
+              <button type="button" onClick={() => setIsAddModalOpen(true)} style={cancelBtnStyle}>
+                Select Products
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {resolvedProducts.map((p, idx) => {
+                const img = getProductPrimaryImage(p);
+                const catLabel = getProductCategoryLabel(p);
+                const price = getMinimumProductPrice(p);
+                return (
+                  <div
+                    key={p.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "14px",
+                      padding: "12px 16px",
+                      backgroundColor: "#FAFAF7",
+                      border: "1px solid #E7E7E2",
+                      borderRadius: "12px"
+                    }}
+                  >
+                    <span style={{ fontSize: "12px", fontWeight: "700", color: "#9CA3AF", width: "24px" }}>#{idx + 1}</span>
+                    <img src={img} alt="" style={{ width: "42px", height: "42px", objectFit: "cover", borderRadius: "8px" }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <strong style={{ fontSize: "14px", color: "#14151A", display: "block" }}>{p.name || p.title}</strong>
+                      <span style={{ fontSize: "12px", color: "#6B7280" }}>{catLabel} • {formatPrice(price)} • SKU: {p.id}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveProduct(p.id)}
+                      title="Remove product"
+                      style={{ border: "none", background: "none", color: "#DC2626", cursor: "pointer", padding: "6px" }}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", borderTop: "1px solid #E7E7E2", paddingTop: "16px" }}>
+          <button type="submit" style={{ ...saveBtnStyle, padding: "12px 28px", fontSize: "14px" }}>
+            Save Changes
+          </button>
+        </div>
+      </form>
+
+      {/* Product Selector Modal */}
+      {isAddModalOpen && (
+        <SelectProductsModal
+          isOpen={isAddModalOpen}
+          onClose={() => setIsAddModalOpen(false)}
+          onAdd={handleAddProducts}
+          existingProductIds={new Set(productIds)}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {isDeleteModalOpen && (
+        <div style={modalOverlayStyle}>
+          <div style={{ ...modalContentStyle, maxWidth: "440px", padding: "24px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px", color: "#DC2626" }}>
+              <AlertTriangle size={24} />
+              <h3 style={{ fontSize: "18px", fontWeight: "800", margin: 0, color: "#14151A" }}>Delete Homepage Section?</h3>
+            </div>
+            <p style={{ fontSize: "14px", color: "#6B6B75", margin: "0 0 20px 0" }}>
+              Are you sure you want to delete the <strong>"{name}"</strong> homepage section? This will remove the section from Content tabs, Homepage Layout, and the customer homepage. Products in your catalogue will NOT be deleted.
+            </p>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px" }}>
+              <button type="button" onClick={() => setIsDeleteModalOpen(false)} style={cancelBtnStyle}>
+                Cancel
+              </button>
+              <button type="button" onClick={handleDeleteSection} style={{ ...saveBtnStyle, backgroundColor: "#DC2626" }}>
+                Yes, Delete Section
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -106,10 +106,10 @@ export function StoreProvider({ children }) {
         if (savedReviews) {
           const parsed = JSON.parse(savedReviews);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            setReviews(parsed);
+            setReviews((prev) => (JSON.stringify(prev) === JSON.stringify(parsed) ? prev : parsed));
           }
         } else {
-          setReviews(MOCK_REVIEWS);
+          setReviews((prev) => (JSON.stringify(prev) === JSON.stringify(MOCK_REVIEWS) ? prev : MOCK_REVIEWS));
         }
       } catch (e) {
         console.error("Failed to load reviews from localStorage:", e);
@@ -120,9 +120,11 @@ export function StoreProvider({ children }) {
         const savedBanners = localStorage.getItem("mellosoft_banners");
         if (savedBanners) {
           const parsed = JSON.parse(savedBanners);
-          if (Array.isArray(parsed) && parsed.length > 0) setBanners(parsed);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setBanners((prev) => (JSON.stringify(prev) === JSON.stringify(parsed) ? prev : parsed));
+          }
         } else {
-          setBanners(MOCK_BANNERS);
+          setBanners((prev) => (JSON.stringify(prev) === JSON.stringify(MOCK_BANNERS) ? prev : MOCK_BANNERS));
         }
       } catch (e) {
         console.error("Failed to load banners from localStorage:", e);
@@ -134,7 +136,7 @@ export function StoreProvider({ children }) {
         if (savedConfig) {
           const parsed = JSON.parse(savedConfig);
           if (parsed && Array.isArray(parsed.sections) && parsed.sections.length > 0) {
-            setHomepageConfig(parsed);
+            setHomepageConfig((prev) => (JSON.stringify(prev) === JSON.stringify(parsed) ? prev : parsed));
           }
         }
       } catch (e) {
@@ -147,7 +149,8 @@ export function StoreProvider({ children }) {
         if (savedNA) {
           const parsed = JSON.parse(savedNA);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            setNewArrivalItems(parsed.map((item, idx) => ({ ...item, displayOrder: idx + 1 })));
+            const nextNA = parsed.map((item, idx) => ({ ...item, displayOrder: idx + 1 }));
+            setNewArrivalItems((prev) => (JSON.stringify(prev) === JSON.stringify(nextNA) ? prev : nextNA));
           }
         }
       } catch (e) {
@@ -160,7 +163,8 @@ export function StoreProvider({ children }) {
         if (savedBS) {
           const parsed = JSON.parse(savedBS);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            setBestSellerItems(parsed.map((item, idx) => ({ ...item, displayOrder: idx + 1 })));
+            const nextBS = parsed.map((item, idx) => ({ ...item, displayOrder: idx + 1 }));
+            setBestSellerItems((prev) => (JSON.stringify(prev) === JSON.stringify(nextBS) ? prev : nextBS));
           }
         }
       } catch (e) {
@@ -256,12 +260,14 @@ export function StoreProvider({ children }) {
               }
             });
 
-            setProducts(merged);
+            setProducts((prev) => (JSON.stringify(prev) === JSON.stringify(merged) ? prev : merged));
           } else {
-            setProducts(activeMaster.map((item) => ensureProductPricing(item)));
+            const nextMaster = activeMaster.map((item) => ensureProductPricing(item));
+            setProducts((prev) => (JSON.stringify(prev) === JSON.stringify(nextMaster) ? prev : nextMaster));
           }
         } else {
-          setProducts(activeMaster.map((item) => ensureProductPricing(item)));
+          const nextMaster = activeMaster.map((item) => ensureProductPricing(item));
+          setProducts((prev) => (JSON.stringify(prev) === JSON.stringify(nextMaster) ? prev : nextMaster));
         }
       } catch (e) {
         console.error("Failed to load products from localStorage:", e);
@@ -272,7 +278,9 @@ export function StoreProvider({ children }) {
         const savedOrders = localStorage.getItem("mellosoft_orders");
         if (savedOrders) {
           const parsed = JSON.parse(savedOrders);
-          if (Array.isArray(parsed) && parsed.length > 0) setOrders(parsed);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setOrders((prev) => (JSON.stringify(prev) === JSON.stringify(parsed) ? prev : parsed));
+          }
         }
       } catch (e) {
         console.error("Failed to load orders from localStorage:", e);

@@ -299,6 +299,42 @@ export default function HomeView() {
 
 
           default:
+            if (section.isCustom || section.type === "product-section" || (section.id && String(section.id).startsWith("custom-section-"))) {
+              const allProds = (products && products.length > 0) ? products : MOCK_PRODUCTS;
+              const resolvedCustomProducts = (section.productIds || [])
+                .map((pid) => allProds.find((p) => String(p.id || "").trim().toLowerCase() === String(pid || "").trim().toLowerCase() || String(p.Product_Id || "").trim().toLowerCase() === String(pid || "").trim().toLowerCase() || String(p.slug || "").trim().toLowerCase() === String(pid || "").trim().toLowerCase()))
+                .filter(Boolean);
+
+              const secBg = section.backgroundColor || section.styles?.backgroundColor || "#FFFFFF";
+              
+              // Helper to check if hex color is dark
+              let isDark = false;
+              if (secBg && /^#([0-9A-F]{3}){1,2}$/i.test(secBg)) {
+                let c = secBg.replace("#", "");
+                if (c.length === 3) c = c.split("").map((x) => x + x).join("");
+                if (c.length === 6) {
+                  const r = parseInt(c.substring(0, 2), 16);
+                  const g = parseInt(c.substring(2, 4), 16);
+                  const b = parseInt(c.substring(4, 6), 16);
+                  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+                  isDark = brightness < 140;
+                }
+              }
+
+              return (
+                <ProductRow
+                  key={section.id}
+                  title={section.name || section.label || "Featured Section"}
+                  tagline={section.description || section.subtitle || ""}
+                  products={resolvedCustomProducts}
+                  background={secBg}
+                  titleColor={isDark ? "#FFFFFF" : undefined}
+                  taglineColor={isDark ? "#CBD5E1" : undefined}
+                  onAction={() => goToCatalog("All")}
+                  scrollable
+                />
+              );
+            }
             return null;
         }
       })}

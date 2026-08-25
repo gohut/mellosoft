@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
 import { MOCK_PRODUCTS } from "../../data/products";
 import { MOCK_CATEGORIES, MOCK_ORDERS, MOCK_CUSTOMERS, MOCK_WISHLISTS, MOCK_CARTS, MOCK_REVIEWS, MOCK_BANNERS } from "../data/adminMockData";
 import { DEFAULT_ROLES } from "../../data/rolesData";
@@ -95,14 +95,21 @@ const sanitizeHomepageConfig = (configSections, currentBanners, isInitialHydrati
       return;
     }
 
-    // Global section items
+    // Global section items & Custom Section items
     const globalDef = ALL_GLOBAL_SECTIONS.find((g) => g.id === sec.id || (sec.id === "about-section" && g.id === "about-us"));
+    const isCustomSection = sec.isCustom === true || (sec.type === "product-section" && !globalDef);
+
     result.push({
       ...sec,
       id: globalDef ? globalDef.id : sec.id,
-      label: globalDef ? globalDef.label : sec.label,
-      description: globalDef ? globalDef.description : sec.description,
-      type: sec.type || "global",
+      label: sec.name || (globalDef ? globalDef.label : sec.label),
+      name: sec.name || (globalDef ? globalDef.label : sec.label),
+      description: sec.description !== undefined ? sec.description : (globalDef ? globalDef.description : ""),
+      backgroundColor: sec.backgroundColor || sec.styles?.backgroundColor || "#FFFFFF",
+      styles: sec.styles || { backgroundColor: sec.backgroundColor || "#FFFFFF" },
+      type: sec.type || (globalDef ? "global" : "product-section"),
+      isCustom: isCustomSection,
+      productIds: sec.productIds || [],
       visible: sec.visible !== false,
     });
   });
@@ -405,7 +412,11 @@ export function AdminProvider({ children }) {
 
   // Sync homepageConfig layout entries whenever banners update
   useEffect(() => {
-    setHomepageConfig((prev) => sanitizeHomepageConfig(prev?.sections || [], banners));
+    setHomepageConfig((prev) => {
+      const sanitized = sanitizeHomepageConfig(prev?.sections || [], banners);
+      if (JSON.stringify(prev?.sections) === JSON.stringify(sanitized?.sections)) return prev;
+      return sanitized;
+    });
   }, [banners]);
 
   // Hydrate banner types from localStorage
@@ -479,10 +490,19 @@ export function AdminProvider({ children }) {
 
   const [returnToBestSellers, setReturnToBestSellers] = useState(false);
 
+  const isFirstBannersRef = useRef(true);
+  const isFirstNARef = useRef(true);
+  const isFirstBSRef = useRef(true);
+  const isFirstHomepageRef = useRef(true);
+
   // Persist banners to localStorage
   useEffect(() => {
     try {
       localStorage.setItem(BANNERS_STORAGE_KEY, JSON.stringify(banners));
+      if (isFirstBannersRef.current) {
+        isFirstBannersRef.current = false;
+        return;
+      }
       if (typeof window !== "undefined") {
         setTimeout(() => {
           window.dispatchEvent(new Event("storage"));
@@ -506,6 +526,10 @@ export function AdminProvider({ children }) {
   useEffect(() => {
     try {
       localStorage.setItem("mellosoft_new_arrivals_config", JSON.stringify(newArrivalItems));
+      if (isFirstNARef.current) {
+        isFirstNARef.current = false;
+        return;
+      }
       if (typeof window !== "undefined") {
         setTimeout(() => {
           window.dispatchEvent(new Event("storage"));
@@ -520,6 +544,10 @@ export function AdminProvider({ children }) {
   useEffect(() => {
     try {
       localStorage.setItem("mellosoft_best_sellers_config", JSON.stringify(bestSellerItems));
+      if (isFirstBSRef.current) {
+        isFirstBSRef.current = false;
+        return;
+      }
       if (typeof window !== "undefined") {
         setTimeout(() => {
           window.dispatchEvent(new Event("storage"));
@@ -534,6 +562,10 @@ export function AdminProvider({ children }) {
   useEffect(() => {
     try {
       localStorage.setItem(HOMEPAGE_CONFIG_KEY, JSON.stringify(homepageConfig));
+      if (isFirstHomepageRef.current) {
+        isFirstHomepageRef.current = false;
+        return;
+      }
       if (typeof window !== "undefined") {
         setTimeout(() => {
           window.dispatchEvent(new Event("storage"));
@@ -648,7 +680,9 @@ export function AdminProvider({ children }) {
         const savedOrders = localStorage.getItem(ORDERS_STORAGE_KEY);
         if (savedOrders) {
           const parsed = JSON.parse(savedOrders);
-          if (Array.isArray(parsed)) setOrders(parsed);
+          if (Array.isArray(parsed)) {
+            setOrders((prev) => (JSON.stringify(prev) === JSON.stringify(parsed) ? prev : parsed));
+          }
         }
       } catch (e) {
         console.error("Failed to sync orders in AdminContext:", e);
@@ -658,7 +692,9 @@ export function AdminProvider({ children }) {
         const savedCustomers = localStorage.getItem(CUSTOMERS_STORAGE_KEY);
         if (savedCustomers) {
           const parsed = JSON.parse(savedCustomers);
-          if (Array.isArray(parsed)) setCustomers(parsed);
+          if (Array.isArray(parsed)) {
+            setCustomers((prev) => (JSON.stringify(prev) === JSON.stringify(parsed) ? prev : parsed));
+          }
         }
       } catch (e) {
         console.error("Failed to sync customers in AdminContext:", e);
@@ -668,7 +704,9 @@ export function AdminProvider({ children }) {
         const savedReviews = localStorage.getItem(REVIEWS_STORAGE_KEY);
         if (savedReviews) {
           const parsed = JSON.parse(savedReviews);
-          if (Array.isArray(parsed)) setReviews(parsed);
+          if (Array.isArray(parsed)) {
+            setReviews((prev) => (JSON.stringify(prev) === JSON.stringify(parsed) ? prev : parsed));
+          }
         }
       } catch (e) {
         console.error("Failed to sync reviews in AdminContext:", e);
@@ -678,7 +716,9 @@ export function AdminProvider({ children }) {
         const savedProducts = localStorage.getItem(PRODUCTS_STORAGE_KEY);
         if (savedProducts) {
           const parsed = JSON.parse(savedProducts);
-          if (Array.isArray(parsed) && parsed.length > 0) setProducts(parsed);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setProducts((prev) => (JSON.stringify(prev) === JSON.stringify(parsed) ? prev : parsed));
+          }
         }
       } catch (e) {
         console.error("Failed to sync products in AdminContext:", e);
@@ -738,6 +778,8 @@ export function AdminProvider({ children }) {
     if (typeof window !== "undefined") {
       try {
         localStorage.setItem(REVIEWS_STORAGE_KEY, JSON.stringify(reviews));
+        window.dispatchEvent(new Event("storage"));
+        window.dispatchEvent(new CustomEvent("mellosoft_reviews_updated"));
       } catch (e) {
         console.error("Failed to save reviews to localStorage:", e);
       }
