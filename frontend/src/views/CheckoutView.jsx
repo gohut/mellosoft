@@ -22,9 +22,25 @@ export default function CheckoutView() {
   const { currentCustomer } = useCustomerAuth();
   const userId = currentCustomer ? currentCustomer.id : "C001";
 
-  // Active items for checkout (fallback to cart if checkoutItems is empty)
+  const [isHydrated, setIsHydrated] = useState(false);
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
+
+  // Active items for checkout (fallback to cart or sessionStorage if checkoutItems is empty)
   const items = useMemo(() => {
-    return checkoutItems && checkoutItems.length > 0 ? checkoutItems : cart;
+    if (checkoutItems && checkoutItems.length > 0) return checkoutItems;
+    if (cart && cart.length > 0) return cart;
+    if (typeof window !== "undefined") {
+      try {
+        const saved = sessionStorage.getItem("mellosoft_checkout_items");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch {}
+    }
+    return [];
   }, [checkoutItems, cart]);
 
   // Saved address for this user
@@ -111,6 +127,16 @@ export default function CheckoutView() {
     }
     navigateTo("payment");
   };
+
+  if (!isHydrated) {
+    return (
+      <div style={emptyContainerStyle}>
+        <div style={emptyCardStyle}>
+          <p style={{ color: "#6B6B75", margin: 0 }}>Loading checkout...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!items || items.length === 0) {
     return (

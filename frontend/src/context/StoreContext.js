@@ -9,7 +9,7 @@ import { getVariantForSelection } from "../utils/variantHelpers";
 import { ensureProductPricing } from "../utils/pricingEngine";
 import { getProductPrimaryImage, getDeletedProductIds, isProductDeleted, ensureRequiredCategories } from "../utils/productHelpers";
 import { useCustomerAuth } from "./CustomerAuthContext";
-import { getSavedSettings, saveSettingsToStorage, normalizeSettings, SETTINGS_UPDATED_EVENT } from "../utils/settingsHelpers";
+import { DEFAULT_SETTINGS, getSavedSettings, saveSettingsToStorage, normalizeSettings, SETTINGS_UPDATED_EVENT } from "../utils/settingsHelpers";
 
 const StoreContext = createContext();
 
@@ -39,54 +39,21 @@ export function StoreProvider({ children }) {
   const [products, setProducts] = useState(MOCK_PRODUCTS);
 
   // Orders State synchronized with localStorage ("mellosoft_orders")
-  const [orders, setOrders] = useState(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const isReset = localStorage.getItem("mellosoft_orders_reset_v1");
-        if (isReset !== "completed") {
-          localStorage.setItem("mellosoft_orders", JSON.stringify([]));
-          localStorage.setItem("mellosoft_admin_orders", JSON.stringify([]));
-          localStorage.setItem("mellosoft_admin_notifications", JSON.stringify([]));
-          localStorage.setItem("mellosoft_orders_reset_v1", "completed");
-          return [];
-        }
-        const saved = localStorage.getItem("mellosoft_orders");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) return parsed;
-        }
-      } catch (e) {
-        console.error("Failed to load orders from localStorage:", e);
-      }
-    }
-    return [];
-  });
+  const [orders, setOrders] = useState([]);
 
   // Reviews State synchronized with localStorage ("mellosoft_reviews")
-  const [reviews, setReviews] = useState(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const saved = localStorage.getItem("mellosoft_reviews");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) return parsed;
-        }
-      } catch (e) {
-        console.error("Failed to load reviews from localStorage:", e);
-      }
-    }
-    return [];
-  });
+  const [reviews, setReviews] = useState(MOCK_REVIEWS);
 
   const [banners, setBanners] = useState(MOCK_BANNERS);
 
   // Global Store Settings synchronized with localStorage ("mellosoft_settings")
-  const [settings, setSettings] = useState(() => getSavedSettings());
+  const [settings, setSettings] = useState(() => ({ ...DEFAULT_SETTINGS }));
 
   useEffect(() => {
     const handleSync = () => {
       setSettings(getSavedSettings());
     };
+    handleSync();
     if (typeof window !== "undefined") {
       window.addEventListener("storage", handleSync);
       window.addEventListener(SETTINGS_UPDATED_EVENT, handleSync);
@@ -108,22 +75,7 @@ export function StoreProvider({ children }) {
   }, []);
 
   // Categories — loaded from localStorage (set by AdminContext) or fall back to defaults
-  const [categories, setCategories] = useState(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const saved = localStorage.getItem("mellosoft_categories");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            return ensureRequiredCategories(parsed);
-          }
-        }
-      } catch (e) {
-        // ignore
-      }
-    }
-    return ensureRequiredCategories(MOCK_CATEGORIES);
-  });
+  const [categories, setCategories] = useState(() => ensureRequiredCategories(MOCK_CATEGORIES));
 
   // New Arrival Config State synchronized with localStorage ("mellosoft_new_arrivals_config")
   const [newArrivalItems, setNewArrivalItems] = useState([
@@ -162,34 +114,28 @@ export function StoreProvider({ children }) {
   });
 
   // ─── Checkout Flow State (persisted to sessionStorage for navigation reliability) ─
-  const [checkoutItems, setCheckoutItems] = useState(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const saved = sessionStorage.getItem("mellosoft_checkout_items");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-        }
-      } catch {}
-    }
-    return [];
-  });
-
-  const [selectedAddress, setSelectedAddress] = useState(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const saved = sessionStorage.getItem("mellosoft_selected_address");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (parsed && typeof parsed === "object") return parsed;
-        }
-      } catch {}
-    }
-    return null;
-  });
-
+  const [checkoutItems, setCheckoutItems] = useState([]);
+  const [selectedAddress, setSelectedAddress] = useState(null);
   const [userAddresses, setUserAddresses] = useState({});
   const [selectedOrderId, setSelectedOrderId] = useState(null);
+
+  // Load checkout session state on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const savedCheckout = sessionStorage.getItem("mellosoft_checkout_items");
+        if (savedCheckout) {
+          const parsed = JSON.parse(savedCheckout);
+          if (Array.isArray(parsed) && parsed.length > 0) setCheckoutItems(parsed);
+        }
+        const savedAddr = sessionStorage.getItem("mellosoft_selected_address");
+        if (savedAddr) {
+          const parsedAddr = JSON.parse(savedAddr);
+          if (parsedAddr && typeof parsedAddr === "object") setSelectedAddress(parsedAddr);
+        }
+      } catch {}
+    }
+  }, []);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -237,10 +183,24 @@ export function StoreProvider({ children }) {
             setReviews((prev) => (JSON.stringify(prev) === JSON.stringify(parsed) ? prev : parsed));
           }
         } else {
-          setReviews([]);
+          setReviews((prev) => (JSON.stringify(prev) === JSON.stringify(MOCK_REVIEWS) ? prev : MOCK_REVIEWS));
         }
       } catch (e) {
         console.error("Failed to load reviews from localStorage:", e);
+      }
+
+      // Sync categories
+      try {
+        const savedCategories = localStorage.getItem("mellosoft_categories");
+        if (savedCategories) {
+          const parsed = JSON.parse(savedCategories);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const nextCats = ensureRequiredCategories(parsed);
+            setCategories((prev) => (JSON.stringify(prev) === JSON.stringify(nextCats) ? prev : nextCats));
+          }
+        }
+      } catch (e) {
+        // ignore
       }
 
       // Sync banners
@@ -592,8 +552,8 @@ export function StoreProvider({ children }) {
       return;
     }
 
-    // Auth protection for customer-specific pages if accessing while logged out
-    const protectedViews = ["orders", "profile", "checkout", "payment", "confirmation"];
+    // Auth protection for customer-specific pages if accessing while logged out (orders, profile)
+    const protectedViews = ["orders", "profile"];
     if (protectedViews.includes(newView) && !isAuthenticated) {
       setIntendedView(newView);
       setAuthModal("login");
@@ -790,7 +750,12 @@ export function StoreProvider({ children }) {
       }
     }
 
-    setCart([]);
+    const isBuyNowOrder = (newOrder.items || []).some(
+      (i) => String(i.cartItemId || "").startsWith("buynow-")
+    );
+    if (!isBuyNowOrder) {
+      setCart([]);
+    }
     setCheckoutItems([]);
     if (typeof window !== "undefined") {
       try {

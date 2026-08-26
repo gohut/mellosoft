@@ -257,22 +257,21 @@ export default function ProductDetailView({ productId: initialProductId }) {
 
   const handleBuyNow = () => {
     if (!product) return;
-    if (!selectedSize || !selectedFirmness) {
-      return;
-    }
+    const firmnessVal = selectedFirmness || (product.availableFirmness || product.firmnessOptions)?.[0] || "Standard";
+    const sizeVal = selectedSize || (product.availableSizes || product.sizeOptions)?.[0] || "Standard";
     if (isVariantOutOfStock) return;
 
     // Build a single checkout item from the selected variant
     const checkoutItem = {
-      cartItemId: `buynow-${product.id}-${selectedFirmness}-${selectedSize}`,
+      cartItemId: `buynow-${product.id}-${firmnessVal}-${sizeVal}`,
       productId: product.id,
       id: product.id,
       productName: product.name,
       name: product.name,
       category: product.category || "mattress",
-      size: selectedSize,
-      firmness: selectedFirmness,
-      sku: selectedVariant?.SKU || `MEL-${(selectedSize || "STD").toUpperCase()}-${(selectedFirmness || "STD").toUpperCase()}`,
+      size: sizeVal,
+      firmness: firmnessVal,
+      sku: selectedVariant?.SKU || `MEL-${(sizeVal || "STD").toUpperCase()}-${(firmnessVal || "STD").toUpperCase()}`,
       quantity: quantity,
       qty: quantity,
       actualPrice: actualPriceForSize,
@@ -285,7 +284,9 @@ export default function ProductDetailView({ productId: initialProductId }) {
     if (typeof window !== "undefined") {
       try {
         sessionStorage.setItem("mellosoft_checkout_items", JSON.stringify([checkoutItem]));
-      } catch {}
+      } catch (e) {
+        console.error("Failed to save buy now item to sessionStorage:", e);
+      }
     }
     navigateTo("checkout");
   };
