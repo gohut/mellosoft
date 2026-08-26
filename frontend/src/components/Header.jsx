@@ -7,6 +7,7 @@ import { useCustomerAuth } from "../context/CustomerAuthContext";
 import { MOCK_PRODUCTS } from "../data/products";
 import { formatPrice } from "../utils/currency";
 import { getResolvedImageUrlSync } from "../utils/imageStorage";
+import { getListingBackRoute } from "../utils/navigationHelpers";
 
 export default function Header() {
   const pathname = usePathname() || "/";
@@ -146,11 +147,16 @@ export default function Header() {
   };
 
   const goBack = () => {
-    if (typeof window !== "undefined" && window.history.length > 1) {
+    // Product detail pages use actual browser history (supports all entry points:
+    // listing, homepage, wishlist, search, You May Also Like chains)
+    if (isDetailView) {
       router.back();
       return;
     }
-    handleNavClick("/");
+    // Listing and subcategory pages use the explicit hierarchy helper:
+    // main listing -> "/", subcategory -> parent main category
+    const backRoute = getListingBackRoute(pathname);
+    handleNavClick(backRoute);
   };
 
   const handleMobileBack = () => {

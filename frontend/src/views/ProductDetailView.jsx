@@ -252,7 +252,24 @@ export default function ProductDetailView({ productId: initialProductId }) {
   };
 
   const goBackToCatalog = () => {
-    navigateTo("catalog");
+    // Always use browser history first — this correctly handles:
+    // /mattresses → product → Back → /mattresses
+    // / (home) → product → Back → /
+    // /wishlist → product → Back → /wishlist
+    // /search → product → Back → /search
+    // Product A → Product B (You May Also Like) → Back → Product A
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+      return;
+    }
+    // Fallback for direct URL entry (no history): route to canonical parent category
+    if (isBedFrame) {
+      router.push("/bed-frames");
+    } else if (isAccessory) {
+      router.push("/accessories");
+    } else {
+      router.push("/mattresses");
+    }
   };
 
   const handleBuyNow = () => {
