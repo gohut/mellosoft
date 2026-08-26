@@ -147,16 +147,65 @@ export default function Header() {
   };
 
   const goBack = () => {
-    // Product detail pages use actual browser history (supports all entry points:
-    // listing, homepage, wishlist, search, You May Also Like chains)
-    if (isDetailView) {
+    if (!pathname) {
       router.back();
       return;
     }
-    // Listing and subcategory pages use the explicit hierarchy helper:
-    // main listing -> "/", subcategory -> parent main category
-    const backRoute = getListingBackRoute(pathname);
-    handleNavClick(backRoute);
+
+    // ── PRODUCT DETAIL ──────────────────────────────────────────────────────
+    // Note: mobile header is hidden on /product/* so this branch only fires
+    // if goBack() is ever called directly from desktop or fallback.
+    if (pathname.startsWith("/product/")) {
+      router.back();
+      return;
+    }
+
+    // ── MAIN LISTING PAGES → Home ────────────────────────────────────────────
+    if (
+      pathname === "/mattresses" ||
+      pathname === "/accessories" ||
+      pathname === "/bed-frames"
+    ) {
+      handleNavClick("/");
+      return;
+    }
+
+    // ── MATTRESS SUBCATEGORY → /mattresses ───────────────────────────────────
+    if (pathname.startsWith("/mattresses/")) {
+      handleNavClick("/mattresses");
+      return;
+    }
+
+    // ── ACCESSORIES SUBCATEGORY → /accessories ───────────────────────────────
+    if (pathname.startsWith("/accessories/")) {
+      handleNavClick("/accessories");
+      return;
+    }
+
+    // ── BED-FRAMES SUBCATEGORY → /bed-frames ─────────────────────────────────
+    if (pathname.startsWith("/bed-frames/")) {
+      handleNavClick("/bed-frames");
+      return;
+    }
+
+    // ── GENERIC CATEGORY ROUTES ─────────────────────────────────────────────
+    const parts = pathname.split("/").filter(Boolean);
+
+    // /category/[mainSlug] → Home
+    if (parts[0] === "category" && parts.length === 2) {
+      handleNavClick("/");
+      return;
+    }
+
+    // /category/[mainSlug]/[subSlug] → /category/[mainSlug]
+    if (parts[0] === "category" && parts.length >= 3) {
+      handleNavClick(`/category/${parts[1]}`);
+      return;
+    }
+
+    // ── DEFAULT FALLBACK ─────────────────────────────────────────────────────
+    // For any unrecognized page (about, contact, policy pages, etc.) → Home
+    handleNavClick("/");
   };
 
   const handleMobileBack = () => {
@@ -167,6 +216,7 @@ export default function Header() {
     }
     goBack();
   };
+
 
   return (
     <>
