@@ -420,9 +420,32 @@ export function StoreProvider({ children }) {
       fetchServerHomepageData();
     };
 
+    const handleHomepageEvent = (e) => {
+      if (e?.detail) {
+        if (e.detail.homepageConfig && Array.isArray(e.detail.homepageConfig.sections) && e.detail.homepageConfig.sections.length > 0) {
+          setHomepageConfig((prev) => (JSON.stringify(prev) === JSON.stringify(e.detail.homepageConfig) ? prev : e.detail.homepageConfig));
+        }
+        if (Array.isArray(e.detail.banners) && e.detail.banners.length > 0) {
+          setBanners((prev) => (JSON.stringify(prev) === JSON.stringify(e.detail.banners) ? prev : e.detail.banners));
+        }
+        if (Array.isArray(e.detail.newArrivalItems) && e.detail.newArrivalItems.length > 0) {
+          const nextNA = e.detail.newArrivalItems.map((item, idx) => ({ ...item, displayOrder: idx + 1 }));
+          setNewArrivalItems((prev) => (JSON.stringify(prev) === JSON.stringify(nextNA) ? prev : nextNA));
+        }
+        if (Array.isArray(e.detail.bestSellerItems) && e.detail.bestSellerItems.length > 0) {
+          const nextBS = e.detail.bestSellerItems.map((item, idx) => ({ ...item, displayOrder: idx + 1 }));
+          setBestSellerItems((prev) => (JSON.stringify(prev) === JSON.stringify(nextBS) ? prev : nextBS));
+        }
+      }
+      syncStore();
+      fetchServerHomepageData();
+    };
+
     window.addEventListener("storage", syncStore);
     window.addEventListener("mellosoft_orders_updated", syncStore);
     window.addEventListener("mellosoft:products-updated", syncStore);
+    window.addEventListener("mellosoft_homepage_updated", handleHomepageEvent);
+    window.addEventListener("mellosoft_banners_updated", handleHomepageEvent);
     window.addEventListener("focus", handleFocus);
     document.addEventListener("visibilitychange", handleFocus);
 
@@ -441,6 +464,8 @@ export function StoreProvider({ children }) {
       window.removeEventListener("storage", syncStore);
       window.removeEventListener("mellosoft_orders_updated", syncStore);
       window.removeEventListener("mellosoft:products-updated", syncStore);
+      window.removeEventListener("mellosoft_homepage_updated", handleHomepageEvent);
+      window.removeEventListener("mellosoft_banners_updated", handleHomepageEvent);
       window.removeEventListener("focus", handleFocus);
       document.removeEventListener("visibilitychange", handleFocus);
     };

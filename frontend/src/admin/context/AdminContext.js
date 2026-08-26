@@ -199,12 +199,17 @@ const sanitizeHomepageConfig = (configSections, currentBanners) => {
     const globalDef = ALL_GLOBAL_SECTIONS.find((g) => g.id === sec.id);
     const isCustomSection = sec.isCustom === true || (sec.type === "product-section" && !globalDef);
 
+    const resolvedLabel = sec.label || sec.name || sec.title || (globalDef ? globalDef.label : "Section");
+    const resolvedDesc = sec.description !== undefined ? sec.description : (sec.subtitle !== undefined ? sec.subtitle : (globalDef ? globalDef.description : ""));
+
     result.push({
       ...sec,
       id: globalDef ? globalDef.id : sec.id,
-      label: sec.name || (globalDef ? globalDef.label : sec.label),
-      name: sec.name || (globalDef ? globalDef.label : sec.label),
-      description: sec.description !== undefined ? sec.description : (globalDef ? globalDef.description : ""),
+      label: resolvedLabel,
+      name: resolvedLabel,
+      title: resolvedLabel,
+      description: resolvedDesc,
+      subtitle: resolvedDesc,
       backgroundColor: sec.backgroundColor || sec.styles?.backgroundColor || "#FFFFFF",
       styles: sec.styles || { backgroundColor: sec.backgroundColor || "#FFFFFF" },
       type: sec.type || (globalDef ? "global" : "product-section"),
@@ -703,6 +708,8 @@ export function AdminProvider({ children }) {
       syncHomepageToServer({ banners });
       if (typeof window !== "undefined") {
         setTimeout(() => {
+          window.dispatchEvent(new CustomEvent("mellosoft_homepage_updated", { detail: { banners } }));
+          window.dispatchEvent(new CustomEvent("mellosoft_banners_updated", { detail: { banners } }));
           window.dispatchEvent(new Event("storage"));
         }, 0);
       }
@@ -732,6 +739,7 @@ export function AdminProvider({ children }) {
       syncHomepageToServer({ newArrivalItems });
       if (typeof window !== "undefined") {
         setTimeout(() => {
+          window.dispatchEvent(new CustomEvent("mellosoft_homepage_updated", { detail: { newArrivalItems } }));
           window.dispatchEvent(new Event("storage"));
         }, 0);
       }
@@ -751,6 +759,7 @@ export function AdminProvider({ children }) {
       syncHomepageToServer({ bestSellerItems });
       if (typeof window !== "undefined") {
         setTimeout(() => {
+          window.dispatchEvent(new CustomEvent("mellosoft_homepage_updated", { detail: { bestSellerItems } }));
           window.dispatchEvent(new Event("storage"));
         }, 0);
       }
@@ -770,6 +779,7 @@ export function AdminProvider({ children }) {
       syncHomepageToServer({ homepageConfig });
       if (typeof window !== "undefined") {
         setTimeout(() => {
+          window.dispatchEvent(new CustomEvent("mellosoft_homepage_updated", { detail: { homepageConfig } }));
           window.dispatchEvent(new Event("storage"));
         }, 0);
       }

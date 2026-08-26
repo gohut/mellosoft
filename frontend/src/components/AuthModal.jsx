@@ -139,6 +139,7 @@ export default function AuthModal({ type = "login", onClose }) {
    ───────────────────────────────────────────────────────────── */
 function LoginForm({ onSwitchToSignup, onSwitchToForgot, onSuccess }) {
   const { login } = useCustomerAuth();
+  const { settings } = useStore();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -340,6 +341,7 @@ function LoginForm({ onSwitchToSignup, onSwitchToForgot, onSuccess }) {
    ───────────────────────────────────────────────────────────── */
 function SignupForm({ onSwitchToLogin, onSuccess }) {
   const { signup } = useCustomerAuth();
+  const { settings } = useStore();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -579,6 +581,7 @@ function SignupForm({ onSwitchToLogin, onSuccess }) {
    FORGOT PASSWORD FORM COMPONENT (Popup Version)
    ───────────────────────────────────────────────────────────── */
 function ForgotPasswordForm({ onSwitchToLogin }) {
+  const { settings } = useStore();
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);

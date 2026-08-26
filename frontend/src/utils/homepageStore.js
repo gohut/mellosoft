@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { MOCK_BANNERS } from "../admin/data/adminMockData";
+import { MOCK_BANNERS } from "../admin/data/adminMockData.js";
 
 const DEFAULT_BANNER_TYPES = [
   { id: "type-offer", name: "Offer" },
@@ -57,18 +57,17 @@ function getInitialState() {
   };
 }
 
-// Global server memory store
-let globalStore = null;
-
-function loadFromDiskOrDefaults() {
-  if (globalStore) return globalStore;
+function getStoreInstance() {
+  if (globalThis.__mellosoft_homepage_store) {
+    return globalThis.__mellosoft_homepage_store;
+  }
 
   try {
     if (fs.existsSync(STORAGE_FILE)) {
       const content = fs.readFileSync(STORAGE_FILE, "utf-8");
       const parsed = JSON.parse(content);
       if (parsed && typeof parsed === "object") {
-        globalStore = {
+        globalThis.__mellosoft_homepage_store = {
           homepageConfig: parsed.homepageConfig || { sections: DEFAULT_HOMEPAGE_SECTIONS },
           banners: Array.isArray(parsed.banners) ? parsed.banners : MOCK_BANNERS,
           bannerTypes: Array.isArray(parsed.bannerTypes) ? parsed.bannerTypes : DEFAULT_BANNER_TYPES,
@@ -76,26 +75,25 @@ function loadFromDiskOrDefaults() {
           bestSellerItems: Array.isArray(parsed.bestSellerItems) ? parsed.bestSellerItems : DEFAULT_BEST_SELLERS,
           updatedAt: parsed.updatedAt || new Date().toISOString()
         };
-        return globalStore;
+        return globalThis.__mellosoft_homepage_store;
       }
     }
   } catch (e) {
-    console.warn("Could not read homepage_content.json from disk, falling back to defaults:", e.message);
+    console.warn("Could not read homepage_content.json from disk, falling back to initial defaults:", e.message);
   }
 
-  globalStore = getInitialState();
-  return globalStore;
+  globalThis.__mellosoft_homepage_store = getInitialState();
+  return globalThis.__mellosoft_homepage_store;
 }
 
-function saveToDisk(data) {
+function persistStore(store) {
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
-    fs.writeFileSync(STORAGE_FILE, JSON.stringify(data, null, 2), "utf-8");
+    fs.writeFileSync(STORAGE_FILE, JSON.stringify(store, null, 2), "utf-8");
   } catch (e) {
-    // In serverless environments (Netlify functions), the disk may be read-only or ephemeral
-    // Memory store handles request lifetime
+    // Disk write error in read-only/serverless runtime; memory store remains canonical
   }
 }
 
@@ -103,14 +101,14 @@ function saveToDisk(data) {
  * Retrieve all homepage content configuration from server store
  */
 export function getHomepageData() {
-  const store = loadFromDiskOrDefaults();
+  const store = getStoreInstance();
   return {
     success: true,
-    homepageConfig: store.homepageConfig,
-    banners: store.banners,
-    bannerTypes: store.bannerTypes,
-    newArrivalItems: store.newArrivalItems,
-    bestSellerItems: store.bestSellerItems,
+    homepageConfig: JSON.parse(JSON.stringify(store.homepageConfig)),
+    banners: JSON.parse(JSON.stringify(store.banners)),
+    bannerTypes: JSON.parse(JSON.stringify(store.bannerTypes)),
+    newArrivalItems: JSON.parse(JSON.stringify(store.newArrivalItems)),
+    bestSellerItems: JSON.parse(JSON.stringify(store.bestSellerItems)),
     updatedAt: store.updatedAt
   };
 }
@@ -119,7 +117,7 @@ export function getHomepageData() {
  * Update homepage content configuration on server store
  */
 export function updateHomepageData(updates = {}) {
-  const current = loadFromDiskOrDefaults();
+  const current = getStoreInstance();
 
   if (updates.homepageConfig !== undefined) {
     current.homepageConfig = updates.homepageConfig;
@@ -138,15 +136,15 @@ export function updateHomepageData(updates = {}) {
   }
   current.updatedAt = new Date().toISOString();
 
-  saveToDisk(current);
+  persistStore(current);
 
   return {
     success: true,
-    homepageConfig: current.homepageConfig,
-    banners: current.banners,
-    bannerTypes: current.bannerTypes,
-    newArrivalItems: current.newArrivalItems,
-    bestSellerItems: current.bestSellerItems,
+    homepageConfig: JSON.parse(JSON.stringify(current.homepageConfig)),
+    banners: JSON.parse(JSON.stringify(current.banners)),
+    bannerTypes: JSON.parse(JSON.stringify(current.bannerTypes)),
+    newArrivalItems: JSON.parse(JSON.stringify(current.newArrivalItems)),
+    bestSellerItems: JSON.parse(JSON.stringify(current.bestSellerItems)),
     updatedAt: current.updatedAt
   };
 }

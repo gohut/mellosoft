@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef, useState, useEffect } from "react";
 import { useStore } from "../context/StoreContext";
 import { useRouter } from "next/navigation";
 import { MOCK_PRODUCTS } from "../data/products";
@@ -35,6 +35,26 @@ export default function HomeView() {
   const router = useRouter();
   const sliderTrackRef = useRef(null);
   const [activeSlide, setActiveSlide] = useState(0);
+
+  useEffect(() => {
+    let isMounted = true;
+    const refreshHomepage = async () => {
+      try {
+        const res = await fetch("/api/content/homepage", {
+          cache: "no-store",
+          headers: { Pragma: "no-cache" }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.success && isMounted && typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("mellosoft_homepage_updated", { detail: data }));
+          }
+        }
+      } catch (e) {}
+    };
+    refreshHomepage();
+    return () => { isMounted = false; };
+  }, []);
 
   const mattresses = useMemo(() => (products || MOCK_PRODUCTS).filter((product) => product.category === "mattress"), [products]);
   const featuredMattresses = useMemo(() => mattresses.slice(0, 4), [mattresses]);

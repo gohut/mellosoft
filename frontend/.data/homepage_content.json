@@ -13,7 +13,9 @@
           "backgroundColor": "#FFFFFF"
         },
         "isCustom": false,
-        "productIds": []
+        "productIds": [],
+        "title": "Hero Slides",
+        "subtitle": "Main hero banner slideshow at the top of the page"
       },
       {
         "id": "shop-by-category",
@@ -27,7 +29,9 @@
           "backgroundColor": "#FFFFFF"
         },
         "isCustom": false,
-        "productIds": []
+        "productIds": [],
+        "title": "Shop by Category",
+        "subtitle": "Category grid letting customers browse by product type"
       },
       {
         "id": "promo-001",
@@ -46,14 +50,6 @@
         "bannerId": "promo-002"
       },
       {
-        "id": "promo-003",
-        "label": "Free assembly included",
-        "description": "Promotional Banner • Promotion",
-        "visible": true,
-        "type": "promo-banner",
-        "bannerId": "promo-003"
-      },
-      {
         "id": "new-arrivals",
         "label": "New Arrivals",
         "description": "Showcase of the latest products added to the store",
@@ -65,7 +61,9 @@
           "backgroundColor": "#FFFFFF"
         },
         "isCustom": false,
-        "productIds": []
+        "productIds": [],
+        "title": "New Arrivals",
+        "subtitle": "Showcase of the latest products added to the store"
       },
       {
         "id": "best-sellers",
@@ -79,7 +77,17 @@
           "backgroundColor": "#FFFFFF"
         },
         "isCustom": false,
-        "productIds": []
+        "productIds": [],
+        "title": "Best Sellers",
+        "subtitle": "Top-selling products ranked by purchase frequency"
+      },
+      {
+        "id": "promo-003",
+        "label": "Free assembly included",
+        "description": "Promotional Banner • Promotion",
+        "visible": false,
+        "type": "promo-banner",
+        "bannerId": "promo-003"
       },
       {
         "id": "customer-reviews",
@@ -93,7 +101,9 @@
           "backgroundColor": "#FFFFFF"
         },
         "isCustom": false,
-        "productIds": []
+        "productIds": [],
+        "title": "Customer Reviews",
+        "subtitle": "Customer reviews and feedback carousel section"
       }
     ]
   },
@@ -293,5 +303,5 @@
       "isActive": true
     }
   ],
-  "updatedAt": "2026-08-26T19:35:29.106Z"
+  "updatedAt": "2026-08-26T19:49:04.605Z"
 }
