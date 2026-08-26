@@ -251,8 +251,20 @@ export default function ProductDetailView({ productId: initialProductId }) {
     addToCart(product, selectedFirmness, selectedSize, quantity);
   };
 
-  const goBackToCatalog = () => {
-    navigateTo("catalog");
+  const handleProductBack = () => {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+      return;
+    }
+    // Safe canonical fallback for direct URL visits
+    const cat = (product?.mainCategorySlug || product?.mainCategoryId || product?.category || "").toLowerCase();
+    if (cat.includes("access") || cat.includes("pillow") || cat.includes("protector") || cat.includes("bedspread") || cat.includes("blanket")) {
+      router.push("/accessories");
+    } else if (cat.includes("frame") || cat.includes("bed-frame") || cat.includes("furniture")) {
+      router.push("/bed-frames");
+    } else {
+      router.push("/mattresses");
+    }
   };
 
   const handleBuyNow = () => {
@@ -435,7 +447,7 @@ export default function ProductDetailView({ productId: initialProductId }) {
               <button
                 onClick={(event) => {
                   event.stopPropagation();
-                  goBackToCatalog();
+                  handleProductBack();
                 }}
                 style={floatingIconBtnStyle}
                 aria-label="Go back"

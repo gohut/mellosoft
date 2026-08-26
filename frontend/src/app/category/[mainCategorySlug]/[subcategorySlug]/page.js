@@ -90,7 +90,7 @@ export default function GenericSubcategoryPage({ params }) {
                 title={`No ${subcategory.name} products found`}
                 message="No products have been added to this subcategory yet."
                 actionLabel="View All"
-                onAction={() => { if (typeof window !== "undefined") window.history.back(); }}
+                onAction={() => { if (typeof window !== "undefined") window.location.href = `/category/${mainCategorySlug}`; }}
               />
             </div>
           )}

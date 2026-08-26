@@ -1,85 +1,67 @@
 /**
- * Resolves the explicit parent route for any given pathname in the Mellosoft application.
- *
- * Routing Matrix:
- * - /mattresses -> /
- * - /accessories -> /
- * - /bed-frames -> /
- * - /mattresses/:category -> /mattresses
- * - /accessories/:category -> /accessories
- * - /bed-frames/:category -> /bed-frames
- * - /category/:main -> /
- * - /category/:main/:sub -> /category/:main (or /mattresses, etc.)
- * - /orders/:orderId -> /orders
- * - /about, /contact, /search, /wishlist, /cart, /profile, policies -> /
- *
- * @param {string} pathname
- * @returns {string}
+ * Navigation and Back Routing Helper for Mellosoft
+ * 
+ * Rules:
+ * 1. Main Listing Pages (/mattresses, /accessories, /bed-frames, /category/[slug]) -> route to Home ("/")
+ * 2. Subcategory Pages (/mattresses/[sub], /accessories/[sub], /bed-frames/[sub], /category/[main]/[sub]) -> route to Parent Main Category
+ * 3. Static/Policy Pages -> route to Home ("/")
+ * 4. Product Detail pages MUST use browser history (router.back()), NOT this helper.
  */
-export function getParentRoute(pathname) {
-  if (!pathname || pathname === "/") return "/";
 
-  // Clean trailing slash
-  const cleanPath = pathname.replace(/\/$/, "");
+export const getListingBackRoute = (pathname) => {
+  if (!pathname) return "/";
 
-  // 1. Subcategory routes under specific departments
-  if (cleanPath.startsWith("/mattresses/")) {
-    return "/mattresses";
-  }
-  if (cleanPath.startsWith("/accessories/")) {
-    return "/accessories";
-  }
-  if (cleanPath.startsWith("/bed-frames/")) {
-    return "/bed-frames";
-  }
+  const cleanPath = pathname.split("?")[0].replace(/\/+$/, "") || "/";
 
-  // 2. Nested routes under dynamic /category/
-  const nestedCategoryMatch = cleanPath.match(/^\/category\/([^/]+)\/([^/]+)$/);
-  if (nestedCategoryMatch) {
-    const mainCat = nestedCategoryMatch[1].toLowerCase();
-    if (mainCat === "mattress" || mainCat === "mattresses") return "/mattresses";
-    if (mainCat === "accessory" || mainCat === "accessories") return "/accessories";
-    if (mainCat === "bed-frame" || mainCat === "bed-frames") return "/bed-frames";
-    return `/category/${mainCat}`;
-  }
-
-  const singleCategoryMatch = cleanPath.match(/^\/category\/([^/]+)$/);
-  if (singleCategoryMatch) {
-    return "/";
-  }
-
-  // 3. Orders sub-route
-  if (cleanPath.startsWith("/orders/")) {
-    return "/orders";
-  }
-
-  // 4. Main department listing pages and general pages -> Home "/"
+  // 1. Main Category Listing Pages -> Home ("/")
   if (
     cleanPath === "/mattresses" ||
     cleanPath === "/accessories" ||
     cleanPath === "/bed-frames" ||
     cleanPath === "/catalog" ||
     cleanPath === "/search" ||
+    cleanPath === "/wishlist" ||
     cleanPath === "/about" ||
     cleanPath === "/contact" ||
-    cleanPath === "/wishlist" ||
-    cleanPath === "/cart" ||
-    cleanPath === "/profile" ||
-    cleanPath === "/orders" ||
-    cleanPath === "/cancellation-policy" ||
-    cleanPath === "/return-policy" ||
     cleanPath === "/privacy" ||
     cleanPath === "/terms" ||
-    cleanPath === "/home/cancellation-policy" ||
-    cleanPath === "/home/return-policy" ||
+    cleanPath === "/return-policy" ||
+    cleanPath === "/cancellation-policy" ||
     cleanPath === "/home/privacy" ||
     cleanPath === "/home/terms" ||
-    cleanPath === "/order-confirmation" ||
-    cleanPath.startsWith("/order-confirmation/")
+    cleanPath === "/home/return-policy" ||
+    cleanPath === "/home/cancellation-policy" ||
+    cleanPath === "/profile"
   ) {
     return "/";
   }
 
-  // Fallback default
+  // 2. Specific Subcategory Pages -> Parent Main Category
+  if (cleanPath.startsWith("/mattresses/")) {
+    return "/mattresses";
+  }
+
+  if (cleanPath.startsWith("/accessories/")) {
+    return "/accessories";
+  }
+
+  if (cleanPath.startsWith("/bed-frames/")) {
+    return "/bed-frames";
+  }
+
+  // 3. Generic Category Routes (/category/[mainCategorySlug] and /category/[mainCategorySlug]/[subcategorySlug])
+  const parts = cleanPath.split("/").filter(Boolean);
+
+  if (parts[0] === "category") {
+    if (parts.length === 2) {
+      // /category/[mainCategorySlug] -> Home ("/")
+      return "/";
+    }
+    if (parts.length >= 3) {
+      // /category/[mainCategorySlug]/[subcategorySlug] -> /category/[mainCategorySlug]
+      return `/category/${parts[1]}`;
+    }
+  }
+
   return "/";
-}
+};

@@ -7,7 +7,7 @@ import { useCustomerAuth } from "../context/CustomerAuthContext";
 import { MOCK_PRODUCTS } from "../data/products";
 import { formatPrice } from "../utils/currency";
 import { getResolvedImageUrlSync } from "../utils/imageStorage";
-import { getParentRoute } from "../utils/navigationHelpers";
+import { getListingBackRoute } from "../utils/navigationHelpers";
 
 export default function Header() {
   const pathname = usePathname() || "/";
@@ -18,6 +18,7 @@ export default function Header() {
     navigateTo,
     cart,
     wishlist,
+    products,
     searchQuery,
     setSearchQuery,
     setActiveFilters,
@@ -63,26 +64,25 @@ export default function Header() {
   const isDetailView = pathname.startsWith("/product/");
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const style = document.body.style;
-      const mq = window.matchMedia("(max-width: 767px)");
-      const apply = () => {
-        if (mq.matches) {
-          style.paddingTop = isDetailView ? "0" : "60px";
-          style.paddingBottom = "0";
-        } else {
-          style.paddingTop = "";
-          style.paddingBottom = "";
-        }
-      };
-      apply();
-      mq.addEventListener("change", apply);
-      return () => {
-        mq.removeEventListener("change", apply);
+    if (typeof window === "undefined") return;
+    const style = document.body.style;
+    const mq = window.matchMedia("(max-width: 767px)");
+    const apply = () => {
+      if (mq.matches) {
+        style.paddingTop = isDetailView ? "0" : "60px";
+        style.paddingBottom = "0";
+      } else {
         style.paddingTop = "";
         style.paddingBottom = "";
-      };
-    }
+      }
+    };
+    apply();
+    mq.addEventListener("change", apply);
+    return () => {
+      mq.removeEventListener("change", apply);
+      style.paddingTop = "";
+      style.paddingBottom = "";
+    };
   }, [isDetailView]);
 
   const searchActive = mobileFocused || mobileSearch.trim().length > 0;
@@ -101,15 +101,16 @@ export default function Header() {
     }).slice(0, 5);
   };
 
-  const desktopSuggestions = desktopFocused ? searchProducts(desktopSearch) : [];
-  const mobileSuggestions = mobileFocused ? searchProducts(mobileSearch) : [];
+  const desktopSuggestions = searchProducts(desktopSearch);
+  const mobileSuggestions = searchProducts(mobileSearch);
 
-  const handleNavClick = (viewNameOrPath) => {
+  const handleNavClick = (targetPath) => {
+    setMattressDropdown(false);
+    setAccessoriesDropdown(false);
+    setBedFramesDropdown(false);
     setMobileMenuOpen(false);
-    if (viewNameOrPath.startsWith("/")) {
-      router.push(viewNameOrPath);
-    } else {
-      navigateTo(viewNameOrPath);
+    if (router && typeof router.push === "function") {
+      router.push(targetPath);
     }
   };
 
@@ -128,8 +129,6 @@ export default function Header() {
   };
 
   const goToProduct = (productId) => {
-    setDesktopSearch("");
-    setMobileSearch("");
     setDesktopFocused(false);
     setMobileFocused(false);
     setMattressDropdown(false);
@@ -149,19 +148,29 @@ export default function Header() {
   };
 
   const goBack = () => {
-    // 1. Product Detail Page: Keep browser history back to preserve filter/scroll state
+    // 1. If on a product detail page, use actual browser history
     if (pathname.startsWith("/product/")) {
       if (typeof window !== "undefined" && window.history.length > 1) {
         router.back();
         return;
       }
-      handleNavClick("/mattresses");
+      // Safe canonical fallback for direct product link opening
+      const prodId = pathname.replace("/product/", "").trim();
+      const product = (products || MOCK_PRODUCTS).find((p) => p.id === prodId || p.slug === prodId);
+      const cat = (product?.mainCategorySlug || product?.mainCategoryId || product?.category || "").toLowerCase();
+      if (cat.includes("access") || cat.includes("pillow") || cat.includes("protector") || cat.includes("bedspread") || cat.includes("blanket")) {
+        router.push("/accessories");
+      } else if (cat.includes("frame") || cat.includes("bed-frame") || cat.includes("furniture")) {
+        router.push("/bed-frames");
+      } else {
+        router.push("/mattresses");
+      }
       return;
     }
 
-    // 2. Listing & Category Pages: Explicit parent route navigation
-    const parentRoute = getParentRoute(pathname);
-    handleNavClick(parentRoute);
+    // 2. Listing, subcategory, and information pages: explicit hierarchical route
+    const targetRoute = getListingBackRoute(pathname);
+    router.push(targetRoute);
   };
 
   const handleMobileBack = () => {
