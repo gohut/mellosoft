@@ -10,8 +10,9 @@ import ProductCard from "../components/ProductCard";
 import { formatPrice, calculateDiscountedPrice } from "../utils/currency";
 import { getVariantForSelection } from "../utils/variantHelpers";
 import { useRouter, useParams } from "next/navigation";
-import { getProductByIdentifier, getRelatedProducts, getMattressRecommendations, getProductPrimaryImage, getProductGalleryImages, isBedFrameProduct, isAccessoryProduct } from "../utils/productHelpers";
+import { getProductByIdentifier, getRelatedProducts, getMattressRecommendations, getProductPrimaryImage, getProductGalleryImages, isBedFrameProduct, isAccessoryProduct, getProductCategoryFallback } from "../utils/productHelpers";
 import { getResolvedImageUrlSync } from "../utils/imageStorage";
+import { saveProductListScroll } from "../utils/scrollRestoration";
 import MattressSelector from "../components/MattressSelector";
 
 export default function ProductDetailView({ productId: initialProductId }) {
@@ -251,8 +252,20 @@ export default function ProductDetailView({ productId: initialProductId }) {
     addToCart(product, selectedFirmness, selectedSize, quantity);
   };
 
-  const goBackToCatalog = () => {
-    navigateTo("catalog");
+  const handleBack = () => {
+    // If browser history has previous entries, navigate back directly
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+      return;
+    }
+
+    // Direct entry fallback
+    const fallbackUrl = getProductCategoryFallback(product);
+    if (router && typeof router.push === "function") {
+      router.push(fallbackUrl);
+    } else if (typeof window !== "undefined") {
+      window.location.href = fallbackUrl;
+    }
   };
 
   const handleBuyNow = () => {
@@ -435,7 +448,7 @@ export default function ProductDetailView({ productId: initialProductId }) {
               <button
                 onClick={(event) => {
                   event.stopPropagation();
-                  goBackToCatalog();
+                  handleBack();
                 }}
                 style={floatingIconBtnStyle}
                 aria-label="Go back"
@@ -668,6 +681,7 @@ export default function ProductDetailView({ productId: initialProductId }) {
                 onClick={(recommendedProduct) => {
                   const targetId = recommendedProduct.slug || recommendedProduct.id || recommendedProduct.Product_Id;
                   if (!targetId) return;
+                  saveProductListScroll();
                   setSelectedProductId(targetId);
                   setView("detail");
                   const targetUrl = `/product/${encodeURIComponent(String(targetId).trim())}`;
@@ -675,9 +689,6 @@ export default function ProductDetailView({ productId: initialProductId }) {
                     router.push(targetUrl);
                   } else if (typeof window !== "undefined") {
                     window.location.href = targetUrl;
-                  }
-                  if (typeof window !== "undefined") {
-                    window.scrollTo({ top: 0, behavior: "smooth" });
                   }
                 }}
               />

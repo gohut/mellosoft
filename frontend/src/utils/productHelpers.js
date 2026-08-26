@@ -924,3 +924,13 @@ export function filterProductsByCategory(products, categoryKey) {
 export function getCategoryCount(products, categoryKey) {
   return getProductsByCategory(products, categoryKey).length;
 }
+
+/**
+ * Resolves the canonical fallback listing URL for any product based on its category group.
+ */
+export function getProductCategoryFallback(product) {
+  if (!product) return "/mattresses";
+  if (isBedFrameProduct(product)) return "/bed-frames";
+  if (isAccessoryProduct(product)) return "/accessories";
+  return "/mattresses";
+}

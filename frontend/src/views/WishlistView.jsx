@@ -1,18 +1,28 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect, useRef } from "react";
 import { useStore } from "../context/StoreContext";
 import { MOCK_PRODUCTS } from "../data/products";
 import ProductCard from "../components/ProductCard";
 import EmptyState from "../components/EmptyState";
+import { restoreProductListScroll } from "../utils/scrollRestoration";
 
 export default function WishlistView() {
   const { wishlist, toggleWishlist, moveToCart, navigateTo, products } = useStore();
+  const hasRestoredScrollRef = useRef(false);
 
   const savedProducts = useMemo(() => {
     const list = (products && products.length > 0) ? products : MOCK_PRODUCTS;
     return list.filter((product) => wishlist.includes(product.id));
   }, [wishlist, products]);
+
+  // Restore scroll position when returning from product detail
+  useEffect(() => {
+    if (!hasRestoredScrollRef.current && savedProducts.length > 0) {
+      hasRestoredScrollRef.current = true;
+      restoreProductListScroll();
+    }
+  }, [savedProducts.length]);
 
   const handleClearAll = () => {
     // Toggle all items off
