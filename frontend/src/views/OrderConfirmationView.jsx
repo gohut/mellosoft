@@ -69,9 +69,105 @@ export default function OrderConfirmationView() {
   const estDeliveryMax = formatEstDate(new Date(orderDate.getTime() + 5 * 24 * 60 * 60 * 1000));
 
   return (
-    <div style={containerStyle}>
+    <div style={containerStyle} className="confirmation-container">
+      <style>{`
+        .confirmation-container {
+          width: 100% !important;
+          max-width: 1720px !important;
+          box-sizing: border-box !important;
+          min-width: 0 !important;
+        }
+        .confirmation-layout-grid {
+          width: 100% !important;
+          box-sizing: border-box !important;
+          min-width: 0 !important;
+        }
+        .confirmation-left-col, .confirmation-right-col {
+          min-width: 0 !important;
+          width: 100% !important;
+          box-sizing: border-box !important;
+        }
+        .confirmation-addr-text {
+          overflow-wrap: anywhere !important;
+          word-break: break-word !important;
+        }
+        
+        @media (max-width: 992px) {
+          .confirmation-layout-grid {
+            grid-template-columns: 1fr !important;
+            gap: 20px !important;
+          }
+          .confirmation-right-col {
+            position: static !important;
+            top: auto !important;
+            width: 100% !important;
+          }
+        }
+
+        @media (max-width: 768px) {
+          .confirmation-container {
+            padding: 16px 16px 40px 16px !important;
+          }
+          .confirmation-banner-card {
+            padding: 24px 16px !important;
+            border-radius: 16px !important;
+            margin-bottom: 20px !important;
+          }
+          .confirmation-section-card, .confirmation-summary-card {
+            padding: 20px 16px !important;
+            border-radius: 16px !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+          }
+          .confirmation-details-grid {
+            grid-template-columns: 1fr !important;
+            gap: 12px !important;
+            width: 100% !important;
+          }
+          .confirmation-address-box, .confirmation-timeline-box {
+            width: 100% !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
+          }
+          .confirmation-item-card {
+            display: grid !important;
+            grid-template-columns: 72px minmax(0, 1fr) !important;
+            gap: 12px !important;
+            padding: 12px !important;
+            box-sizing: border-box !important;
+          }
+          .confirmation-item-img {
+            width: 72px !important;
+            height: 72px !important;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .confirmation-container {
+            padding: 12px 12px 36px 12px !important;
+          }
+          .confirmation-banner-card {
+            padding: 20px 12px !important;
+            border-radius: 14px !important;
+          }
+          .confirmation-section-card, .confirmation-summary-card {
+            padding: 16px 12px !important;
+            border-radius: 14px !important;
+          }
+          .confirmation-item-card {
+            grid-template-columns: 60px minmax(0, 1fr) !important;
+            gap: 10px !important;
+            padding: 10px !important;
+          }
+          .confirmation-item-img {
+            width: 60px !important;
+            height: 60px !important;
+          }
+        }
+      `}</style>
+
       {/* SUCCESS CONFIRMATION BANNER */}
-      <div style={bannerCardStyle}>
+      <div style={bannerCardStyle} className="confirmation-banner-card">
         <div style={iconBadgeStyle}>
           <CheckCircle2 size={48} color="#FFFFFF" />
         </div>
@@ -83,23 +179,23 @@ export default function OrderConfirmationView() {
       </div>
 
       {/* TWO COLUMN SUMMARY */}
-      <div style={layoutGridStyle}>
+      <div style={layoutGridStyle} className="confirmation-layout-grid">
         
         {/* LEFT COLUMN: ORDER ITEMS & DELIVERY DETAILS */}
-        <div style={leftColStyle}>
+        <div style={leftColStyle} className="confirmation-left-col">
           
           {/* SECTION 1: ORDERED PRODUCTS */}
-          <div style={sectionCardStyle}>
+          <div style={sectionCardStyle} className="confirmation-section-card">
             <h3 style={sectionHeadingStyle}>
               <Package size={18} color="#1B1F8C" />
               <span>Ordered Products ({items.length})</span>
             </h3>
 
-            <div style={itemsListStyle}>
+            <div style={itemsListStyle} className="confirmation-items-list">
               {items.map((item, idx) => (
-                <div key={idx} style={itemCardStyle}>
-                  <img src={item.image || "/asset/img1.jpg"} alt={item.name || item.productName} style={itemImageStyle} />
-                  <div style={itemMetaStyle}>
+                <div key={idx} style={itemCardStyle} className="confirmation-item-card">
+                  <img src={item.image || "/asset/img1.jpg"} alt={item.name || item.productName} style={itemImageStyle} className="confirmation-item-img" />
+                  <div style={itemMetaStyle} className="confirmation-item-meta">
                     <h4 style={itemNameStyle}>{item.name || item.productName}</h4>
                     <div style={variantChipsStyle}>
                       <span style={chipBlueStyle}>Size: {item.size || item.variantSize || "Standard"}</span>
@@ -117,24 +213,24 @@ export default function OrderConfirmationView() {
           </div>
 
           {/* SECTION 2: DELIVERY ADDRESS & ESTIMATED TIMELINE */}
-          <div style={sectionCardStyle}>
+          <div style={sectionCardStyle} className="confirmation-section-card">
             <h3 style={sectionHeadingStyle}>
               <MapPin size={18} color="#1B1F8C" />
               <span>Delivery Details</span>
             </h3>
 
-            <div style={detailsGridStyle}>
-              <div style={addressBoxStyle}>
-                <strong style={{ fontSize: "15px", color: "#14151A", display: "block", marginBottom: "4px" }}>
+            <div style={detailsGridStyle} className="confirmation-details-grid">
+              <div style={addressBoxStyle} className="confirmation-address-box">
+                <strong style={{ fontSize: "15px", color: "#14151A", display: "block", marginBottom: "4px" }} className="confirmation-addr-text">
                   {address.fullName || currentOrder.customerName || "Customer"}
                 </strong>
-                <p style={addrTextStyle}>{address.addressLine1}</p>
-                {address.addressLine2 && <p style={addrTextStyle}>{address.addressLine2}</p>}
-                <p style={addrTextStyle}>{address.city}, {address.state} - <strong>{address.pincode}</strong></p>
-                <p style={{ ...addrTextStyle, marginTop: "6px", color: "#1B1F8C", fontWeight: "600" }}>📞 {address.phone || currentOrder.phone}</p>
+                <p style={addrTextStyle} className="confirmation-addr-text">{address.addressLine1}</p>
+                {address.addressLine2 && <p style={addrTextStyle} className="confirmation-addr-text">{address.addressLine2}</p>}
+                <p style={addrTextStyle} className="confirmation-addr-text">{address.city}, {address.state} - <strong>{address.pincode}</strong></p>
+                <p style={{ ...addrTextStyle, marginTop: "6px", color: "#1B1F8C", fontWeight: "600" }} className="confirmation-addr-text">📞 {address.phone || currentOrder.phone}</p>
               </div>
 
-              <div style={timelineBoxStyle}>
+              <div style={timelineBoxStyle} className="confirmation-timeline-box">
                 <div style={timelineHeaderStyle}>
                   <Calendar size={18} color="#16A34A" />
                   <strong style={{ color: "#16A34A", fontSize: "14px" }}>Estimated Delivery</strong>
@@ -149,8 +245,8 @@ export default function OrderConfirmationView() {
         </div>
 
         {/* RIGHT COLUMN: PAYMENT SUMMARY & ACTIONS */}
-        <div style={rightColStyle}>
-          <div style={summaryCardStyle}>
+        <div style={rightColStyle} className="confirmation-right-col">
+          <div style={summaryCardStyle} className="confirmation-summary-card">
             <h3 style={summaryTitleStyle}>Payment Summary</h3>
 
             <div style={paymentMetaBoxStyle}>

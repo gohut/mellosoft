@@ -226,14 +226,123 @@ export default function PaymentView() {
   }
 
   return (
-    <div style={containerStyle}>
+    <div style={containerStyle} className="payment-container">
+      <style>{`
+        .payment-container {
+          width: 100% !important;
+          max-width: 1720px !important;
+          box-sizing: border-box !important;
+          min-width: 0 !important;
+        }
+        .payment-layout-grid {
+          width: 100% !important;
+          box-sizing: border-box !important;
+          min-width: 0 !important;
+        }
+        .payment-left-col, .payment-right-col {
+          min-width: 0 !important;
+          width: 100% !important;
+          box-sizing: border-box !important;
+        }
+        .payment-addr-text {
+          overflow-wrap: anywhere !important;
+          word-break: break-word !important;
+        }
+        
+        @media (max-width: 992px) {
+          .payment-layout-grid {
+            grid-template-columns: 1fr !important;
+            gap: 20px !important;
+          }
+          .payment-right-col {
+            position: static !important;
+            top: auto !important;
+            width: 100% !important;
+          }
+        }
+
+        @media (max-width: 768px) {
+          .payment-container {
+            padding: 16px 16px 40px 16px !important;
+          }
+          .payment-summary-box, .payment-methods-card, .payment-summary-card {
+            padding: 20px 16px !important;
+            border-radius: 16px !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+          }
+          .payment-header-nav {
+            margin-bottom: 20px !important;
+            gap: 12px !important;
+          }
+          .payment-stepper {
+            display: flex !important;
+            align-items: center !important;
+            flex-wrap: wrap !important;
+            gap: 6px 8px !important;
+            font-size: 13px !important;
+          }
+          .payment-option-card {
+            padding: 16px !important;
+            border-radius: 12px !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+          }
+          .payment-pay-btn {
+            width: 100% !important;
+            min-height: 48px !important;
+            padding: 14px 20px !important;
+            font-size: 15px !important;
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+            gap: 8px !important;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .payment-container {
+            padding: 12px 12px 36px 12px !important;
+          }
+          .payment-summary-box, .payment-methods-card, .payment-summary-card {
+            padding: 16px 12px !important;
+            border-radius: 14px !important;
+          }
+          .payment-header-nav {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 10px !important;
+          }
+          .payment-stepper {
+            font-size: 12px !important;
+            gap: 4px 6px !important;
+            width: 100% !important;
+          }
+          .payment-option-card {
+            padding: 14px 12px !important;
+          }
+          .payment-option-title {
+            font-size: 14px !important;
+          }
+        }
+
+        @media (max-width: 360px) {
+          .payment-stepper {
+            font-size: 11px !important;
+          }
+          .payment-summary-box, .payment-methods-card, .payment-summary-card {
+            padding: 14px 10px !important;
+          }
+        }
+      `}</style>
+
       {/* Header Nav */}
-      <div style={headerNavStyle}>
-        <button onClick={() => navigateTo("checkout")} style={backBtnStyle}>
+      <div style={headerNavStyle} className="payment-header-nav">
+        <button onClick={() => navigateTo("checkout")} style={backBtnStyle} className="payment-back-btn">
           <ArrowLeft size={18} />
           <span>Back to Address</span>
         </button>
-        <div style={stepperStyle}>
+        <div style={stepperStyle} className="payment-stepper">
           <span style={completedStepStyle}>1. Delivery Address</span>
           <span style={stepDividerStyle}>→</span>
           <span style={activeStepStyle}>2. Payment</span>
@@ -242,28 +351,28 @@ export default function PaymentView() {
         </div>
       </div>
 
-      <div style={layoutGridStyle}>
+      <div style={layoutGridStyle} className="payment-layout-grid">
         {/* LEFT COLUMN: Payment Methods & Address Summary */}
-        <div style={leftColStyle}>
+        <div style={leftColStyle} className="payment-left-col">
           
           {/* DELIVERY ADDRESS SUMMARY BOX */}
-          <div style={summaryBoxStyle}>
-            <div style={summaryBoxHeaderStyle}>
+          <div style={summaryBoxStyle} className="payment-summary-box">
+            <div style={summaryBoxHeaderStyle} className="payment-summary-box-header">
               <div style={summaryBoxTitleStyle}>
                 <CheckCircle2 size={18} color="#16A34A" />
-                <span>Deliver To: <strong>{address.fullName}</strong></span>
+                <span className="payment-addr-text">Deliver To: <strong>{address.fullName}</strong></span>
               </div>
               <button onClick={() => navigateTo("checkout")} style={changeAddrLinkStyle}>
                 Change
               </button>
             </div>
-            <p style={addrLineStyle}>
+            <p style={addrLineStyle} className="payment-addr-text">
               {address.addressLine1}, {address.addressLine2 ? address.addressLine2 + ", " : ""}{address.city}, {address.state} - <strong>{address.pincode}</strong> (Phone: {address.phone})
             </p>
           </div>
 
           {/* PAYMENT METHODS SECTION */}
-          <div style={cardSectionStyle}>
+          <div style={cardSectionStyle} className="payment-methods-card">
             <h2 style={sectionTitleStyle}>Select Payment Method</h2>
             
             {paymentError && (
@@ -272,7 +381,7 @@ export default function PaymentView() {
               </div>
             )}
 
-            <div style={paymentMethodsGridStyle}>
+            <div style={paymentMethodsGridStyle} className="payment-methods-grid">
               {/* Option 1: UPI */}
               <div
                 style={{
@@ -281,8 +390,9 @@ export default function PaymentView() {
                   backgroundColor: paymentMethod === "upi" ? "#F4F5FF" : "#FFFFFF"
                 }}
                 onClick={() => setPaymentMethod("upi")}
+                className="payment-option-card"
               >
-                <div style={optionRadioRowStyle}>
+                <div style={optionRadioRowStyle} className="payment-option-radio-row">
                   <input
                     type="radio"
                     name="payment"
@@ -290,9 +400,9 @@ export default function PaymentView() {
                     onChange={() => setPaymentMethod("upi")}
                     style={radioInputStyle}
                   />
-                  <div style={optionTitleWrapStyle}>
+                  <div style={optionTitleWrapStyle} className="payment-option-title-wrap">
                     <Smartphone size={20} color="#1B1F8C" />
-                    <strong style={optionTitleStyle}>UPI (Google Pay, PhonePe, Paytm, BHIM)</strong>
+                    <strong style={optionTitleStyle} className="payment-option-title">UPI (Google Pay, PhonePe, Paytm, BHIM)</strong>
                   </div>
                 </div>
 
@@ -321,8 +431,9 @@ export default function PaymentView() {
                   backgroundColor: paymentMethod === "cod" ? "#F4F5FF" : "#FFFFFF"
                 }}
                 onClick={() => setPaymentMethod("cod")}
+                className="payment-option-card"
               >
-                <div style={optionRadioRowStyle}>
+                <div style={optionRadioRowStyle} className="payment-option-radio-row">
                   <input
                     type="radio"
                     name="payment"
@@ -330,9 +441,9 @@ export default function PaymentView() {
                     onChange={() => setPaymentMethod("cod")}
                     style={radioInputStyle}
                   />
-                  <div style={optionTitleWrapStyle}>
+                  <div style={optionTitleWrapStyle} className="payment-option-title-wrap">
                     <Banknote size={20} color="#16A34A" />
-                    <strong style={optionTitleStyle}>Cash on Delivery (COD)</strong>
+                    <strong style={optionTitleStyle} className="payment-option-title">Cash on Delivery (COD)</strong>
                   </div>
                 </div>
 
@@ -349,38 +460,38 @@ export default function PaymentView() {
         </div>
 
         {/* RIGHT COLUMN: ORDER SUMMARY & PAY BUTTON */}
-        <div style={rightColStyle}>
-          <div style={summaryCardStyle}>
+        <div style={rightColStyle} className="payment-right-col">
+          <div style={summaryCardStyle} className="payment-summary-card">
             <h3 style={summaryTitleStyle}>Order & Payment Summary</h3>
 
             {/* Items Brief List */}
-            <div style={itemsBriefListStyle}>
+            <div style={itemsBriefListStyle} className="payment-items-brief-list">
               {items.map((item, idx) => (
-                <div key={idx} style={itemBriefRowStyle}>
-                  <span style={itemBriefTitleStyle}>{item.name || item.productName} ({item.size}) × {item.qty || item.quantity}</span>
-                  <span style={itemBriefPriceStyle}>{formatPrice((item.price || item.discountPrice) * (item.qty || item.quantity))}</span>
+                <div key={idx} style={itemBriefRowStyle} className="payment-item-brief-row">
+                  <span style={itemBriefTitleStyle} className="payment-item-brief-title">{item.name || item.productName} ({item.size}) × {item.qty || item.quantity}</span>
+                  <span style={itemBriefPriceStyle} className="payment-item-brief-price">{formatPrice((item.price || item.discountPrice) * (item.qty || item.quantity))}</span>
                 </div>
               ))}
             </div>
 
             <div style={summaryDividerStyle} />
 
-            <div style={summaryRowsStyle}>
-              <div style={summaryRowStyle}>
+            <div style={summaryRowsStyle} className="payment-summary-rows">
+              <div style={summaryRowStyle} className="payment-summary-row">
                 <span style={summaryLabelStyle}>Subtotal</span>
                 <span style={summaryValStyle}>{formatPrice(subtotal)}</span>
               </div>
               {discountSavings > 0 && (
-                <div style={summaryRowStyle}>
+                <div style={summaryRowStyle} className="payment-summary-row">
                   <span style={summaryLabelStyle}>Product Discount</span>
                   <span style={{ ...summaryValStyle, color: "#16A34A" }}>–{formatPrice(discountSavings)}</span>
                 </div>
               )}
-              <div style={summaryRowStyle}>
+              <div style={summaryRowStyle} className="payment-summary-row">
                 <span style={summaryLabelStyle}>18% GST Tax</span>
                 <span style={summaryValStyle}>{formatPrice(tax)}</span>
               </div>
-              <div style={summaryRowStyle}>
+              <div style={summaryRowStyle} className="payment-summary-row">
                 <span style={summaryLabelStyle}>Shipping</span>
                 <span style={summaryValStyle}>{shipping === 0 ? <strong style={{ color: "#16A34A" }}>FREE</strong> : formatPrice(shipping)}</span>
               </div>
@@ -388,7 +499,7 @@ export default function PaymentView() {
 
             <div style={summaryDividerStyle} />
 
-            <div style={summaryTotalRowStyle}>
+            <div style={summaryTotalRowStyle} className="payment-summary-total-row">
               <span style={totalLabelStyle}>Total Amount</span>
               <span style={totalValStyle}>{formatPrice(finalTotal)}</span>
             </div>
@@ -401,6 +512,7 @@ export default function PaymentView() {
                 opacity: isProcessing ? 0.7 : 1,
                 cursor: isProcessing ? "not-allowed" : "pointer"
               }}
+              className="payment-pay-btn"
             >
               <Lock size={18} />
               <span>
