@@ -7,7 +7,6 @@ import { getProductUrl, getProductPrimaryImage } from "../utils/productHelpers";
 import { ensureProductPricing } from "../utils/pricingEngine";
 import { CATEGORY_FALLBACK_IMAGES, ACCESSORY_FALLBACK_IMAGES } from "../data/mattressData";
 import { useRouter } from "next/navigation";
-import { saveProductListScroll } from "../utils/scrollRestoration";
 
 export default function ProductCard({
   product: rawProduct,
@@ -73,9 +72,6 @@ export default function ProductCard({
       return;
     }
 
-    // Save current list scroll position before navigating
-    saveProductListScroll();
-
     if (typeof setSelectedProductId === "function") {
       setSelectedProductId(targetId);
     }
@@ -88,6 +84,9 @@ export default function ProductCard({
       router.push(targetUrl);
     } else if (typeof window !== "undefined") {
       window.location.href = targetUrl;
+    }
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
 

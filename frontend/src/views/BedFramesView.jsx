@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useStore } from "../context/StoreContext";
 import { SlidersHorizontal, X } from "lucide-react";
 import EmptyState from "../components/EmptyState";
@@ -14,7 +14,6 @@ import {
   BED_FRAME_CATEGORY_LIST
 } from "../utils/productHelpers";
 import { ensureProductPricing } from "../utils/pricingEngine";
-import { restoreProductListScroll } from "../utils/scrollRestoration";
 
 /**
  * Catalogue view for Bed Frames main category.
@@ -26,7 +25,6 @@ export default function BedFramesView({ categoryParam = "all" }) {
   const [priceAvailability, setPriceAvailability] = useState("All");
   const [sortBy, setSortBy] = useState("Recommended");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const hasRestoredScrollRef = useRef(false);
 
   // Sync state when categoryParam changes via router
   useEffect(() => {
@@ -138,14 +136,6 @@ export default function BedFramesView({ categoryParam = "all" }) {
     if (priceAvailability !== "All") count++;
     return count;
   }, [priceAvailability]);
-
-  // Restore scroll position when returning from product detail
-  useEffect(() => {
-    if (!hasRestoredScrollRef.current && hydratedBedFrames.length > 0) {
-      hasRestoredScrollRef.current = true;
-      restoreProductListScroll();
-    }
-  }, [hydratedBedFrames.length]);
 
   if (!isValidCategoryParam) {
     return (

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useStore } from "../context/StoreContext";
 import { MOCK_PRODUCTS } from "../data/products";
 import { MATTRESS_CATEGORY_LIST, getMattressCategoryMeta, isProductInCategory, getProductsByGroup, getCategoryCount } from "../utils/productHelpers";
@@ -8,7 +8,6 @@ import ProductCard from "../components/ProductCard";
 import EmptyState from "../components/EmptyState";
 import MattressFilterPanel from "../components/MattressFilterPanel";
 import { SlidersHorizontal, X } from "lucide-react";
-import { restoreProductListScroll } from "../utils/scrollRestoration";
 
 export default function CatalogView({ categoryParam = "all" }) {
   const { searchQuery, setSearchQuery, activeFilters, setActiveFilters, products } = useStore();
@@ -23,7 +22,6 @@ export default function CatalogView({ categoryParam = "all" }) {
   const [priceAvailability, setPriceAvailability] = useState("All");
   const [sortBy, setSortBy] = useState("Recommended");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const hasRestoredScrollRef = useRef(false);
 
   // Sync state if categoryParam changes via router
   useEffect(() => {
@@ -147,14 +145,6 @@ export default function CatalogView({ categoryParam = "all" }) {
     if (priceAvailability !== "All") count++;
     return count;
   }, [selectedThickness, selectedSize, priceAvailability]);
-
-  // Restore scroll position when returning from product detail
-  useEffect(() => {
-    if (!hasRestoredScrollRef.current && filteredProducts.length > 0) {
-      hasRestoredScrollRef.current = true;
-      restoreProductListScroll();
-    }
-  }, [filteredProducts.length]);
 
   if (!isValidCategoryParam) {
     return (

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useRef, useState, useEffect } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { useStore } from "../context/StoreContext";
 import { useRouter } from "next/navigation";
 import { MOCK_PRODUCTS } from "../data/products";
@@ -10,7 +10,6 @@ import PromotionalBannerSlider from "../components/PromotionalBannerSlider";
 import PromoBannerCard from "../components/PromoBannerCard";
 import HeroSlideCard from "../components/HeroSlideCard";
 import { formatPrice } from "../utils/currency";
-import { restoreProductListScroll } from "../utils/scrollRestoration";
 
 export const CATEGORY_IMAGES = {
   "memory-foam": "/assets/categories/memory-foam.jpg",
@@ -36,15 +35,6 @@ export default function HomeView() {
   const router = useRouter();
   const sliderTrackRef = useRef(null);
   const [activeSlide, setActiveSlide] = useState(0);
-  const hasRestoredScrollRef = useRef(false);
-
-  // Restore Homepage scroll position when returning from product detail
-  useEffect(() => {
-    if (!hasRestoredScrollRef.current) {
-      hasRestoredScrollRef.current = true;
-      restoreProductListScroll();
-    }
-  }, []);
 
   const mattresses = useMemo(() => (products || MOCK_PRODUCTS).filter((product) => product.category === "mattress"), [products]);
   const featuredMattresses = useMemo(() => mattresses.slice(0, 4), [mattresses]);

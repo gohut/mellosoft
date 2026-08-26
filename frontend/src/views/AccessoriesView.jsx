@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { ACCESSORY_PRODUCTS } from "../data/mattressData";
 import { ensureProductPricing } from "../utils/pricingEngine";
 import { ACCESSORY_CATEGORY_LIST, getAccessoryCategoryMeta, isProductInCategory, getProductsByGroup, getCategoryCount } from "../utils/productHelpers";
@@ -9,7 +9,6 @@ import { SlidersHorizontal, X } from "lucide-react";
 import EmptyState from "../components/EmptyState";
 import ProductCard from "../components/ProductCard";
 import AccessoryFilterPanel from "../components/AccessoryFilterPanel";
-import { restoreProductListScroll } from "../utils/scrollRestoration";
 
 export default function AccessoriesView({ categoryParam = "all" }) {
   const { searchQuery, setSearchQuery, products } = useStore();
@@ -18,7 +17,6 @@ export default function AccessoriesView({ categoryParam = "all" }) {
   const [priceAvailability, setPriceAvailability] = useState("All");
   const [sortBy, setSortBy] = useState("Recommended");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const hasRestoredScrollRef = useRef(false);
 
   const hydratedAccessories = useMemo(() => {
     const list = (products && products.length > 0) ? products : ACCESSORY_PRODUCTS;
@@ -125,14 +123,6 @@ export default function AccessoriesView({ categoryParam = "all" }) {
     if (priceAvailability !== "All") count++;
     return count;
   }, [selectedFirmness, priceAvailability]);
-
-  // Restore scroll position when returning from product detail
-  useEffect(() => {
-    if (!hasRestoredScrollRef.current && filteredAccessories.length > 0) {
-      hasRestoredScrollRef.current = true;
-      restoreProductListScroll();
-    }
-  }, [filteredAccessories.length]);
 
   if (!isValidCategoryParam) {
     return (

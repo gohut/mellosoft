@@ -7,6 +7,7 @@ import { useCustomerAuth } from "../context/CustomerAuthContext";
 import { MOCK_PRODUCTS } from "../data/products";
 import { formatPrice } from "../utils/currency";
 import { getResolvedImageUrlSync } from "../utils/imageStorage";
+import { getParentRoute } from "../utils/navigationHelpers";
 
 export default function Header() {
   const pathname = usePathname() || "/";
@@ -62,25 +63,26 @@ export default function Header() {
   const isDetailView = pathname.startsWith("/product/");
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const style = document.body.style;
-    const mq = window.matchMedia("(max-width: 767px)");
-    const apply = () => {
-      if (mq.matches) {
-        style.paddingTop = isDetailView ? "0" : "60px";
-        style.paddingBottom = "0";
-      } else {
+    if (typeof window !== "undefined") {
+      const style = document.body.style;
+      const mq = window.matchMedia("(max-width: 767px)");
+      const apply = () => {
+        if (mq.matches) {
+          style.paddingTop = isDetailView ? "0" : "60px";
+          style.paddingBottom = "0";
+        } else {
+          style.paddingTop = "";
+          style.paddingBottom = "";
+        }
+      };
+      apply();
+      mq.addEventListener("change", apply);
+      return () => {
+        mq.removeEventListener("change", apply);
         style.paddingTop = "";
         style.paddingBottom = "";
-      }
-    };
-    apply();
-    mq.addEventListener("change", apply);
-    return () => {
-      mq.removeEventListener("change", apply);
-      style.paddingTop = "";
-      style.paddingBottom = "";
-    };
+      };
+    }
   }, [isDetailView]);
 
   const searchActive = mobileFocused || mobileSearch.trim().length > 0;
@@ -99,16 +101,15 @@ export default function Header() {
     }).slice(0, 5);
   };
 
-  const desktopSuggestions = searchProducts(desktopSearch);
-  const mobileSuggestions = searchProducts(mobileSearch);
+  const desktopSuggestions = desktopFocused ? searchProducts(desktopSearch) : [];
+  const mobileSuggestions = mobileFocused ? searchProducts(mobileSearch) : [];
 
-  const handleNavClick = (targetPath) => {
-    setMattressDropdown(false);
-    setAccessoriesDropdown(false);
-    setBedFramesDropdown(false);
+  const handleNavClick = (viewNameOrPath) => {
     setMobileMenuOpen(false);
-    if (router && typeof router.push === "function") {
-      router.push(targetPath);
+    if (viewNameOrPath.startsWith("/")) {
+      router.push(viewNameOrPath);
+    } else {
+      navigateTo(viewNameOrPath);
     }
   };
 
@@ -127,6 +128,8 @@ export default function Header() {
   };
 
   const goToProduct = (productId) => {
+    setDesktopSearch("");
+    setMobileSearch("");
     setDesktopFocused(false);
     setMobileFocused(false);
     setMattressDropdown(false);
@@ -146,11 +149,19 @@ export default function Header() {
   };
 
   const goBack = () => {
-    if (typeof window !== "undefined" && window.history.length > 1) {
-      router.back();
+    // 1. Product Detail Page: Keep browser history back to preserve filter/scroll state
+    if (pathname.startsWith("/product/")) {
+      if (typeof window !== "undefined" && window.history.length > 1) {
+        router.back();
+        return;
+      }
+      handleNavClick("/mattresses");
       return;
     }
-    handleNavClick("/");
+
+    // 2. Listing & Category Pages: Explicit parent route navigation
+    const parentRoute = getParentRoute(pathname);
+    handleNavClick(parentRoute);
   };
 
   const handleMobileBack = () => {

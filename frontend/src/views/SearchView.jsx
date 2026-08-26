@@ -1,15 +1,13 @@
 "use client";
 
-import React, { useMemo, useEffect, useRef } from "react";
+import React, { useMemo } from "react";
 import { useStore } from "../context/StoreContext";
 import { MOCK_PRODUCTS } from "../data/products";
 import ProductCard from "../components/ProductCard";
 import EmptyState from "../components/EmptyState";
-import { restoreProductListScroll } from "../utils/scrollRestoration";
 
 export default function SearchView() {
   const { searchQuery, setSearchQuery, navigateTo, setActiveFilters, products } = useStore();
-  const hasRestoredScrollRef = useRef(false);
 
   const recentSearches = ["Classic Mattress", "Cooling", "Luxe Hybrid", "Pillow", "Protector"];
 
@@ -27,14 +25,6 @@ export default function SearchView() {
       return pName.includes(query) || pTagline.includes(query) || pCat.includes(query) || pSpecs.includes(query);
     });
   }, [searchQuery, products]);
-
-  // Restore scroll position when returning from product detail
-  useEffect(() => {
-    if (!hasRestoredScrollRef.current && searchResults.length > 0) {
-      hasRestoredScrollRef.current = true;
-      restoreProductListScroll();
-    }
-  }, [searchResults.length]);
 
   const handleRecentClick = (term) => {
     setSearchQuery(term);
