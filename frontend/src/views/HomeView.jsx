@@ -246,13 +246,15 @@ export default function HomeView() {
           case "shop-by-category":
             return (
               <section key="shop-by-category" style={categorySectionStyle} className="category-section">
-                <div style={containerStyle}>
-                  <div style={categoryHeaderStyle}>
+                <div className="category-header-wrap">
+                  <div style={categoryHeaderStyle} className="category-header">
                     <h2 style={categoryTitleStyle}>Shop By Category</h2>
                     <button type="button" onClick={() => goToCatalog("All")} style={categoryViewAllStyle} className="category-view-all">
                       View All
                     </button>
                   </div>
+                </div>
+                <div className="category-carousel-wrap">
                   <div className="category-row" style={categoryRowStyle}>
                     {categories.map((item) => (
                       <button
@@ -409,6 +411,7 @@ export default function HomeView() {
           transform: scale(1.1);
         }
         .peek-slider::-webkit-scrollbar,
+        .category-carousel-wrap::-webkit-scrollbar,
         .category-row::-webkit-scrollbar,
         .product-row::-webkit-scrollbar {
           display: none;
@@ -416,6 +419,7 @@ export default function HomeView() {
           height: 0;
         }
         .peek-slider,
+        .category-carousel-wrap,
         .category-row,
         .product-row {
           scrollbar-width: none;
@@ -437,17 +441,157 @@ export default function HomeView() {
             scroll-padding-left: 72px !important;
           }
         }
+
+        /* Category Section Layout */
+        .category-header-wrap {
+          width: 100%;
+          padding: 0 48px;
+          box-sizing: border-box;
+        }
+        .category-carousel-wrap {
+          width: 100%;
+          padding: 0 48px;
+          box-sizing: border-box;
+        }
+        
         @media (max-width: 1199px) {
-          .category-row {
+          .category-header-wrap {
+            padding: 0 24px !important;
+          }
+          .category-carousel-wrap {
+            padding-left: 24px !important;
+            padding-right: 0 !important;
             overflow-x: auto !important;
+            overflow-y: hidden !important;
+            -webkit-overflow-scrolling: touch !important;
+            scrollbar-width: none !important;
+          }
+          .category-row {
+            display: flex !important;
+            width: max-content !important;
+            min-width: 100% !important;
             flex-wrap: nowrap !important;
-            scroll-snap-type: x mandatory;
+            gap: 12px !important;
+            padding: 2px 24px 14px 0 !important;
+            margin: 0 !important;
+            scroll-snap-type: x proximity !important;
+            justify-content: flex-start !important;
           }
           .category-row .category-tile {
-            flex: 0 0 clamp(170px, 18vw, 220px) !important;
-            scroll-snap-align: start;
+            flex: 0 0 clamp(170px, 24vw, 220px) !important;
+            min-width: 0 !important;
+            max-width: none !important;
+            scroll-snap-align: start !important;
           }
         }
+
+        @media (max-width: 767px) {
+          .category-header-wrap {
+            padding: 0 16px !important;
+          }
+          .category-carousel-wrap {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            padding-left: 16px !important;
+            padding-right: 0 !important;
+            overflow-x: auto !important;
+            overflow-y: hidden !important;
+            -webkit-overflow-scrolling: touch !important;
+            scrollbar-width: none !important;
+            box-sizing: border-box !important;
+          }
+          .category-carousel-wrap::-webkit-scrollbar {
+            display: none !important;
+          }
+          .category-row {
+            display: flex !important;
+            width: max-content !important;
+            min-width: 100% !important;
+            flex-wrap: nowrap !important;
+            gap: 10px !important;
+            padding: 2px 16px 14px 0 !important;
+            margin: 0 !important;
+            scroll-snap-type: x proximity !important;
+            box-sizing: border-box !important;
+            justify-content: flex-start !important;
+          }
+          .category-row .category-tile {
+            flex: 0 0 clamp(155px, 48vw, 205px) !important;
+            min-width: 0 !important;
+            max-width: none !important;
+            scroll-snap-align: start !important;
+            aspect-ratio: 2.2 / 1 !important;
+          }
+          .category-row .category-tile img {
+            max-width: 48% !important;
+            height: auto !important;
+            object-fit: contain !important;
+            flex-shrink: 0 !important;
+          }
+
+          .peek-slider {
+            gap: 10px !important;
+            padding: 14px 16px 18px 24px !important;
+          }
+          .peek-slide {
+            width: 82vw !important;
+            height: 150px !important;
+            border-radius: 16px !important;
+          }
+          .peek-badge {
+            top: 10px !important;
+            left: 10px !important;
+            padding: 4px 9px !important;
+            font-size: 10px !important;
+          }
+          .peek-slide-content {
+            left: 12px !important;
+            right: 76px !important;
+            bottom: 12px !important;
+            gap: 2px !important;
+          }
+          .peek-deal-text {
+            font-size: 11px !important;
+          }
+          .peek-headline {
+            font-size: 16px !important;
+          }
+          .peek-shop-btn {
+            right: 10px !important;
+            bottom: 10px !important;
+            padding: 7px 12px !important;
+            font-size: 11px !important;
+          }
+
+          .product-row {
+            overflow-x: auto !important;
+            display: grid !important;
+            grid-auto-flow: column !important;
+            grid-auto-columns: minmax(220px, 68vw) !important;
+            grid-template-columns: none !important;
+            gap: 14px !important;
+            padding: 2px 24px 14px !important;
+            margin: 0 -16px !important;
+            scroll-snap-type: x mandatory;
+            scroll-padding-left: 24px !important;
+          }
+          .single-promo-banner-section {
+            padding: 14px 0 !important;
+            width: 100% !important;
+            display: flex !important;
+            justify-content: center !important;
+            box-sizing: border-box !important;
+          }
+          .promo-wide-container {
+            width: calc(100% - 12px) !important;
+            max-width: none !important;
+            margin: 0 auto !important;
+            padding: 0 !important;
+            box-sizing: border-box !important;
+          }
+        }
+
         .product-row-scroll-wrap {
           position: relative;
         }
@@ -489,178 +633,9 @@ export default function HomeView() {
             display: block;
           }
         }
-        @media (max-width: 767px) {
-          .peek-slider {
-            gap: 10px !important;
-            padding: 14px 16px 18px 24px !important;
-          }
-          .peek-slide {
-            width: 82vw !important;
-            height: 150px !important;
-            border-radius: 16px !important;
-          }
-          .peek-badge {
-            top: 10px !important;
-            left: 10px !important;
-            padding: 4px 9px !important;
-            font-size: 10px !important;
-          }
-          .peek-slide-content {
-            left: 12px !important;
-            right: 76px !important;
-            bottom: 12px !important;
-            gap: 2px !important;
-          }
-          .peek-deal-text {
-            font-size: 11px !important;
-          }
-          .peek-headline {
-            font-size: 16px !important;
-          }
-          .peek-shop-btn {
-            right: 10px !important;
-            bottom: 10px !important;
-            padding: 7px 12px !important;
-            font-size: 11px !important;
-          }
-          .category-row {
-            overflow-x: auto !important;
-            display: flex !important;
-            flex-wrap: nowrap !important;
-            gap: 16px !important;
-            padding: 2px 24px 14px !important;
-            margin: 0 -16px !important;
-            scroll-snap-type: x mandatory;
-            scroll-padding-left: 24px !important;
-            justify-content: flex-start !important;
-          }
-          position: relative;
-        }
-        .row-fade {
-          position: absolute;
-          top: 0;
-          bottom: 10px;
-          width: 64px;
-          pointer-events: none;
-          z-index: 2;
-          display: none;
-        }
-        .row-fade-left {
-          left: 0;
-          background: linear-gradient(90deg, var(--row-fade-color, #FFFFFF), rgba(255, 255, 255, 0));
-        }
-        .row-fade-right {
-          right: 0;
-          background: linear-gradient(270deg, var(--row-fade-color, #FFFFFF), rgba(255, 255, 255, 0));
-        }
-        @media (min-width: 768px) {
-          .product-row-scroll {
-            display: flex !important;
-            grid-template-columns: none !important;
-            overflow-x: auto;
-            scroll-snap-type: x mandatory;
-            padding-bottom: 10px;
-            padding-left: 64px;
-            padding-right: 64px;
-            scroll-padding-left: 64px;
-            scroll-padding-right: 64px;
-          }
-          .product-row-scroll .product-item-scroll {
-            flex: 0 0 260px;
-            min-width: 260px;
-            scroll-snap-align: start;
-          }
-          .row-fade {
-            display: block;
-          }
-        }
-        @media (max-width: 767px) {
-          .peek-slider {
-            gap: 10px !important;
-            padding: 14px 16px 18px 24px !important;
-          }
-          .peek-slide {
-            width: 82vw !important;
-            height: 150px !important;
-            border-radius: 16px !important;
-          }
-          .peek-badge {
-            top: 10px !important;
-            left: 10px !important;
-            padding: 4px 9px !important;
-            font-size: 10px !important;
-          }
-          .peek-slide-content {
-            left: 12px !important;
-            right: 76px !important;
-            bottom: 12px !important;
-            gap: 2px !important;
-          }
-          .peek-deal-text {
-            font-size: 11px !important;
-          }
-          .peek-headline {
-            font-size: 16px !important;
-          }
-          .peek-shop-btn {
-            right: 10px !important;
-            bottom: 10px !important;
-            padding: 7px 12px !important;
-            font-size: 11px !important;
-          }
-          .category-row {
-            overflow-x: auto !important;
-            display: flex !important;
-            flex-wrap: nowrap !important;
-            gap: 16px !important;
-            padding: 2px 24px 14px !important;
-            margin: 0 -16px !important;
-            scroll-snap-type: x mandatory;
-            scroll-padding-left: 24px !important;
-            justify-content: flex-start !important;
-          }
-          .category-row .category-tile {
-            flex: 0 0 clamp(154px, 52vw, 220px) !important;
-            min-width: 0 !important;
-            scroll-snap-align: start;
-          }
-          .product-row {
-            overflow-x: auto !important;
-            display: grid !important;
-            grid-auto-flow: column !important;
-            grid-auto-columns: minmax(220px, 68vw) !important;
-            grid-template-columns: none !important;
-            gap: 14px !important;
-            padding: 2px 24px 14px !important;
-            margin: 0 -16px !important;
-            scroll-snap-type: x mandatory;
-            scroll-padding-left: 24px !important;
-          }
-          .single-promo-banner-section {
-            width: 100% !important;
-            display: flex !important;
-            justify-content: center !important;
-            box-sizing: border-box !important;
-          }
+        @media (max-width: 1024px) {
           .promo-wide-container {
             width: calc(100% - 16px) !important;
-            max-width: none !important;
-            margin: 0 auto !important;
-            padding: 0 !important;
-            box-sizing: border-box !important;
-          }
-          @media (max-width: 1024px) {
-            .promo-wide-container {
-              width: calc(100% - 16px) !important;
-            }
-          }
-          @media (max-width: 767px) {
-            .single-promo-banner-section {
-              padding: 14px 0 !important;
-            }
-            .promo-wide-container {
-              width: calc(100% - 12px) !important;
-            }
           }
         }
       `}</style>

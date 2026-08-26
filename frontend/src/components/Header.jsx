@@ -7,7 +7,6 @@ import { useCustomerAuth } from "../context/CustomerAuthContext";
 import { MOCK_PRODUCTS } from "../data/products";
 import { formatPrice } from "../utils/currency";
 import { getResolvedImageUrlSync } from "../utils/imageStorage";
-import { getListingBackRoute } from "../utils/navigationHelpers";
 
 export default function Header() {
   const pathname = usePathname() || "/";
@@ -18,7 +17,6 @@ export default function Header() {
     navigateTo,
     cart,
     wishlist,
-    products,
     searchQuery,
     setSearchQuery,
     setActiveFilters,
@@ -148,29 +146,11 @@ export default function Header() {
   };
 
   const goBack = () => {
-    // 1. If on a product detail page, use actual browser history
-    if (pathname.startsWith("/product/")) {
-      if (typeof window !== "undefined" && window.history.length > 1) {
-        router.back();
-        return;
-      }
-      // Safe canonical fallback for direct product link opening
-      const prodId = pathname.replace("/product/", "").trim();
-      const product = (products || MOCK_PRODUCTS).find((p) => p.id === prodId || p.slug === prodId);
-      const cat = (product?.mainCategorySlug || product?.mainCategoryId || product?.category || "").toLowerCase();
-      if (cat.includes("access") || cat.includes("pillow") || cat.includes("protector") || cat.includes("bedspread") || cat.includes("blanket")) {
-        router.push("/accessories");
-      } else if (cat.includes("frame") || cat.includes("bed-frame") || cat.includes("furniture")) {
-        router.push("/bed-frames");
-      } else {
-        router.push("/mattresses");
-      }
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
       return;
     }
-
-    // 2. Listing, subcategory, and information pages: explicit hierarchical route
-    const targetRoute = getListingBackRoute(pathname);
-    router.push(targetRoute);
+    handleNavClick("/");
   };
 
   const handleMobileBack = () => {
