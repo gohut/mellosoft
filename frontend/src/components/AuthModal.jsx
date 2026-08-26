@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useCustomerAuth } from "../context/CustomerAuthContext";
 import { useStore } from "../context/StoreContext";
+import { getResolvedImageUrlSync } from "../utils/imageStorage";
 import {
   Mail,
   Lock,
@@ -18,7 +19,7 @@ import {
 
 export default function AuthModal({ type = "login", onClose }) {
   const { login, signup, intendedView, setIntendedView } = useCustomerAuth();
-  const { navigateTo, closeAuthModal } = useStore();
+  const { navigateTo, closeAuthModal, settings } = useStore();
 
   const [activeModal, setActiveModal] = useState(type); // "login" | "signup" | "forgot-password"
 
@@ -197,9 +198,14 @@ function LoginForm({ onSwitchToSignup, onSwitchToForgot, onSuccess }) {
     <div>
       {/* Header / Logo */}
       <div style={headerSectionStyle}>
-        <img src="/asset/logo.png" alt="Mellosoft" style={logoImageStyle} />
+        <img
+          src={getResolvedImageUrlSync(settings?.website?.logo, "/asset/logo.png")}
+          alt={settings?.store?.name || "Mellosoft"}
+          style={logoImageStyle}
+          onError={(e) => { e.currentTarget.src = "/asset/logo.png"; }}
+        />
         <h2 style={titleStyle}>Welcome Back</h2>
-        <p style={subtitleStyle}>Sign in to continue to your Mellosoft account.</p>
+        <p style={subtitleStyle}>Sign in to continue to your {settings?.store?.name || "Mellosoft"} account.</p>
       </div>
 
       {/* Error Alert */}
@@ -400,9 +406,14 @@ function SignupForm({ onSwitchToLogin, onSuccess }) {
   return (
     <div>
       <div style={headerSectionStyle}>
-        <img src="/asset/logo.png" alt="Mellosoft" style={logoImageStyle} />
+        <img
+          src={getResolvedImageUrlSync(settings?.website?.logo, "/asset/logo.png")}
+          alt={settings?.store?.name || "Mellosoft"}
+          style={logoImageStyle}
+          onError={(e) => { e.currentTarget.src = "/asset/logo.png"; }}
+        />
         <h2 style={titleStyle}>Create Account</h2>
-        <p style={subtitleStyle}>Sign up to begin your Mellosoft luxury sleep experience.</p>
+        <p style={subtitleStyle}>Sign up to begin your {settings?.store?.name || "Mellosoft"} luxury sleep experience.</p>
       </div>
 
       {errorMessage && (
@@ -599,7 +610,12 @@ function ForgotPasswordForm({ onSwitchToLogin }) {
   return (
     <div>
       <div style={headerSectionStyle}>
-        <img src="/asset/logo.png" alt="Mellosoft" style={logoImageStyle} />
+        <img
+          src={getResolvedImageUrlSync(settings?.website?.logo, "/asset/logo.png")}
+          alt={settings?.store?.name || "Mellosoft"}
+          style={logoImageStyle}
+          onError={(e) => { e.currentTarget.src = "/asset/logo.png"; }}
+        />
         <h2 style={titleStyle}>Forgot Password</h2>
         <p style={subtitleStyle}>No worries! Enter your email to recover access.</p>
       </div>

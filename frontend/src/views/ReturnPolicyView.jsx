@@ -5,7 +5,7 @@ import { useStore } from "../context/StoreContext";
 import { RotateCcw, ShieldCheck, ArrowLeft, Mail, Phone, Clock, CheckCircle2 } from "lucide-react";
 
 export default function ReturnPolicyView() {
-  const { navigateTo } = useStore();
+  const { navigateTo, settings } = useStore();
 
   const handleBackHome = () => {
     navigateTo("home");
@@ -90,7 +90,7 @@ export default function ReturnPolicyView() {
                 <span style={stepNumStyle}>1</span>
                 <div>
                   <strong style={stepTitleStyle}>Contact Support</strong>
-                  <p style={stepDescStyle}>Reach out to support@mellosoft.com with your Order ID (<code style={codeTagStyle}>MS-XXXXX</code>).</p>
+                  <p style={stepDescStyle}>Reach out to {settings?.store?.email || "support@mellosoft.com"} with your Order ID (<code style={codeTagStyle}>MS-XXXXX</code>).</p>
                 </div>
               </div>
 
@@ -154,11 +154,11 @@ export default function ReturnPolicyView() {
             <div style={contactBoxStyle}>
               <div style={contactItemStyle}>
                 <Mail size={16} color="#16A34A" />
-                <span>Email: returns@mellosoft.com / support@mellosoft.com</span>
+                <span>Email: {settings?.store?.email || "support@mellosoft.com"}</span>
               </div>
               <div style={contactItemStyle}>
                 <Phone size={16} color="#16A34A" />
-                <span>Phone: +91 98765 43210 (Mon-Sat, 9 AM - 7 PM IST)</span>
+                <span>Phone: {settings?.store?.phone || "+91 98765 43210"} (Mon-Sat, 9 AM - 7 PM IST)</span>
               </div>
             </div>
           </section>

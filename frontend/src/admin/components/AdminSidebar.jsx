@@ -31,7 +31,7 @@ const navItems = [
 ];
 
 export default function AdminSidebar() {
-  const { adminView, navigateTo, sidebarCollapsed, sidebarMobileOpen, toggleMobileSidebar, toggleSidebar, hasPermission } = useAdmin();
+  const { adminView, navigateTo, sidebarCollapsed, sidebarMobileOpen, toggleMobileSidebar, toggleSidebar, hasPermission, settings } = useAdmin();
   const { logout } = useAdminAuth();
   const router = useRouter();
   const [productsOpen, setProductsOpen] = useState(true);
@@ -47,14 +47,14 @@ export default function AdminSidebar() {
 
   const isNavVisible = (id) => {
     switch (id) {
-      case "dashboard":    return hasPermission("dashboard", "view");
-      case "products-group": return hasPermission("products", "view");
-      case "orders":       return hasPermission("orders", "view");
-      case "customers":    return hasPermission("customers", "view");
-      case "reviews":      return hasPermission("reviews", "view");
-      case "content":      return hasPermission("products", "view");
-      case "users-roles":  return hasPermission("users", "view") || hasPermission("roles", "view");
-      case "settings":     return hasPermission("settings", "view");
+      case "dashboard":      return hasPermission("dashboard", "view");
+      case "products-group": return hasPermission("products", "view") || hasPermission("products", "create");
+      case "orders":         return hasPermission("orders", "view");
+      case "customers":      return hasPermission("customers", "view");
+      case "reviews":        return hasPermission("reviews", "view");
+      case "content":        return hasPermission("content", "view");
+      case "users-roles":    return hasPermission("users", "view") || hasPermission("roles", "view");
+      case "settings":       return hasPermission("settings", "view");
       default: return true;
     }
   };
@@ -152,9 +152,8 @@ export default function AdminSidebar() {
         height: "64px",
       }}>
         {!sidebarCollapsed && (
-          <span style={{ fontSize: "20px", fontWeight: 800, letterSpacing: "-0.02em" }}>
-            <span style={{ color: "#16A34A" }}>m</span>
-            <span style={{ color: "#1B1F8C" }}>ellosoft</span>
+          <span style={{ fontSize: "18px", fontWeight: 800, letterSpacing: "-0.02em", color: "#1B1F8C", maxWidth: "160px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {settings?.store?.name || "Mellosoft"}
           </span>
         )}
         <button

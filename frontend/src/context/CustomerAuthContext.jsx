@@ -32,21 +32,16 @@ export function CustomerAuthProvider({ children }) {
     }
   }, []);
 
-  // Retrieve combined customers list (stored + default mock customers)
+  // Retrieve real registered customers list from storage
   const getAllCustomers = useCallback(() => {
-    let list = [...MOCK_CUSTOMERS];
+    let list = [];
     if (typeof window !== "undefined") {
       try {
         const saved = localStorage.getItem(CUSTOMERS_KEY);
         if (saved) {
           const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            const existingEmails = new Set(list.map((c) => c.email.toLowerCase()));
-            parsed.forEach((c) => {
-              if (c && c.email && !existingEmails.has(c.email.toLowerCase())) {
-                list.push(c);
-              }
-            });
+          if (Array.isArray(parsed)) {
+            list = parsed;
           }
         }
       } catch (e) {
@@ -144,6 +139,12 @@ export function CustomerAuthProvider({ children }) {
       parsed.push(newCustomer);
       localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(parsed));
       localStorage.setItem(CUSTOMER_SESSION_KEY, JSON.stringify(newCustomer));
+      if (typeof window !== "undefined") {
+        setTimeout(() => {
+          window.dispatchEvent(new Event("storage"));
+          window.dispatchEvent(new CustomEvent("mellosoft_customers_updated"));
+        }, 0);
+      }
     } catch (e) {
       console.error("Failed to save new customer to localStorage:", e);
     }
@@ -153,6 +154,45 @@ export function CustomerAuthProvider({ children }) {
 
     return { success: true, customer: newCustomer };
   }, [getAllCustomers]);
+
+  // Update profile logic
+  const updateProfile = useCallback(async (updatedFields) => {
+    if (!currentCustomer) return { success: false, error: "Not logged in" };
+
+    const updatedCustomer = {
+      ...currentCustomer,
+      ...updatedFields,
+      updatedAt: new Date().toISOString()
+    };
+
+    try {
+      const saved = localStorage.getItem(CUSTOMERS_KEY);
+      let list = saved ? JSON.parse(saved) : [];
+      if (!Array.isArray(list)) list = [];
+
+      const idx = list.findIndex((c) => c.id === currentCustomer.id || c.email?.toLowerCase() === currentCustomer.email?.toLowerCase());
+      if (idx >= 0) {
+        list[idx] = { ...list[idx], ...updatedCustomer };
+      } else {
+        list.push(updatedCustomer);
+      }
+
+      localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(list));
+      localStorage.setItem(CUSTOMER_SESSION_KEY, JSON.stringify(updatedCustomer));
+
+      if (typeof window !== "undefined") {
+        setTimeout(() => {
+          window.dispatchEvent(new Event("storage"));
+          window.dispatchEvent(new CustomEvent("mellosoft_customers_updated"));
+        }, 0);
+      }
+    } catch (e) {
+      console.error("Failed to update customer profile:", e);
+    }
+
+    setCurrentCustomer(updatedCustomer);
+    return { success: true, customer: updatedCustomer };
+  }, [currentCustomer]);
 
   // Logout logic
   const logout = useCallback(() => {
@@ -175,6 +215,7 @@ export function CustomerAuthProvider({ children }) {
         setIntendedView,
         login,
         signup,
+        updateProfile,
         logout
       }}
     >

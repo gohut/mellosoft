@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useStore } from "../context/StoreContext";
 
 export default function ContactView() {
-  const { searchQuery } = useStore();
+  const { searchQuery, settings } = useStore();
 
   const [formData, setFormData] = useState({
     name: "",
@@ -16,6 +16,11 @@ export default function ContactView() {
   const [errors, setErrors] = useState({});
   const [submitted, setSubmitted] = useState(false);
 
+  const storeName = settings?.store?.name || "Mellosoft";
+  const storeEmail = settings?.store?.email || "admin@mellosoft.in";
+  const storePhone = settings?.store?.phone || "+91 98765 43210";
+  const storeAddress = settings?.store?.address || "42, MG Road, Bengaluru, Karnataka 560001";
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
@@ -25,7 +30,7 @@ export default function ContactView() {
       const size = params.get("size");
 
       if (prod) {
-        let msg = `Hi, I would like to know the price and availability of the Mellosoft ${prod}`;
+        let msg = `Hi, I would like to know the price and availability of the ${storeName} ${prod}`;
         if (cat) msg += ` ${cat}`;
         if (thick) msg += `, ${thick} thickness`;
         if (size) msg += `, size ${size}`;
@@ -35,7 +40,7 @@ export default function ContactView() {
         setFormData((prev) => ({ ...prev, message: `Inquiry regarding: ${searchQuery}` }));
       }
     }
-  }, [searchQuery]);
+  }, [searchQuery, storeName]);
 
   const validate = () => {
     const newErrors = {};
@@ -95,8 +100,8 @@ export default function ContactView() {
               <div style={iconWrapStyle}>📞</div>
               <div>
                 <span style={detailLabelStyle}>Phone</span>
-                <a href="tel:+919500260892" style={detailValueLinkStyle}>
-                  +91 9500260892
+                <a href={`tel:${storePhone.replace(/[^0-9+]/g, "")}`} style={detailValueLinkStyle}>
+                  {storePhone}
                 </a>
               </div>
             </div>
@@ -105,9 +110,17 @@ export default function ContactView() {
               <div style={iconWrapStyle}>✉️</div>
               <div>
                 <span style={detailLabelStyle}>Email</span>
-                <a href="mailto:info@mellosoftmattress.com" style={detailValueLinkStyle}>
-                  info@mellosoftmattress.com
+                <a href={`mailto:${storeEmail}`} style={detailValueLinkStyle}>
+                  {storeEmail}
                 </a>
+              </div>
+            </div>
+
+            <div style={detailItemStyle}>
+              <div style={iconWrapStyle}>📍</div>
+              <div>
+                <span style={detailLabelStyle}>Registered Address</span>
+                <span style={detailValueStyle}>{storeAddress}</span>
               </div>
             </div>
 
@@ -115,7 +128,7 @@ export default function ContactView() {
               <div style={iconWrapStyle}>⏰</div>
               <div>
                 <span style={detailLabelStyle}>Business Hours</span>
-                <span style={detailValueStyle}>9:30 AM – 6:30 PM</span>
+                <span style={detailValueStyle}>9:30 AM – 6:30 PM (Mon – Sat)</span>
               </div>
             </div>
           </div>

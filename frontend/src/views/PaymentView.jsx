@@ -1,72 +1,96 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useStore } from "../context/StoreContext";
 import { useCustomerAuth } from "../context/CustomerAuthContext";
 import { formatPrice } from "../utils/currency";
-import { ArrowLeft, CheckCircle2, ShieldCheck, Lock, Smartphone, Banknote } from "lucide-react";
+import { calculateOrderTotals } from "../utils/settingsHelpers";
+import { ArrowLeft, CheckCircle2, ShieldCheck, Lock, Smartphone, Banknote, Loader2 } from "lucide-react";
 
 export default function PaymentView() {
   const {
     checkoutItems,
     cart,
     selectedAddress,
+    userAddresses,
     placeOrder,
     navigateTo,
-    setSelectedOrderId
+    setSelectedOrderId,
+    settings
   } = useStore();
 
   const { currentCustomer } = useCustomerAuth();
   const userId = currentCustomer ? currentCustomer.id : "C001";
 
-  // Items for payment summary
+  const [isHydrated, setIsHydrated] = useState(false);
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
+
+  // Items for payment summary (with fallback to sessionStorage)
   const items = useMemo(() => {
-    return checkoutItems && checkoutItems.length > 0 ? checkoutItems : cart;
+    if (checkoutItems && checkoutItems.length > 0) return checkoutItems;
+    if (cart && cart.length > 0) return cart;
+    if (typeof window !== "undefined") {
+      try {
+        const saved = sessionStorage.getItem("mellosoft_checkout_items");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch {}
+    }
+    return [];
   }, [checkoutItems, cart]);
 
-  // Active delivery address
-  const address = selectedAddress || {
-    fullName: "Rahul Sharma",
-    phone: "+91 98765 43210",
-    addressLine1: "123 Indiranagar 100ft Road",
-    addressLine2: "Near Metro Station",
-    city: "Bengaluru",
-    state: "Karnataka",
-    pincode: "560038"
-  };
+  // Active delivery address (with fallback to sessionStorage / userAddresses)
+  const address = useMemo(() => {
+    if (selectedAddress && selectedAddress.fullName && selectedAddress.addressLine1) return selectedAddress;
+    if (typeof window !== "undefined") {
+      try {
+        const saved = sessionStorage.getItem("mellosoft_selected_address");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && parsed.fullName && parsed.addressLine1) return parsed;
+        }
+      } catch {}
+    }
+    if (userAddresses && userAddresses[userId]) return userAddresses[userId];
+    return {
+      fullName: currentCustomer?.name || "Rahul Sharma",
+      phone: currentCustomer?.phone || "+91 98765 43210",
+      addressLine1: "123 Indiranagar 100ft Road",
+      addressLine2: "Near Metro Station",
+      city: "Bengaluru",
+      state: "Karnataka",
+      pincode: "560038"
+    };
+  }, [selectedAddress, userAddresses, userId, currentCustomer]);
 
   // Payment Method Selection: "upi" | "cod"
-  const [paymentMethod, setPaymentMethod] = useState("upi");
+  const [paymentMethod, setPaymentMethod] = useState("cod");
   
   // Payment Method Details Form State
   const [upiId, setUpiId] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentError, setPaymentError] = useState("");
 
-  // Price calculations
-  const subtotal = useMemo(() => {
-    return items.reduce((acc, item) => {
-      const price = item.price || item.discountPrice || item.actualPrice || 0;
-      const qty = item.qty || item.quantity || 1;
-      return acc + price * qty;
-    }, 0);
-  }, [items]);
-
-  const rawTotal = useMemo(() => {
-    return items.reduce((acc, item) => {
-      const actual = item.actualPrice || item.price || 0;
-      const qty = item.qty || item.quantity || 1;
-      return acc + actual * qty;
-    }, 0);
-  }, [items]);
-
-  const discountSavings = Math.max(0, rawTotal - subtotal);
-  const couponDiscount = Math.round(subtotal * 0.1); // 10% coupon
-  const tax = Math.round(subtotal * 0.18); // 18% GST
-  const shipping = subtotal >= 5000 || subtotal === 0 ? 0 : 150;
-  const finalTotal = subtotal + tax + shipping - couponDiscount;
+  // Price calculations from settings
+  const {
+    subtotal,
+    rawTotal,
+    discountSavings,
+    gstRate,
+    tax,
+    shipping,
+    isFreeShipping,
+    freeShippingThreshold,
+    finalTotal
+  } = useMemo(() => calculateOrderTotals(items, settings), [items, settings]);
 
   const handleCompleteOrder = () => {
+    if (isProcessing) return;
+
     if (paymentMethod === "upi") {
       const trimmedUpi = upiId.trim();
       if (!trimmedUpi) {
@@ -79,17 +103,24 @@ export default function PaymentView() {
       }
     }
 
+    if (!items || items.length === 0) {
+      setPaymentError("No items found in your checkout session.");
+      return;
+    }
+
     setIsProcessing(true);
     setPaymentError("");
 
-    setTimeout(() => {
+    try {
       // Generate Order ID
       const randNum = Math.floor(10000 + Math.random() * 90000);
       const generatedOrderId = `MS-${randNum}`;
 
-      const paymentMethodLabel =
-        paymentMethod === "upi" ? `UPI (${upiId.trim()})` : "COD";
+      const paymentMethodLabel = paymentMethod === "upi" ? `UPI (${upiId.trim()})` : "COD";
+      const paymentStatusVal = paymentMethod === "cod" ? "Pending" : "Paid";
+      const orderStatusVal = paymentMethod === "cod" ? "Confirmed" : "Processing";
 
+      // Build complete order payload locally
       const newOrder = {
         id: generatedOrderId,
         orderId: generatedOrderId,
@@ -118,13 +149,13 @@ export default function PaymentView() {
         deliveryAddress: address,
         shippingAddress: address,
         paymentMethod: paymentMethodLabel,
-        paymentStatus: paymentMethod === "cod" ? "Pending" : "Paid",
-        orderStatus: "Processing",
+        paymentStatus: paymentStatusVal,
+        orderStatus: orderStatusVal,
         subtotal: subtotal,
         productDiscount: discountSavings,
-        couponDiscount: couponDiscount,
-        couponCode: couponDiscount > 0 ? "SLEEP10" : null,
-        discount: discountSavings + couponDiscount,
+        couponDiscount: 0,
+        couponCode: null,
+        discount: discountSavings,
         gst: tax,
         tax: tax,
         gstRate: 18,
@@ -134,15 +165,51 @@ export default function PaymentView() {
         total: finalTotal,
         createdAt: new Date().toISOString().split("T")[0],
         expectedDeliveryStart: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-        expectedDeliveryEnd: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
+        expectedDeliveryEnd: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+        storeSnapshot: {
+          storeName: settings?.store?.name || "Mellosoft",
+          email: settings?.store?.email || "admin@mellosoft.in",
+          phone: settings?.store?.phone || "+91 98765 43210",
+          gstNumber: settings?.store?.gstNumber || "07AABCM1234A1Z5",
+          address: settings?.store?.address || "42, MG Road, Bengaluru, Karnataka 560001",
+          logo: settings?.website?.logo || "/asset/logo.png"
+        }
       };
 
-      placeOrder(newOrder);
-      setSelectedOrderId(generatedOrderId);
+      const createdOrder = placeOrder(newOrder);
+      const targetId = createdOrder?.id || generatedOrderId;
+      setSelectedOrderId(targetId);
+      navigateTo("confirmation", targetId);
+    } catch (err) {
+      console.error("Order placement error:", err);
+      setPaymentError("An error occurred while creating your order. Please try again.");
       setIsProcessing(false);
-      navigateTo("confirmation", generatedOrderId);
-    }, 800);
+    }
   };
+
+  if (!isHydrated) {
+    return (
+      <div style={emptyContainerStyle}>
+        <div style={emptyCardStyle}>
+          <p style={{ color: "#6B6B75", margin: 0 }}>Loading checkout details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isProcessing) {
+    return (
+      <div style={emptyContainerStyle}>
+        <div style={emptyCardStyle}>
+          <div style={{ display: "inline-flex", padding: "16px", borderRadius: "50%", backgroundColor: "#F4F5FF", marginBottom: "16px" }}>
+            <CheckCircle2 size={40} color="#1B1F8C" />
+          </div>
+          <h2 style={{ fontSize: "22px", color: "#1B1F8C", margin: "0 0 8px 0" }}>Placing Your Order...</h2>
+          <p style={{ color: "#6B6B75", margin: 0 }}>Please wait while your order is being confirmed.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!items || items.length === 0) {
     return (
@@ -303,10 +370,12 @@ export default function PaymentView() {
                 <span style={summaryLabelStyle}>Subtotal</span>
                 <span style={summaryValStyle}>{formatPrice(subtotal)}</span>
               </div>
-              <div style={summaryRowStyle}>
-                <span style={summaryLabelStyle}>Product & Promo Discount</span>
-                <span style={{ ...summaryValStyle, color: "#16A34A" }}>–{formatPrice(discountSavings + couponDiscount)}</span>
-              </div>
+              {discountSavings > 0 && (
+                <div style={summaryRowStyle}>
+                  <span style={summaryLabelStyle}>Product Discount</span>
+                  <span style={{ ...summaryValStyle, color: "#16A34A" }}>–{formatPrice(discountSavings)}</span>
+                </div>
+              )}
               <div style={summaryRowStyle}>
                 <span style={summaryLabelStyle}>18% GST Tax</span>
                 <span style={summaryValStyle}>{formatPrice(tax)}</span>

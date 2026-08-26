@@ -8,10 +8,24 @@ import { DEFAULT_USERS } from "../../data/usersData";
 import { hashPassword, checkPermission } from "../../utils/security";
 import { useAdminAuth } from "../../context/AdminAuthContext";
 import { buildInitialTrackingHistory } from "../../utils/trackingHelpers";
-import { getProductPrimaryImage, getDeletedProductIds, saveDeletedProductId, isProductDeleted, isSameProduct } from "../../utils/productHelpers";
+import { getProductPrimaryImage, getDeletedProductIds, saveDeletedProductId, isProductDeleted, isSameProduct, ensureRequiredCategories, getMainCategoryProductCount, getSubcategoryProductCount } from "../../utils/productHelpers";
 import { migrateProductsBase64, migrateReviewsBase64 } from "../../utils/imageStorage";
+import { getSavedSettings, saveSettingsToStorage, normalizeSettings, SETTINGS_UPDATED_EVENT } from "../../utils/settingsHelpers";
 
 const AdminContext = createContext();
+
+export function getFirstAllowedAdminView(role) {
+  if (!role) return "dashboard";
+  if (checkPermission(role, "dashboard", "view")) return "dashboard";
+  if (checkPermission(role, "products", "view")) return "products";
+  if (checkPermission(role, "orders", "view")) return "orders";
+  if (checkPermission(role, "customers", "view")) return "customers";
+  if (checkPermission(role, "reviews", "view")) return "reviews";
+  if (checkPermission(role, "content", "view")) return "content";
+  if (checkPermission(role, "users", "view") || checkPermission(role, "roles", "view")) return "users-roles";
+  if (checkPermission(role, "settings", "view")) return "settings";
+  return "dashboard";
+}
 
 const PRODUCTS_STORAGE_KEY = "mellosoft_products";
 const CATEGORIES_STORAGE_KEY = "mellosoft_categories";
@@ -25,6 +39,91 @@ const REVIEWS_STORAGE_KEY = "mellosoft_reviews";
 const BANNERS_STORAGE_KEY = "mellosoft_banners";
 const HOMEPAGE_CONFIG_KEY = "mellosoft_homepage_config";
 const BANNER_TYPES_STORAGE_KEY = "mellosoft_banner_types";
+const NOTIFICATIONS_STORAGE_KEY = "mellosoft_admin_notifications";
+const ORDERS_RESET_KEY = "mellosoft_orders_reset_v1";
+const CUSTOMER_CLEANUP_KEY = "mellosoft_customer_cleanup_v1";
+const REVIEW_CLEANUP_KEY = "mellosoft_review_cleanup_v1";
+const HOME_LAYOUT_CLEANUP_KEY = "mellosoft_home_layout_cleanup_v1";
+
+// One-time safe reset and cleanup migrations
+if (typeof window !== "undefined") {
+  try {
+    const isReset = localStorage.getItem(ORDERS_RESET_KEY);
+    if (isReset !== "completed") {
+      localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify([]));
+      localStorage.setItem("mellosoft_admin_orders", JSON.stringify([]));
+      localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify([]));
+      localStorage.setItem(ORDERS_RESET_KEY, "completed");
+    }
+
+    // Customer cleanup migration (removes demo seeded customers)
+    if (localStorage.getItem(CUSTOMER_CLEANUP_KEY) !== "completed") {
+      const savedCusts = localStorage.getItem(CUSTOMERS_STORAGE_KEY);
+      const currentOrders = JSON.parse(localStorage.getItem(ORDERS_STORAGE_KEY) || "[]");
+      const currentSession = JSON.parse(localStorage.getItem("mellosoft_customer_session") || "null");
+
+      let existing = savedCusts ? JSON.parse(savedCusts) : [];
+      if (!Array.isArray(existing)) existing = [];
+
+      const demoCustomerIds = new Set(["C001", "C002", "C003", "C004", "C005", "C006", "C007", "C008", "CUS-0001", "CUS-0002", "CUS-0003", "CUS-0004", "CUS-0005", "CUS-0006", "CUS-0007", "CUS-0008"]);
+      const demoEmails = new Set([
+        "rahul@example.com", "priya@example.com", "ankit@example.com", "sneha@example.com",
+        "vikram@example.com", "meera@example.com", "arjun@example.com", "kavitha@example.com"
+      ]);
+
+      const realCustomers = existing.filter((c) => {
+        if (!c) return false;
+        const hasOrder = currentOrders.some((o) =>
+          (o.customerId && (o.customerId === c.id || o.customerId === c.customerId)) ||
+          (o.userId && (o.userId === c.id || o.userId === c.customerId)) ||
+          (o.email && c.email && o.email.toLowerCase() === c.email.toLowerCase())
+        );
+        const isCurrentSession = currentSession && (currentSession.id === c.id || (currentSession.email && c.email && currentSession.email.toLowerCase() === c.email.toLowerCase()));
+        const isCustomAccount = c.isRegistered || Boolean(c.password) || Boolean(c.passwordHash) || (!demoCustomerIds.has(c.id) && !demoCustomerIds.has(c.customerId) && !demoEmails.has(c.email?.toLowerCase()));
+        return hasOrder || isCurrentSession || isCustomAccount;
+      });
+
+      localStorage.setItem(CUSTOMERS_STORAGE_KEY, JSON.stringify(realCustomers));
+      localStorage.setItem(CUSTOMER_CLEANUP_KEY, "completed");
+    }
+
+    // Review cleanup migration (removes demo reviews)
+    if (localStorage.getItem(REVIEW_CLEANUP_KEY) !== "completed") {
+      const savedReviews = localStorage.getItem(REVIEWS_STORAGE_KEY);
+      let existingRev = savedReviews ? JSON.parse(savedReviews) : [];
+      if (!Array.isArray(existingRev)) existingRev = [];
+
+      const demoReviewIds = new Set(["RV001", "RV002", "RV003", "RV004", "RV005", "RV006", "RV007"]);
+      const demoAuthors = new Set(["Helen M.", "Michael F.", "Diana C.", "Gregory P.", "Laura W.", "Tyler F.", "Anonymous"]);
+
+      const realReviews = existingRev.filter((r) => {
+        if (!r) return false;
+        if (demoReviewIds.has(r.id)) return false;
+        const authorName = r.customer || r.customerName || r.author || "";
+        if (demoAuthors.has(authorName) && !r.isReal && !r.orderId) return false;
+        return true;
+      });
+
+      localStorage.setItem(REVIEWS_STORAGE_KEY, JSON.stringify(realReviews));
+      localStorage.setItem(REVIEW_CLEANUP_KEY, "completed");
+    }
+
+    // Home layout cleanup migration (removes about-us from saved layout)
+    if (localStorage.getItem(HOME_LAYOUT_CLEANUP_KEY) !== "completed") {
+      const savedConfig = localStorage.getItem(HOMEPAGE_CONFIG_KEY);
+      if (savedConfig) {
+        const parsed = JSON.parse(savedConfig);
+        if (parsed && Array.isArray(parsed.sections)) {
+          parsed.sections = parsed.sections.filter((s) => s.id !== "about-us" && s.id !== "about-section");
+          localStorage.setItem(HOMEPAGE_CONFIG_KEY, JSON.stringify(parsed));
+        }
+      }
+      localStorage.setItem(HOME_LAYOUT_CLEANUP_KEY, "completed");
+    }
+  } catch (e) {
+    console.error("Cleanup migration error in AdminContext:", e);
+  }
+}
 
 const DEFAULT_BANNER_TYPES = [
   { id: "type-offer", name: "Offer" },
@@ -42,7 +141,6 @@ const DEFAULT_HOMEPAGE_SECTIONS = [
   { id: "new-arrivals",     label: "New Arrivals",      description: "Showcase of the latest products added to the store",   visible: true, type: "global" },
   { id: "best-sellers",     label: "Best Sellers",      description: "Top-selling products ranked by purchase frequency",    visible: true, type: "global" },
   { id: "customer-reviews", label: "Customer Reviews",  description: "Customer reviews and feedback carousel section",        visible: true, type: "global" },
-  { id: "about-us",         label: "About Us",          description: "About Mellosoft and why customers choose us",          visible: true, type: "global" },
 ];
 
 const ALL_GLOBAL_SECTIONS = [
@@ -51,15 +149,17 @@ const ALL_GLOBAL_SECTIONS = [
   { id: "new-arrivals",     label: "New Arrivals",      description: "Showcase of the latest products added to the store", visible: true, type: "global" },
   { id: "best-sellers",     label: "Best Sellers",      description: "Top-selling products ranked by purchase frequency", visible: true, type: "global" },
   { id: "customer-reviews", label: "Customer Reviews",  description: "Customer reviews and feedback carousel section", visible: true, type: "global" },
-  { id: "about-us",         label: "About Us",          description: "About Mellosoft and why customers choose us", visible: true, type: "global" },
 ];
 
-const sanitizeHomepageConfig = (configSections, currentBanners, isInitialHydration = false) => {
+const sanitizeHomepageConfig = (configSections, currentBanners) => {
   let result = [];
   const promoBanners = (currentBanners || []).filter((b) => b.type === "Promotion");
   const promoMap = new Map(promoBanners.map((b) => [b.id, b]));
 
   (configSections || []).forEach((sec) => {
+    // Explicitly omit any about-us / about-section
+    if (sec.id === "about-us" || sec.id === "about-section") return;
+
     // If legacy single grouped section item "promo-banner" or "promo-banners" is encountered, expand it to individual items
     if (sec.id === "promo-banner" || sec.id === "promo-banners") {
       promoBanners.forEach((pBanner) => {
@@ -96,7 +196,7 @@ const sanitizeHomepageConfig = (configSections, currentBanners, isInitialHydrati
     }
 
     // Global section items & Custom Section items
-    const globalDef = ALL_GLOBAL_SECTIONS.find((g) => g.id === sec.id || (sec.id === "about-section" && g.id === "about-us"));
+    const globalDef = ALL_GLOBAL_SECTIONS.find((g) => g.id === sec.id);
     const isCustomSection = sec.isCustom === true || (sec.type === "product-section" && !globalDef);
 
     result.push({
@@ -114,17 +214,10 @@ const sanitizeHomepageConfig = (configSections, currentBanners, isInitialHydrati
     });
   });
 
-  // On initial hydration, if 'about-us' is not present, append it
-  if (isInitialHydration) {
-    if (!result.some((r) => r.id === "about-us" || r.id === "about-section")) {
-      result.push({ id: "about-us", label: "About Us", description: "About Mellosoft and why customers choose us", visible: true, type: "global" });
-    }
-  }
-
   return { sections: result };
 };
 
-export const MELLOSOFT_CATALOGUE_VERSION = "v5-real-images";
+export const MELLOSOFT_CATALOGUE_VERSION = "v6-bed-frames";
 
 export function AdminProvider({ children }) {
   const [adminView, setAdminView] = useState("dashboard");
@@ -135,6 +228,33 @@ export function AdminProvider({ children }) {
   const [selectedRoleId, setSelectedRoleId] = useState(null);
   const [returnToNewArrivals, setReturnToNewArrivals] = useState(false);
   const [contentActiveTab, setContentActiveTab] = useState("homepage-layout");
+
+  // Global Store Settings synchronized with localStorage ("mellosoft_settings")
+  const [settings, setSettings] = useState(() => getSavedSettings());
+
+  useEffect(() => {
+    const handleSync = () => {
+      setSettings(getSavedSettings());
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("storage", handleSync);
+      window.addEventListener(SETTINGS_UPDATED_EVENT, handleSync);
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("storage", handleSync);
+        window.removeEventListener(SETTINGS_UPDATED_EVENT, handleSync);
+      }
+    };
+  }, []);
+
+  const updateSettings = useCallback((newSettings) => {
+    const success = saveSettingsToStorage(newSettings);
+    if (success) {
+      setSettings(normalizeSettings(newSettings));
+    }
+    return success;
+  }, []);
 
   // Hydrate products from localStorage if available, enforcing persistent deletion tombstones & v3 catalogue reset
   const [products, setProducts] = useState(() => {
@@ -221,7 +341,7 @@ export function AdminProvider({ children }) {
     return MOCK_PRODUCTS;
   });
 
-  // Hydrate categories from localStorage if available, or default to MOCK_CATEGORIES
+  // Hydrate categories from localStorage if available, enforcing hierarchical structure
   const [categories, setCategories] = useState(() => {
     if (typeof window !== "undefined") {
       try {
@@ -229,14 +349,14 @@ export function AdminProvider({ children }) {
         if (saved) {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed;
+            return ensureRequiredCategories(parsed);
           }
         }
       } catch (e) {
         console.error("Failed to load categories from localStorage:", e);
       }
     }
-    return MOCK_CATEGORIES;
+    return ensureRequiredCategories(MOCK_CATEGORIES);
   });
 
   const [roles, setRoles] = useState(() => {
@@ -286,7 +406,7 @@ export function AdminProvider({ children }) {
         const saved = localStorage.getItem(ORDERS_STORAGE_KEY);
         if (saved) {
           const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
+          if (Array.isArray(parsed)) {
             return parsed;
           }
         }
@@ -294,7 +414,7 @@ export function AdminProvider({ children }) {
         console.error("Failed to load orders from localStorage:", e);
       }
     }
-    return MOCK_ORDERS;
+    return [];
   });
 
   // Hydrate customers from localStorage
@@ -304,7 +424,7 @@ export function AdminProvider({ children }) {
         const saved = localStorage.getItem(CUSTOMERS_STORAGE_KEY);
         if (saved) {
           const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
+          if (Array.isArray(parsed)) {
             return parsed;
           }
         }
@@ -312,7 +432,7 @@ export function AdminProvider({ children }) {
         console.error("Failed to load customers from localStorage:", e);
       }
     }
-    return MOCK_CUSTOMERS;
+    return [];
   });
 
   // Hydrate wishlists from localStorage
@@ -358,13 +478,13 @@ export function AdminProvider({ children }) {
         const saved = localStorage.getItem(REVIEWS_STORAGE_KEY);
         if (saved) {
           const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+          if (Array.isArray(parsed)) return parsed;
         }
       } catch (e) {
         console.error("Failed to load reviews from localStorage:", e);
       }
     }
-    return MOCK_REVIEWS;
+    return [];
   });
 
   // Hydrate promotional banners & hero slides from localStorage
@@ -407,7 +527,7 @@ export function AdminProvider({ children }) {
         console.error("Failed to load homepage config from localStorage:", e);
       }
     }
-    return sanitizeHomepageConfig(initialSections, banners, true);
+    return sanitizeHomepageConfig(initialSections, banners);
   });
 
   // Sync homepageConfig layout entries whenever banners update
@@ -489,6 +609,24 @@ export function AdminProvider({ children }) {
   });
 
   const [returnToBestSellers, setReturnToBestSellers] = useState(false);
+
+  // Hydrate notifications from localStorage
+  const [notifications, setNotifications] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) return parsed;
+        }
+      } catch (e) {
+        console.error("Failed to load notifications from localStorage:", e);
+      }
+    }
+    return [];
+  });
+
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
 
   const isFirstBannersRef = useRef(true);
   const isFirstNARef = useRef(true);
@@ -609,18 +747,24 @@ export function AdminProvider({ children }) {
   const currentUser = users.find((u) => u.id === currentUserId) || users[0];
   const currentUserRole = roles.find((r) => r.id === currentUser?.roleId) || roles[0];
 
-  const [notifications] = useState([
-    { id: 1, text: "New order #MS-92841 received", time: "2 min ago", read: false },
-    { id: 2, text: "Low stock alert: Luxury Down Pillow", time: "15 min ago", read: false },
-    { id: 3, text: "New review on Classic Mattress", time: "1 hr ago", read: true },
-    { id: 4, text: "Coupon SUMMER30 expires tomorrow", time: "3 hrs ago", read: true },
-  ]);
+  const isFirstProductsRef = useRef(true);
+  const isFirstOrdersRef = useRef(true);
+  const isFirstCustRef = useRef(true);
+  const isFirstNotifRef = useRef(true);
 
   // Persist products to localStorage
   useEffect(() => {
     if (typeof window !== "undefined") {
       try {
         localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(products));
+        if (isFirstProductsRef.current) {
+          isFirstProductsRef.current = false;
+          return;
+        }
+        setTimeout(() => {
+          window.dispatchEvent(new Event("storage"));
+          window.dispatchEvent(new CustomEvent("mellosoft_products_updated"));
+        }, 0);
       } catch (e) {
         console.error("Failed to save products to localStorage:", e);
       }
@@ -665,6 +809,14 @@ export function AdminProvider({ children }) {
     if (typeof window !== "undefined") {
       try {
         localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(orders));
+        if (isFirstOrdersRef.current) {
+          isFirstOrdersRef.current = false;
+          return;
+        }
+        setTimeout(() => {
+          window.dispatchEvent(new Event("storage"));
+          window.dispatchEvent(new CustomEvent("mellosoft_orders_updated"));
+        }, 0);
       } catch (e) {
         console.error("Failed to save orders to localStorage:", e);
       }
@@ -713,15 +865,15 @@ export function AdminProvider({ children }) {
       }
 
       try {
-        const savedProducts = localStorage.getItem(PRODUCTS_STORAGE_KEY);
-        if (savedProducts) {
-          const parsed = JSON.parse(savedProducts);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setProducts((prev) => (JSON.stringify(prev) === JSON.stringify(parsed) ? prev : parsed));
+        const savedNotifs = localStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
+        if (savedNotifs) {
+          const parsed = JSON.parse(savedNotifs);
+          if (Array.isArray(parsed)) {
+            setNotifications((prev) => (JSON.stringify(prev) === JSON.stringify(parsed) ? prev : parsed));
           }
         }
       } catch (e) {
-        console.error("Failed to sync products in AdminContext:", e);
+        console.error("Failed to sync notifications in AdminContext:", e);
       }
     };
 
@@ -730,6 +882,7 @@ export function AdminProvider({ children }) {
     window.addEventListener("mellosoft_customers_updated", syncAdminData);
     window.addEventListener("mellosoft_reviews_updated", syncAdminData);
     window.addEventListener("mellosoft_products_updated", syncAdminData);
+    window.addEventListener("mellosoft_notifications_updated", syncAdminData);
 
     return () => {
       window.removeEventListener("storage", syncAdminData);
@@ -737,6 +890,7 @@ export function AdminProvider({ children }) {
       window.removeEventListener("mellosoft_customers_updated", syncAdminData);
       window.removeEventListener("mellosoft_reviews_updated", syncAdminData);
       window.removeEventListener("mellosoft_products_updated", syncAdminData);
+      window.removeEventListener("mellosoft_notifications_updated", syncAdminData);
     };
   }, []);
 
@@ -745,6 +899,14 @@ export function AdminProvider({ children }) {
     if (typeof window !== "undefined") {
       try {
         localStorage.setItem(CUSTOMERS_STORAGE_KEY, JSON.stringify(customers));
+        if (isFirstCustRef.current) {
+          isFirstCustRef.current = false;
+          return;
+        }
+        setTimeout(() => {
+          window.dispatchEvent(new Event("storage"));
+          window.dispatchEvent(new CustomEvent("mellosoft_customers_updated"));
+        }, 0);
       } catch (e) {
         console.error("Failed to save customers to localStorage:", e);
       }
@@ -778,13 +940,77 @@ export function AdminProvider({ children }) {
     if (typeof window !== "undefined") {
       try {
         localStorage.setItem(REVIEWS_STORAGE_KEY, JSON.stringify(reviews));
-        window.dispatchEvent(new Event("storage"));
-        window.dispatchEvent(new CustomEvent("mellosoft_reviews_updated"));
+        setTimeout(() => {
+          window.dispatchEvent(new Event("storage"));
+          window.dispatchEvent(new CustomEvent("mellosoft_reviews_updated"));
+        }, 0);
       } catch (e) {
         console.error("Failed to save reviews to localStorage:", e);
       }
     }
   }, [reviews]);
+
+  // Persist notifications to localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(notifications));
+        if (isFirstNotifRef.current) {
+          isFirstNotifRef.current = false;
+          return;
+        }
+        setTimeout(() => {
+          window.dispatchEvent(new Event("storage"));
+          window.dispatchEvent(new CustomEvent("mellosoft_notifications_updated"));
+        }, 0);
+      } catch (e) {
+        console.error("Failed to save notifications to localStorage:", e);
+      }
+    }
+  }, [notifications]);
+
+  /** Notification Handlers */
+  const addNotification = useCallback((notif) => {
+    setNotifications((prev) => {
+      if (notif.orderId && prev.some((n) => n.orderId === notif.orderId && n.type === notif.type)) {
+        return prev;
+      }
+      const newNotif = {
+        id: notif.id || `notif-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        type: notif.type || "new_order",
+        orderId: notif.orderId || null,
+        title: notif.title || "New Order",
+        message: notif.message || notif.text || "",
+        text: notif.message || notif.text || "",
+        read: false,
+        createdAt: new Date().toISOString(),
+        time: notif.time || "Just now"
+      };
+      return [newNotif, ...prev];
+    });
+  }, []);
+
+  const markNotificationAsRead = useCallback((idOrOrderId) => {
+    setNotifications((prev) =>
+      prev.map((n) =>
+        n.id === idOrOrderId || n.orderId === idOrOrderId ? { ...n, read: true } : n
+      )
+    );
+  }, []);
+
+  const markAllNotificationsAsRead = useCallback(() => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  }, []);
+
+  const deleteNotification = useCallback((idOrOrderId) => {
+    setNotifications((prev) =>
+      prev.filter((n) => n.id !== idOrOrderId && n.orderId !== idOrOrderId)
+    );
+  }, []);
+
+  const clearNotifications = useCallback(() => {
+    setNotifications([]);
+  }, []);
 
   /** Review Handlers */
   const approveReview = useCallback((reviewId) => {
@@ -1095,126 +1321,129 @@ export function AdminProvider({ children }) {
     }
   }, []);
 
-  /** Category Handlers */
-  const addCategory = useCallback((newCatData) => {
-    const slug = newCatData.slug || newCatData.name.toLowerCase().replace(/\s+/g, "-");
-    const newCategory = {
-      id: newCatData.id || `CAT${Date.now()}`,
-      name: newCatData.name,
-      slug,
-      image: newCatData.image || "/asset/texture.png",
-      description: newCatData.description || `${newCatData.name} category`,
-    };
-    setCategories((prev) => [newCategory, ...prev]);
-    return newCategory;
-  }, []);
-
-  const updateCategory = useCallback((catId, updatedData) => {
-    setCategories((prev) => {
-      const oldCat = prev.find((c) => c.id === catId);
-      const newSlug = updatedData.name ? updatedData.name.toLowerCase().replace(/\s+/g, "-") : oldCat?.slug;
-      
-      if (oldCat && updatedData.name && oldCat.name !== updatedData.name) {
-        const oldSlug = oldCat.slug || oldCat.name.toLowerCase();
-        setProducts((prevProds) =>
-          prevProds.map((p) =>
-            (p.category || "").toLowerCase() === oldSlug ? { ...p, category: newSlug } : p
-          )
-        );
-      }
-
-      return prev.map((c) =>
-        c.id === catId
-          ? {
-              ...c,
-              name: updatedData.name || c.name,
-              slug: newSlug || c.slug,
-              image: updatedData.image || c.image,
-              description: updatedData.description || c.description,
-            }
-          : c
-      );
-    });
-  }, []);
-
-  const deleteCategory = useCallback(
-    (catId) => {
-      const cat = categories.find((c) => c.id === catId);
-      if (!cat) return { success: false, error: "Category not found." };
-
-      const catSlug = (cat.slug || cat.name || "").toLowerCase();
-      const catName = (cat.name || "").toLowerCase();
-
-      const assignedProducts = products.filter((p) => {
-        const pCat = (p.category || "").toLowerCase();
-        return (
-          pCat === catSlug ||
-          pCat === catName ||
-          pCat + "s" === catName ||
-          pCat === catName.replace(/s$/, "")
-        );
-      });
-
-      if (assignedProducts.length > 0) {
-        return {
-          success: false,
-          error: `Cannot delete "${cat.name}" category because ${assignedProducts.length} product${assignedProducts.length > 1 ? "s are" : " is"} assigned to it.`,
-        };
-      }
-
-      setCategories((prev) => prev.filter((c) => c.id !== catId));
-      return { success: true };
-    },
-    [categories, products]
-  );
-
   /** User Handlers */
   const addUser = useCallback((userData) => {
     const newUser = {
       id: userData.id || `user-${Date.now()}`,
-      name: userData.name,
-      email: userData.email.toLowerCase().trim(),
+      name: userData.name ? userData.name.trim() : "New User",
+      email: userData.email ? userData.email.toLowerCase().trim() : "",
       phone: userData.phone || "",
-      passwordHash: hashPassword(userData.password),
-      roleId: userData.roleId,
+      passwordHash: hashPassword(userData.password || "Password@123"),
+      roleId: userData.roleId || "role-staff",
       status: userData.status || "Active",
       lastLogin: "Never",
       createdAt: new Date().toISOString().split("T")[0],
     };
+
     setUsers((prev) => [newUser, ...prev]);
+
+    // Sync with backend API
+    try {
+      fetch("/api/admin/users", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": currentUserId,
+        },
+        body: JSON.stringify({
+          ...userData,
+          passwordHash: newUser.passwordHash,
+        }),
+      }).catch((err) => console.warn("Background API user create warning:", err));
+    } catch {
+      // Ignore offline
+    }
+
     return { success: true, user: newUser };
-  }, []);
+  }, [currentUserId]);
 
   const updateUser = useCallback((userId, updatedData) => {
+    const targetUser = users.find((u) => u.id === userId);
+    if (!targetUser) return { success: false, error: "User not found." };
+
+    // Super Admin Protection check
+    if (targetUser.roleId === "role-super-admin" && targetUser.status === "Active") {
+      const activeSuperAdmins = users.filter((u) => u.roleId === "role-super-admin" && u.status === "Active");
+      if (activeSuperAdmins.length <= 1) {
+        if (updatedData.status && updatedData.status !== "Active") {
+          return { success: false, error: "At least one active Super Admin is required. You cannot deactivate the last Super Admin." };
+        }
+        if (updatedData.roleId && updatedData.roleId !== "role-super-admin") {
+          return { success: false, error: "At least one active Super Admin is required. You cannot demote the last Super Admin." };
+        }
+      }
+    }
+
+    let updatedUserObj = null;
     setUsers((prev) =>
       prev.map((u) => {
         if (u.id === userId) {
-          const updated = {
+          updatedUserObj = {
             ...u,
-            name: updatedData.name !== undefined ? updatedData.name : u.name,
+            name: updatedData.name !== undefined ? updatedData.name.trim() : u.name,
             email: updatedData.email !== undefined ? updatedData.email.toLowerCase().trim() : u.email,
             phone: updatedData.phone !== undefined ? updatedData.phone : u.phone,
             roleId: updatedData.roleId !== undefined ? updatedData.roleId : u.roleId,
             status: updatedData.status !== undefined ? updatedData.status : u.status,
           };
           if (updatedData.password) {
-            updated.passwordHash = hashPassword(updatedData.password);
+            updatedUserObj.passwordHash = hashPassword(updatedData.password);
           }
-          return updated;
+          return updatedUserObj;
         }
         return u;
       })
     );
-    return { success: true };
-  }, []);
+
+    // Sync with backend API
+    try {
+      fetch(`/api/admin/users/${userId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": currentUserId,
+        },
+        body: JSON.stringify(updatedData),
+      }).catch((err) => console.warn("Background API user update warning:", err));
+    } catch {
+      // Ignore offline
+    }
+
+    return { success: true, user: updatedUserObj };
+  }, [users, currentUserId]);
 
   const toggleUserStatus = useCallback((userId) => {
+    const targetUser = users.find((u) => u.id === userId);
+    if (!targetUser) return { success: false, error: "User not found." };
+
+    if (targetUser.roleId === "role-super-admin" && targetUser.status === "Active") {
+      const activeSuperAdmins = users.filter((u) => u.roleId === "role-super-admin" && u.status === "Active");
+      if (activeSuperAdmins.length <= 1) {
+        return { success: false, error: "At least one active Super Admin is required. You cannot deactivate the last Super Admin." };
+      }
+    }
+
+    const nextStatus = targetUser.status === "Active" ? "Inactive" : "Active";
     setUsers((prev) =>
-      prev.map((u) =>
-        u.id === userId ? { ...u, status: u.status === "Active" ? "Inactive" : "Active" } : u
-      )
+      prev.map((u) => (u.id === userId ? { ...u, status: nextStatus } : u))
     );
-  }, []);
+
+    // Sync with backend API
+    try {
+      fetch(`/api/admin/users/${userId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": currentUserId,
+        },
+        body: JSON.stringify({ status: nextStatus }),
+      }).catch((err) => console.warn("Background API user status toggle warning:", err));
+    } catch {
+      // Ignore offline
+    }
+
+    return { success: true, status: nextStatus };
+  }, [users, currentUserId]);
 
   const deleteUser = useCallback(
     (userId) => {
@@ -1226,13 +1455,26 @@ export function AdminProvider({ children }) {
       }
 
       if (targetUser.roleId === "role-super-admin") {
-        const superAdminCount = users.filter((u) => u.roleId === "role-super-admin").length;
-        if (superAdminCount <= 1) {
-          return { success: false, error: "Cannot delete the last Super Admin account." };
+        const activeSuperAdmins = users.filter((u) => u.roleId === "role-super-admin" && u.status === "Active");
+        if (activeSuperAdmins.length <= 1) {
+          return { success: false, error: "At least one active Super Admin is required. You cannot delete the last Super Admin account." };
         }
       }
 
       setUsers((prev) => prev.filter((u) => u.id !== userId));
+
+      // Sync with backend API
+      try {
+        fetch(`/api/admin/users/${userId}`, {
+          method: "DELETE",
+          headers: {
+            "x-user-id": currentUserId,
+          },
+        }).catch((err) => console.warn("Background API user delete warning:", err));
+      } catch {
+        // Ignore offline
+      }
+
       return { success: true };
     },
     [users, currentUserId]
@@ -1242,8 +1484,8 @@ export function AdminProvider({ children }) {
   const addRole = useCallback((roleData) => {
     const newRole = {
       id: roleData.id || `role-${Date.now()}`,
-      name: roleData.name,
-      description: roleData.description || `${roleData.name} custom role`,
+      name: roleData.name ? roleData.name.trim() : "Custom Role",
+      description: roleData.description ? roleData.description.trim() : `${roleData.name} custom role`,
       isSystemRole: false,
       createdAt: new Date().toISOString().split("T")[0],
       permissions: roleData.permissions || {
@@ -1252,14 +1494,31 @@ export function AdminProvider({ children }) {
         orders: ["view"],
         customers: ["view"],
         reviews: ["view"],
+        content: ["view"],
         users: [],
         roles: [],
         settings: [],
       },
     };
+
     setRoles((prev) => [...prev, newRole]);
+
+    // Sync with backend API
+    try {
+      fetch("/api/admin/roles", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": currentUserId,
+        },
+        body: JSON.stringify(roleData),
+      }).catch((err) => console.warn("Background API role create warning:", err));
+    } catch {
+      // Ignore offline
+    }
+
     return { success: true, role: newRole };
-  }, []);
+  }, [currentUserId]);
 
   const updateRole = useCallback((roleId, updatedData) => {
     let updatedRoleObj = null;
@@ -1268,9 +1527,9 @@ export function AdminProvider({ children }) {
         if (r.id === roleId) {
           updatedRoleObj = {
             ...r,
-            name: r.isSystemRole ? r.name : updatedData.name || r.name,
+            name: r.isSystemRole ? r.name : (updatedData.name ? updatedData.name.trim() : r.name),
             description: updatedData.description !== undefined ? updatedData.description : r.description,
-            permissions: updatedData.permissions || r.permissions,
+            permissions: r.id === "role-super-admin" ? r.permissions : (updatedData.permissions || r.permissions),
           };
           return updatedRoleObj;
         }
@@ -1300,7 +1559,7 @@ export function AdminProvider({ children }) {
       const role = roles.find((r) => r.id === roleId);
       if (!role) return { success: false, error: "Role not found." };
 
-      if (role.isSystemRole) {
+      if (role.isSystemRole || role.id === "role-super-admin") {
         return { success: false, error: "System default roles cannot be deleted." };
       }
 
@@ -1308,14 +1567,27 @@ export function AdminProvider({ children }) {
       if (assignedUsers.length > 0) {
         return {
           success: false,
-          error: `Cannot delete role "${role.name}" because ${assignedUsers.length} user${assignedUsers.length > 1 ? "s are" : " is"} currently assigned to it.`,
+          error: `Cannot delete role "${role.name}" because ${assignedUsers.length} user${assignedUsers.length > 1 ? "s are" : " is"} currently assigned to it. Please reassign the user(s) first.`,
         };
       }
 
       setRoles((prev) => prev.filter((r) => r.id !== roleId));
+
+      // Sync with backend API
+      try {
+        fetch(`/api/admin/roles/${roleId}`, {
+          method: "DELETE",
+          headers: {
+            "x-user-id": currentUserId,
+          },
+        }).catch((err) => console.warn("Background API role delete warning:", err));
+      } catch {
+        // Ignore offline
+      }
+
       return { success: true };
     },
-    [roles, users]
+    [roles, users, currentUserId]
   );
 
   const addBanner = useCallback((bannerData) => {
@@ -1576,6 +1848,198 @@ export function AdminProvider({ children }) {
     return { success: true };
   }, []);
 
+  const addCategory = useCallback((newCatData) => {
+    const newMainCat = {
+      id: newCatData.id || `CAT-${(newCatData.name || "NEW").toUpperCase().replace(/[^A-Z0-9]/g, "")}`,
+      name: newCatData.name.trim(),
+      slug: newCatData.slug || newCatData.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+      image: newCatData.image || "/assets/categories/memory-foam.jpg",
+      description: newCatData.description || "",
+      type: "main",
+      active: newCatData.active !== false && newCatData.status !== "Inactive",
+      order: newCatData.order || Date.now(),
+      subcategories: newCatData.subcategories || []
+    };
+
+    setCategories((prev) => {
+      const updated = [...prev, newMainCat];
+      try {
+        localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(updated));
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("storage"));
+          window.dispatchEvent(new CustomEvent("mellosoft_categories_updated"));
+        }
+      } catch (e) {
+        console.error("Failed to save categories:", e);
+      }
+      return updated;
+    });
+  }, []);
+
+  const updateCategory = useCallback((catId, updatedData) => {
+    setCategories((prev) => {
+      const updated = prev.map((cat) => {
+        if (cat.id === catId || cat.slug === catId) {
+          return {
+            ...cat,
+            ...updatedData,
+            name: updatedData.name ? updatedData.name.trim() : cat.name,
+            slug: updatedData.slug || (updatedData.name ? updatedData.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") : cat.slug),
+          };
+        }
+        return cat;
+      });
+      try {
+        localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(updated));
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("storage"));
+          window.dispatchEvent(new CustomEvent("mellosoft_categories_updated"));
+        }
+      } catch (e) {
+        console.error("Failed to save edited category:", e);
+      }
+      return updated;
+    });
+  }, []);
+
+  const deleteCategory = useCallback((catId) => {
+    const targetCat = categories.find((c) => c.id === catId || c.slug === catId);
+    if (!targetCat) return { success: false, error: "Category not found." };
+
+    const prodCount = getMainCategoryProductCount(targetCat, products, categories);
+    const subCount = (targetCat.subcategories || []).length;
+
+    if (prodCount > 0 || subCount > 0) {
+      return {
+        success: false,
+        error: `Cannot delete "${targetCat.name}". It contains ${prodCount} product(s) and ${subCount} subcategory/subcategories. Please remove or reassign products and subcategories first.`
+      };
+    }
+
+    setCategories((prev) => {
+      const updated = prev.filter((c) => c.id !== catId && c.slug !== catId);
+      try {
+        localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(updated));
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("storage"));
+          window.dispatchEvent(new CustomEvent("mellosoft_categories_updated"));
+        }
+      } catch (e) {
+        console.error("Failed to save categories after delete:", e);
+      }
+      return updated;
+    });
+
+    return { success: true };
+  }, [categories, products]);
+
+  const addSubcategory = useCallback((parentId, subData) => {
+    const newSub = {
+      id: subData.id || `SUB-${(subData.name || "SUB").toUpperCase().replace(/[^A-Z0-9]/g, "")}`,
+      parentId: parentId,
+      name: subData.name.trim(),
+      slug: subData.slug || subData.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+      aliases: subData.aliases || [subData.name.toLowerCase().trim()],
+      active: subData.active !== false && subData.status !== "Inactive",
+      order: subData.order || Date.now()
+    };
+
+    setCategories((prev) => {
+      const updated = prev.map((cat) => {
+        if (cat.id === parentId || cat.slug === parentId) {
+          const subs = cat.subcategories || [];
+          return { ...cat, subcategories: [...subs, newSub] };
+        }
+        return cat;
+      });
+      try {
+        localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(updated));
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("storage"));
+          window.dispatchEvent(new CustomEvent("mellosoft_categories_updated"));
+        }
+      } catch (e) {
+        console.error("Failed to save subcategory:", e);
+      }
+      return updated;
+    });
+  }, []);
+
+  const updateSubcategory = useCallback((parentId, subId, updatedData) => {
+    setCategories((prev) => {
+      const updated = prev.map((cat) => {
+        if (cat.id === parentId || cat.slug === parentId) {
+          const subs = (cat.subcategories || []).map((sub) => {
+            if (sub.id === subId || sub.slug === subId) {
+              return {
+                ...sub,
+                ...updatedData,
+                name: updatedData.name ? updatedData.name.trim() : sub.name,
+                slug: updatedData.slug || (updatedData.name ? updatedData.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") : sub.slug),
+              };
+            }
+            return sub;
+          });
+          return { ...cat, subcategories: subs };
+        }
+        return cat;
+      });
+      try {
+        localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(updated));
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("storage"));
+          window.dispatchEvent(new CustomEvent("mellosoft_categories_updated"));
+        }
+      } catch (e) {
+        console.error("Failed to save edited subcategory:", e);
+      }
+      return updated;
+    });
+  }, []);
+
+  const deleteSubcategory = useCallback((parentId, subId) => {
+    let targetSub = null;
+    for (const mainCat of categories) {
+      const found = (mainCat.subcategories || []).find((s) => s.id === subId || s.slug === subId);
+      if (found) {
+        targetSub = found;
+        break;
+      }
+    }
+
+    if (!targetSub) return { success: false, error: "Subcategory not found." };
+
+    const prodCount = getSubcategoryProductCount(targetSub, products, categories);
+    if (prodCount > 0) {
+      return {
+        success: false,
+        error: `Cannot delete subcategory "${targetSub.name}". It contains ${prodCount} product(s). Please reassign or remove products first.`
+      };
+    }
+
+    setCategories((prev) => {
+      const updated = prev.map((cat) => {
+        if (cat.id === parentId || cat.slug === parentId) {
+          const subs = (cat.subcategories || []).filter((s) => s.id !== subId && s.slug !== subId);
+          return { ...cat, subcategories: subs };
+        }
+        return cat;
+      });
+      try {
+        localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(updated));
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("storage"));
+          window.dispatchEvent(new CustomEvent("mellosoft_categories_updated"));
+        }
+      } catch (e) {
+        console.error("Failed to save categories after subcategory delete:", e);
+      }
+      return updated;
+    });
+
+    return { success: true };
+  }, [categories, products]);
+
   return (
     <AdminContext.Provider
       value={{
@@ -1586,6 +2050,14 @@ export function AdminProvider({ children }) {
         sidebarMobileOpen,
         toggleMobileSidebar,
         notifications,
+        unreadNotificationsCount: (notifications || []).filter((n) => !n.read).length,
+        addNotification,
+        markNotificationAsRead,
+        markAllNotificationsAsRead,
+        deleteNotification,
+        clearNotifications,
+        selectedOrderId,
+        setSelectedOrderId,
         selectedProductId,
         selectedUserId,
         selectedRoleId,
@@ -1597,6 +2069,9 @@ export function AdminProvider({ children }) {
         addCategory,
         updateCategory,
         deleteCategory,
+        addSubcategory,
+        updateSubcategory,
+        deleteSubcategory,
         banners,
         addBanner,
         updateBanner,
@@ -1650,6 +2125,10 @@ export function AdminProvider({ children }) {
         currentUser,
         currentUserRole,
         hasPermission,
+        getFirstAllowedAdminView: () => getFirstAllowedAdminView(currentUserRole),
+        settings,
+        updateSettings,
+        saveSettings: updateSettings,
       }}
     >
       {children}

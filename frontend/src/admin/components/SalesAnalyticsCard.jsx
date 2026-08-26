@@ -19,11 +19,18 @@ import {
   TrendingDown,
   AlertTriangle,
 } from "lucide-react";
-import { PERIOD_DATA_MAP, TIME_FILTERS } from "../../data/dashboardAnalytics";
-import { MOCK_ORDERS, MOCK_INVENTORY } from "../data/adminMockData";
+import { TIME_FILTERS } from "../../data/dashboardAnalytics";
 import { useAdmin } from "../context/AdminContext";
 import StatusBadge from "./StatusBadge";
 import { formatPrice } from "../../utils/currency";
+import {
+  calculateTotalRevenue,
+  getOrdersForPeriod,
+  generateDashboardChartData,
+  getLowStockItems,
+  LOW_STOCK_THRESHOLD,
+  calculatePeriodGrowth
+} from "../utils/dashboardHelpers";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Animated number hook – counts from previous to next value on change
@@ -67,7 +74,7 @@ function useAnimatedNumber(target, duration = 500) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// KPI card config (static meta – values come from dashboardData)
+// KPI card config
 // ─────────────────────────────────────────────────────────────────────────────
 const KPI_CONFIG = [
   { key: "totalRevenue",   label: "Total Revenue",   icon: DollarSign,   color: "#16A34A", bg: "#DCFCE7", prefix: "₹", suffix: "",  decimals: 0 },
@@ -111,7 +118,8 @@ function CustomTooltip({ active, payload, label }) {
 // ─────────────────────────────────────────────────────────────────────────────
 function KpiCard({ icon: Icon, label, value, display, change, color, bg, prefix, suffix, decimals }) {
   const animatedValue = useAnimatedNumber(value, 480);
-  const isPositive = change >= 0;
+  const hasChange = typeof change === "number" && !isNaN(change);
+  const isPositive = hasChange && change >= 0;
 
   // Format the animated number for display
   const formatted = (() => {
@@ -140,17 +148,19 @@ function KpiCard({ icon: Icon, label, value, display, change, color, bg, prefix,
         <div style={{ width: 34, height: 34, borderRadius: 8, backgroundColor: bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           <Icon size={16} color={color} />
         </div>
-        <div className="analytics-mini-badge" style={{
-          display: "flex", alignItems: "center", gap: 3,
-          fontSize: "12px", fontWeight: 700,
-          color: isPositive ? "#16A34A" : "#DC2626",
-          backgroundColor: isPositive ? "#DCFCE7" : "#FEE2E2",
-          padding: "3px 8px", borderRadius: 999,
-          whiteSpace: "nowrap",
-        }}>
-          {isPositive ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
-          {Math.abs(change)}%
-        </div>
+        {hasChange && (
+          <div className="analytics-mini-badge" style={{
+            display: "flex", alignItems: "center", gap: 3,
+            fontSize: "12px", fontWeight: 700,
+            color: isPositive ? "#16A34A" : "#DC2626",
+            backgroundColor: isPositive ? "#DCFCE7" : "#FEE2E2",
+            padding: "3px 8px", borderRadius: 999,
+            whiteSpace: "nowrap",
+          }}>
+            {isPositive ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+            {Math.abs(change)}%
+          </div>
+        )}
       </div>
 
       {/* Value */}
@@ -162,19 +172,36 @@ function KpiCard({ icon: Icon, label, value, display, change, color, bg, prefix,
       </div>
 
       {/* Trend line */}
-      <p className="analytics-mini-trend" style={{ fontSize: "11px", color: isPositive ? "#16A34A" : "#DC2626", fontWeight: 600, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-        {isPositive ? "↑" : "↓"} {Math.abs(change)}% vs last period
-      </p>
+      {hasChange ? (
+        <p className="analytics-mini-trend" style={{ fontSize: "11px", color: isPositive ? "#16A34A" : "#DC2626", fontWeight: 600, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {isPositive ? "↑" : "↓"} {Math.abs(change)}% vs last period
+        </p>
+      ) : (
+        <p className="analytics-mini-trend" style={{ fontSize: "11px", color: "#9CA3AF", fontWeight: 500, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          Live store metric
+        </p>
+      )}
     </div>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Recent Orders panel
+// Recent Orders panel — Derived from canonical orders (newest first)
 // ─────────────────────────────────────────────────────────────────────────────
 function RecentOrdersPanel({ navigateTo }) {
-  const { orders, customers } = useAdmin();
-  const recentOrders = useMemo(() => (orders || []).slice(0, 5), [orders]);
+  const { orders = [], customers = [], setSelectedOrderId } = useAdmin();
+  const recentOrders = useMemo(() => {
+    return (orders || []).slice(0, 5);
+  }, [orders]);
+
+  const handleOrderClick = (orderId) => {
+    if (setSelectedOrderId) {
+      setSelectedOrderId(orderId);
+    }
+    if (navigateTo) {
+      navigateTo("orders");
+    }
+  };
 
   return (
     <div className="analytics-panel" style={panelStyle}>
@@ -189,74 +216,112 @@ function RecentOrdersPanel({ navigateTo }) {
       </div>
 
       {/* Desktop Table View */}
-      <div className="admin-desktop-only" style={{ overflowX: "auto", width: "100%" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+      <div className="admin-desktop-only" style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
           <thead>
-            <tr>
-              {["Order ID", "Customer", "Amount", "Status", "Date"].map((h) => (
-                <th key={h} style={thStyle}>{h}</th>
-              ))}
+            <tr style={{ borderBottom: "1px solid #EEEEE9", textAlign: "left" }}>
+              <th style={thStyle}>Order ID</th>
+              <th style={thStyle}>Customer</th>
+              <th style={thStyle}>Amount</th>
+              <th style={thStyle}>Status</th>
+              <th style={thStyle}>Date</th>
             </tr>
           </thead>
           <tbody>
-            {recentOrders.map((order, idx) => {
-              const cust = (customers || []).find((c) => c.id === order.customerId) || { name: order.customer || "Customer" };
-              return (
-                <tr key={order.id} style={{ borderBottom: idx < recentOrders.length - 1 ? "1px solid #F4F4F0" : "none" }}>
-                  <td style={{ ...tdStyle, fontWeight: 700, color: "#1B1F8C" }}>{order.id}</td>
-                  <td style={tdStyle}>{cust.name}</td>
-                  <td style={{ ...tdStyle, fontWeight: 600 }}>{formatPrice(order.totalAmount ?? order.amount)}</td>
-                  <td style={tdStyle}><StatusBadge status={order.orderStatus} /></td>
-                  <td style={{ ...tdStyle, color: "#6B6B75", fontSize: "12px" }}>{order.createdAt || order.date}</td>
-                </tr>
-              );
-            })}
+            {recentOrders.length === 0 ? (
+              <tr>
+                <td colSpan={5} style={{ padding: "20px", textAlign: "center", color: "#9CA3AF" }}>
+                  No recent orders yet. Real customer orders will appear here.
+                </td>
+              </tr>
+            ) : (
+              recentOrders.map((order) => {
+                const cust = (customers || []).find((c) => c.id === order.customerId || c.id === order.userId || c.email === order.email) || {
+                  name: order.customerName || order.deliveryAddress?.fullName || "Guest Customer",
+                };
+                return (
+                  <tr
+                    key={order.id || order.orderId}
+                    style={{ borderBottom: "1px solid #F4F4F0", cursor: "pointer", transition: "background-color 0.15s ease" }}
+                    onClick={() => handleOrderClick(order.id || order.orderId)}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#F9F9F7"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+                  >
+                    <td style={{ ...tdStyle, fontWeight: 700, color: "#1B1F8C" }}>{order.id || order.orderId}</td>
+                    <td style={{ ...tdStyle, color: "#14151A", fontWeight: 500 }}>{cust.name}</td>
+                    <td style={{ ...tdStyle, fontWeight: 700, color: "#14151A" }}>{formatPrice(order.totalAmount ?? order.amount ?? order.total)}</td>
+                    <td style={tdStyle}><StatusBadge status={order.orderStatus} /></td>
+                    <td style={{ ...tdStyle, color: "#6B6B75", fontSize: "12px" }}>{order.createdAt || order.date}</td>
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>
 
-      {/* Mobile Compact View */}
+      {/* Mobile Card List View */}
       <div className="admin-mobile-only" style={{ display: "none", flexDirection: "column", gap: "8px" }}>
-        {recentOrders.map((order) => {
-          const cust = (customers || []).find((c) => c.id === order.customerId) || { name: order.customer || "Customer" };
-          return (
-            <div key={order.id} style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "4px",
-              padding: "10px 12px",
-              backgroundColor: "#FFFFFF",
-              borderRadius: "8px",
-              border: "1px solid #EEEEE9",
-            }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontWeight: 700, color: "#1B1F8C", fontSize: "13px" }}>{order.id}</span>
-                <StatusBadge status={order.orderStatus} />
+        {recentOrders.length === 0 ? (
+          <div style={{ padding: "16px", textAlign: "center", color: "#9CA3AF", fontSize: "13px" }}>
+            No recent orders yet. Real customer orders will appear here.
+          </div>
+        ) : (
+          recentOrders.map((order) => {
+            const cust = (customers || []).find((c) => c.id === order.customerId || c.id === order.userId || c.email === order.email) || {
+              name: order.customerName || order.deliveryAddress?.fullName || "Guest Customer",
+            };
+            return (
+              <div
+                key={order.id || order.orderId}
+                onClick={() => handleOrderClick(order.id || order.orderId)}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "6px",
+                  padding: "10px 12px",
+                  backgroundColor: "#FFFFFF",
+                  borderRadius: "8px",
+                  border: "1px solid #EEEEE9",
+                  cursor: "pointer",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontWeight: 700, color: "#1B1F8C", fontSize: "13px" }}>{order.id || order.orderId}</span>
+                  <StatusBadge status={order.orderStatus} />
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px" }}>
+                  <span style={{ color: "#14151A", fontWeight: 600 }}>{cust.name}</span>
+                  <span style={{ fontWeight: 700, color: "#14151A" }}>{formatPrice(order.totalAmount ?? order.amount ?? order.total)}</span>
+                </div>
+                <div style={{ fontSize: "11px", color: "#6B6B75" }}>{order.createdAt || order.date}</div>
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px" }}>
-                <span style={{ color: "#14151A", fontWeight: 600 }}>{cust.name}</span>
-                <span style={{ fontWeight: 700, color: "#14151A" }}>{formatPrice(order.totalAmount ?? order.amount)}</span>
-              </div>
-              <div style={{ fontSize: "11px", color: "#6B6B75" }}>{order.createdAt || order.date}</div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
     </div>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Low Stock panel
+// Low Stock panel — Derived from canonical products & variant stock
 // ─────────────────────────────────────────────────────────────────────────────
 function LowStockPanel({ navigateTo }) {
-  const lowStock = MOCK_INVENTORY.filter(
-    (i) => i.status === "Low Stock" || i.status === "Out of Stock"
-  ).slice(0, 5);
+  const { products, setSelectedProductId } = useAdmin();
+  const lowStock = useMemo(() => {
+    return getLowStockItems(products, LOW_STOCK_THRESHOLD).slice(0, 5);
+  }, [products]);
 
   const stockColors = {
     "Out of Stock": { bg: "#FEE2E2", text: "#DC2626" },
     "Low Stock":    { bg: "#FEF3C7", text: "#B45309" },
+  };
+
+  const handleRestockClick = (productId) => {
+    if (navigateTo) {
+      navigateTo("products");
+    }
   };
 
   return (
@@ -273,83 +338,97 @@ function LowStockPanel({ navigateTo }) {
 
       {/* Desktop List View */}
       <div className="admin-desktop-only" style={{ display: "flex", flexDirection: "column" }}>
-        {lowStock.map((item, idx) => {
-          const c = stockColors[item.status] || { bg: "#F3F4F6", text: "#374151" };
-          return (
-            <div key={item.id} style={{
-              display: "flex", alignItems: "center", gap: 12,
-              padding: "12px 0",
-              borderBottom: idx < lowStock.length - 1 ? "1px solid #F4F4F0" : "none",
-            }}>
-              <div style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: "#F7F7F2", border: "1px solid #E7E7E2", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 16 }}>
-                🛏️
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontSize: "13px", fontWeight: 600, color: "#14151A", margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.product}</p>
-                <p style={{ fontSize: "11px", color: "#6B6B75", margin: "2px 0 0" }}>{item.variant}</p>
-              </div>
-              <div style={{ textAlign: "right", flexShrink: 0 }}>
-                <p style={{ fontSize: "14px", fontWeight: 800, color: item.available === 0 ? "#DC2626" : "#14151A", margin: 0 }}>{item.available}</p>
-                <p style={{ fontSize: "10px", color: "#6B6B75", margin: "2px 0 0" }}>units left</p>
-              </div>
-              <span style={{ fontSize: "11px", fontWeight: 700, color: c.text, backgroundColor: c.bg, padding: "3px 8px", borderRadius: 999, whiteSpace: "nowrap" }}>
-                {item.status}
-              </span>
-              <button
-                style={{ border: "1px solid #1B1F8C", backgroundColor: "transparent", color: "#1B1F8C", fontSize: "11px", fontWeight: 700, padding: "5px 10px", borderRadius: 7, cursor: "pointer", flexShrink: 0, transition: "background-color 0.15s, color 0.15s", fontFamily: "inherit" }}
-                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#1B1F8C"; e.currentTarget.style.color = "#fff"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = "#1B1F8C"; }}
-              >
-                Restock
-              </button>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Mobile Card List View */}
-      <div className="admin-mobile-only" style={{ display: "none", flexDirection: "column", gap: "8px" }}>
-        {lowStock.map((item) => {
-          const c = stockColors[item.status] || { bg: "#F3F4F6", text: "#374151" };
-          return (
-            <div key={item.id} style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "6px",
-              padding: "10px 12px",
-              backgroundColor: "#FFFFFF",
-              borderRadius: "8px",
-              border: "1px solid #EEEEE9",
-            }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
-                <div style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: "#F7F7F2", border: "1px solid #E7E7E2", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 14 }}>
+        {lowStock.length === 0 ? (
+          <div style={{ padding: "16px", textAlign: "center", color: "#16A34A", fontSize: "13px", fontWeight: 600 }}>
+            ✓ All products have healthy inventory levels!
+          </div>
+        ) : (
+          lowStock.map((item, idx) => {
+            const c = stockColors[item.status] || { bg: "#F3F4F6", text: "#374151" };
+            return (
+              <div key={item.id} style={{
+                display: "flex", alignItems: "center", gap: 12,
+                padding: "12px 0",
+                borderBottom: idx < lowStock.length - 1 ? "1px solid #F4F4F0" : "none",
+              }}>
+                <div style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: "#F7F7F2", border: "1px solid #E7E7E2", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 16 }}>
                   🛏️
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: "13px", fontWeight: 600, color: "#14151A", margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {item.product}
-                  </p>
-                  <p style={{ fontSize: "11px", color: "#6B6B75", margin: "1px 0 0" }}>{item.variant}</p>
+                  <p style={{ fontSize: "13px", fontWeight: 600, color: "#14151A", margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.product}</p>
+                  <p style={{ fontSize: "11px", color: "#6B6B75", margin: "2px 0 0" }}>{item.variant}</p>
                 </div>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: "6px", borderTop: "1px dashed #F4F4F0" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                  <span style={{ fontSize: "12px", fontWeight: 800, color: item.available === 0 ? "#DC2626" : "#14151A" }}>
-                    {item.available} units left
-                  </span>
-                  <span style={{ fontSize: "10px", fontWeight: 700, color: c.text, backgroundColor: c.bg, padding: "2px 6px", borderRadius: 999, whiteSpace: "nowrap" }}>
-                    {item.status}
-                  </span>
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                  <p style={{ fontSize: "14px", fontWeight: 800, color: item.available === 0 ? "#DC2626" : "#14151A", margin: 0 }}>{item.available}</p>
+                  <p style={{ fontSize: "10px", color: "#6B6B75", margin: "2px 0 0" }}>units left</p>
                 </div>
+                <span style={{ fontSize: "11px", fontWeight: 700, color: c.text, backgroundColor: c.bg, padding: "3px 8px", borderRadius: 999, whiteSpace: "nowrap" }}>
+                  {item.status}
+                </span>
                 <button
-                  style={{ border: "1px solid #1B1F8C", backgroundColor: "transparent", color: "#1B1F8C", fontSize: "11px", fontWeight: 700, padding: "3px 8px", borderRadius: 6, cursor: "pointer", fontFamily: "inherit" }}
+                  onClick={() => handleRestockClick(item.productId)}
+                  style={{ border: "1px solid #1B1F8C", backgroundColor: "transparent", color: "#1B1F8C", fontSize: "11px", fontWeight: 700, padding: "5px 10px", borderRadius: 7, cursor: "pointer", flexShrink: 0, transition: "background-color 0.15s, color 0.15s", fontFamily: "inherit" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#1B1F8C"; e.currentTarget.style.color = "#fff"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = "#1B1F8C"; }}
                 >
                   Restock
                 </button>
               </div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
+      </div>
+
+      {/* Mobile Card List View */}
+      <div className="admin-mobile-only" style={{ display: "none", flexDirection: "column", gap: "8px" }}>
+        {lowStock.length === 0 ? (
+          <div style={{ padding: "12px", textAlign: "center", color: "#16A34A", fontSize: "12px" }}>
+            ✓ All products have healthy inventory levels!
+          </div>
+        ) : (
+          lowStock.map((item) => {
+            const c = stockColors[item.status] || { bg: "#F3F4F6", text: "#374151" };
+            return (
+              <div key={item.id} style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "6px",
+                padding: "10px 12px",
+                backgroundColor: "#FFFFFF",
+                borderRadius: "8px",
+                border: "1px solid #EEEEE9",
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: "#F7F7F2", border: "1px solid #E7E7E2", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 14 }}>
+                    🛏️
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: "13px", fontWeight: 600, color: "#14151A", margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {item.product}
+                    </p>
+                    <p style={{ fontSize: "11px", color: "#6B6B75", margin: "1px 0 0" }}>{item.variant}</p>
+                  </div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: "6px", borderTop: "1px dashed #F4F4F0" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <span style={{ fontSize: "12px", fontWeight: 800, color: item.available === 0 ? "#DC2626" : "#14151A" }}>
+                      {item.available} units left
+                    </span>
+                    <span style={{ fontSize: "10px", fontWeight: 700, color: c.text, backgroundColor: c.bg, padding: "2px 6px", borderRadius: 999, whiteSpace: "nowrap" }}>
+                      {item.status}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => handleRestockClick(item.productId)}
+                    style={{ border: "1px solid #1B1F8C", backgroundColor: "transparent", color: "#1B1F8C", fontSize: "11px", fontWeight: 700, padding: "3px 8px", borderRadius: 6, cursor: "pointer", fontFamily: "inherit" }}
+                  >
+                    Restock
+                  </button>
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );
@@ -359,7 +438,8 @@ function LowStockPanel({ navigateTo }) {
 // Main component
 // ─────────────────────────────────────────────────────────────────────────────
 export default function SalesAnalyticsCard({ navigateTo }) {
-  const [selectedPeriod, setSelectedPeriod] = useState("today");
+  const { orders = [], customers = [], products = [] } = useAdmin();
+  const [selectedPeriod, setSelectedPeriod] = useState("last7Days");
   const [hiddenLines, setHiddenLines]       = useState({});
   const [isMounted, setIsMounted]           = useState(false);
 
@@ -367,12 +447,29 @@ export default function SalesAnalyticsCard({ navigateTo }) {
     setIsMounted(true);
   }, []);
 
-  // ── Derived data via useMemo ─────────────────────────────────────────────
-  const dashboardData = useMemo(() => {
-    return PERIOD_DATA_MAP[selectedPeriod] ?? PERIOD_DATA_MAP.last7Days;
-  }, [selectedPeriod]);
+  // ── Derived dynamic KPI metrics strictly from canonical datasets ───────────
+  const totalRevenue = useMemo(() => calculateTotalRevenue(orders), [orders]);
+  const totalOrdersCount = useMemo(() => orders.length, [orders]);
+  const totalCustomersCount = useMemo(() => customers.length, [customers]);
+  const totalProductsCount = useMemo(() => products.length, [products]);
 
-  const { kpis, chartData } = dashboardData;
+  // Derived chart data & time filter metrics
+  const chartData = useMemo(() => {
+    return generateDashboardChartData(orders, selectedPeriod);
+  }, [orders, selectedPeriod]);
+
+  const { revenueGrowth, ordersGrowth } = useMemo(() => {
+    return calculatePeriodGrowth(orders, selectedPeriod);
+  }, [orders, selectedPeriod]);
+
+  const kpis = useMemo(() => {
+    return {
+      totalRevenue:   { value: totalRevenue, change: revenueGrowth },
+      totalOrders:    { value: totalOrdersCount, change: ordersGrowth },
+      totalCustomers: { value: totalCustomersCount, change: null },
+      totalProducts:  { value: totalProductsCount, change: null },
+    };
+  }, [totalRevenue, totalOrdersCount, totalCustomersCount, totalProductsCount, revenueGrowth, ordersGrowth]);
 
   // ── Handle filter click ──────────────────────────────────────────────────
   const handleFilterChange = useCallback((periodId) => {

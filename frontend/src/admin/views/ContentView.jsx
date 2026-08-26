@@ -8,7 +8,7 @@ import PromoBannerRenderer from "../../components/PromoBannerRenderer";
 import {
   LayoutList, Image as ImageIcon, Plus, Edit2, Trash2,
   CheckCircle2, XCircle, Search, GripVertical,
-  Eye, EyeOff, Check, ChevronRight, Star, Tag, Zap, Package, Info, AlertTriangle, Award
+  Eye, EyeOff, Check, ChevronRight, ChevronDown, Star, Tag, Zap, Package, Info, AlertTriangle, Award
 } from "lucide-react";
 import {
   isProductInCategory,
@@ -16,7 +16,8 @@ import {
   getProductPrimaryImage,
   getMinimumProductPrice,
   formatPrice,
-  isProductDeleted
+  isProductDeleted,
+  getCatalogCategoryTree
 } from "../../utils/productHelpers";
 
 // ─── Banner types and destinations ────────────────────────────────────────────
@@ -48,8 +49,6 @@ const SECTION_ICONS = {
   "new-arrivals":     Zap,
   "best-sellers":     CheckCircle2,
   "customer-reviews": Star,
-  "about-us":         Info,
-  "about-section":    Info,
   "big-deals":        Eye,
 };
 
@@ -70,8 +69,12 @@ export default function ContentView() {
   const {
     banners, addBanner, updateBanner, deleteBanner, toggleBannerStatus, reorderBanners,
     bannerTypes, addBannerType, deleteBannerType,
-    homepageConfig, updateHomepageConfig, contentActiveTab
+    homepageConfig, updateHomepageConfig, contentActiveTab, hasPermission
   } = useAdmin();
+
+  const canCreate = hasPermission("content", "create");
+  const canEdit = hasPermission("content", "edit");
+  const canDelete = hasPermission("content", "delete");
 
   const [activeTab, setActiveTab] = useState(contentActiveTab || "homepage-layout");
   const [toastMessage, setToastMessage] = useState(null);
@@ -141,6 +144,9 @@ export default function ContentView() {
           .admin-fade-in, .content-page-container {
             padding: 12px 12px 40px 12px !important;
             width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            overflow-x: hidden !important;
             box-sizing: border-box !important;
           }
           .content-header-row {
@@ -148,43 +154,126 @@ export default function ContentView() {
             align-items: flex-start !important;
             gap: 12px !important;
             margin-bottom: 16px !important;
+            width: 100% !important;
+            min-width: 0 !important;
           }
           .content-title-text {
-            font-size: 20px !important;
+            font-size: 22px !important;
           }
           .content-subtitle-text {
-            font-size: 12.5px !important;
+            font-size: 13px !important;
+          }
+          .content-tab-bar {
+            width: 100% !important;
+            min-width: 0 !important;
+            overflow-x: hidden !important;
+          }
+          .content-tab-list {
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch !important;
+            width: 100% !important;
+            min-width: 0 !important;
+            gap: 8px !important;
+            padding-bottom: 6px !important;
+          }
+          .content-tab-list > button {
+            flex: 0 0 auto !important;
+            min-height: 42px !important;
+            padding: 8px 14px !important;
+            font-size: 13px !important;
           }
           .content-stats-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
             gap: 10px !important;
+            width: 100% !important;
+            min-width: 0 !important;
+          }
+          .content-stat-card {
+            padding: 14px 12px !important;
+            min-width: 0 !important;
+          }
+          .content-stat-val {
+            font-size: 20px !important;
           }
           .content-filter-bar {
             flex-direction: column !important;
             align-items: stretch !important;
             gap: 10px !important;
+            width: 100% !important;
+            min-width: 0 !important;
           }
           .content-search-wrap, .content-select-filter {
             width: 100% !important;
             max-width: 100% !important;
+            min-width: 0 !important;
+            height: 44px !important;
             box-sizing: border-box !important;
           }
           .content-create-btn {
             width: 100% !important;
             justify-content: center !important;
+            min-height: 44px !important;
             padding: 12px !important;
+            font-size: 14px !important;
           }
           .content-desktop-table {
             display: none !important;
           }
           .content-mobile-cards {
             display: flex !important;
+            flex-direction: column !important;
+            gap: 12px !important;
+            width: 100% !important;
+            min-width: 0 !important;
+          }
+          .content-mobile-card {
+            width: 100% !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
           }
           .content-modal-card {
             width: calc(100vw - 24px) !important;
-            max-width: 100vw !important;
-            padding: 16px !important;
-            border-radius: 14px !important;
+            max-width: calc(100vw - 24px) !important;
+            max-height: calc(100dvh - 24px) !important;
+            padding: 16px 14px !important;
+            border-radius: 16px !important;
+            margin: 0 !important;
+            box-sizing: border-box !important;
+          }
+          .content-modal-action-box {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 10px !important;
+          }
+          .content-create-product-btn {
+            width: 100% !important;
+            justify-content: center !important;
+            min-height: 40px !important;
+          }
+          .content-modal-filters {
+            flex-direction: column !important;
+            gap: 10px !important;
+          }
+          .content-modal-search, .content-modal-category-wrap {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+          }
+          .content-modal-footer {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 10px !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+          }
+          .content-modal-btn {
+            width: 100% !important;
+            min-height: 44px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            font-size: 13.5px !important;
+            padding: 10px 14px !important;
           }
           .content-form-grid {
             grid-template-columns: 1fr !important;
@@ -201,7 +290,7 @@ export default function ContentView() {
             padding: 12px 10px !important;
           }
           .content-stat-val {
-            font-size: 20px !important;
+            font-size: 18px !important;
           }
         }
       `}</style>
@@ -286,37 +375,39 @@ export default function ContentView() {
           })}
 
           {/* Compact Plus Button for Creating Custom Homepage Product Section */}
-          <button
-            type="button"
-            onClick={() => setIsCreateModalOpen(true)}
-            title="Create Homepage Product Section"
-            style={{
-              ...tabBtnStyle,
-              backgroundColor: "#F0F0FB",
-              color: "#1B1F8C",
-              borderColor: "#C7CAF0",
-              fontWeight: "800",
-              padding: "8px 14px",
-              whiteSpace: "nowrap",
-              flexShrink: 0,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "4px",
-              cursor: "pointer"
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = "#1B1F8C";
-              e.currentTarget.style.color = "#FFFFFF";
-              e.currentTarget.style.borderColor = "#1B1F8C";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = "#F0F0FB";
-              e.currentTarget.style.color = "#1B1F8C";
-              e.currentTarget.style.borderColor = "#C7CAF0";
-            }}
-          >
-            <Plus size={16} />
-          </button>
+          {canCreate && (
+            <button
+              type="button"
+              onClick={() => setIsCreateModalOpen(true)}
+              title="Create Homepage Product Section"
+              style={{
+                ...tabBtnStyle,
+                backgroundColor: "#F0F0FB",
+                color: "#1B1F8C",
+                borderColor: "#C7CAF0",
+                fontWeight: "800",
+                padding: "8px 14px",
+                whiteSpace: "nowrap",
+                flexShrink: 0,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+                cursor: "pointer"
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = "#1B1F8C";
+                e.currentTarget.style.color = "#FFFFFF";
+                e.currentTarget.style.borderColor = "#1B1F8C";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "#F0F0FB";
+                e.currentTarget.style.color = "#1B1F8C";
+                e.currentTarget.style.borderColor = "#C7CAF0";
+              }}
+            >
+              <Plus size={16} />
+            </button>
+          )}
         </div>
       </div>
 
@@ -327,6 +418,7 @@ export default function ContentView() {
             homepageConfig={homepageConfig}
             updateHomepageConfig={updateHomepageConfig}
             showToast={showToast}
+            canEdit={canEdit}
           />
         )}
         {activeTab === "hero-slides" && (
@@ -348,6 +440,9 @@ export default function ContentView() {
             emptyMsg="No hero slides yet. Create slides with type 'Offer' to populate the homepage hero slider."
             defaultType="Offer"
             filterType="Offer"
+            canCreate={canCreate}
+            canEdit={canEdit}
+            canDelete={canDelete}
           />
         )}
         {activeTab === "promo-banners" && (
@@ -369,13 +464,16 @@ export default function ContentView() {
             emptyMsg="No promotional banners yet. Create your first promo banner to attract customers."
             defaultType="Promotion"
             filterType="Promotion"
+            canCreate={canCreate}
+            canEdit={canEdit}
+            canDelete={canDelete}
           />
         )}
         {activeTab === "new-arrivals" && (
-          <NewArrivalsTab showToast={showToast} />
+          <NewArrivalsTab showToast={showToast} canEdit={canEdit} />
         )}
         {activeTab === "best-sellers" && (
-          <BestSellersTab showToast={showToast} />
+          <BestSellersTab showToast={showToast} canEdit={canEdit} />
         )}
 
         {/* Custom Section Tab Renderer */}
@@ -386,6 +484,8 @@ export default function ContentView() {
             updateHomepageConfig={updateHomepageConfig}
             showToast={showToast}
             setActiveTab={setActiveTab}
+            canEdit={canEdit}
+            canDelete={canDelete}
           />
         )}
       </div>
@@ -620,9 +720,24 @@ function BannerTab({
   bannerTypes = [], addBannerType, deleteBannerType,
   showToast, title, description, createLabel, emptyMsg, defaultType, filterType
 }) {
-  const { products = [] } = useAdmin();
+  const { products = [], categories = [] } = useAdmin();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("All");
+
+  const dynamicDestinationOptions = React.useMemo(() => {
+    const defaultOptions = [
+      { label: "All Products Catalog", value: "All" },
+    ];
+    if (!categories || categories.length === 0) return DESTINATION_OPTIONS;
+    const dynamicOpts = [];
+    categories.forEach((c) => {
+      dynamicOpts.push({ label: `${c.name} Collection`, value: c.slug || c.id });
+      (c.subcategories || []).forEach((sub) => {
+        dynamicOpts.push({ label: `  • ${sub.name}`, value: sub.slug || sub.id });
+      });
+    });
+    return [...dynamicOpts, ...defaultOptions];
+  }, [categories]);
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -1406,7 +1521,7 @@ function BannerTab({
                     onChange={(e) => setFormData((prev) => ({ ...prev, ctaLink: e.target.value }))}
                     style={selectStyle}
                   >
-                    {DESTINATION_OPTIONS.map((opt) => (
+                    {dynamicDestinationOptions.map((opt) => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
                   </select>
@@ -2953,6 +3068,63 @@ function BestSellersTab({ showToast }) {
         </table>
       </div>
 
+      {/* Mobile Cards View for Best Sellers */}
+      <div className="content-mobile-cards" style={{ display: "none", flexDirection: "column", gap: "12px" }}>
+        {filteredRows.length === 0 ? (
+          <div style={{ backgroundColor: "#FFFFFF", border: "1px solid #E7E7E2", borderRadius: "14px", padding: "24px", textAlign: "center" }}>
+            <Package size={32} color="#9CA3AF" style={{ marginBottom: "8px" }} />
+            <p style={{ margin: 0, fontWeight: 600, color: "#6B6B75" }}>No Best Seller products found.</p>
+            <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#9CA3AF" }}>Click "+ Add Best Seller" to select existing products.</p>
+          </div>
+        ) : (
+          filteredRows.map((item, index) => {
+            const prod = item.product;
+            const imgSrc = getProductPrimaryImage(prod);
+            return (
+              <div key={item.id} style={{ backgroundColor: "#FFFFFF", border: "1px solid #E7E7E2", borderRadius: "14px", padding: "14px", display: "flex", gap: "12px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }} className="content-mobile-card">
+                <img src={imgSrc} alt="" style={{ width: "80px", height: "80px", objectFit: "cover", borderRadius: "10px", flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "4px" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "6px" }}>
+                    <span style={orderBadgeStyle}>#{item.displayOrder || (index + 1)}</span>
+                    <span style={{ fontSize: "11px", fontWeight: "700", color: "#4B5563" }}>{getProductCategoryLabel(prod)}</span>
+                  </div>
+                  <strong style={{ fontSize: "14px", color: "#14151A", overflowWrap: "anywhere", marginTop: "2px" }}>{prod.name || prod.title}</strong>
+                  <span style={{ fontSize: "13px", fontWeight: "700", color: "#16A34A" }}>{formatPrice(getMinimumProductPrice(prod))}</span>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "8px", paddingTop: "8px", borderTop: "1px solid #F3F4F6", flexWrap: "wrap", gap: "6px" }}>
+                    <button
+                      type="button"
+                      onClick={() => toggleBestSellerStatus && toggleBestSellerStatus(item.id)}
+                      style={item.isActive ? activeStatusBtnStyle : inactiveStatusBtnStyle}
+                    >
+                      {item.isActive ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
+                      {item.isActive ? "Active" : "Inactive"}
+                    </button>
+                    <div style={{ display: "flex", gap: "6px" }}>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEditItem(item)}
+                        style={iconBtnStyle}
+                        title="Edit settings"
+                      >
+                        <Edit2 size={14} color="#6B6B75" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setItemToRemove(item)}
+                        style={iconBtnDangerStyle}
+                        title="Remove from Best Sellers"
+                      >
+                        <Trash2 size={14} color="#DC2626" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
       {/* SHARED SELECTION MODAL */}
       <ProductSelectionModal
         isOpen={isSelectModalOpen}
@@ -3067,6 +3239,242 @@ function BestSellersTab({ showToast }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// Custom In-App Category Dropdown (Fully Contained & Mobile Responsive)
+// ═══════════════════════════════════════════════════════════════════════════════
+function CategoryCustomDropdown({
+  value,
+  onChange,
+  categoryTree = [],
+  totalCount = 0,
+  placeholder = "Select Category",
+  style = {}
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  // Close on outside click or touch
+  React.useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("touchstart", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, [isOpen]);
+
+  // Resolve current active display label
+  const activeLabel = React.useMemo(() => {
+    if (value === "All" || value === "all" || !value) {
+      return `All Categories (${totalCount})`;
+    }
+    for (const main of categoryTree) {
+      if (main.slug === value || main.id === value || (main.name && main.name.toLowerCase() === String(value).toLowerCase())) {
+        return `All ${main.name} (${main.count})`;
+      }
+      for (const sub of (main.subcategories || [])) {
+        if (sub.slug === value || sub.id === value || (sub.name && sub.name.toLowerCase() === String(value).toLowerCase())) {
+          return `${sub.name} (${sub.count})`;
+        }
+      }
+    }
+    return `All Categories (${totalCount})`;
+  }, [value, categoryTree, totalCount]);
+
+  return (
+    <div
+      ref={dropdownRef}
+      style={{
+        position: "relative",
+        width: "100%",
+        minWidth: 0,
+        boxSizing: "border-box",
+        ...style
+      }}
+      className="custom-category-dropdown-wrap"
+    >
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        style={{
+          width: "100%",
+          minHeight: "42px",
+          height: "42px",
+          padding: "0 14px",
+          backgroundColor: "#FFFFFF",
+          border: "1px solid #D1D5DB",
+          borderRadius: "8px",
+          fontSize: "13.5px",
+          fontWeight: "600",
+          color: "#111827",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "8px",
+          cursor: "pointer",
+          textAlign: "left",
+          boxSizing: "border-box",
+          userSelect: "none"
+        }}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+      >
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>
+          {activeLabel}
+        </span>
+        <ChevronDown
+          size={16}
+          color="#6B7280"
+          style={{
+            transform: isOpen ? "rotate(180deg)" : "none",
+            transition: "transform 0.15s ease",
+            flexShrink: 0
+          }}
+        />
+      </button>
+
+      {isOpen && (
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(100% + 4px)",
+            left: 0,
+            right: 0,
+            width: "100%",
+            maxWidth: "100%",
+            maxHeight: "260px",
+            overflowY: "auto",
+            overflowX: "hidden",
+            backgroundColor: "#FFFFFF",
+            border: "1px solid #E5E7EB",
+            borderRadius: "10px",
+            boxShadow: "0 10px 25px rgba(0, 0, 0, 0.18), 0 4px 10px rgba(0, 0, 0, 0.08)",
+            zIndex: 99999,
+            padding: "4px 0",
+            boxSizing: "border-box"
+          }}
+          role="listbox"
+        >
+          {/* All Categories */}
+          <div
+            onClick={() => {
+              onChange("All");
+              setIsOpen(false);
+            }}
+            style={{
+              padding: "10px 14px",
+              fontSize: "13px",
+              fontWeight: (value === "All" || value === "all" || !value) ? 700 : 500,
+              backgroundColor: (value === "All" || value === "all" || !value) ? "#EEF0FF" : "transparent",
+              color: (value === "All" || value === "all" || !value) ? "#1B1F8C" : "#111827",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              boxSizing: "border-box"
+            }}
+            onMouseEnter={(e) => {
+              if (value !== "All" && value !== "all" && value) e.currentTarget.style.backgroundColor = "#F9FAFB";
+            }}
+            onMouseLeave={(e) => {
+              if (value !== "All" && value !== "all" && value) e.currentTarget.style.backgroundColor = "transparent";
+            }}
+          >
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              All Categories ({totalCount})
+            </span>
+            {(value === "All" || value === "all" || !value) && <Check size={14} color="#1B1F8C" style={{ flexShrink: 0 }} />}
+          </div>
+
+          {categoryTree.map((mainCat) => {
+            const isMainSelected = value === mainCat.slug || value === mainCat.id;
+            return (
+              <div key={mainCat.id} style={{ borderTop: "1px solid #F3F4F6", marginTop: "2px", paddingTop: "2px" }}>
+                {/* Main Group Header / Option */}
+                <div
+                  onClick={() => {
+                    onChange(mainCat.slug || mainCat.id);
+                    setIsOpen(false);
+                  }}
+                  style={{
+                    padding: "8px 14px",
+                    fontSize: "12px",
+                    fontWeight: 800,
+                    backgroundColor: isMainSelected ? "#EEF0FF" : "#F9FAFB",
+                    color: isMainSelected ? "#1B1F8C" : "#374151",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.03em",
+                    boxSizing: "border-box"
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isMainSelected) e.currentTarget.style.backgroundColor = "#F3F4F6";
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isMainSelected) e.currentTarget.style.backgroundColor = "#F9FAFB";
+                  }}
+                >
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    All {mainCat.name} ({mainCat.count})
+                  </span>
+                  {isMainSelected && <Check size={13} color="#1B1F8C" style={{ flexShrink: 0 }} />}
+                </div>
+
+                {/* Subcategories */}
+                {(mainCat.subcategories || []).map((sub) => {
+                  const isSubSelected = value === sub.slug || value === sub.id;
+                  return (
+                    <div
+                      key={sub.id}
+                      onClick={() => {
+                        onChange(sub.slug || sub.id);
+                        setIsOpen(false);
+                      }}
+                      style={{
+                        padding: "8px 14px 8px 26px",
+                        fontSize: "13px",
+                        fontWeight: isSubSelected ? 700 : 400,
+                        backgroundColor: isSubSelected ? "#EEF0FF" : "transparent",
+                        color: isSubSelected ? "#1B1F8C" : "#4B5563",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        boxSizing: "border-box"
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isSubSelected) e.currentTarget.style.backgroundColor = "#F9FAFB";
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isSubSelected) e.currentTarget.style.backgroundColor = "transparent";
+                      }}
+                    >
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {sub.name} ({sub.count})
+                      </span>
+                      {isSubSelected && <Check size={14} color="#1B1F8C" style={{ flexShrink: 0 }} />}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // Shared Product Selection Modal Component (New Arrivals & Best Sellers)
 // ═══════════════════════════════════════════════════════════════════════════════
 function ProductSelectionModal({
@@ -3078,7 +3486,7 @@ function ProductSelectionModal({
   onAddSelected,
   navigateTo,
 }) {
-  const { products = [] } = useAdmin();
+  const { products = [], categories = [] } = useAdmin();
   const [selectedProductIds, setSelectedProductIds] = useState([]);
   const [modalSearch, setModalSearch] = useState("");
   const [modalCategory, setModalCategory] = useState("All");
@@ -3090,6 +3498,31 @@ function ProductSelectionModal({
       setModalCategory("All");
     }
   }, [isOpen]);
+
+  // Active storefront products
+  const activeStoreProducts = React.useMemo(() => {
+    return (products || []).filter(
+      (p) => p && !isProductDeleted(p.id || p.Product_Id || p.slug) && (p.status ? p.status === "Active" : true)
+    );
+  }, [products]);
+
+  // Canonical Dynamic Category Tree with counts
+  const { totalCount, tree: categoryTree } = React.useMemo(() => {
+    return getCatalogCategoryTree(activeStoreProducts, categories);
+  }, [activeStoreProducts, categories]);
+
+  const modalCatalogProducts = React.useMemo(() => {
+    return activeStoreProducts.filter((p) => {
+      const term = modalSearch.toLowerCase().trim();
+      const pName = (p.name || p.title || p.Product_Name || "").toLowerCase();
+      const pCatLabel = getProductCategoryLabel(p).toLowerCase();
+      
+      const matchSearch = !term || pName.includes(term) || pCatLabel.includes(term);
+      const matchCat = isProductInCategory(p, modalCategory, categories);
+
+      return matchSearch && matchCat;
+    });
+  }, [activeStoreProducts, modalSearch, modalCategory, categories]);
 
   if (!isOpen) return null;
 
@@ -3109,93 +3542,77 @@ function ProductSelectionModal({
     onClose();
   };
 
-  const activeStoreProducts = (products || []).filter(
-    (p) => p && !isProductDeleted(p.id || p.Product_Id || p.slug) && (p.status ? p.status === "Active" : true)
-  );
-
-  const getCategoryCount = (catKey) => {
-    if (catKey === "All" || catKey === "all") return activeStoreProducts.length;
-    return activeStoreProducts.filter((p) => isProductInCategory(p, catKey)).length;
-  };
-
-  const modalCatalogProducts = activeStoreProducts.filter((p) => {
-    const term = modalSearch.toLowerCase().trim();
-    const pName = (p.name || p.title || p.Product_Name || "").toLowerCase();
-    const pCatLabel = getProductCategoryLabel(p).toLowerCase();
-    
-    const matchSearch = !term || pName.includes(term) || pCatLabel.includes(term);
-    const matchCat = isProductInCategory(p, modalCategory);
-
-    return matchSearch && matchCat;
-  });
-
   return (
-    <div style={modalBackdropStyle} onClick={onClose}>
-      <div style={{ ...modalCardStyle, maxWidth: "620px" }} onClick={(e) => e.stopPropagation()}>
-        <div style={modalHeaderStyle}>
-          <div>
-            <h2 style={modalTitleStyle}>{title}</h2>
-            <span style={{ fontSize: "12.5px", color: "#6B6B75" }}>
+    <div style={modalBackdropStyle} onClick={onClose} className="content-modal-backdrop">
+      <div style={modalCardStyle} className="content-modal-card" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div style={modalHeaderStyle} className="content-modal-header">
+          <div style={{ flex: 1, minWidth: 0, paddingRight: "8px" }}>
+            <h2 style={modalTitleStyle} className="content-modal-title">{title}</h2>
+            <span style={{ fontSize: "12.5px", color: "#6B6B75", display: "block", marginTop: "2px" }}>
               Choose existing products from store catalog or create a new product
             </span>
           </div>
           <button type="button" onClick={onClose} style={modalCloseBtnStyle}>
-            <XCircle size={20} color="#6B6B75" />
+            <XCircle size={22} color="#6B6B75" />
           </button>
         </div>
 
-        {/* Modal top action bar */}
-        <div style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          backgroundColor: "#F9FAFB",
-          padding: "12px 14px",
-          borderRadius: "10px",
-          border: "1px solid #E5E7EB",
-          marginBottom: "16px",
-          flexWrap: "wrap",
-          gap: "10px"
-        }}>
-          <div>
-            <span style={{ fontSize: "13px", fontWeight: 700, color: "#111827", display: "block" }}>
-              Need a product not in your store catalog?
-            </span>
-            <span style={{ fontSize: "12px", color: "#6B7280" }}>
-              Open full Add Product page to create &amp; publish a new product.
-            </span>
+        {/* Scrollable Body */}
+        <div style={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden", display: "flex", flexDirection: "column", gap: "12px", padding: "4px 0" }} className="content-modal-body">
+          {/* Modal top action bar */}
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            backgroundColor: "#F9FAFB",
+            padding: "12px 14px",
+            borderRadius: "10px",
+            border: "1px solid #E5E7EB",
+            gap: "10px",
+            boxSizing: "border-box",
+            width: "100%"
+          }} className="content-modal-action-box">
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ fontSize: "13px", fontWeight: 700, color: "#111827", display: "block" }}>
+                Need a product not in your store catalog?
+              </span>
+              <span style={{ fontSize: "12px", color: "#6B7280", display: "block", marginTop: "2px" }}>
+                Open full Add Product page to create &amp; publish a new product.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                if (navigateTo) navigateTo("add-product", sectionType);
+              }}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "8px 16px",
+                borderRadius: "8px",
+                fontSize: "13px",
+                fontWeight: 700,
+                border: "none",
+                backgroundColor: "#16A34A",
+                color: "#FFFFFF",
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+                flexShrink: 0
+              }}
+              className="content-create-product-btn"
+            >
+              <Plus size={15} />
+              Create New Product
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              onClose();
-              if (navigateTo) navigateTo("add-product", sectionType);
-            }}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "8px 16px",
-              borderRadius: "8px",
-              fontSize: "13px",
-              fontWeight: 700,
-              border: "none",
-              backgroundColor: "#16A34A",
-              color: "#FFFFFF",
-              cursor: "pointer",
-              whiteSpace: "nowrap"
-            }}
-          >
-            <Plus size={15} />
-            Create New Product
-          </button>
-        </div>
 
-        <div>
-          {/* Search & Category filter */}
-          <div style={{ display: "flex", gap: "10px", marginBottom: "14px" }}>
-            <div style={{ ...searchWrapStyle, height: "38px" }}>
-              <Search size={14} color="#6B6B75" />
+          {/* Search & Custom Category filter */}
+          <div style={{ display: "flex", gap: "10px", width: "100%", boxSizing: "border-box" }} className="content-modal-filters">
+            <div style={{ ...searchWrapStyle, height: "42px", flex: 1, minWidth: 0, maxWidth: "none" }} className="content-modal-search">
+              <Search size={15} color="#6B6B75" />
               <input
                 type="text"
                 placeholder="Search store products..."
@@ -3204,39 +3621,29 @@ function ProductSelectionModal({
                 style={searchInputStyle}
               />
             </div>
-            <select
-              value={modalCategory}
-              onChange={(e) => setModalCategory(e.target.value)}
-              style={{ ...selectFilterStyle, height: "38px" }}
-            >
-              <option value="All">All Categories ({getCategoryCount("All")})</option>
-
-              <optgroup label="Mattresses">
-                <option value="mattresses">All Mattresses ({getCategoryCount("mattresses")})</option>
-                <option value="foam">Foam Mattress ({getCategoryCount("foam")})</option>
-                <option value="ortho">Ortho Mattress ({getCategoryCount("ortho")})</option>
-                <option value="spring">Spring Mattress ({getCategoryCount("spring")})</option>
-                <option value="latex">Latex Mattress ({getCategoryCount("latex")})</option>
-                <option value="memory-foam">Memory Foam Mattress ({getCategoryCount("memory-foam")})</option>
-              </optgroup>
-
-              <optgroup label="Accessories">
-                <option value="accessories">All Accessories ({getCategoryCount("accessories")})</option>
-                <option value="memory-foam-pillow">Memory Foam Pillow ({getCategoryCount("memory-foam-pillow")})</option>
-                <option value="latex-pillow">Latex Pillow ({getCategoryCount("latex-pillow")})</option>
-                <option value="fiber-pillow">Fiber Pillow ({getCategoryCount("fiber-pillow")})</option>
-                <option value="mattress-protector">Mattress Protector ({getCategoryCount("mattress-protector")})</option>
-                <option value="fitted-bedspread">Fitted Bedspread ({getCategoryCount("fitted-bedspread")})</option>
-                <option value="blanket-duvet">Blanket / Duvet ({getCategoryCount("blanket-duvet")})</option>
-                <option value="travel-bed">Travel Bed ({getCategoryCount("travel-bed")})</option>
-              </optgroup>
-            </select>
+            <div style={{ flex: 1, minWidth: 0 }} className="content-modal-category-wrap">
+              <CategoryCustomDropdown
+                value={modalCategory}
+                onChange={setModalCategory}
+                categoryTree={categoryTree}
+                totalCount={totalCount}
+              />
+            </div>
           </div>
 
           {/* Catalog Product Selection List */}
-          <div style={{ maxHeight: "300px", overflowY: "auto", border: "1px solid #E5E7EB", borderRadius: "10px", padding: "6px" }}>
+          <div style={{
+            maxHeight: "300px",
+            overflowY: "auto",
+            overflowX: "hidden",
+            border: "1px solid #E5E7EB",
+            borderRadius: "10px",
+            padding: "6px",
+            boxSizing: "border-box",
+            width: "100%"
+          }}>
             {modalCatalogProducts.length === 0 ? (
-              <div style={{ padding: "24px", textAlign: "center", color: "#6B6B75", fontSize: "13px" }}>
+              <div style={{ padding: "32px 16px", textAlign: "center", color: "#6B6B75", fontSize: "13px" }}>
                 No matching products found in store catalog.
               </div>
             ) : (
@@ -3258,7 +3665,7 @@ function ProductSelectionModal({
                     style={{
                       display: "flex",
                       alignItems: "center",
-                      gap: "12px",
+                      gap: "10px",
                       padding: "10px 12px",
                       borderRadius: "8px",
                       marginBottom: "4px",
@@ -3269,8 +3676,11 @@ function ProductSelectionModal({
                         : "#FFFFFF",
                       border: `1px solid ${isSelected ? "#1B1F8C" : "#E5E7EB"}`,
                       cursor: isAlreadyAdded ? "not-allowed" : "pointer",
-                      opacity: isAlreadyAdded ? 0.65 : 1,
-                      userSelect: "none"
+                      opacity: isAlreadyAdded ? 0.7 : 1,
+                      userSelect: "none",
+                      boxSizing: "border-box",
+                      width: "100%",
+                      minWidth: 0
                     }}
                   >
                     <input
@@ -3279,25 +3689,27 @@ function ProductSelectionModal({
                       checked={isSelected || isAlreadyAdded}
                       onChange={(e) => handleToggleProductSelection(p.id, e)}
                       onClick={(e) => e.stopPropagation()}
-                      style={{ width: "18px", height: "18px", accentColor: "#1B1F8C", cursor: isAlreadyAdded ? "not-allowed" : "pointer" }}
+                      style={{ width: "18px", height: "18px", accentColor: "#1B1F8C", cursor: isAlreadyAdded ? "not-allowed" : "pointer", flexShrink: 0 }}
                     />
-                    <div style={{ width: "42px", height: "42px", borderRadius: "6px", overflow: "hidden", backgroundColor: "#F3F4F6", flexShrink: 0 }}>
+                    <div style={{ width: "44px", height: "44px", borderRadius: "6px", overflow: "hidden", backgroundColor: "#F3F4F6", flexShrink: 0 }}>
                       <img src={imgSrc} alt={p.name || p.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <strong style={{ fontSize: "13.5px", color: "#111827", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {p.name || p.title}
                       </strong>
-                      <span style={{ fontSize: "12px", color: "#6B7280" }}>
-                        Category: {catLabel} • Price: {formattedPrice}
-                      </span>
+                      <div style={{ fontSize: "12px", color: "#6B7280", display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginTop: "2px" }}>
+                        <span>{catLabel}</span>
+                        <span>•</span>
+                        <strong style={{ color: "#16A34A" }}>{formattedPrice}</strong>
+                      </div>
                     </div>
                     {isAlreadyAdded ? (
-                      <span style={{ fontSize: "11px", fontWeight: 700, color: "#16A34A", backgroundColor: "#DCFCE7", padding: "3px 8px", borderRadius: "999px" }}>
+                      <span style={{ fontSize: "11px", fontWeight: 700, color: "#16A34A", backgroundColor: "#DCFCE7", padding: "3px 8px", borderRadius: "999px", flexShrink: 0, whiteSpace: "nowrap" }}>
                         ✓ Already Added
                       </span>
                     ) : isSelected ? (
-                      <span style={{ fontSize: "11px", fontWeight: 700, color: "#1B1F8C", backgroundColor: "#EEF0FF", padding: "3px 8px", borderRadius: "999px" }}>
+                      <span style={{ fontSize: "11px", fontWeight: 700, color: "#1B1F8C", backgroundColor: "#EEF0FF", padding: "3px 8px", borderRadius: "999px", flexShrink: 0, whiteSpace: "nowrap" }}>
                         Selected
                       </span>
                     ) : null}
@@ -3306,24 +3718,26 @@ function ProductSelectionModal({
               })
             )}
           </div>
+        </div>
 
-          <div style={{ ...modalFooterStyle, marginTop: "16px" }}>
-            <button type="button" onClick={onClose} style={cancelBtnStyle}>
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleAddSelected}
-              disabled={selectedProductIds.length === 0}
-              style={{
-                ...saveBtnStyle,
-                backgroundColor: selectedProductIds.length > 0 ? "#1B1F8C" : "#9CA3AF",
-                cursor: selectedProductIds.length > 0 ? "pointer" : "not-allowed"
-              }}
-            >
-              Add Selected ({selectedProductIds.length})
-            </button>
-          </div>
+        {/* Footer */}
+        <div style={{ ...modalFooterStyle, marginTop: "12px", paddingTop: "12px", borderTop: "1px solid #E5E7EB" }} className="content-modal-footer">
+          <button type="button" onClick={onClose} style={cancelBtnStyle} className="content-modal-btn">
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleAddSelected}
+            disabled={selectedProductIds.length === 0}
+            style={{
+              ...saveBtnStyle,
+              backgroundColor: selectedProductIds.length > 0 ? "#1B1F8C" : "#9CA3AF",
+              cursor: selectedProductIds.length > 0 ? "pointer" : "not-allowed"
+            }}
+            className="content-modal-btn"
+          >
+            Add Selected ({selectedProductIds.length})
+          </button>
         </div>
       </div>
     </div>
@@ -3358,14 +3772,26 @@ function CreateSectionModal({ isOpen, onClose, homepageConfig, updateHomepageCon
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All");
 
-  if (!isOpen) return null;
+  const activeStoreProducts = React.useMemo(() => {
+    return (products || []).filter(
+      (p) => p && !isProductDeleted(p.id || p.Product_Id || p.slug) && (p.status ? p.status === "Active" : true)
+    );
+  }, [products]);
 
-  const filteredProducts = products.filter((p) => {
-    const pName = (p.name || p.title || "").toLowerCase();
-    const matchSearch = pName.includes(search.toLowerCase());
-    const matchCategory = category === "All" || isProductInCategory(p, category);
-    return matchSearch && matchCategory;
-  });
+  const { totalCount, tree: categoryTree } = React.useMemo(() => {
+    return getCatalogCategoryTree(activeStoreProducts, categories);
+  }, [activeStoreProducts, categories]);
+
+  const filteredProducts = React.useMemo(() => {
+    return activeStoreProducts.filter((p) => {
+      const pName = (p.name || p.title || "").toLowerCase();
+      const matchSearch = !search || pName.includes(search.toLowerCase());
+      const matchCategory = isProductInCategory(p, category, categories);
+      return matchSearch && matchCategory;
+    });
+  }, [activeStoreProducts, search, category, categories]);
+
+  if (!isOpen) return null;
 
   const handleToggleSelect = (pid) => {
     setSelectedProductIds((prev) =>
@@ -3420,19 +3846,21 @@ function CreateSectionModal({ isOpen, onClose, homepageConfig, updateHomepageCon
   };
 
   return (
-    <div style={modalOverlayStyle}>
-      <div style={{ ...modalContentStyle, maxWidth: "680px", maxHeight: "90vh", overflowY: "auto" }}>
-        <div style={modalHeaderStyle}>
-          <div>
-            <h2 style={modalTitleStyle}>Create Homepage Product Section</h2>
-            <p style={{ fontSize: "13px", color: "#6B6B75", margin: "4px 0 0 0" }}>
+    <div style={modalOverlayStyle} onClick={onClose} className="content-modal-backdrop">
+      <div style={modalContentStyle} className="content-modal-card" onClick={(e) => e.stopPropagation()}>
+        <div style={modalHeaderStyle} className="content-modal-header">
+          <div style={{ flex: 1, minWidth: 0, paddingRight: "8px" }}>
+            <h2 style={modalTitleStyle} className="content-modal-title">Create Homepage Product Section</h2>
+            <p style={{ fontSize: "12.5px", color: "#6B6B75", margin: "4px 0 0 0" }}>
               Create a custom section that will appear as a new tab in Content and on the customer homepage.
             </p>
           </div>
-          <button type="button" onClick={onClose} style={modalCloseBtnStyle}>✕</button>
+          <button type="button" onClick={onClose} style={modalCloseBtnStyle}>
+            <XCircle size={22} color="#6B6B75" />
+          </button>
         </div>
 
-        <form onSubmit={handleCreate} style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "16px" }}>
+        <form onSubmit={handleCreate} style={{ display: "flex", flexDirection: "column", gap: "14px", flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden" }}>
           <div>
             <label style={labelStyle}>Section Name *</label>
             <input
@@ -3460,7 +3888,7 @@ function CreateSectionModal({ isOpen, onClose, homepageConfig, updateHomepageCon
           {/* Background Color Field & Live Preview */}
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
             <label style={labelStyle}>Background Color *</label>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
               <input
                 type="color"
                 value={isValidHex(backgroundColor) ? backgroundColor : "#FFFFFF"}
@@ -3510,7 +3938,7 @@ function CreateSectionModal({ isOpen, onClose, homepageConfig, updateHomepageCon
             <div
               style={{
                 marginTop: "10px",
-                padding: "16px 20px",
+                padding: "14px 18px",
                 borderRadius: "12px",
                 backgroundColor: isValidHex(backgroundColor) ? backgroundColor : "#FFFFFF",
                 border: "1px solid #E7E7E2",
@@ -3520,7 +3948,7 @@ function CreateSectionModal({ isOpen, onClose, homepageConfig, updateHomepageCon
               <div style={{ fontSize: "11px", fontWeight: "800", textTransform: "uppercase", letterSpacing: "0.05em", color: isDarkHex(backgroundColor) ? "#94A3B8" : "#6B6B75", marginBottom: "4px" }}>
                 Live Section Background Preview
               </div>
-              <div style={{ fontSize: "16px", fontWeight: "800", color: isDarkHex(backgroundColor) ? "#FFFFFF" : "#1B1F8C" }}>
+              <div style={{ fontSize: "15px", fontWeight: "800", color: isDarkHex(backgroundColor) ? "#FFFFFF" : "#1B1F8C" }}>
                 {name || "Section Name Preview"}
               </div>
               <div style={{ fontSize: "12px", color: isDarkHex(backgroundColor) ? "#CBD5E1" : "#6B6B75" }}>
@@ -3537,7 +3965,7 @@ function CreateSectionModal({ isOpen, onClose, homepageConfig, updateHomepageCon
               onChange={(e) => setVisible(e.target.checked)}
               style={{ width: "18px", height: "18px", accentColor: "#1B1F8C" }}
             />
-            <label htmlFor="visible-check-create" style={{ fontSize: "14px", fontWeight: "600", color: "#14151A", cursor: "pointer" }}>
+            <label htmlFor="visible-check-create" style={{ fontSize: "13.5px", fontWeight: "600", color: "#14151A", cursor: "pointer" }}>
               Visible on Customer Homepage
             </label>
           </div>
@@ -3548,33 +3976,31 @@ function CreateSectionModal({ isOpen, onClose, homepageConfig, updateHomepageCon
             </div>
 
             {/* Filter controls */}
-            <div style={{ display: "flex", gap: "10px", marginBottom: "12px" }}>
-              <div style={{ flex: 1, position: "relative" }}>
-                <Search size={14} color="#9CA3AF" style={{ position: "absolute", left: "10px", top: "11px" }} />
+            <div style={{ display: "flex", gap: "10px", marginBottom: "12px", width: "100%", boxSizing: "border-box" }} className="content-modal-filters">
+              <div style={{ flex: 1, position: "relative", minWidth: 0 }} className="content-modal-search">
+                <Search size={14} color="#9CA3AF" style={{ position: "absolute", left: "10px", top: "14px" }} />
                 <input
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search catalogue products..."
-                  style={{ ...inputStyle, paddingLeft: "32px", fontSize: "13px" }}
+                  style={{ ...inputStyle, paddingLeft: "32px", fontSize: "13px", height: "42px" }}
                 />
               </div>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                style={{ ...inputStyle, width: "160px", fontSize: "13px" }}
-              >
-                <option value="All">All Categories</option>
-                {categories.map((c) => (
-                  <option key={c.id || c.name} value={c.name}>{c.name}</option>
-                ))}
-              </select>
+              <div style={{ flex: 1, minWidth: 0 }} className="content-modal-category-wrap">
+                <CategoryCustomDropdown
+                  value={category}
+                  onChange={setCategory}
+                  categoryTree={categoryTree}
+                  totalCount={totalCount}
+                />
+              </div>
             </div>
 
             {/* Product list checklist */}
-            <div style={{ border: "1px solid #E7E7E2", borderRadius: "10px", maxHeight: "240px", overflowY: "auto", padding: "8px" }}>
+            <div style={{ border: "1px solid #E7E7E2", borderRadius: "10px", maxHeight: "220px", overflowY: "auto", overflowX: "hidden", padding: "6px", boxSizing: "border-box", width: "100%" }}>
               {filteredProducts.length === 0 ? (
-                <p style={{ textAlign: "center", color: "#6B6B75", padding: "16px", fontSize: "13px" }}>No products match filters.</p>
+                <p style={{ textAlign: "center", color: "#6B6B75", padding: "24px 16px", fontSize: "13px" }}>No products match filters.</p>
               ) : (
                 filteredProducts.map((p) => {
                   const isSelected = selectedProductIds.includes(p.id);
@@ -3588,21 +4014,25 @@ function CreateSectionModal({ isOpen, onClose, homepageConfig, updateHomepageCon
                       style={{
                         display: "flex",
                         alignItems: "center",
-                        gap: "12px",
+                        gap: "10px",
                         padding: "8px 12px",
                         borderRadius: "8px",
                         cursor: "pointer",
                         backgroundColor: isSelected ? "#EEF0FF" : "transparent",
-                        marginBottom: "4px"
+                        border: `1px solid ${isSelected ? "#1B1F8C" : "transparent"}`,
+                        marginBottom: "4px",
+                        boxSizing: "border-box",
+                        width: "100%",
+                        minWidth: 0
                       }}
                     >
                       <input
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => {}}
-                        style={{ width: "16px", height: "16px", accentColor: "#1B1F8C" }}
+                        style={{ width: "16px", height: "16px", accentColor: "#1B1F8C", flexShrink: 0 }}
                       />
-                      <img src={img} alt="" style={{ width: "36px", height: "36px", objectFit: "cover", borderRadius: "6px" }} />
+                      <img src={img} alt="" style={{ width: "36px", height: "36px", objectFit: "cover", borderRadius: "6px", flexShrink: 0 }} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <strong style={{ fontSize: "13px", color: "#14151A", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {p.name || p.title}
@@ -3618,9 +4048,9 @@ function CreateSectionModal({ isOpen, onClose, homepageConfig, updateHomepageCon
             </div>
           </div>
 
-          <div style={{ ...modalFooterStyle, marginTop: "12px" }}>
-            <button type="button" onClick={onClose} style={cancelBtnStyle}>Cancel</button>
-            <button type="submit" style={saveBtnStyle}>Create Section</button>
+          <div style={{ ...modalFooterStyle, marginTop: "12px", paddingTop: "12px", borderTop: "1px solid #E5E7EB" }} className="content-modal-footer">
+            <button type="button" onClick={onClose} style={cancelBtnStyle} className="content-modal-btn">Cancel</button>
+            <button type="submit" style={saveBtnStyle} className="content-modal-btn">Create Section</button>
           </div>
         </form>
       </div>
@@ -3947,11 +4377,13 @@ function CustomSectionTab({ sectionId, homepageConfig, updateHomepageConfig, sho
 
       {/* Product Selector Modal */}
       {isAddModalOpen && (
-        <SelectProductsModal
+        <ProductSelectionModal
           isOpen={isAddModalOpen}
           onClose={() => setIsAddModalOpen(false)}
-          onAdd={handleAddProducts}
+          title={`Select Products for "${name || "Section"}"`}
+          sectionType="custom"
           existingProductIds={new Set(productIds)}
+          onAddSelected={handleAddProducts}
         />
       )}
 

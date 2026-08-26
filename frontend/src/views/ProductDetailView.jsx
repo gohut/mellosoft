@@ -3,20 +3,20 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useStore } from "../context/StoreContext";
 import { MOCK_PRODUCTS } from "../data/products";
-import { MOCK_REVIEWS } from "../admin/data/adminMockData";
 import RatingStars from "../components/RatingStars";
 import FirmnessSizeSelector from "../components/FirmnessSizeSelector";
 import QuantityStepper from "../components/QuantityStepper";
 import ProductCard from "../components/ProductCard";
 import { formatPrice, calculateDiscountedPrice } from "../utils/currency";
 import { getVariantForSelection } from "../utils/variantHelpers";
-import { useRouter } from "next/navigation";
-import { getProductByIdentifier, getRelatedProducts, getMattressRecommendations, getProductPrimaryImage, getProductGalleryImages } from "../utils/productHelpers";
+import { useRouter, useParams } from "next/navigation";
+import { getProductByIdentifier, getRelatedProducts, getMattressRecommendations, getProductPrimaryImage, getProductGalleryImages, isBedFrameProduct, isAccessoryProduct } from "../utils/productHelpers";
 import { getResolvedImageUrlSync } from "../utils/imageStorage";
 import MattressSelector from "../components/MattressSelector";
 
 export default function ProductDetailView({ productId: initialProductId }) {
   const router = useRouter();
+  const params = useParams();
   const { 
     products,
     selectedProductId, 
@@ -27,26 +27,41 @@ export default function ProductDetailView({ productId: initialProductId }) {
     navigateTo,
     cart,
     setCheckoutItems,
-    setSearchQuery
+    setSearchQuery,
+    setSelectedProductId,
+    setView,
+    settings
   } = useStore();
 
   const cartCount = cart.reduce((acc, item) => acc + item.qty, 0);
 
+  const routeProductId = params?.productId || initialProductId;
+
   const product = useMemo(() => {
-    let target = initialProductId || selectedProductId;
+    const storeProds = (products && products.length > 0) ? products : MOCK_PRODUCTS;
+
+    // 1. URL route parameter - PRIMARY SOURCE OF TRUTH
+    if (routeProductId) {
+      const matchByRoute = getProductByIdentifier(routeProductId, storeProds);
+      if (matchByRoute) return matchByRoute;
+    }
+
+    // 2. Window location pathname fallback
     if (typeof window !== "undefined") {
       const match = window.location.pathname.match(/\/product\/([^/]+)/);
       if (match && match[1]) {
-        try {
-          target = decodeURIComponent(match[1]).trim();
-        } catch (e) {
-          target = match[1].trim();
-        }
+        const matchByUrl = getProductByIdentifier(match[1], storeProds);
+        if (matchByUrl) return matchByUrl;
       }
     }
-    const storeProds = (products && products.length > 0) ? products : MOCK_PRODUCTS;
-    return getProductByIdentifier(target, storeProds) || getProductByIdentifier(selectedProductId, storeProds) || null;
-  }, [products, selectedProductId, initialProductId]);
+
+    // 3. Context selectedProductId fallback only if no URL parameter exists
+    if (selectedProductId) {
+      return getProductByIdentifier(selectedProductId, storeProds);
+    }
+
+    return null;
+  }, [products, routeProductId, selectedProductId]);
 
   const galleryImages = useMemo(() => {
     return getProductGalleryImages(product);
@@ -147,7 +162,7 @@ export default function ProductDetailView({ productId: initialProductId }) {
     };
   }, []);
 
-  // Compute public approved reviews
+  // Compute public approved reviews strictly from stored real reviews
   const approvedReviews = useMemo(() => {
     if (!product) return [];
 
@@ -163,8 +178,8 @@ export default function ProductDetailView({ productId: initialProductId }) {
       }
     }
 
-    if (!adminReviewsList || adminReviewsList.length === 0) {
-      adminReviewsList = MOCK_REVIEWS || [];
+    if (!Array.isArray(adminReviewsList)) {
+      adminReviewsList = [];
     }
 
     const adminApprovedMatches = adminReviewsList
@@ -187,10 +202,10 @@ export default function ProductDetailView({ productId: initialProductId }) {
 
       return {
         ...r,
-        author: r.customerName || r.customer || r.author || "Rahul Sharma",
+        author: r.customerName || r.customer || r.author || "Customer",
         content: r.feedback || r.comment || r.review || r.content || "",
         date: r.date || r.createdAt || "Recently",
-        rating: r.rating || 5,
+        rating: Number(r.rating) || 5,
         images: revImages,
         verifiedPurchase: r.verifiedPurchase ?? r.verified ?? true,
         helpfulCount: r.helpfulCount || 0,
@@ -198,6 +213,12 @@ export default function ProductDetailView({ productId: initialProductId }) {
       };
     });
   }, [product, reviewsVersion]);
+
+  const averageRating = useMemo(() => {
+    if (!approvedReviews || approvedReviews.length === 0) return 0;
+    const sum = approvedReviews.reduce((acc, r) => acc + (Number(r.rating) || 5), 0);
+    return parseFloat((sum / approvedReviews.length).toFixed(1));
+  }, [approvedReviews]);
 
   // Compute rating stats
   const ratingStats = useMemo(() => {
@@ -261,6 +282,11 @@ export default function ProductDetailView({ productId: initialProductId }) {
     };
 
     setCheckoutItems([checkoutItem]);
+    if (typeof window !== "undefined") {
+      try {
+        sessionStorage.setItem("mellosoft_checkout_items", JSON.stringify([checkoutItem]));
+      } catch {}
+    }
     navigateTo("checkout");
   };
 
@@ -335,13 +361,16 @@ export default function ProductDetailView({ productId: initialProductId }) {
     );
   }
 
-  const isAccessory = product.subCategory || product.category === "accessories";
+  const isBedFrame = isBedFrameProduct(product);
+  const isAccessory = !isBedFrame && isAccessoryProduct(product);
   const categorySlug = product.subCategory || product.category;
   const categoryDisplayName = product.categoryName || (product.category ? (product.category.charAt(0).toUpperCase() + product.category.slice(1)) : "Category");
 
   const handleBreadcrumbCategoryClick = () => {
     if (router && typeof router.push === "function") {
-      if (isAccessory) {
+      if (isBedFrame) {
+        router.push(`/bed-frames/${categorySlug}`);
+      } else if (isAccessory) {
         router.push(`/accessories/${categorySlug}`);
       } else {
         router.push(`/mattresses/${categorySlug}`);
@@ -351,7 +380,9 @@ export default function ProductDetailView({ productId: initialProductId }) {
 
   const handleBreadcrumbCatalogClick = () => {
     if (router && typeof router.push === "function") {
-      if (isAccessory) {
+      if (isBedFrame) {
+        router.push("/bed-frames");
+      } else if (isAccessory) {
         router.push("/accessories");
       } else {
         router.push("/mattresses");
@@ -366,7 +397,7 @@ export default function ProductDetailView({ productId: initialProductId }) {
       <div style={breadcrumbStyle} className="detail-breadcrumb">
         <span onClick={() => { if (router && typeof router.push === "function") router.push("/"); }} style={breadcrumbLinkStyle}>Home</span>
         <span style={breadcrumbDividerStyle}>/</span>
-        <span onClick={handleBreadcrumbCatalogClick} style={breadcrumbLinkStyle}>{isAccessory ? "Accessories" : "Mattresses"}</span>
+        <span onClick={handleBreadcrumbCatalogClick} style={breadcrumbLinkStyle}>{isBedFrame ? "Bed Frames" : isAccessory ? "Accessories" : "Mattresses"}</span>
         {categorySlug && (
           <>
             <span style={breadcrumbDividerStyle}>/</span>
@@ -485,9 +516,15 @@ export default function ProductDetailView({ productId: initialProductId }) {
           )}
           
           {/* Rating summary overlay */}
-          <div style={ratingSummaryLineStyle}>
-            <RatingStars rating={product.rating} count={product.reviewCount} />
-          </div>
+          {approvedReviews.length > 0 ? (
+            <div style={ratingSummaryLineStyle}>
+              <RatingStars rating={Number(averageRating)} count={approvedReviews.length} />
+            </div>
+          ) : (
+            <div style={{ fontSize: "13px", color: "#6B6B75", margin: "6px 0" }}>
+              No reviews yet
+            </div>
+          )}
 
           <div style={dividerStyle} />
 
@@ -605,7 +642,7 @@ export default function ProductDetailView({ productId: initialProductId }) {
                 <circle cx="5.5" cy="18.5" r="2.5" />
                 <circle cx="18.5" cy="18.5" r="2.5" />
               </svg>
-              <span style={deliveryTextStyle}>Free shipping on orders over ₹30</span>
+              <span style={deliveryTextStyle}>Free shipping on orders over ₹{Number(settings?.shipping?.freeShippingAmount || 5000).toLocaleString("en-IN")}</span>
             </div>
             <div style={deliveryItemStyle}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5">
@@ -623,8 +660,26 @@ export default function ProductDetailView({ productId: initialProductId }) {
         <h3 style={carouselHeadingStyle}>You may also like</h3>
         <div style={recommendationsGridStyle} className="recommendations-row">
           {recommendations.map((rec) => (
-            <div key={rec.id} style={{ flex: "1 1 280px", height: "100%" }}>
-              <ProductCard product={rec} showContactForPrice={false} />
+            <div key={rec.id || rec.slug || rec.Product_Id} style={{ flex: "1 1 280px", height: "100%" }}>
+              <ProductCard
+                product={rec}
+                showContactForPrice={false}
+                onClick={(recommendedProduct) => {
+                  const targetId = recommendedProduct.slug || recommendedProduct.id || recommendedProduct.Product_Id;
+                  if (!targetId) return;
+                  setSelectedProductId(targetId);
+                  setView("detail");
+                  const targetUrl = `/product/${encodeURIComponent(String(targetId).trim())}`;
+                  if (router && typeof router.push === "function") {
+                    router.push(targetUrl);
+                  } else if (typeof window !== "undefined") {
+                    window.location.href = targetUrl;
+                  }
+                  if (typeof window !== "undefined") {
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }
+                }}
+              />
             </div>
           ))}
         </div>

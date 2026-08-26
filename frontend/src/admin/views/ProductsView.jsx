@@ -9,7 +9,7 @@ import ConfirmDialog from "../components/ConfirmDialog";
 import Pagination from "../components/Pagination";
 import { Plus } from "lucide-react";
 import { formatPrice, calculateDiscountedPrice } from "../../utils/currency";
-import { getProductPrimaryImage, isProductInCategory, isAccessoryProduct, getProductCategoryLabel } from "../../utils/productHelpers";
+import { getProductPrimaryImage, isProductInCategory, isAccessoryProduct, isBedFrameProduct, getProductCategoryLabel, getCatalogCategoryTree } from "../../utils/productHelpers";
 
 function getProductStatus(p) {
   if (p.status) return p.status;
@@ -20,50 +20,16 @@ function getProductStatus(p) {
 }
 
 export default function ProductsView() {
-  const { navigateTo, products, hasPermission } = useAdmin();
+  const { navigateTo, products = [], categories = [], hasPermission } = useAdmin();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
   const [page, setPage] = useState(1);
   const perPage = 6;
 
-  const categoryCounts = useMemo(() => {
-    const counts = {
-      all: products.length,
-      mattresses: 0,
-      accessories: 0,
-      foam: 0,
-      ortho: 0,
-      spring: 0,
-      latex: 0,
-      "memory-foam": 0,
-      "memory-foam-pillow": 0,
-      "latex-pillow": 0,
-      "fiber-pillow": 0,
-      "mattress-protector": 0,
-      "fitted-bedspread": 0,
-      "blanket-duvet": 0,
-      "travel-bed": 0
-    };
-
-    products.forEach((p) => {
-      if (isAccessoryProduct(p)) {
-        counts.accessories++;
-      } else {
-        counts.mattresses++;
-      }
-
-      Object.keys(counts).forEach((k) => {
-        if (k !== "all" && k !== "mattresses" && k !== "accessories") {
-          if (isProductInCategory(p, k)) {
-            counts[k]++;
-          }
-        }
-      });
-    });
-
-    return counts;
-  }, [products]);
+  const { totalCount, tree: categoryTree } = useMemo(() => {
+    return getCatalogCategoryTree(products, categories);
+  }, [products, categories]);
 
   const filtered = useMemo(() => {
     return products.filter((p) => {
@@ -181,25 +147,17 @@ export default function ProductsView() {
             onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }}
             style={selectStyle}
           >
-            <option value="All">All Categories ({categoryCounts.all})</option>
-            <optgroup label="Mattresses">
-              <option value="mattresses">All Mattresses ({categoryCounts.mattresses})</option>
-              <option value="foam">Foam Mattress ({categoryCounts.foam})</option>
-              <option value="ortho">Ortho Mattress ({categoryCounts.ortho})</option>
-              <option value="spring">Spring Mattress ({categoryCounts.spring})</option>
-              <option value="latex">Latex Mattress ({categoryCounts.latex})</option>
-              <option value="memory-foam">Memory Foam Mattress ({categoryCounts["memory-foam"]})</option>
-            </optgroup>
-            <optgroup label="Accessories">
-              <option value="accessories">All Accessories ({categoryCounts.accessories})</option>
-              <option value="memory-foam-pillow">Memory Foam Pillow ({categoryCounts["memory-foam-pillow"]})</option>
-              <option value="latex-pillow">Latex Pillow ({categoryCounts["latex-pillow"]})</option>
-              <option value="fiber-pillow">Fiber Pillow ({categoryCounts["fiber-pillow"]})</option>
-              <option value="mattress-protector">Mattress Protector ({categoryCounts["mattress-protector"]})</option>
-              <option value="fitted-bedspread">Fitted Bedspread ({categoryCounts["fitted-bedspread"]})</option>
-              <option value="blanket-duvet">Blanket / Duvet ({categoryCounts["blanket-duvet"]})</option>
-              <option value="travel-bed">Travel Bed ({categoryCounts["travel-bed"]})</option>
-            </optgroup>
+            <option value="All">All Categories ({totalCount})</option>
+            {categoryTree.map((mainCat) => (
+              <optgroup key={mainCat.id} label={`${mainCat.name} (${mainCat.count})`}>
+                <option value={mainCat.slug || mainCat.id}>All {mainCat.name} ({mainCat.count})</option>
+                {(mainCat.subcategories || []).map((sub) => (
+                  <option key={sub.id} value={sub.slug || sub.id}>
+                    {sub.name} ({sub.count})
+                  </option>
+                ))}
+              </optgroup>
+            ))}
           </select>
           <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} style={selectStyle}>
             <option value="All">All Status</option>

@@ -6,6 +6,7 @@ import { useStore } from "../context/StoreContext";
 import { useCustomerAuth } from "../context/CustomerAuthContext";
 import { MOCK_PRODUCTS } from "../data/products";
 import { formatPrice } from "../utils/currency";
+import { getResolvedImageUrlSync } from "../utils/imageStorage";
 
 export default function Header() {
   const pathname = usePathname() || "/";
@@ -18,7 +19,8 @@ export default function Header() {
     wishlist,
     searchQuery,
     setSearchQuery,
-    setActiveFilters
+    setActiveFilters,
+    settings
   } = useStore();
 
   const { currentCustomer, isAuthenticated } = useCustomerAuth();
@@ -32,10 +34,12 @@ export default function Header() {
   // Dropdown states for Desktop
   const [mattressDropdown, setMattressDropdown] = useState(false);
   const [accessoriesDropdown, setAccessoriesDropdown] = useState(false);
+  const [bedFramesDropdown, setBedFramesDropdown] = useState(false);
 
   // Mobile accordion states
   const [mobileMattressOpen, setMobileMattressOpen] = useState(false);
   const [mobileAccessoriesOpen, setMobileAccessoriesOpen] = useState(false);
+  const [mobileBedFramesOpen, setMobileBedFramesOpen] = useState(false);
 
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
@@ -50,6 +54,7 @@ export default function Header() {
   const isHome = pathname === "/";
   const isMattressActive = pathname === "/mattresses" || pathname.startsWith("/mattresses/");
   const isAccessoriesActive = pathname === "/accessories" || pathname.startsWith("/accessories/");
+  const isBedFramesActive = pathname === "/bed-frames" || pathname.startsWith("/bed-frames/");
   const isAboutActive = pathname === "/about";
   const isContactActive = pathname === "/contact";
 
@@ -100,6 +105,7 @@ export default function Header() {
   const handleNavClick = (targetPath) => {
     setMattressDropdown(false);
     setAccessoriesDropdown(false);
+    setBedFramesDropdown(false);
     setMobileMenuOpen(false);
     if (router && typeof router.push === "function") {
       router.push(targetPath);
@@ -161,8 +167,13 @@ export default function Header() {
       {/* DESKTOP HEADER */}
       <header style={desktopHeaderStyle} className="desktop-only">
         <div style={headerContainerStyle}>
-          <button onClick={() => handleNavClick("/")} style={logoContainerStyle} aria-label="Go home">
-            <img src="/asset/logo.png" alt="Mellosoft Mattress" style={logoImageStyle} />
+          <button onClick={() => handleNavClick("/")} style={logoContainerStyle} aria-label={`${settings?.store?.name || "Mellosoft"} Home`}>
+            <img
+              src={getResolvedImageUrlSync(settings?.website?.logo, "/asset/logo.png")}
+              alt={settings?.store?.name || "Mellosoft Mattress"}
+              style={logoImageStyle}
+              onError={(e) => { e.currentTarget.src = "/asset/logo.png"; }}
+            />
           </button>
 
           <nav style={navLinksStyle} aria-label="Primary navigation">
@@ -269,6 +280,40 @@ export default function Header() {
               )}
             </div>
 
+            {/* BED FRAMES DROPDOWN */}
+            <div
+              style={dropdownWrapStyle}
+              onMouseEnter={() => setBedFramesDropdown(true)}
+              onMouseLeave={() => setBedFramesDropdown(false)}
+            >
+              <button
+                onClick={() => handleNavClick("/bed-frames")}
+                style={{
+                  ...navLinkButtonStyle,
+                  color: isBedFramesActive ? "#1B1F8C" : "#6B6B75",
+                  fontWeight: isBedFramesActive ? "700" : "500"
+                }}
+              >
+                BED FRAMES <ChevronDownIcon />
+              </button>
+
+              {bedFramesDropdown && (
+                <div style={dropdownMenuStyle}>
+                  <button onClick={() => handleNavClick("/bed-frames/wooden-bed-frame")} style={dropdownItemStyle}>
+                    Wooden Bed Frame
+                  </button>
+                  <button onClick={() => handleNavClick("/bed-frames/platform-bed")} style={dropdownItemStyle}>
+                    Platform Bed
+                  </button>
+                  <div style={{ borderTop: "1px solid #E7E7E2", marginTop: "4px", paddingTop: "4px" }}>
+                    <button onClick={() => handleNavClick("/bed-frames")} style={{ ...dropdownItemStyle, fontWeight: "700", color: "#1B1F8C" }}>
+                      View All Bed Frames →
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <button
               onClick={() => handleNavClick("/about")}
               style={{
@@ -345,7 +390,12 @@ export default function Header() {
               }}
             >
               <button onClick={() => setMobileMenuOpen((open) => !open)} style={mobileLogoStyle} aria-label="Open menu">
-                <img src="/asset/logo.png" alt="Mellosoft" style={mobileLogoImageStyle} />
+                <img
+                  src={getResolvedImageUrlSync(settings?.website?.logo, "/asset/logo.png")}
+                  alt={settings?.store?.name || "Mellosoft"}
+                  style={mobileLogoImageStyle}
+                  onError={(e) => { e.currentTarget.src = "/asset/logo.png"; }}
+                />
               </button>
             </div>
 
@@ -428,6 +478,22 @@ export default function Header() {
                     <button onClick={() => goToProduct("fitted-bedspread")} style={mobileSubLinkStyle}>Fitted Bedspread</button>
                     <button onClick={() => goToProduct("blanket-duvet")} style={mobileSubLinkStyle}>Blanket / Duvet</button>
                     <button onClick={() => goToProduct("travel-bed")} style={mobileSubLinkStyle}>Travel Bed</button>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <button
+                  onClick={() => setMobileBedFramesOpen((prev) => !prev)}
+                  style={mobileMainLinkWithSubStyle}
+                >
+                  BED FRAMES <span>{mobileBedFramesOpen ? "−" : "+"}</span>
+                </button>
+                {mobileBedFramesOpen && (
+                  <div style={mobileSubMenuStyle}>
+                    <button onClick={() => handleNavClick("/bed-frames/wooden-bed-frame")} style={mobileSubLinkStyle}>Wooden Bed Frame</button>
+                    <button onClick={() => handleNavClick("/bed-frames/platform-bed")} style={mobileSubLinkStyle}>Platform Bed</button>
+                    <button onClick={() => handleNavClick("/bed-frames")} style={{ ...mobileSubLinkStyle, fontWeight: "700", color: "#1B1F8C" }}>View All Bed Frames</button>
                   </div>
                 )}
               </div>

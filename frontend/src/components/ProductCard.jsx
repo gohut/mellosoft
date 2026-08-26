@@ -11,10 +11,11 @@ import { useRouter } from "next/navigation";
 export default function ProductCard({
   product: rawProduct,
   showContactForPrice = true,
-  hideUnpricedLabel = false
+  hideUnpricedLabel = false,
+  onClick
 }) {
   const router = useRouter();
-  const { wishlist, toggleWishlist, navigateTo } = useStore();
+  const { wishlist, toggleWishlist, navigateTo, setSelectedProductId, setView } = useStore();
 
   const product = useMemo(() => {
     return ensureProductPricing(rawProduct);
@@ -61,14 +62,31 @@ export default function ProductCard({
     imgSrc.includes(".svg")
   );
 
-  const handleCardClick = () => {
+  const handleCardClick = (e) => {
+    if (!product) return;
     const targetId = product.slug || product.id || product.Product_Id;
-    navigateTo("detail", targetId);
+    if (!targetId) return;
+
+    if (typeof onClick === "function") {
+      onClick(product, e);
+      return;
+    }
+
+    if (typeof setSelectedProductId === "function") {
+      setSelectedProductId(targetId);
+    }
+    if (typeof setView === "function") {
+      setView("detail");
+    }
+
     const targetUrl = getProductUrl(product);
     if (router && typeof router.push === "function") {
       router.push(targetUrl);
     } else if (typeof window !== "undefined") {
       window.location.href = targetUrl;
+    }
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
 

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useStore } from "../context/StoreContext";
 import { useCustomerAuth } from "../context/CustomerAuthContext";
 import { formatPrice } from "../utils/currency";
+import { calculateOrderTotals } from "../utils/settingsHelpers";
 import { ArrowLeft, CheckCircle2, Plus, Edit2, MapPin, Truck, ShieldCheck } from "lucide-react";
 
 export default function CheckoutView() {
@@ -14,7 +15,8 @@ export default function CheckoutView() {
     saveUserAddress,
     selectedAddress,
     setSelectedAddress,
-    navigateTo
+    navigateTo,
+    settings
   } = useStore();
 
   const { currentCustomer } = useCustomerAuth();
@@ -53,44 +55,18 @@ export default function CheckoutView() {
     }
   }, [savedAddress]);
 
-  // Coupon state
-  const [couponCode, setCouponCode] = useState("MELLO10");
-  const [couponApplied, setCouponApplied] = useState(true);
-  const [couponMsg, setCouponMsg] = useState("MELLO10 applied! 10% Off");
-
-  // Price calculations
-  const subtotal = useMemo(() => {
-    return items.reduce((acc, item) => {
-      const price = item.price || item.discountPrice || item.actualPrice || 0;
-      const qty = item.qty || item.quantity || 1;
-      return acc + price * qty;
-    }, 0);
-  }, [items]);
-
-  const rawTotal = useMemo(() => {
-    return items.reduce((acc, item) => {
-      const actual = item.actualPrice || item.price || 0;
-      const qty = item.qty || item.quantity || 1;
-      return acc + actual * qty;
-    }, 0);
-  }, [items]);
-
-  const discountSavings = Math.max(0, rawTotal - subtotal);
-  const couponDiscount = couponApplied ? Math.round(subtotal * 0.1) : 0;
-  const tax = Math.round(subtotal * 0.18); // 18% GST
-  const shipping = subtotal >= 5000 || subtotal === 0 ? 0 : 150;
-  const finalTotal = subtotal + tax + shipping - couponDiscount;
-
-  const handleApplyCoupon = (e) => {
-    e.preventDefault();
-    if (couponCode.trim().toUpperCase() === "MELLO10") {
-      setCouponApplied(true);
-      setCouponMsg("MELLO10 applied! 10% Off");
-    } else {
-      setCouponApplied(false);
-      setCouponMsg("Invalid coupon code.");
-    }
-  };
+  // Dynamic price & shipping calculations from settings
+  const {
+    subtotal,
+    rawTotal,
+    discountSavings,
+    gstRate,
+    tax,
+    shipping,
+    isFreeShipping,
+    freeShippingThreshold,
+    finalTotal
+  } = useMemo(() => calculateOrderTotals(items, settings), [items, settings]);
 
   const handleSaveAddressSubmit = (e) => {
     e.preventDefault();
@@ -125,6 +101,14 @@ export default function CheckoutView() {
       return;
     }
     setSelectedAddress(addr);
+    if (typeof window !== "undefined") {
+      try {
+        sessionStorage.setItem("mellosoft_selected_address", JSON.stringify(addr));
+        if (items && items.length > 0) {
+          sessionStorage.setItem("mellosoft_checkout_items", JSON.stringify(items));
+        }
+      } catch {}
+    }
     navigateTo("payment");
   };
 
@@ -453,25 +437,6 @@ export default function CheckoutView() {
           <div style={summaryCardStyle} className="checkout-summary-card">
             <h3 style={summaryTitleStyle}>Order Summary</h3>
 
-            {/* Coupon Code Block */}
-            <form onSubmit={handleApplyCoupon} style={couponFormStyle}>
-              <div style={couponInputWrapStyle}>
-                <input
-                  type="text"
-                  value={couponCode}
-                  onChange={(e) => setCouponCode(e.target.value)}
-                  placeholder="Enter Promo Code"
-                  style={couponInputStyle}
-                />
-                <button type="submit" style={couponBtnStyle}>Apply</button>
-              </div>
-              {couponMsg && (
-                <span style={{ fontSize: "12px", fontWeight: "600", color: couponApplied ? "#16A34A" : "#DC2626", marginTop: "4px", display: "block" }}>
-                  {couponMsg}
-                </span>
-              )}
-            </form>
-
             <div style={summaryRowsStyle}>
               <div style={summaryRowStyle}>
                 <span style={summaryLabelStyle}>Subtotal</span>
@@ -482,13 +447,6 @@ export default function CheckoutView() {
                 <div style={summaryRowStyle}>
                   <span style={summaryLabelStyle}>Product Discount</span>
                   <span style={{ ...summaryValStyle, color: "#16A34A" }}>–{formatPrice(discountSavings)}</span>
-                </div>
-              )}
-
-              {couponApplied && couponDiscount > 0 && (
-                <div style={summaryRowStyle}>
-                  <span style={summaryLabelStyle}>Coupon (MELLO10)</span>
-                  <span style={{ ...summaryValStyle, color: "#16A34A" }}>–{formatPrice(couponDiscount)}</span>
                 </div>
               )}
 

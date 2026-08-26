@@ -36,6 +36,11 @@ export default function CartView() {
     });
 
     setCheckoutItems(enrichedItems);
+    if (typeof window !== "undefined") {
+      try {
+        sessionStorage.setItem("mellosoft_checkout_items", JSON.stringify(enrichedItems));
+      } catch {}
+    }
     navigateTo("checkout");
   };
 

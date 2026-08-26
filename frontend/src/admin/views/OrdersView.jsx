@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useAdmin } from "../context/AdminContext";
 import DataTable from "../components/DataTable";
@@ -13,13 +13,27 @@ const PAYMENT_OPTIONS = ["Pending", "Paid", "Failed", "Refunded"];
 const ORDER_STATUS_OPTIONS = ["Pending", "Processing", "Confirmed", "Shipped", "Out for Delivery", "Delivered", "Cancelled"];
 
 export default function OrdersView() {
-  const { orders, customers, products, updateOrder, hasPermission } = useAdmin();
+  const {
+    orders,
+    customers,
+    products,
+    updateOrder,
+    hasPermission,
+    selectedOrderId: adminSelectedOrderId,
+    setSelectedOrderId: setAdminSelectedOrderId
+  } = useAdmin();
   const [activeFilter, setActiveFilter] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const [selectedOrderId, setSelectedOrderId] = useState(adminSelectedOrderId || null);
   const [toast, setToast] = useState(null);
 
-  const canEditOrders = hasPermission("orders", "update") || hasPermission("orders", "edit");
+  useEffect(() => {
+    if (adminSelectedOrderId) {
+      setSelectedOrderId(adminSelectedOrderId);
+    }
+  }, [adminSelectedOrderId]);
+
+  const canEditOrders = hasPermission("orders", "updateStatus") || hasPermission("orders", "update") || hasPermission("orders", "edit");
 
   const showToast = (msg) => {
     setToast(msg);
@@ -118,7 +132,13 @@ export default function OrdersView() {
     if (res?.success) {
       showToast(`Order #${orderId} updated successfully.`);
       setSelectedOrderId(null);
+      if (setAdminSelectedOrderId) setAdminSelectedOrderId(null);
     }
+  };
+
+  const handleCloseModal = () => {
+    setSelectedOrderId(null);
+    if (setAdminSelectedOrderId) setAdminSelectedOrderId(null);
   };
 
   return (
@@ -209,7 +229,9 @@ export default function OrdersView() {
         emptyMessage={
           searchQuery
             ? `No orders found matching "${searchQuery}". Try a different order ID, customer, or product.`
-            : `No ${activeFilter.toLowerCase()} orders found.`
+            : activeFilter !== "All"
+            ? `No ${activeFilter.toLowerCase()} orders found.`
+            : "No orders yet. New customer orders placed on the storefront will appear here."
         }
       />
 
@@ -218,7 +240,7 @@ export default function OrdersView() {
         <OrderDetailsModal
           orderId={selectedOrderId}
           canEdit={canEditOrders}
-          onClose={() => setSelectedOrderId(null)}
+          onClose={handleCloseModal}
           onSave={handleSaveOrder}
         />
       )}

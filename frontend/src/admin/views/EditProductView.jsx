@@ -339,63 +339,53 @@ export default function EditProductView() {
                 <div style={fieldGroup}>
                   <label style={labelStyle}>Main Category *</label>
                   <select
-                    value={form.category === "accessories" ? "accessories" : "mattresses"}
+                    value={form.mainCategoryId || (categories.find((c) => c.slug === form.category || c.id === form.category)?.id) || categories[0]?.id || "CAT-MATTRESSES"}
                     onChange={(e) => {
-                      const mainCat = e.target.value;
-                      if (mainCat === "accessories") {
-                        setForm((prev) => ({
-                          ...prev,
-                          category: "accessories",
-                          subCategory: prev.subCategory || "memory-foam-pillow"
-                        }));
-                      } else {
-                        setForm((prev) => ({
-                          ...prev,
-                          category: prev.subCategory && prev.subCategory !== "accessories" ? prev.subCategory : "ortho",
-                          subCategory: prev.subCategory && prev.subCategory !== "accessories" ? prev.subCategory : "ortho"
-                        }));
-                      }
+                      const selectedMainId = e.target.value;
+                      const mainCat = categories.find((c) => c.id === selectedMainId || c.slug === selectedMainId);
+                      const firstSub = mainCat?.subcategories?.[0];
+                      setForm((prev) => ({
+                        ...prev,
+                        mainCategoryId: selectedMainId,
+                        parentCategory: mainCat?.slug || selectedMainId,
+                        category: mainCat?.slug || selectedMainId,
+                        subCategory: firstSub?.slug || firstSub?.id || "ortho",
+                        subCategoryId: firstSub?.id || "SUB-ORTHO"
+                      }));
                     }}
                     style={inputStyle}
                   >
-                    <option value="mattresses">Mattresses</option>
-                    <option value="accessories">Accessories</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
                   </select>
                 </div>
 
                 <div style={fieldGroup}>
                   <label style={labelStyle}>Subcategory *</label>
                   <select
-                    value={form.category === "accessories" ? (form.subCategory || "memory-foam-pillow") : (form.category || "ortho")}
+                    value={form.subCategoryId || (categories.flatMap((c) => c.subcategories || []).find((s) => s.slug === form.subCategory || s.id === form.subCategory)?.id) || "SUB-ORTHO"}
                     onChange={(e) => {
-                      const subVal = e.target.value;
-                      if (form.category === "accessories" || ["memory-foam-pillow", "latex-pillow", "fiber-pillow", "mattress-protector", "fitted-bedspread", "blanket-duvet", "travel-bed"].includes(subVal)) {
-                        setForm((prev) => ({ ...prev, category: "accessories", subCategory: subVal }));
-                      } else {
-                        setForm((prev) => ({ ...prev, category: subVal, subCategory: subVal }));
-                      }
+                      const selectedSubId = e.target.value;
+                      const activeMainId = form.mainCategoryId || categories.find((c) => c.slug === form.category || c.id === form.category)?.id || categories[0]?.id;
+                      const activeMainCat = categories.find((c) => c.id === activeMainId);
+                      const selectedSub = (activeMainCat?.subcategories || []).find((s) => s.id === selectedSubId || s.slug === selectedSubId);
+                      setForm((prev) => ({
+                        ...prev,
+                        subCategory: selectedSub?.slug || selectedSubId,
+                        subCategoryId: selectedSubId
+                      }));
                     }}
                     style={inputStyle}
                   >
-                    {form.category === "accessories" ? (
-                      <>
-                        <option value="memory-foam-pillow">Memory Foam Pillow</option>
-                        <option value="latex-pillow">Latex Pillow</option>
-                        <option value="fiber-pillow">Fiber Pillow</option>
-                        <option value="mattress-protector">Mattress Protector</option>
-                        <option value="fitted-bedspread">Fitted Bedspread</option>
-                        <option value="blanket-duvet">Blanket / Duvet</option>
-                        <option value="travel-bed">Travel Bed</option>
-                      </>
-                    ) : (
-                      <>
-                        <option value="foam">Foam Mattress</option>
-                        <option value="ortho">Ortho Mattress</option>
-                        <option value="spring">Spring Mattress</option>
-                        <option value="latex">Latex Mattress</option>
-                        <option value="memory-foam">Memory Foam Mattress</option>
-                      </>
-                    )}
+                    {(() => {
+                      const activeMainId = form.mainCategoryId || (categories.find((c) => c.slug === form.category || c.id === form.category)?.id) || categories[0]?.id;
+                      const activeMainCat = categories.find((c) => c.id === activeMainId) || categories[0];
+                      const subs = activeMainCat?.subcategories || [];
+                      return subs.map((sub) => (
+                        <option key={sub.id} value={sub.id}>{sub.name}</option>
+                      ));
+                    })()}
                   </select>
                 </div>
 

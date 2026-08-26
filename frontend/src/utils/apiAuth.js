@@ -18,15 +18,32 @@ export function verifyApiAuthAndPermission(request, moduleName, actionName) {
     const users = getStoredUsers();
     const roles = getStoredRoles();
 
-    const userId = userIdHeader || (authHeader ? authHeader.split("_").pop() : null) || users[0]?.id;
-    const user = users.find((u) => u.id === userId) || users[0];
+    // Resolve user from session token or explicit x-user-id header
+    let user = null;
+    if (userIdHeader) {
+      user = users.find((u) => u.id === userIdHeader) || null;
+    } else if (authHeader) {
+      const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+      const tokenUserId = token.split("_").pop();
+      user = users.find((u) => u.id === tokenUserId) || null;
+    }
 
-    if (!user || user.status !== "Active") {
+    if (!user) {
       return {
         authorized: false,
         response: NextResponse.json(
-          { success: false, error: "Unauthorized access or inactive user account." },
+          { success: false, error: "Unauthorized access: Valid session token or user ID is required." },
           { status: 401 }
+        ),
+      };
+    }
+
+    if (user.status !== "Active") {
+      return {
+        authorized: false,
+        response: NextResponse.json(
+          { success: false, error: "Your account is inactive. Please contact the administrator." },
+          { status: 403 }
         ),
       };
     }
@@ -39,7 +56,6 @@ export function verifyApiAuthAndPermission(request, moduleName, actionName) {
 
     const hasAccess = checkPermission(role, moduleName, actionName);
 
-    // Development logging for permission check
     if (process.env.NODE_ENV !== "production") {
       console.log(`[API Auth Check] User: ${user.email} | Role: ${role.name} (${user.roleId}) | Required: ${moduleName}.${actionName} | Result: ${hasAccess ? "ALLOW" : "DENY"}`);
     }
@@ -48,7 +64,7 @@ export function verifyApiAuthAndPermission(request, moduleName, actionName) {
       return {
         authorized: false,
         response: NextResponse.json(
-          { success: false, error: `Access Denied: You do not have permission to ${actionName} ${moduleName}.` },
+          { success: false, error: `Insufficient permissions: You do not have permission to ${actionName} ${moduleName}.` },
           { status: 403 }
         ),
       };
