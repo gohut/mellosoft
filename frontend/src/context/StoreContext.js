@@ -171,8 +171,43 @@ export function StoreProvider({ children }) {
   const activeNewArrivalBanners = sortedBanners.filter((b) => b.type === "New Arrival");
   const activeBanners = sortedBanners;
 
-  // Hydration-safe initial loading from localStorage
+  // Hydration-safe initial loading from localStorage and server API
   useEffect(() => {
+    // Helper to fetch latest global homepage data from server API
+    const fetchServerHomepageData = async () => {
+      try {
+        const res = await fetch("/api/content/homepage", {
+          cache: "no-store",
+          headers: { "Pragma": "no-cache" }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.success) {
+            if (data.homepageConfig && Array.isArray(data.homepageConfig.sections) && data.homepageConfig.sections.length > 0) {
+              setHomepageConfig((prev) => (JSON.stringify(prev) === JSON.stringify(data.homepageConfig) ? prev : data.homepageConfig));
+              try { localStorage.setItem("mellosoft_homepage_config", JSON.stringify(data.homepageConfig)); } catch {}
+            }
+            if (Array.isArray(data.banners) && data.banners.length > 0) {
+              setBanners((prev) => (JSON.stringify(prev) === JSON.stringify(data.banners) ? prev : data.banners));
+              try { localStorage.setItem("mellosoft_banners", JSON.stringify(data.banners)); } catch {}
+            }
+            if (Array.isArray(data.newArrivalItems) && data.newArrivalItems.length > 0) {
+              const nextNA = data.newArrivalItems.map((item, idx) => ({ ...item, displayOrder: idx + 1 }));
+              setNewArrivalItems((prev) => (JSON.stringify(prev) === JSON.stringify(nextNA) ? prev : nextNA));
+              try { localStorage.setItem("mellosoft_new_arrivals_config", JSON.stringify(nextNA)); } catch {}
+            }
+            if (Array.isArray(data.bestSellerItems) && data.bestSellerItems.length > 0) {
+              const nextBS = data.bestSellerItems.map((item, idx) => ({ ...item, displayOrder: idx + 1 }));
+              setBestSellerItems((prev) => (JSON.stringify(prev) === JSON.stringify(nextBS) ? prev : nextBS));
+              try { localStorage.setItem("mellosoft_best_sellers_config", JSON.stringify(nextBS)); } catch {}
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("Could not fetch server homepage content in StoreContext:", e);
+      }
+    };
+
     const syncStore = () => {
       // Sync reviews
       try {
@@ -378,9 +413,18 @@ export function StoreProvider({ children }) {
     };
 
     syncStore();
+    fetchServerHomepageData();
+
+    const handleFocus = () => {
+      syncStore();
+      fetchServerHomepageData();
+    };
+
     window.addEventListener("storage", syncStore);
     window.addEventListener("mellosoft_orders_updated", syncStore);
     window.addEventListener("mellosoft:products-updated", syncStore);
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleFocus);
 
     // Load user addresses
     try {
@@ -397,6 +441,8 @@ export function StoreProvider({ children }) {
       window.removeEventListener("storage", syncStore);
       window.removeEventListener("mellosoft_orders_updated", syncStore);
       window.removeEventListener("mellosoft:products-updated", syncStore);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleFocus);
     };
   }, []);
 

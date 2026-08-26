@@ -633,7 +633,66 @@ export function AdminProvider({ children }) {
   const isFirstBSRef = useRef(true);
   const isFirstHomepageRef = useRef(true);
 
-  // Persist banners to localStorage
+  // Helper to sync homepage data to central API
+  const syncHomepageToServer = useCallback(async (dataToSync) => {
+    try {
+      const res = await fetch("/api/content/homepage", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(dataToSync),
+        cache: "no-store"
+      });
+      if (!res.ok) {
+        console.warn("Failed to sync homepage data to server:", res.status);
+        return { success: false };
+      }
+      return await res.json();
+    } catch (err) {
+      console.warn("Network error syncing homepage data:", err);
+      return { success: false };
+    }
+  }, []);
+
+  // Hydrate homepage data from central server API on mount
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchServerHomepageData() {
+      try {
+        const res = await fetch("/api/content/homepage", { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.success && isMounted) {
+            if (data.homepageConfig && Array.isArray(data.homepageConfig.sections) && data.homepageConfig.sections.length > 0) {
+              setHomepageConfig(data.homepageConfig);
+              try { localStorage.setItem(HOMEPAGE_CONFIG_KEY, JSON.stringify(data.homepageConfig)); } catch {}
+            }
+            if (Array.isArray(data.banners) && data.banners.length > 0) {
+              setBanners(data.banners);
+              try { localStorage.setItem(BANNERS_STORAGE_KEY, JSON.stringify(data.banners)); } catch {}
+            }
+            if (Array.isArray(data.bannerTypes) && data.bannerTypes.length > 0) {
+              setBannerTypes(data.bannerTypes);
+              try { localStorage.setItem(BANNER_TYPES_STORAGE_KEY, JSON.stringify(data.bannerTypes)); } catch {}
+            }
+            if (Array.isArray(data.newArrivalItems) && data.newArrivalItems.length > 0) {
+              setNewArrivalItems(data.newArrivalItems);
+              try { localStorage.setItem("mellosoft_new_arrivals_config", JSON.stringify(data.newArrivalItems)); } catch {}
+            }
+            if (Array.isArray(data.bestSellerItems) && data.bestSellerItems.length > 0) {
+              setBestSellerItems(data.bestSellerItems);
+              try { localStorage.setItem("mellosoft_best_sellers_config", JSON.stringify(data.bestSellerItems)); } catch {}
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("Could not fetch server homepage data in AdminContext:", e);
+      }
+    }
+    fetchServerHomepageData();
+    return () => { isMounted = false; };
+  }, []);
+
+  // Persist banners to localStorage and central server
   useEffect(() => {
     try {
       localStorage.setItem(BANNERS_STORAGE_KEY, JSON.stringify(banners));
@@ -641,6 +700,7 @@ export function AdminProvider({ children }) {
         isFirstBannersRef.current = false;
         return;
       }
+      syncHomepageToServer({ banners });
       if (typeof window !== "undefined") {
         setTimeout(() => {
           window.dispatchEvent(new Event("storage"));
@@ -649,18 +709,19 @@ export function AdminProvider({ children }) {
     } catch (e) {
       console.error("Failed to save banners to localStorage:", e);
     }
-  }, [banners]);
+  }, [banners, syncHomepageToServer]);
 
-  // Persist banner types to localStorage
+  // Persist banner types to localStorage and central server
   useEffect(() => {
     try {
       localStorage.setItem(BANNER_TYPES_STORAGE_KEY, JSON.stringify(bannerTypes));
+      syncHomepageToServer({ bannerTypes });
     } catch (e) {
       console.error("Failed to save banner types to localStorage:", e);
     }
-  }, [bannerTypes]);
+  }, [bannerTypes, syncHomepageToServer]);
 
-  // Persist new arrival items to localStorage
+  // Persist new arrival items to localStorage and central server
   useEffect(() => {
     try {
       localStorage.setItem("mellosoft_new_arrivals_config", JSON.stringify(newArrivalItems));
@@ -668,6 +729,7 @@ export function AdminProvider({ children }) {
         isFirstNARef.current = false;
         return;
       }
+      syncHomepageToServer({ newArrivalItems });
       if (typeof window !== "undefined") {
         setTimeout(() => {
           window.dispatchEvent(new Event("storage"));
@@ -676,9 +738,9 @@ export function AdminProvider({ children }) {
     } catch (e) {
       console.error("Failed to save new arrivals config to localStorage:", e);
     }
-  }, [newArrivalItems]);
+  }, [newArrivalItems, syncHomepageToServer]);
 
-  // Persist best seller items to localStorage
+  // Persist best seller items to localStorage and central server
   useEffect(() => {
     try {
       localStorage.setItem("mellosoft_best_sellers_config", JSON.stringify(bestSellerItems));
@@ -686,6 +748,7 @@ export function AdminProvider({ children }) {
         isFirstBSRef.current = false;
         return;
       }
+      syncHomepageToServer({ bestSellerItems });
       if (typeof window !== "undefined") {
         setTimeout(() => {
           window.dispatchEvent(new Event("storage"));
@@ -694,9 +757,9 @@ export function AdminProvider({ children }) {
     } catch (e) {
       console.error("Failed to save best sellers config to localStorage:", e);
     }
-  }, [bestSellerItems]);
+  }, [bestSellerItems, syncHomepageToServer]);
 
-  // Persist homepage config to localStorage
+  // Persist homepage config to localStorage and central server
   useEffect(() => {
     try {
       localStorage.setItem(HOMEPAGE_CONFIG_KEY, JSON.stringify(homepageConfig));
@@ -704,6 +767,7 @@ export function AdminProvider({ children }) {
         isFirstHomepageRef.current = false;
         return;
       }
+      syncHomepageToServer({ homepageConfig });
       if (typeof window !== "undefined") {
         setTimeout(() => {
           window.dispatchEvent(new Event("storage"));
@@ -712,7 +776,7 @@ export function AdminProvider({ children }) {
     } catch (e) {
       console.error("Failed to save homepage config to localStorage:", e);
     }
-  }, [homepageConfig]);
+  }, [homepageConfig, syncHomepageToServer]);
 
   // One-time automatic migration of any legacy base64 images in localStorage products & reviews to IndexedDB
   useEffect(() => {

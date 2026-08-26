@@ -47,7 +47,14 @@ export default function HomeView() {
         .sort((a, b) => (Number(a.displayOrder) || 0) - (Number(b.displayOrder) || 0));
 
       const resolved = activeItems
-        .map((item) => allProds.find((p) => p.id === item.productId || p.id === item.id))
+        .map((item) => {
+          const targetId = String(item.productId || item.id || "").trim().toLowerCase();
+          return allProds.find((p) =>
+            String(p.id || "").trim().toLowerCase() === targetId ||
+            String(p.slug || "").trim().toLowerCase() === targetId ||
+            String(p.Product_Id || "").trim().toLowerCase() === targetId
+          );
+        })
         .filter(Boolean);
 
       if (resolved.length > 0) return resolved;
@@ -63,7 +70,14 @@ export default function HomeView() {
         .sort((a, b) => (Number(a.displayOrder) || 0) - (Number(b.displayOrder) || 0));
 
       const resolved = activeItems
-        .map((item) => allProds.find((p) => p.id === item.productId || p.id === item.id))
+        .map((item) => {
+          const targetId = String(item.productId || item.id || "").trim().toLowerCase();
+          return allProds.find((p) =>
+            String(p.id || "").trim().toLowerCase() === targetId ||
+            String(p.slug || "").trim().toLowerCase() === targetId ||
+            String(p.Product_Id || "").trim().toLowerCase() === targetId
+          );
+        })
         .filter(Boolean);
 
       if (resolved.length > 0) return resolved.slice(0, 10);
@@ -302,15 +316,17 @@ export default function HomeView() {
             );
 
           case "best-sellers":
+            const bsBg = section.backgroundColor || section.styles?.backgroundColor || "#1B1F8C";
+            const isBsDefaultBg = bsBg.toLowerCase() === "#1b1f8c";
             return (
               <ProductRow
                 key="best-sellers"
-                title="Best Sellers"
-                tagline="Loved by thousands of happy sleepers."
+                title={section.name || section.label || section.title || "Best Sellers"}
+                tagline={section.description || section.subtitle || section.tagline || "Loved by thousands of happy sleepers."}
                 products={bestSellers}
-                background="#1B1F8C"
-                titleColor="#00B138"
-                taglineColor="#C7CBEF"
+                background={bsBg}
+                titleColor={isBsDefaultBg ? "#00B138" : undefined}
+                taglineColor={isBsDefaultBg ? "#C7CBEF" : undefined}
                 scrollable
                 variant="bestSeller"
               />
@@ -320,9 +336,10 @@ export default function HomeView() {
             return (
               <ProductRow
                 key="new-arrivals"
-                title="New Arrivals"
-                tagline="Fresh drops, fresh comfort."
+                title={section.name || section.label || section.title || "New Arrivals"}
+                tagline={section.description || section.subtitle || section.tagline || "Fresh drops, fresh comfort."}
                 products={newArrivals}
+                background={section.backgroundColor || section.styles?.backgroundColor || undefined}
                 onAction={() => goToCatalog("All")}
                 scrollable
               />
