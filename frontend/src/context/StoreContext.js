@@ -440,48 +440,48 @@ export function StoreProvider({ children }) {
     };
   }, []);
 
-  // Sync customer-specific cart & wishlist whenever currentCustomerId changes
+  // Sync customer-specific cart & wishlist whenever customer or auth state changes
   useEffect(() => {
-    if (!currentCustomerId) return;
-    try {
-      // Load Cart
-      const savedCart = localStorage.getItem(`mellosoft_cart_${currentCustomerId}`);
-      if (savedCart) {
-        setCart(JSON.parse(savedCart));
-      } else {
-        const mockCustomerCart = (MOCK_CARTS || [])
-          .filter((item) => item.customerId === currentCustomerId)
-          .map((item) => {
-            const prod = MOCK_PRODUCTS.find((p) => p.id === item.productId);
-            return {
-              cartItemId: item.cartItemId,
-              id: item.productId,
-              name: prod?.name || item.productId,
-              tagline: prod?.tagline || "",
-              firmness: item.variantFirmness,
-              size: item.variantSize,
-              price: item.actualPrice,
-              qty: item.quantity,
-              image: prod?.images?.[0] || "/asset/img1.jpg"
-            };
-          });
-        setCart(mockCustomerCart.length > 0 ? mockCustomerCart : []);
-      }
-
-      // Load Wishlist
-      const savedWishlist = localStorage.getItem(`mellosoft_wishlist_${currentCustomerId}`);
-      if (savedWishlist) {
-        setWishlist(JSON.parse(savedWishlist));
-      } else {
-        const mockCustomerWishlist = (MOCK_WISHLISTS || [])
-          .filter((w) => w.customerId === currentCustomerId)
-          .map((w) => w.productId);
-        setWishlist(mockCustomerWishlist.length > 0 ? mockCustomerWishlist : ["luxe-hybrid"]);
-      }
-    } catch (e) {
-      console.error("Failed to load customer cart/wishlist:", e);
+    if (!isAuthenticated || !currentCustomer) {
+      setCart([]);
+      setWishlist([]);
+      return;
     }
-  }, [currentCustomerId]);
+
+    const cid = currentCustomer.id;
+
+    // Load Cart from API/localStorage for this specific customer
+    fetch("/api/cart")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.cart)) {
+          setCart(data.cart);
+        } else {
+          const savedCart = localStorage.getItem(`mellosoft_cart_${cid}`);
+          setCart(savedCart ? JSON.parse(savedCart) : []);
+        }
+      })
+      .catch(() => {
+        const savedCart = localStorage.getItem(`mellosoft_cart_${cid}`);
+        setCart(savedCart ? JSON.parse(savedCart) : []);
+      });
+
+    // Load Wishlist from API/localStorage for this specific customer
+    fetch("/api/wishlist")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.wishlist)) {
+          setWishlist(data.wishlist);
+        } else {
+          const savedWishlist = localStorage.getItem(`mellosoft_wishlist_${cid}`);
+          setWishlist(savedWishlist ? JSON.parse(savedWishlist) : []);
+        }
+      })
+      .catch(() => {
+        const savedWishlist = localStorage.getItem(`mellosoft_wishlist_${cid}`);
+        setWishlist(savedWishlist ? JSON.parse(savedWishlist) : []);
+      });
+  }, [isAuthenticated, currentCustomer]);
 
   // Window storage sync for cross-tab / Admin updates
   useEffect(() => {
@@ -845,6 +845,11 @@ export function StoreProvider({ children }) {
   );
 
   const addToCart = (product, firmness, size, qty = 1) => {
+    if (!isAuthenticated) {
+      setAuthModal("login");
+      return;
+    }
+
     setCart((prevCart) => {
       const existingItemIndex = prevCart.findIndex(
         (item) =>
@@ -892,10 +897,29 @@ export function StoreProvider({ children }) {
         ];
       }
     });
+
+    // Async sync with DB API
+    try {
+      fetch("/api/cart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productId: product.id,
+          variantSize: size,
+          variantFirmness: firmness,
+          qty,
+          actualPrice: product.Actual_Price || product.price,
+          discountPercent: product.discountPercent || 10,
+        }),
+      }).catch(() => {});
+    } catch (e) {}
   };
 
   const removeFromCart = (cartItemId) => {
     setCart((prevCart) => prevCart.filter((item) => item.cartItemId !== cartItemId));
+    try {
+      fetch(`/api/cart/${encodeURIComponent(cartItemId)}`, { method: "DELETE" }).catch(() => {});
+    } catch (e) {}
   };
 
   const updateQty = (cartItemId, newQty) => {
@@ -908,14 +932,29 @@ export function StoreProvider({ children }) {
         item.cartItemId === cartItemId ? { ...item, qty: newQty, quantity: newQty } : item
       )
     );
+    try {
+      fetch(`/api/cart/${encodeURIComponent(cartItemId)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ qty: newQty }),
+      }).catch(() => {});
+    } catch (e) {}
   };
 
   const clearCart = () => {
     setCart([]);
+    try {
+      fetch("/api/cart", { method: "DELETE" }).catch(() => {});
+    } catch (e) {}
   };
 
   // Wishlist Actions
   const toggleWishlist = (productId) => {
+    if (!isAuthenticated) {
+      setAuthModal("login");
+      return;
+    }
+
     setWishlist((prevWishlist) => {
       if (prevWishlist.includes(productId)) {
         return prevWishlist.filter((id) => id !== productId);
@@ -923,6 +962,13 @@ export function StoreProvider({ children }) {
         return [...prevWishlist, productId];
       }
     });
+    try {
+      fetch("/api/wishlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId }),
+      }).catch(() => {});
+    } catch (e) {}
   };
 
   const moveToCart = (productId, firmness = "Medium", size = "Queen") => {

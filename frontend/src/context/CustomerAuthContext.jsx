@@ -1,10 +1,9 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { MOCK_CUSTOMERS } from "../admin/data/adminMockData";
 
 const CUSTOMER_SESSION_KEY = "mellosoft_customer_session";
-const CUSTOMERS_KEY = "mellosoft_customers";
+const CUSTOMER_TOKEN_KEY = "mellosoft_customer_token";
 
 const CustomerAuthContext = createContext(null);
 
@@ -13,45 +12,49 @@ export function CustomerAuthProvider({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [intendedView, setIntendedView] = useState("home");
+  const [authToken, setAuthToken] = useState(null);
 
-  // Hydrate session safely after mount to prevent Next.js hydration mismatches
+  // Load session & verify JWT with backend on mount
   useEffect(() => {
-    try {
-      const savedSession = localStorage.getItem(CUSTOMER_SESSION_KEY);
-      if (savedSession) {
-        const parsed = JSON.parse(savedSession);
-        if (parsed && parsed.id) {
-          setCurrentCustomer(parsed);
-          setIsAuthenticated(true);
-        }
-      }
-    } catch (e) {
-      console.error("Failed to load customer session from localStorage:", e);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Retrieve real registered customers list from storage
-  const getAllCustomers = useCallback(() => {
-    let list = [];
-    if (typeof window !== "undefined") {
+    async function initAuth() {
       try {
-        const saved = localStorage.getItem(CUSTOMERS_KEY);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) {
-            list = parsed;
+        const savedToken = typeof window !== "undefined" ? localStorage.getItem(CUSTOMER_TOKEN_KEY) : null;
+        
+        // Call /api/auth/me to check active JWT session
+        const res = await fetch("/api/auth/me", {
+          headers: savedToken ? { Authorization: `Bearer ${savedToken}` } : {},
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.customer) {
+            setCurrentCustomer(data.customer);
+            setIsAuthenticated(true);
+            if (savedToken) setAuthToken(savedToken);
+            localStorage.setItem(CUSTOMER_SESSION_KEY, JSON.stringify(data.customer));
+          }
+        } else {
+          // Fallback to local session if present
+          const savedSession = localStorage.getItem(CUSTOMER_SESSION_KEY);
+          if (savedSession) {
+            const parsed = JSON.parse(savedSession);
+            if (parsed && parsed.id) {
+              setCurrentCustomer(parsed);
+              setIsAuthenticated(true);
+            }
           }
         }
       } catch (e) {
-        console.error("Failed to read customers from storage:", e);
+        console.warn("Failed to check auth state:", e);
+      } finally {
+        setLoading(false);
       }
     }
-    return list;
+
+    initAuth();
   }, []);
 
-  // Customer Login logic
+  // Login action via backend API
   const login = useCallback(async (email, password) => {
     const trimmedEmail = (email || "").trim().toLowerCase();
     const trimmedPassword = (password || "").trim();
@@ -60,40 +63,39 @@ export function CustomerAuthProvider({ children }) {
       return { success: false, error: "Please enter both email and password." };
     }
 
-    // Email format validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(trimmedEmail)) {
-      return { success: false, error: "Please enter a valid email address." };
-    }
-
-    const customers = getAllCustomers();
-    const customer = customers.find(
-      (c) => (c.email || "").toLowerCase() === trimmedEmail
-    );
-
-    if (!customer) {
-      return { success: false, error: "Invalid email or password." };
-    }
-
-    // Store customer session
-    const customerSession = {
-      ...customer,
-      lastLogin: new Date().toISOString()
-    };
-
     try {
-      localStorage.setItem(CUSTOMER_SESSION_KEY, JSON.stringify(customerSession));
-    } catch (e) {
-      console.error("Failed to save customer session:", e);
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: trimmedEmail, password: trimmedPassword }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return { success: false, error: data.error || "Invalid email or password." };
+      }
+
+      const customerObj = data.customer || data.user;
+      const token = data.token;
+
+      if (token) {
+        localStorage.setItem(CUSTOMER_TOKEN_KEY, token);
+        setAuthToken(token);
+      }
+
+      if (customerObj) {
+        localStorage.setItem(CUSTOMER_SESSION_KEY, JSON.stringify(customerObj));
+        setCurrentCustomer(customerObj);
+        setIsAuthenticated(true);
+      }
+
+      return { success: true, customer: customerObj, token };
+    } catch (err) {
+      return { success: false, error: "Network error. Please try again." };
     }
+  }, []);
 
-    setCurrentCustomer(customerSession);
-    setIsAuthenticated(true);
-
-    return { success: true, customer: customerSession };
-  }, [getAllCustomers]);
-
-  // Customer Signup logic
+  // Signup action via backend API
   const signup = useCallback(async ({ name, email, password, phone }) => {
     const trimmedName = (name || "").trim();
     const trimmedEmail = (email || "").trim().toLowerCase();
@@ -104,105 +106,116 @@ export function CustomerAuthProvider({ children }) {
       return { success: false, error: "Please fill in all required fields." };
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(trimmedEmail)) {
-      return { success: false, error: "Please enter a valid email address." };
-    }
-
-    const customers = getAllCustomers();
-    const exists = customers.some(
-      (c) => (c.email || "").toLowerCase() === trimmedEmail
-    );
-
-    if (exists) {
-      return { success: false, error: "An account with this email already exists." };
-    }
-
-    const nextIndex = customers.length + 1;
-    const newId = `C${String(nextIndex).padStart(3, "0")}`;
-    const formattedCustId = `CUS-${String(nextIndex).padStart(4, "0")}`;
-    const newCustomer = {
-      id: newId,
-      customerId: formattedCustId,
-      name: trimmedName,
-      email: trimmedEmail,
-      phone: trimmedPhone || "+91 98765 43210",
-      status: "Active",
-      avatar: trimmedName.charAt(0).toUpperCase(),
-      createdAt: new Date().toISOString().split("T")[0],
-      lastLogin: new Date().toISOString()
-    };
-
     try {
-      const saved = localStorage.getItem(CUSTOMERS_KEY);
-      const parsed = saved ? JSON.parse(saved) : [];
-      parsed.push(newCustomer);
-      localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(parsed));
-      localStorage.setItem(CUSTOMER_SESSION_KEY, JSON.stringify(newCustomer));
-      if (typeof window !== "undefined") {
-        setTimeout(() => {
-          window.dispatchEvent(new Event("storage"));
-          window.dispatchEvent(new CustomEvent("mellosoft_customers_updated"));
-        }, 0);
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: trimmedName, email: trimmedEmail, password: trimmedPassword, phone: trimmedPhone }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return { success: false, error: data.error || "Signup failed. Please try again." };
       }
-    } catch (e) {
-      console.error("Failed to save new customer to localStorage:", e);
+
+      const customerObj = data.customer;
+      const token = data.token;
+
+      if (token) {
+        localStorage.setItem(CUSTOMER_TOKEN_KEY, token);
+        setAuthToken(token);
+      }
+
+      if (customerObj) {
+        localStorage.setItem(CUSTOMER_SESSION_KEY, JSON.stringify(customerObj));
+        setCurrentCustomer(customerObj);
+        setIsAuthenticated(true);
+      }
+
+      return { success: true, customer: customerObj, token };
+    } catch (err) {
+      return { success: false, error: "Network error. Please try again." };
     }
+  }, []);
 
-    setCurrentCustomer(newCustomer);
-    setIsAuthenticated(true);
+  // Google OAuth Login Action
+  const googleLogin = useCallback(async ({ credential, googleUser }) => {
+    try {
+      const res = await fetch("/api/auth/google", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ credential, googleUser }),
+      });
 
-    return { success: true, customer: newCustomer };
-  }, [getAllCustomers]);
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return { success: false, error: data.error || "Google authentication failed." };
+      }
 
-  // Update profile logic
+      const customerObj = data.customer;
+      const token = data.token;
+
+      if (token) {
+        localStorage.setItem(CUSTOMER_TOKEN_KEY, token);
+        setAuthToken(token);
+      }
+
+      if (customerObj) {
+        localStorage.setItem(CUSTOMER_SESSION_KEY, JSON.stringify(customerObj));
+        setCurrentCustomer(customerObj);
+        setIsAuthenticated(true);
+      }
+
+      return { success: true, customer: customerObj, token };
+    } catch (err) {
+      return { success: false, error: "Google authentication failed." };
+    }
+  }, []);
+
+  // Update profile action via backend API
   const updateProfile = useCallback(async (updatedFields) => {
     if (!currentCustomer) return { success: false, error: "Not logged in" };
 
-    const updatedCustomer = {
-      ...currentCustomer,
-      ...updatedFields,
-      updatedAt: new Date().toISOString()
-    };
-
     try {
-      const saved = localStorage.getItem(CUSTOMERS_KEY);
-      let list = saved ? JSON.parse(saved) : [];
-      if (!Array.isArray(list)) list = [];
+      const savedToken = typeof window !== "undefined" ? localStorage.getItem(CUSTOMER_TOKEN_KEY) : null;
+      const res = await fetch("/api/customer/profile", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(savedToken ? { Authorization: `Bearer ${savedToken}` } : {}),
+        },
+        body: JSON.stringify(updatedFields),
+      });
 
-      const idx = list.findIndex((c) => c.id === currentCustomer.id || c.email?.toLowerCase() === currentCustomer.email?.toLowerCase());
-      if (idx >= 0) {
-        list[idx] = { ...list[idx], ...updatedCustomer };
-      } else {
-        list.push(updatedCustomer);
-      }
+      const data = await res.json();
+      const updatedCustomer = {
+        ...currentCustomer,
+        ...updatedFields,
+      };
 
-      localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(list));
       localStorage.setItem(CUSTOMER_SESSION_KEY, JSON.stringify(updatedCustomer));
+      setCurrentCustomer(updatedCustomer);
 
-      if (typeof window !== "undefined") {
-        setTimeout(() => {
-          window.dispatchEvent(new Event("storage"));
-          window.dispatchEvent(new CustomEvent("mellosoft_customers_updated"));
-        }, 0);
-      }
+      return { success: true, customer: updatedCustomer };
     } catch (e) {
-      console.error("Failed to update customer profile:", e);
+      return { success: false, error: "Failed to update profile." };
     }
-
-    setCurrentCustomer(updatedCustomer);
-    return { success: true, customer: updatedCustomer };
   }, [currentCustomer]);
 
-  // Logout logic
-  const logout = useCallback(() => {
+  // Logout action
+  const logout = useCallback(async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch (e) {}
+
     try {
       localStorage.removeItem(CUSTOMER_SESSION_KEY);
-    } catch (e) {
-      console.error("Failed to clear customer session:", e);
-    }
+      localStorage.removeItem(CUSTOMER_TOKEN_KEY);
+    } catch (e) {}
+
     setCurrentCustomer(null);
     setIsAuthenticated(false);
+    setAuthToken(null);
   }, []);
 
   return (
@@ -213,10 +226,12 @@ export function CustomerAuthProvider({ children }) {
         loading,
         intendedView,
         setIntendedView,
+        authToken,
         login,
         signup,
+        googleLogin,
         updateProfile,
-        logout
+        logout,
       }}
     >
       {children}

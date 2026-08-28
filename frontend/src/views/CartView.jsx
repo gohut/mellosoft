@@ -13,8 +13,8 @@ export default function CartView() {
   const delivery = subtotal >= 5000 || subtotal === 0 ? 0 : 150;
   const total = subtotal + delivery;
 
-  const handleCheckout = () => {
-    // Enrich cart items with full checkout fields and route to checkout
+  const handleCheckout = async () => {
+    // Enrich cart items for checkout
     const enrichedItems = cart.map((item) => {
       const prod = (products || []).find((p) => p.id === (item.productId || item.id));
       return {
@@ -41,6 +41,75 @@ export default function CartView() {
         sessionStorage.setItem("mellosoft_checkout_items", JSON.stringify(enrichedItems));
       } catch {}
     }
+
+    // Call Razorpay Order API
+    try {
+      const res = await fetch("/api/checkout/razorpay/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cartItems: enrichedItems }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        // Fallback to standard checkout page if order creation fails
+        navigateTo("checkout");
+        return;
+      }
+
+      // Check if Razorpay Checkout script is loaded
+      if (typeof window !== "undefined" && window.Razorpay) {
+        const options = {
+          key: data.keyId,
+          amount: data.amount,
+          currency: data.currency,
+          name: "Mellosoft Luxury Sleep",
+          description: "Mattress & Accessories Purchase",
+          image: "/asset/logo.png",
+          order_id: data.orderId,
+          handler: async function (response) {
+            try {
+              const verifyRes = await fetch("/api/checkout/razorpay/verify", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  razorpayOrderId: response.razorpay_order_id,
+                  razorpayPaymentId: response.razorpay_payment_id,
+                  razorpaySignature: response.razorpay_signature,
+                  cartItems: enrichedItems,
+                }),
+              });
+
+              const verifyData = await verifyRes.json();
+              if (verifyData.success) {
+                clearCart();
+                navigateTo("confirmation", verifyData.orderNumber);
+              } else {
+                alert(verifyData.error || "Payment verification failed.");
+              }
+            } catch (err) {
+              alert("Error processing payment verification.");
+            }
+          },
+          prefill: {
+            name: "Customer",
+            email: "customer@example.com",
+            contact: "9876543210",
+          },
+          theme: {
+            color: "#1B1F8C",
+          },
+        };
+
+        const rzp1 = new window.Razorpay(options);
+        rzp1.open();
+        return;
+      }
+    } catch (e) {
+      console.warn("Razorpay checkout error:", e);
+    }
+
+    // Default route to step-by-step checkout view
     navigateTo("checkout");
   };
 
