@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from "react";
 import { useAdmin } from "../context/AdminContext";
-import { Upload, X, Plus, Save, ChevronLeft, Tag, Percent } from "lucide-react";
+import { Upload, X, Plus, Save, ChevronLeft, Tag, Percent, Star, Trash2 } from "lucide-react";
 import { formatPrice, calculateDiscountedPrice } from "../../utils/currency";
 import { validateMatrixPricing, getMatrixCellValue, normalizeDimensionKey, normalizeVariantKey } from "../../utils/pricingEngine";
 import MatrixPricingManager from "../components/MatrixPricingManager";
@@ -43,16 +43,26 @@ function buildInitialForm() {
     brand: "Mellosoft",
     material: "",
     specs: "",
+    stock: "25",
+    threshold: "10",
     tagline: "",
     status: "Active",
-    rating: "5.0",
+    badge: "",
+    badgeColor: "#1B1F8C",
+    rating: "4.8",
     discountPercent: "0",
     basePrice: "",
     images: [],
-    features: [],
+    features: [
+      "Construction: Premium PU Foam",
+      "Available Thickness: 6 inch & 8 inch",
+      "Layer Details: Multi-layer comfort design",
+      "100-Night Sleep Trial & Direct Manufacturer Warranty"
+    ],
     bedSizes: JSON.parse(JSON.stringify(DEFAULT_BED_SIZES)),
     variantsList: ["6 INCH", "8 INCH"],
-    matrixPrices: {}
+    matrixPrices: {},
+    matrixStocks: {}
   };
 }
 
@@ -187,6 +197,11 @@ export default function AddProductView() {
         const dims = form.bedSizes[catName]?.dimensions || [];
         dims.forEach((dim) => {
           const priceVal = form.matrixPrices[vName]?.[dim] ?? lowestPrice;
+          const stockVal = form.matrixStocks?.[vName]?.[dim] !== undefined && form.matrixStocks[vName][dim] !== ""
+            ? Number(form.matrixStocks[vName][dim])
+            : (Number(form.stock) || 25);
+          const threshVal = Number(form.threshold) || 10;
+
           formattedVariants.push({
             Variant_Id: `VAR-${vName.toUpperCase().replace(/[^A-Z0-9]/g, "")}-${dim.replace(/[^A-Z0-9]/g, "")}`,
             SKU: `MEL-${vName.toUpperCase().replace(/[^A-Z0-9]/g, "")}-${dim.replace(/[^A-Z0-9]/g, "")}`,
@@ -195,9 +210,9 @@ export default function AddProductView() {
             Firmness: vName,
             VariantName: vName,
             Actual_Price: Number(priceVal) || lowestPrice,
-            Stock: 15,
-            Threshold: 2,
-            Status: "Active"
+            Stock: stockVal,
+            Threshold: threshVal,
+            Status: stockVal === 0 ? "Out of Stock" : (stockVal <= threshVal ? "Low Stock" : "Active")
           });
         });
       });
@@ -226,7 +241,7 @@ export default function AddProductView() {
     }
 
     const catLabel = getProductCategoryLabel({ parentCategory: parentCat, subCategory: subCat, category: subCat });
-
+    const cleanFeatures = (form.features || []).filter((f) => f && typeof f === "string" && f.trim().length > 0);
 
     const newProduct = {
       id: form.id || form.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
@@ -247,8 +262,12 @@ export default function AddProductView() {
       brand: form.brand || "Mellosoft",
       material: form.material,
       specs: form.specs || `${catLabel.toUpperCase()} • ${form.variantsList.join(" / ")} Variants`,
+      stock: Number(form.stock) || 25,
+      threshold: Number(form.threshold) || 10,
       tagline: form.tagline,
       status: form.status,
+      badge: form.badge ? form.badge.trim() : "",
+      badgeColor: form.badgeColor || "#1B1F8C",
       rating: Number(form.rating) || 5.0,
       discountPercent: Number(form.discountPercent) || 0,
       price: lowestPrice,
@@ -260,12 +279,13 @@ export default function AddProductView() {
       bedSizes: form.bedSizes,
       variantsList: form.variantsList,
       prices: form.matrixPrices,
+      matrixStocks: form.matrixStocks,
       variants: formattedVariants,
       image: form.images.length > 0 ? form.images[0] : "/images/mattresses/foam/haven.jpg",
       images: form.images.length > 0 ? form.images : ["/images/mattresses/foam/haven.jpg"],
       imageUrl: form.images.length > 0 ? form.images[0] : "/images/mattresses/foam/haven.jpg",
       thumbnail: form.images.length > 0 ? form.images[0] : "/images/mattresses/foam/haven.jpg",
-      features: form.features.filter((f) => f.trim() !== "")
+      features: cleanFeatures
     };
 
     addProduct(newProduct);
@@ -309,7 +329,7 @@ export default function AddProductView() {
         <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
           
           {/* BASIC INFORMATION & DETAILS */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }} className="admin-add-product-grid">
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px", alignItems: "start" }} className="admin-add-product-grid">
             <div style={cardStyle}>
               <h4 style={cardTitleStyle}>Basic Information</h4>
 
@@ -407,6 +427,103 @@ export default function AddProductView() {
                   </select>
                 </div>
               </div>
+
+              {/* PRODUCT BADGE */}
+              <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "16px" }}>
+                <div style={fieldGroup}>
+                  <label style={labelStyle}>Product Badge (shown on card)</label>
+                  <input
+                    value={form.badge || ""}
+                    onChange={(e) => update("badge", e.target.value)}
+                    style={inputStyle}
+                    placeholder="e.g. Best Seller, New, Trending, Sale..."
+                  />
+                  {form.badge && (
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}>
+                      <span style={{ fontSize: "11px", color: "#6B6B75" }}>Live Preview:</span>
+                      <span
+                        style={{
+                          fontSize: "10.5px",
+                          fontWeight: 700,
+                          color: "#FFFFFF",
+                          backgroundColor: form.badgeColor || "#1B1F8C",
+                          padding: "2px 8px",
+                          borderRadius: "999px",
+                          letterSpacing: "0.03em",
+                          textTransform: "uppercase",
+                          display: "inline-block",
+                        }}
+                      >
+                        {form.badge}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div style={fieldGroup}>
+                  <label style={labelStyle}>Badge Color (Pick Color)</label>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <div
+                      style={{
+                        position: "relative",
+                        width: "42px",
+                        height: "42px",
+                        borderRadius: "10px",
+                        border: "1px solid #E7E7E2",
+                        overflow: "hidden",
+                        backgroundColor: form.badgeColor || "#1B1F8C",
+                        cursor: "pointer",
+                        flexShrink: 0,
+                        boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+                      }}
+                      title="Click to open color picker"
+                    >
+                      <input
+                        type="color"
+                        value={form.badgeColor?.startsWith("#") && form.badgeColor.length === 7 ? form.badgeColor : "#1B1F8C"}
+                        onChange={(e) => update("badgeColor", e.target.value)}
+                        style={{
+                          position: "absolute",
+                          top: "-10px",
+                          left: "-10px",
+                          width: "60px",
+                          height: "60px",
+                          opacity: 0,
+                          cursor: "pointer",
+                        }}
+                      />
+                    </div>
+                    <input
+                      type="text"
+                      value={form.badgeColor || "#1B1F8C"}
+                      onChange={(e) => update("badgeColor", e.target.value)}
+                      style={{ ...inputStyle, fontFamily: "monospace", textTransform: "uppercase", flex: 1 }}
+                      placeholder="#1B1F8C"
+                    />
+                  </div>
+                  {/* Preset Quick Swatches */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}>
+                    {["#1B1F8C", "#16A34A", "#0D9488", "#D97706", "#DC2626", "#7C3AED", "#14151A"].map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => update("badgeColor", c)}
+                        title={c}
+                        style={{
+                          width: "18px",
+                          height: "18px",
+                          borderRadius: "50%",
+                          backgroundColor: c,
+                          border: form.badgeColor === c ? "2px solid #14151A" : "1px solid rgba(0,0,0,0.15)",
+                          cursor: "pointer",
+                          padding: 0,
+                          transform: form.badgeColor === c ? "scale(1.2)" : "scale(1)",
+                          transition: "transform 0.15s ease",
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
@@ -431,6 +548,32 @@ export default function AddProductView() {
                     style={{ ...inputStyle, height: "auto", padding: "10px 14px", resize: "vertical" }}
                     placeholder="Enter specifications..."
                   />
+                </div>
+
+                {/* STOCK & THRESHOLD */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                  <div style={fieldGroup}>
+                    <label style={labelStyle}>Stock Quantity (Default)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={form.stock}
+                      onChange={(e) => update("stock", e.target.value)}
+                      style={inputStyle}
+                      placeholder="25"
+                    />
+                  </div>
+                  <div style={fieldGroup}>
+                    <label style={labelStyle}>Low-Stock Alert Threshold</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={form.threshold}
+                      onChange={(e) => update("threshold", e.target.value)}
+                      style={inputStyle}
+                      placeholder="10"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -482,6 +625,103 @@ export default function AddProductView() {
                   </div>
                 )}
               </div>
+
+            </div>
+          </div>
+
+          {/* Key Features & Highlights Card (Full Width with Left-Right 2-Column Grid) */}
+          <div style={{ ...cardStyle, width: "100%" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+              <div>
+                <h4 style={cardTitleStyle}>Key Features & Highlights</h4>
+                <p style={{ fontSize: "12.5px", color: "#6B6B75", margin: "2px 0 0" }}>
+                  Bullet points shown on product details and promotional cards.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={addFeature}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  padding: "7px 14px",
+                  borderRadius: "8px",
+                  border: "1px solid #1B1F8C",
+                  backgroundColor: "#EEF0FF",
+                  color: "#1B1F8C",
+                  fontSize: "12.5px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                <Plus size={14} /> Add Feature
+              </button>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: "12px", marginTop: "12px" }}>
+              {form.features && form.features.length > 0 ? (
+                form.features.map((feat, idx) => (
+                  <div key={idx} style={{ display: "flex", alignItems: "center", gap: "8px", backgroundColor: "#FAFAF7", padding: "6px 10px", borderRadius: "8px", border: "1px solid #F0F0EC" }}>
+                    <span style={{ color: "#16A34A", fontWeight: 800, fontSize: "14px", flexShrink: 0, width: "20px", textAlign: "center" }}>✓</span>
+                    <input
+                      type="text"
+                      value={feat}
+                      onChange={(e) => updateFeature(idx, e.target.value)}
+                      style={{ ...inputStyle, flex: 1, height: "38px", fontSize: "13.5px", backgroundColor: "#FFFFFF" }}
+                      placeholder={`Feature ${idx + 1} (e.g., Construction: Premium PU Foam)`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeFeature(idx)}
+                      style={{
+                        border: "1px solid #FCA5A5",
+                        backgroundColor: "#FEF2F2",
+                        color: "#DC2626",
+                        width: "36px",
+                        height: "38px",
+                        borderRadius: "8px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: "pointer",
+                        flexShrink: 0,
+                      }}
+                      title="Remove feature"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <div style={{ gridColumn: "1 / -1", padding: "16px", textAlign: "center", backgroundColor: "#FAFAF7", borderRadius: "8px", border: "1px dashed #E7E7E2" }}>
+                  <p style={{ fontSize: "13px", color: "#6B6B75", margin: "0 0 8px" }}>No key features added yet.</p>
+                  <button
+                    type="button"
+                    onClick={() => setForm((prev) => ({
+                      ...prev,
+                      features: [
+                        `Construction: ${prev.material || "Premium PU Foam"}`,
+                        `Available Thickness: ${(prev.variantsList || ["6 inch", "8 inch"]).join(" & ")}`,
+                        "Layer Details: Multi-layer comfort design",
+                        "100-Night Sleep Trial & Direct Manufacturer Warranty"
+                      ]
+                    }))}
+                    style={{
+                      border: "none",
+                      backgroundColor: "#1B1F8C",
+                      color: "#FFFFFF",
+                      padding: "7px 16px",
+                      borderRadius: "6px",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    + Add Default Features
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -519,6 +759,11 @@ export default function AddProductView() {
                 }
               }
             }}
+            stocks={form.matrixStocks}
+            onStocksChange={(updatedStocks) => update("matrixStocks", updatedStocks)}
+            discountPercent={form.discountPercent}
+            onDiscountPercentChange={(val) => update("discountPercent", val)}
+            defaultStock={Number(form.stock) || 25}
             categoryName={form.name || form.category || "ORTHO MATTRESS"}
             invalidCellKeys={invalidCellKeys}
           />

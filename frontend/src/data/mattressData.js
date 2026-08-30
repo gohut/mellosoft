@@ -116,7 +116,13 @@ export const MATTRESS_PRODUCTS = [
     construction: "Premium PU Foam",
     thicknessOptions: ["4 inch", "5 inch"],
     image: "/images/mattresses/foam/haven.jpg",
-    images: ["/images/mattresses/foam/haven.jpg"],
+    images: [
+      "/images/mattresses/foam/haven.jpg",
+      "/images/mattresses/foam/cloudrest.jpg",
+      "/images/mattresses/foam/dreamnest.jpg",
+      "/images/mattresses/foam/serenity.jpg",
+      "/images/mattresses/foam/cloudnine.jpg"
+    ],
     description: "Premium PU foam mattress engineered for deep, pressure-free rest.",
     startingPrice: 6999,
     prices: generateMattressMatrix(6999, ["4 inch", "5 inch"]),

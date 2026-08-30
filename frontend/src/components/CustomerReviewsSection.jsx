@@ -2,18 +2,56 @@
 
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useStore } from "../context/StoreContext";
-import { formatPrice } from "../utils/currency";
-import { Star, CheckCircle2, ChevronLeft, ChevronRight, X, ArrowRight } from "lucide-react";
+import { Star, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { getProductPrimaryImage } from "../utils/productHelpers";
+import { getResolvedImageUrlSync } from "../utils/imageStorage";
+import { useRouter } from "next/navigation";
+
+// Safely extract customer review images if present
+function getReviewImages(r) {
+  if (!r) return [];
+  if (Array.isArray(r.images) && r.images.length > 0) return r.images.filter(Boolean);
+  if (Array.isArray(r.uploadedImages) && r.uploadedImages.length > 0) return r.uploadedImages.filter(Boolean);
+  if (Array.isArray(r.photos) && r.photos.length > 0) return r.photos.filter(Boolean);
+  if (Array.isArray(r.imageUrls) && r.imageUrls.length > 0) return r.imageUrls.filter(Boolean);
+  if (typeof r.image === "string" && r.image.trim()) return [r.image.trim()];
+  return [];
+}
+
+// Date Formatter Helper
+function formatDate(dateStr) {
+  if (!dateStr) return "12/8/2026";
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    const m = d.getMonth() + 1;
+    const day = d.getDate();
+    const yr = d.getFullYear();
+    return `${m}/${day}/${yr}`;
+  } catch {
+    return dateStr;
+  }
+}
 
 export default function CustomerReviewsSection() {
-  const { reviews, products, navigateTo } = useStore();
+  const router = useRouter();
+  const { reviews, products, navigateTo, setSelectedProductId, setView } = useStore();
 
-  // 1. Filter ONLY Approved Reviews that are selected for Homepage display
+  // 1. Filter ONLY Approved Reviews (exclude Pending, Rejected, Deleted)
   const approvedReviews = useMemo(() => {
     if (!reviews || !Array.isArray(reviews)) return [];
-    return reviews.filter(
-      (r) => (r.status === "Approved" || r.status === "approved") && r.showOnHome === true
-    );
+    
+    const approved = reviews.filter((r) => {
+      const status = (r.status || "").toLowerCase();
+      if (status === "deleted" || status === "rejected" || status === "pending") return false;
+      return status === "approved";
+    });
+
+    // If explicit homepage flags exist, prefer them; otherwise show all approved
+    const homeFlagged = approved.filter((r) => r.showOnHome === true);
+    if (homeFlagged.length > 0) return homeFlagged;
+
+    return approved.filter((r) => r.showOnHome !== false);
   }, [reviews]);
 
   // 2. Dynamic Rating Summary Calculation
@@ -24,7 +62,7 @@ export default function CustomerReviewsSection() {
     return { avgRating: avg, totalCount: approvedReviews.length };
   }, [approvedReviews]);
 
-  // 3. Carousel Index State
+  // 3. Carousel Index State for 4+ reviews
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
 
@@ -60,7 +98,7 @@ export default function CustomerReviewsSection() {
     setCurrentIndex((prev) => (prev < maxIndex ? prev + 1 : 0));
   };
 
-  // 5. Autoplay Timer (5 Seconds)
+  // Autoplay Timer (Only when 4+ reviews and not paused)
   useEffect(() => {
     if (isPaused || selectedReviewForModal || approvedReviews.length <= cardsPerView) return;
     const timer = setInterval(() => {
@@ -69,7 +107,7 @@ export default function CustomerReviewsSection() {
     return () => clearInterval(timer);
   }, [isPaused, selectedReviewForModal, maxIndex, cardsPerView, approvedReviews.length]);
 
-  // 6. Touch Swipe Logic for Mobile
+  // Touch Swipe Logic for Mobile Carousel
   const touchStartXRef = useRef(null);
   const handleTouchStart = (e) => {
     touchStartXRef.current = e.touches[0].clientX;
@@ -87,11 +125,125 @@ export default function CustomerReviewsSection() {
     touchStartXRef.current = null;
   };
 
+  const handleProductNavigate = (prodId) => {
+    if (!prodId) return;
+    if (typeof setSelectedProductId === "function") {
+      setSelectedProductId(prodId);
+    }
+    if (typeof setView === "function") {
+      setView("detail");
+    }
+    if (typeof navigateTo === "function") {
+      navigateTo("detail", prodId);
+    } else if (router && typeof router.push === "function") {
+      router.push(`/product/${prodId}`);
+    }
+  };
+
+  // Helper to render individual review card with equal-height flex structure
+  const renderReviewCard = (rev) => {
+    const matchedProduct = (products || []).find(
+      (p) =>
+        (p.id && (p.id === rev.productId || p.id === rev.Product_Id || p.slug === rev.productId)) ||
+        (p.slug && p.slug === rev.productId) ||
+        (p.name && (p.name === rev.product || p.name === rev.productName))
+    );
+
+    const prodName = rev.product || rev.productName || matchedProduct?.name || "Mellosoft Sleep Product";
+    const prodImage = matchedProduct ? getProductPrimaryImage(matchedProduct) : (rev.productImage || "/images/mattresses/foam/haven.jpg");
+    const prodId = matchedProduct?.slug || matchedProduct?.id || rev.productId || "foamcloud";
+
+    const reviewText = rev.review || rev.comment || rev.feedback || "";
+    const isLong = reviewText.length > 130;
+    const displayText = isLong ? `${reviewText.slice(0, 125)}...` : reviewText;
+
+    const formattedDate = rev.date ? formatDate(rev.date) : "12/8/2026";
+    const reviewImages = getReviewImages(rev);
+
+    return (
+      <div style={reviewCardStyle} className="hover-lift-review review-card">
+        {/* Top/Middle content container */}
+        <div style={reviewMainContentStyle} className="review-main-content">
+          {/* Top Header: Customer Name on left, Date on right */}
+          <div style={cardHeaderRowStyle}>
+            <strong style={customerNameStyle}>
+              {rev.customerName || rev.customer || rev.author || "Helen M."}
+            </strong>
+            <span style={dateTextStyle}>{formattedDate}</span>
+          </div>
+
+          {/* Star Rating */}
+          <div style={cardStarsRowStyle}>
+            {[1, 2, 3, 4, 5].map((star) => (
+              <Star
+                key={star}
+                size={15}
+                fill={star <= (Number(rev.rating) || 5) ? "#14151A" : "#E7E7E2"}
+                color={star <= (Number(rev.rating) || 5) ? "#14151A" : "#E7E7E2"}
+              />
+            ))}
+          </div>
+
+          {/* Review Title (if available) */}
+          {rev.title && (
+            <h4 style={reviewTitleStyle}>{rev.title}</h4>
+          )}
+
+          {/* Review Body & Read More */}
+          <div style={reviewTextBodyStyle}>
+            <p style={reviewParagraphStyle}>"{displayText}"</p>
+            {isLong && (
+              <button
+                type="button"
+                onClick={() => setSelectedReviewForModal(rev)}
+                style={readMoreBtnStyle}
+              >
+                Read More
+              </button>
+            )}
+          </div>
+
+          {/* Attached Customer Uploaded Photos (if any) */}
+          {reviewImages.length > 0 && (
+            <div style={reviewImagesStripStyle}>
+              {reviewImages.map((img, idx) => (
+                <img
+                  key={idx}
+                  src={getResolvedImageUrlSync(img, "/images/mattresses/foam/haven.jpg")}
+                  alt={`Review image ${idx + 1}`}
+                  style={reviewImageThumbStyle}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedReviewForModal(rev);
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Anchored Product Info at Bottom (margin-top: auto for equal bottom alignment) */}
+        <div
+          onClick={() => handleProductNavigate(prodId)}
+          style={productAnchorRowStyle}
+          className="product-reference"
+          title={`View ${prodName}`}
+          role="button"
+          tabIndex={0}
+        >
+          <img src={prodImage} alt={prodName} style={productThumbStyle} />
+          <span style={productNameTextStyle}>{prodName}</span>
+        </div>
+      </div>
+    );
+  };
+
+  // ─── 0 REVIEWS ─────────────────────────────────────────────────────────────
   if (approvedReviews.length === 0) {
     return (
-      <section style={sectionWrapStyle}>
+      <section style={sectionWrapStyle} className="customer-reviews-section">
         <div style={containerStyle}>
-          <div style={titleHeaderStyle}>
+          <div style={titleHeaderStyle} className="reviews-title-header">
             <h2 style={sectionTitleStyle}>WHAT YOU'RE SAYING</h2>
             <p style={emptyStateTextStyle}>No customer reviews yet.</p>
           </div>
@@ -100,15 +252,18 @@ export default function CustomerReviewsSection() {
     );
   }
 
+  const reviewCount = approvedReviews.length;
+
   return (
     <section
       style={sectionWrapStyle}
+      className="customer-reviews-section"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
       <div style={containerStyle}>
         {/* SECTION HEADER & RATING SUMMARY */}
-        <div style={titleHeaderStyle}>
+        <div style={titleHeaderStyle} className="reviews-title-header">
           <h2 style={sectionTitleStyle}>WHAT YOU'RE SAYING</h2>
           <div style={summaryRowStyle}>
             <div style={starsRowStyle}>
@@ -126,51 +281,68 @@ export default function CustomerReviewsSection() {
           </div>
         </div>
 
-        {/* CAROUSEL WRAPPER WITH NAV ARROWS */}
-        <div style={carouselOuterWrapStyle}>
-          {/* Left Arrow Button */}
-          {approvedReviews.length > cardsPerView && (
-            <button
-              onClick={handlePrev}
-              style={arrowBtnStyle}
-              aria-label="Previous Reviews"
-              className="carousel-arrow-btn"
-            >
-              <ChevronLeft size={20} color="#1B1F8C" />
-            </button>
-          )}
+        {/* ─── DYNAMIC EQUAL-HEIGHT LAYOUT BASED ON REVIEW COUNT ───────────── */}
+        
+        {/* 1. EXACTLY 1 REVIEW: Centered Single Card (520px max width) */}
+        {reviewCount === 1 && (
+          <div style={singleReviewContainerStyle} className="reviews-grid single-review">
+            <div style={singleCardWrapperStyle}>
+              {renderReviewCard(approvedReviews[0])}
+            </div>
+          </div>
+        )}
 
-          {/* Cards Track Container */}
-          <div
-            style={trackViewportStyle}
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
-          >
+        {/* 2. EXACTLY 2 REVIEWS: Centered Pair Equal Height */}
+        {reviewCount === 2 && (
+          <div style={twoReviewsContainerStyle} className="reviews-grid two-reviews">
+            {approvedReviews.map((rev) => (
+              <div key={rev.id} style={{ width: "100%", maxWidth: "480px", display: "flex", flexDirection: "column", height: "100%" }}>
+                {renderReviewCard(rev)}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* 3. EXACTLY 3 REVIEWS: 3-Card Row Centered Equal Height */}
+        {reviewCount === 3 && (
+          <div style={threeReviewsContainerStyle} className="reviews-grid three-reviews">
+            {approvedReviews.map((rev) => (
+              <div key={rev.id} style={{ width: "100%", minWidth: 0, display: "flex", flexDirection: "column", height: "100%" }}>
+                {renderReviewCard(rev)}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* 4. 4 OR MORE REVIEWS: Interactive Carousel with Equal Height Slides */}
+        {reviewCount >= 4 && (
+          <div style={carouselOuterWrapStyle} className="reviews-carousel-wrap">
+            {/* Left Arrow Button */}
+            {approvedReviews.length > cardsPerView && (
+              <button
+                onClick={handlePrev}
+                style={arrowBtnStyle}
+                aria-label="Previous Reviews"
+                className="carousel-arrow-btn"
+                type="button"
+              >
+                <ChevronLeft size={20} color="#1B1F8C" />
+              </button>
+            )}
+
+            {/* Cards Track Container */}
             <div
-              style={{
-                ...trackFlexStyle,
-                transform: `translateX(-${currentIndex * (100 / cardsPerView)}%)`
-              }}
+              style={trackViewportStyle}
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
             >
-              {approvedReviews.map((rev) => {
-                // Find matching product data
-                const matchedProduct = (products || []).find(
-                  (p) => p.id === rev.productId || p.name === rev.product || p.name === rev.productName
-                );
-
-                const prodName = rev.product || rev.productName || matchedProduct?.name || "Mellosoft Sleep Product";
-                const prodImage = matchedProduct?.images?.[0] || "/asset/img1.jpg";
-                const prodId = matchedProduct?.id || rev.productId || "classic-mattress";
-                const isVerified = rev.verified !== false;
-
-                const reviewText = rev.review || rev.comment || "";
-                const isLong = reviewText.length > 120;
-                const displayText = isLong ? `${reviewText.slice(0, 115)}...` : reviewText;
-
-                // Format review date cleanly
-                const formattedDate = rev.date ? formatDate(rev.date) : "12/8/2026";
-
-                return (
+              <div
+                style={{
+                  ...trackFlexStyle,
+                  transform: `translateX(-${currentIndex * (100 / cardsPerView)}%)`
+                }}
+              >
+                {approvedReviews.map((rev) => (
                   <div
                     key={rev.id}
                     style={{
@@ -179,84 +351,29 @@ export default function CustomerReviewsSection() {
                       maxWidth: `${100 / cardsPerView}%`
                     }}
                   >
-                    <div style={reviewCardStyle} className="hover-lift-review">
-                      {/* Top Header: Customer Info & Date */}
-                      <div style={cardHeaderRowStyle}>
-                        <div style={customerInfoWrapStyle}>
-                          <strong style={customerNameStyle}>
-                            {rev.customerName || rev.customer || "Helen M."}
-                          </strong>
-                          {isVerified && (
-                            <span style={verifiedBadgeStyle}>
-                              <CheckCircle2 size={13} color="#16A34A" />
-                              <span>Verified Buyer</span>
-                            </span>
-                          )}
-                        </div>
-                        <span style={dateTextStyle}>{formattedDate}</span>
-                      </div>
-
-                      {/* Star Rating */}
-                      <div style={cardStarsRowStyle}>
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <Star
-                            key={star}
-                            size={15}
-                            fill={star <= (Number(rev.rating) || 5) ? "#14151A" : "#E7E7E2"}
-                            color={star <= (Number(rev.rating) || 5) ? "#14151A" : "#E7E7E2"}
-                          />
-                        ))}
-                      </div>
-
-                      {/* Review Title (if available) */}
-                      {rev.title && (
-                        <h4 style={reviewTitleStyle}>{rev.title}</h4>
-                      )}
-
-                      {/* Review Body & Read More */}
-                      <div style={reviewTextBodyStyle}>
-                        <p style={reviewParagraphStyle}>"{displayText}"</p>
-                        {isLong && (
-                          <button
-                            onClick={() => setSelectedReviewForModal(rev)}
-                            style={readMoreBtnStyle}
-                          >
-                            Read More
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Anchored Product Info at Bottom */}
-                      <div
-                        onClick={() => navigateTo("detail", prodId)}
-                        style={productAnchorRowStyle}
-                        title={`View ${prodName}`}
-                      >
-                        <img src={prodImage} alt={prodName} style={productThumbStyle} />
-                        <span style={productNameTextStyle}>{prodName}</span>
-                      </div>
-                    </div>
+                    {renderReviewCard(rev)}
                   </div>
-                );
-              })}
+                ))}
+              </div>
             </div>
-          </div>
 
-          {/* Right Arrow Button */}
-          {approvedReviews.length > cardsPerView && (
-            <button
-              onClick={handleNext}
-              style={arrowBtnStyle}
-              aria-label="Next Reviews"
-              className="carousel-arrow-btn"
-            >
-              <ChevronRight size={20} color="#1B1F8C" />
-            </button>
-          )}
-        </div>
+            {/* Right Arrow Button */}
+            {approvedReviews.length > cardsPerView && (
+              <button
+                onClick={handleNext}
+                style={arrowBtnStyle}
+                aria-label="Next Reviews"
+                className="carousel-arrow-btn"
+                type="button"
+              >
+                <ChevronRight size={20} color="#1B1F8C" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* 7. FULL REVIEW DETAIL MODAL */}
+      {/* 5. FULL REVIEW DETAIL MODAL */}
       {selectedReviewForModal && (
         <div style={modalOverlayStyle} onClick={() => setSelectedReviewForModal(null)}>
           <div style={modalCardStyle} onClick={(e) => e.stopPropagation()}>
@@ -264,20 +381,15 @@ export default function CustomerReviewsSection() {
               onClick={() => setSelectedReviewForModal(null)}
               style={modalCloseBtnStyle}
               aria-label="Close review"
+              type="button"
             >
               <X size={18} color="#14151A" />
             </button>
 
             <div style={cardHeaderRowStyle}>
-              <div style={customerInfoWrapStyle}>
-                <strong style={{ fontSize: "18px", color: "#14151A" }}>
-                  {selectedReviewForModal.customerName || selectedReviewForModal.customer}
-                </strong>
-                <span style={verifiedBadgeStyle}>
-                  <CheckCircle2 size={14} color="#16A34A" />
-                  <span>Verified Buyer</span>
-                </span>
-              </div>
+              <strong style={{ fontSize: "18px", color: "#14151A" }}>
+                {selectedReviewForModal.customerName || selectedReviewForModal.customer || selectedReviewForModal.author}
+              </strong>
               <span style={dateTextStyle}>{selectedReviewForModal.date ? formatDate(selectedReviewForModal.date) : "12/8/2026"}</span>
             </div>
 
@@ -298,22 +410,38 @@ export default function CustomerReviewsSection() {
               </h3>
             )}
 
-            <p style={{ fontSize: "15px", color: "#14151A", lineHeight: "1.6", margin: "0 0 24px 0" }}>
-              "{selectedReviewForModal.review || selectedReviewForModal.comment}"
+            <p style={{ fontSize: "15px", color: "#14151A", lineHeight: "1.6", margin: "0 0 18px 0", overflowWrap: "break-word", wordBreak: "break-word" }}>
+              "{selectedReviewForModal.review || selectedReviewForModal.comment || selectedReviewForModal.feedback}"
             </p>
+
+            {/* Modal Review Images */}
+            {getReviewImages(selectedReviewForModal).length > 0 && (
+              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", margin: "0 0 20px 0" }}>
+                {getReviewImages(selectedReviewForModal).map((img, idx) => (
+                  <img
+                    key={idx}
+                    src={getResolvedImageUrlSync(img, "/images/mattresses/foam/haven.jpg")}
+                    alt={`Review attachment ${idx + 1}`}
+                    style={{ width: "80px", height: "80px", objectFit: "cover", borderRadius: "10px", border: "1px solid #E7E7E2" }}
+                  />
+                ))}
+              </div>
+            )}
 
             <div
               onClick={() => {
-                const pId = selectedReviewForModal.productId || "classic-mattress";
+                const pId = selectedReviewForModal.productId || "foamcloud";
                 setSelectedReviewForModal(null);
-                navigateTo("detail", pId);
+                handleProductNavigate(pId);
               }}
               style={{ ...productAnchorRowStyle, backgroundColor: "#F7F7F2", padding: "12px 16px" }}
+              role="button"
+              tabIndex={0}
             >
               <img
                 src={
                   (products || []).find((p) => p.id === selectedReviewForModal.productId)?.images?.[0] ||
-                  "/asset/img1.jpg"
+                  "/images/mattresses/foam/haven.jpg"
                 }
                 alt={selectedReviewForModal.product || "Product"}
                 style={productThumbStyle}
@@ -326,7 +454,7 @@ export default function CustomerReviewsSection() {
         </div>
       )}
 
-      {/* Styled JSX Hover Animations & Responsive Adjustments */}
+      {/* Styled JSX Hover Animations & Responsive Equal-Height Adjustments */}
       <style>{`
         .hover-lift-review {
           transition: transform 0.25s ease, box-shadow 0.25s ease;
@@ -345,7 +473,55 @@ export default function CustomerReviewsSection() {
         .carousel-arrow-btn:hover svg {
           stroke: #FFFFFF !important;
         }
+        .two-reviews,
+        .three-reviews,
+        .reviews-grid {
+          align-items: stretch !important;
+        }
+        .review-card {
+          height: 100% !important;
+          display: flex !important;
+          flex-direction: column !important;
+        }
+        .product-reference {
+          margin-top: auto !important;
+        }
+        @media (max-width: 1024px) {
+          .three-reviews {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          }
+        }
         @media (max-width: 767px) {
+          .customer-reviews-section {
+            padding: 24px 0 20px !important;
+          }
+          .reviews-title-header {
+            margin-bottom: 20px !important;
+          }
+          .reviews-grid.single-review,
+          .reviews-grid.two-reviews,
+          .reviews-grid.three-reviews {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            gap: 16px !important;
+          }
+          .reviews-grid.single-review > div,
+          .reviews-grid.two-reviews > div,
+          .reviews-grid.three-reviews > div {
+            max-width: 100% !important;
+            width: 100% !important;
+          }
+          .review-card {
+            padding: 20px !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            height: auto !important;
+            min-height: 0 !important;
+          }
+          .product-reference {
+            margin-top: 16px !important;
+          }
           .carousel-arrow-btn {
             width: 36px !important;
             height: 36px !important;
@@ -356,42 +532,29 @@ export default function CustomerReviewsSection() {
   );
 }
 
-// Date Formatter Helper
-function formatDate(dateStr) {
-  if (!dateStr) return "12/8/2026";
-  try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    const m = d.getMonth() + 1;
-    const day = d.getDate();
-    const yr = d.getFullYear();
-    return `${m}/${day}/${yr}`;
-  } catch {
-    return dateStr;
-  }
-}
-
 // Inlined Styling Objects
 const sectionWrapStyle = {
   width: "100%",
-  padding: "64px 0",
+  padding: "36px 0 32px",
   backgroundColor: "#F7F7F2",
   boxSizing: "border-box"
 };
 
 const containerStyle = {
   width: "100%",
-  padding: "0 48px",
+  maxWidth: "1320px",
+  margin: "0 auto",
+  padding: "0 24px",
   boxSizing: "border-box"
 };
 
 const titleHeaderStyle = {
   textAlign: "center",
-  marginBottom: "40px",
+  marginBottom: "28px",
   display: "flex",
   flexDirection: "column",
   alignItems: "center",
-  gap: "10px"
+  gap: "8px"
 };
 
 const sectionTitleStyle = {
@@ -426,6 +589,40 @@ const reviewCountTextStyle = {
   fontWeight: "500"
 };
 
+const singleReviewContainerStyle = {
+  display: "flex",
+  justifyContent: "center",
+  width: "100%"
+};
+
+const singleCardWrapperStyle = {
+  width: "100%",
+  maxWidth: "520px",
+  boxSizing: "border-box"
+};
+
+const twoReviewsContainerStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(2, minmax(0, 480px))",
+  justifyContent: "center",
+  alignItems: "stretch",
+  gap: "24px",
+  maxWidth: "1020px",
+  margin: "0 auto",
+  width: "100%"
+};
+
+const threeReviewsContainerStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(3, minmax(0, 380px))",
+  justifyContent: "center",
+  alignItems: "stretch",
+  gap: "24px",
+  maxWidth: "1200px",
+  margin: "0 auto",
+  width: "100%"
+};
+
 const carouselOuterWrapStyle = {
   position: "relative",
   display: "flex",
@@ -456,56 +653,52 @@ const trackViewportStyle = {
 
 const trackFlexStyle = {
   display: "flex",
+  alignItems: "stretch",
   transition: "transform 0.45s cubic-bezier(0.16, 1, 0.3, 1)",
   width: "100%"
 };
 
 const cardColWrapStyle = {
   padding: "0 10px",
-  boxSizing: "border-box"
+  boxSizing: "border-box",
+  display: "flex",
+  flexDirection: "column",
+  height: "auto"
 };
 
 const reviewCardStyle = {
   backgroundColor: "#FFFFFF",
   border: "1px solid #E7E7E2",
   borderRadius: "16px",
-  padding: "28px",
+  padding: "24px",
   height: "100%",
-  minHeight: "280px",
+  width: "100%",
+  maxWidth: "520px",
+  margin: "0 auto",
   display: "flex",
   flexDirection: "column",
-  justifyContent: "space-between",
-  boxSizing: "border-box"
+  boxSizing: "border-box",
+  boxShadow: "0 2px 8px rgba(0,0,0,0.03)"
+};
+
+const reviewMainContentStyle = {
+  display: "flex",
+  flexDirection: "column",
+  width: "100%"
 };
 
 const cardHeaderRowStyle = {
   display: "flex",
-  alignItems: "flex-start",
+  alignItems: "center",
   justifyContent: "space-between",
   gap: "12px",
-  marginBottom: "12px"
-};
-
-const customerInfoWrapStyle = {
-  display: "flex",
-  alignItems: "center",
-  gap: "8px",
-  flexWrap: "wrap"
+  marginBottom: "10px"
 };
 
 const customerNameStyle = {
   fontSize: "15px",
   fontWeight: "700",
   color: "#14151A"
-};
-
-const verifiedBadgeStyle = {
-  display: "inline-flex",
-  alignItems: "center",
-  gap: "4px",
-  fontSize: "12px",
-  fontWeight: "600",
-  color: "#6B6B75"
 };
 
 const dateTextStyle = {
@@ -517,7 +710,7 @@ const cardStarsRowStyle = {
   display: "flex",
   alignItems: "center",
   gap: "2px",
-  marginBottom: "14px"
+  marginBottom: "12px"
 };
 
 const reviewTitleStyle = {
@@ -529,15 +722,16 @@ const reviewTitleStyle = {
 };
 
 const reviewTextBodyStyle = {
-  flexGrow: 1,
-  marginBottom: "20px"
+  marginBottom: "14px"
 };
 
 const reviewParagraphStyle = {
   fontSize: "14px",
   color: "#14151A",
   lineHeight: "1.55",
-  margin: 0
+  margin: 0,
+  overflowWrap: "break-word",
+  wordBreak: "break-word"
 };
 
 const readMoreBtnStyle = {
@@ -551,15 +745,32 @@ const readMoreBtnStyle = {
   marginTop: "4px"
 };
 
+const reviewImagesStripStyle = {
+  display: "flex",
+  gap: "8px",
+  margin: "0 0 14px 0",
+  flexWrap: "wrap"
+};
+
+const reviewImageThumbStyle = {
+  width: "56px",
+  height: "56px",
+  objectFit: "cover",
+  borderRadius: "8px",
+  border: "1px solid #E7E7E2",
+  cursor: "pointer"
+};
+
 const productAnchorRowStyle = {
   display: "flex",
   alignItems: "center",
-  gap: "12px",
-  paddingTop: "14px",
-  borderTop: "1px solid #E7E7E2",
+  gap: "10px",
+  paddingTop: "12px",
+  borderTop: "1px solid #F1F5F9",
   cursor: "pointer",
   borderRadius: "10px",
-  marginTop: "auto"
+  marginTop: "auto",
+  width: "100%"
 };
 
 const productThumbStyle = {
@@ -600,8 +811,8 @@ const modalOverlayStyle = {
 const modalCardStyle = {
   backgroundColor: "#FFFFFF",
   borderRadius: "20px",
-  padding: "36px",
-  maxWidth: "540px",
+  padding: "32px",
+  maxWidth: "520px",
   width: "100%",
   position: "relative",
   boxShadow: "0 20px 50px rgba(0,0,0,0.15)",

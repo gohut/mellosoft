@@ -3,10 +3,12 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useStore } from "../context/StoreContext";
+import { useCustomerAuth } from "../context/CustomerAuthContext";
 import EmptyState from "../components/EmptyState";
 import { saveImageBlob, getResolvedImageUrlSync } from "../utils/imageStorage";
 import { formatPrice } from "../utils/currency";
 import DownloadOrderPdf from "../components/DownloadOrderPdf";
+import { OrderSkeleton } from "../components/skeleton";
 import { 
   buildInitialTrackingHistory, 
   formatTrackingTimestamp, 
@@ -116,11 +118,16 @@ const getOrderDeliveryLabel = (ord) => {
 };
 
 export default function OrdersView() {
-  const { customerOrders, products, cancelOrder, navigateTo } = useStore();
+  const { customerOrders, products, cancelOrder, navigateTo, setAuthModal } = useStore();
+  const { isAuthenticated, setIntendedView, currentCustomer, loading: authLoading } = useCustomerAuth();
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [activeTab, setActiveTab] = useState("orders"); // "orders" | "delivered"
   const [trackingOrderId, setTrackingOrderId] = useState(null);
   const [showTrackModal, setShowTrackModal] = useState(false);
+
+  // Hydration guard — show skeleton during SSR→client mount
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   // ─── REVIEW STATE ────────────────────────────────────────────────────────────
   const [allReviews, setAllReviews] = useState(() => {
@@ -1189,8 +1196,59 @@ export default function OrdersView() {
   };
 
   // Customer Orders List Page View
+  // Show skeleton during SSR hydration or auth session loading
+  if (!mounted || authLoading) {
+    return (
+      <div style={containerStyle} className="orders-container" aria-busy="true">
+        <div style={{ padding: "32px 24px 60px", maxWidth: 900, margin: "0 auto" }}>
+          <OrderSkeleton count={4} />
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div style={{ padding: "40px 16px", minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{
+          maxWidth: "480px",
+          width: "100%",
+          backgroundColor: "#FAFAF7",
+          border: "1px solid #E7E7E2",
+          borderRadius: "16px",
+          padding: "40px 24px",
+          textAlign: "center"
+        }}>
+          <h3 style={{ fontSize: "20px", fontWeight: 800, color: "#14151A", marginBottom: "8px" }}>Sign In to View Orders</h3>
+          <p style={{ fontSize: "14px", color: "#6B6B75", marginBottom: "24px", lineHeight: 1.6 }}>
+            Please sign in to track active shipments, download order invoices, and view your order history.
+          </p>
+          <button
+            onClick={() => {
+              if (setIntendedView) setIntendedView("/orders");
+              if (setAuthModal) setAuthModal("login");
+            }}
+            style={{
+              padding: "12px 28px",
+              backgroundColor: "#1B1F8C",
+              color: "#FFFFFF",
+              border: "none",
+              borderRadius: "24px",
+              fontSize: "14px",
+              fontWeight: 700,
+              cursor: "pointer"
+            }}
+            className="hover-lift"
+          >
+            Sign In to Account
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div style={containerStyle} className="orders-page-container">
+    <div style={containerStyle} className="orders-container">
       <style>{`
         .orders-card-body {
           display: flex;

@@ -3,13 +3,14 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { MOCK_PRODUCTS } from "../data/products";
-import { MOCK_ORDERS, MOCK_CARTS, MOCK_WISHLISTS, MOCK_BANNERS, MOCK_REVIEWS, MOCK_CATEGORIES } from "../admin/data/adminMockData";
-import { calculateDiscountedPrice } from "../utils/currency";
+import { MOCK_CATEGORIES, MOCK_ORDERS, MOCK_WISHLISTS, MOCK_CARTS, MOCK_REVIEWS, MOCK_BANNERS } from "../admin/data/adminMockData";
+import { useCustomerAuth } from "./CustomerAuthContext";
+import { normalizeCustomerId, matchCustomer } from "../utils/customerHelpers";
 import { getVariantForSelection } from "../utils/variantHelpers";
 import { ensureProductPricing } from "../utils/pricingEngine";
+import { calculateDiscountedPrice } from "../utils/currency";
 import { getProductPrimaryImage, getDeletedProductIds, isProductDeleted, ensureRequiredCategories } from "../utils/productHelpers";
-import { useCustomerAuth } from "./CustomerAuthContext";
-import { getSavedSettings, saveSettingsToStorage, normalizeSettings, SETTINGS_UPDATED_EVENT } from "../utils/settingsHelpers";
+import { DEFAULT_SETTINGS, getSavedSettings, saveSettingsToStorage, normalizeSettings, SETTINGS_UPDATED_EVENT } from "../utils/settingsHelpers";
 
 const StoreContext = createContext();
 
@@ -30,7 +31,9 @@ export function StoreProvider({ children }) {
     sort: "Recommended"
   });
 
-  const currentCustomerId = currentCustomer ? currentCustomer.id : "C001";
+  const currentCustomerId = currentCustomer
+    ? normalizeCustomerId(currentCustomer.customerId || currentCustomer.id)
+    : "CUS-0001";
 
   // User Commerce State
   const [cart, setCart] = useState([]);
@@ -39,54 +42,21 @@ export function StoreProvider({ children }) {
   const [products, setProducts] = useState(MOCK_PRODUCTS);
 
   // Orders State synchronized with localStorage ("mellosoft_orders")
-  const [orders, setOrders] = useState(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const isReset = localStorage.getItem("mellosoft_orders_reset_v1");
-        if (isReset !== "completed") {
-          localStorage.setItem("mellosoft_orders", JSON.stringify([]));
-          localStorage.setItem("mellosoft_admin_orders", JSON.stringify([]));
-          localStorage.setItem("mellosoft_admin_notifications", JSON.stringify([]));
-          localStorage.setItem("mellosoft_orders_reset_v1", "completed");
-          return [];
-        }
-        const saved = localStorage.getItem("mellosoft_orders");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) return parsed;
-        }
-      } catch (e) {
-        console.error("Failed to load orders from localStorage:", e);
-      }
-    }
-    return [];
-  });
+  const [orders, setOrders] = useState([]);
 
   // Reviews State synchronized with localStorage ("mellosoft_reviews")
-  const [reviews, setReviews] = useState(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const saved = localStorage.getItem("mellosoft_reviews");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) return parsed;
-        }
-      } catch (e) {
-        console.error("Failed to load reviews from localStorage:", e);
-      }
-    }
-    return [];
-  });
+  const [reviews, setReviews] = useState(MOCK_REVIEWS);
 
   const [banners, setBanners] = useState(MOCK_BANNERS);
 
   // Global Store Settings synchronized with localStorage ("mellosoft_settings")
-  const [settings, setSettings] = useState(() => getSavedSettings());
+  const [settings, setSettings] = useState(() => ({ ...DEFAULT_SETTINGS }));
 
   useEffect(() => {
     const handleSync = () => {
       setSettings(getSavedSettings());
     };
+    handleSync();
     if (typeof window !== "undefined") {
       window.addEventListener("storage", handleSync);
       window.addEventListener(SETTINGS_UPDATED_EVENT, handleSync);
@@ -108,22 +78,7 @@ export function StoreProvider({ children }) {
   }, []);
 
   // Categories — loaded from localStorage (set by AdminContext) or fall back to defaults
-  const [categories, setCategories] = useState(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const saved = localStorage.getItem("mellosoft_categories");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            return ensureRequiredCategories(parsed);
-          }
-        }
-      } catch (e) {
-        // ignore
-      }
-    }
-    return ensureRequiredCategories(MOCK_CATEGORIES);
-  });
+  const [categories, setCategories] = useState(() => ensureRequiredCategories(MOCK_CATEGORIES));
 
   // New Arrival Config State synchronized with localStorage ("mellosoft_new_arrivals_config")
   const [newArrivalItems, setNewArrivalItems] = useState([
@@ -162,34 +117,28 @@ export function StoreProvider({ children }) {
   });
 
   // ─── Checkout Flow State (persisted to sessionStorage for navigation reliability) ─
-  const [checkoutItems, setCheckoutItems] = useState(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const saved = sessionStorage.getItem("mellosoft_checkout_items");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-        }
-      } catch {}
-    }
-    return [];
-  });
-
-  const [selectedAddress, setSelectedAddress] = useState(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const saved = sessionStorage.getItem("mellosoft_selected_address");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (parsed && typeof parsed === "object") return parsed;
-        }
-      } catch {}
-    }
-    return null;
-  });
-
+  const [checkoutItems, setCheckoutItems] = useState([]);
+  const [selectedAddress, setSelectedAddress] = useState(null);
   const [userAddresses, setUserAddresses] = useState({});
   const [selectedOrderId, setSelectedOrderId] = useState(null);
+
+  // Load checkout session state on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const savedCheckout = sessionStorage.getItem("mellosoft_checkout_items");
+        if (savedCheckout) {
+          const parsed = JSON.parse(savedCheckout);
+          if (Array.isArray(parsed) && parsed.length > 0) setCheckoutItems(parsed);
+        }
+        const savedAddr = sessionStorage.getItem("mellosoft_selected_address");
+        if (savedAddr) {
+          const parsedAddr = JSON.parse(savedAddr);
+          if (parsedAddr && typeof parsedAddr === "object") setSelectedAddress(parsedAddr);
+        }
+      } catch {}
+    }
+  }, []);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -237,10 +186,24 @@ export function StoreProvider({ children }) {
             setReviews((prev) => (JSON.stringify(prev) === JSON.stringify(parsed) ? prev : parsed));
           }
         } else {
-          setReviews([]);
+          setReviews((prev) => (JSON.stringify(prev) === JSON.stringify(MOCK_REVIEWS) ? prev : MOCK_REVIEWS));
         }
       } catch (e) {
         console.error("Failed to load reviews from localStorage:", e);
+      }
+
+      // Sync categories
+      try {
+        const savedCategories = localStorage.getItem("mellosoft_categories");
+        if (savedCategories) {
+          const parsed = JSON.parse(savedCategories);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const nextCats = ensureRequiredCategories(parsed);
+            setCategories((prev) => (JSON.stringify(prev) === JSON.stringify(nextCats) ? prev : nextCats));
+          }
+        }
+      } catch (e) {
+        // ignore
       }
 
       // Sync banners
@@ -406,11 +369,13 @@ export function StoreProvider({ children }) {
         const savedOrders = localStorage.getItem("mellosoft_orders");
         if (savedOrders) {
           const parsed = JSON.parse(savedOrders);
-          if (Array.isArray(parsed)) {
+          if (Array.isArray(parsed) && parsed.length > 0) {
             setOrders((prev) => (JSON.stringify(prev) === JSON.stringify(parsed) ? prev : parsed));
+          } else {
+            setOrders((prev) => (JSON.stringify(prev) === JSON.stringify(MOCK_ORDERS) ? prev : MOCK_ORDERS));
           }
         } else {
-          setOrders([]);
+          setOrders((prev) => (JSON.stringify(prev) === JSON.stringify(MOCK_ORDERS) ? prev : MOCK_ORDERS));
         }
       } catch (e) {
         console.error("Failed to load orders from localStorage:", e);
@@ -593,7 +558,7 @@ export function StoreProvider({ children }) {
     }
 
     // Auth protection for customer-specific pages if accessing while logged out
-    const protectedViews = ["orders", "profile", "checkout", "payment", "confirmation"];
+    const protectedViews = ["orders", "profile", "cart", "wishlist", "checkout", "payment"];
     if (protectedViews.includes(newView) && !isAuthenticated) {
       setIntendedView(newView);
       setAuthModal("login");
@@ -618,6 +583,8 @@ export function StoreProvider({ children }) {
       orders: "/orders",
       search: "/search",
       profile: "/profile",
+      login: "/login",
+      signup: "/signup",
       checkout: "/checkout",
       payment: "/checkout/payment",
       confirmation: selectedOrderId ? `/order-confirmation/${selectedOrderId}` : "/order-confirmation",
@@ -717,18 +684,20 @@ export function StoreProvider({ children }) {
         let custsList = savedCusts ? JSON.parse(savedCusts) : [];
         if (!Array.isArray(custsList)) custsList = [];
 
-        const custId = newOrder.customerId || newOrder.userId || currentCustomerId || "C001";
+        const custId = normalizeCustomerId(newOrder.customerId || newOrder.userId || currentCustomerId || "CUS-0001");
         const custEmail = newOrder.email || currentCustomer?.email || "customer@mellosoft.com";
         const custName = newOrder.customerName || newOrder.deliveryAddress?.fullName || currentCustomer?.name || "Customer";
         const custPhone = newOrder.phone || newOrder.deliveryAddress?.phone || currentCustomer?.phone || "";
 
         const existingIdx = custsList.findIndex(
-          (c) => c.id === custId || (custEmail && c.email?.toLowerCase() === custEmail.toLowerCase())
+          (c) => c.id === custId || c.customerId === custId || (custEmail && c.email?.toLowerCase() === custEmail.toLowerCase())
         );
 
         if (existingIdx >= 0) {
           custsList[existingIdx] = {
             ...custsList[existingIdx],
+            id: custId,
+            customerId: custId,
             name: custName || custsList[existingIdx].name,
             phone: custPhone || custsList[existingIdx].phone,
             email: custEmail || custsList[existingIdx].email,
@@ -737,6 +706,7 @@ export function StoreProvider({ children }) {
         } else {
           custsList.push({
             id: custId,
+            customerId: custId,
             name: custName,
             email: custEmail,
             phone: custPhone,
@@ -790,7 +760,12 @@ export function StoreProvider({ children }) {
       }
     }
 
-    setCart([]);
+    const isBuyNowOrder = (newOrder.items || []).some(
+      (i) => String(i.cartItemId || "").startsWith("buynow-")
+    );
+    if (!isBuyNowOrder) {
+      setCart([]);
+    }
     setCheckoutItems([]);
     if (typeof window !== "undefined") {
       try {
@@ -854,7 +829,7 @@ export function StoreProvider({ children }) {
       );
 
       const variant = getVariantForSelection(product, size, firmness);
-      const discountPercent = product?.discountPercent ?? product?.Discount_Percentage ?? 10;
+      const discountPercent = product?.discountPercent ?? product?.Discount_Percentage ?? 0;
       const rawPrice = Number(
         (variant && variant.Actual_Price) ??
         (product.firmnessPrices && product.firmnessPrices[firmness]) ??
@@ -885,6 +860,7 @@ export function StoreProvider({ children }) {
             actualPrice: rawPrice,
             price,
             discountPrice: price,
+            discountPercent,
             qty,
             quantity: qty,
             image: product.images?.[0] || "/asset/img1.jpg"
@@ -967,11 +943,7 @@ export function StoreProvider({ children }) {
         bestSellerItems,
         customerOrders: (orders || []).filter((o) => {
           if (!currentCustomer && !currentCustomerId) return false;
-          const matchId = currentCustomerId && (o.customerId === currentCustomerId || o.userId === currentCustomerId);
-          const matchCustObjId = currentCustomer?.id && (o.customerId === currentCustomer.id || o.userId === currentCustomer.id);
-          const matchCustCode = currentCustomer?.customerId && (o.customerId === currentCustomer.customerId);
-          const matchEmail = currentCustomer?.email && (o.email?.toLowerCase() === currentCustomer.email.toLowerCase() || o.customerEmail?.toLowerCase() === currentCustomer.email.toLowerCase());
-          return Boolean(matchId || matchCustObjId || matchCustCode || matchEmail);
+          return matchCustomer(o, currentCustomer || { id: currentCustomerId, customerId: currentCustomerId });
         }),
         checkoutItems,
         setCheckoutItems,

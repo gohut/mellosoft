@@ -5,16 +5,6 @@ import { Download } from "lucide-react";
 import { useCustomerAuth } from "../context/CustomerAuthContext";
 import { useStore } from "../context/StoreContext";
 
-/**
- * DownloadOrderPdf — Reusable component to generate and download a
- * professional Mellosoft Order Invoice PDF for a given order.
- *
- * Usage:
- *   <DownloadOrderPdf order={order} />
- *
- * Security: Verifies the logged-in user owns the order before generating.
- */
-
 // INR currency formatter — uses Unicode Rupee symbol so jsPDF can render it
 function fmtINR(amount) {
   if (amount === undefined || amount === null || isNaN(amount)) return "Rs 0";
@@ -56,7 +46,6 @@ async function generateOrderPdf(order, currentCustomer, settings) {
   const storeEmail = order.storeSnapshot?.email || settings?.store?.email || "support@mellosoft.com";
   const storePhone = order.storeSnapshot?.phone || settings?.store?.phone || "+91 98765 43210";
   const storeGst = order.storeSnapshot?.gstNumber || settings?.store?.gstNumber || "";
-  const storeAddress = order.storeSnapshot?.address || settings?.store?.address || "";
 
   // ── HEADER BAND ────────────────────────────────────────────────────────────
   doc.setFillColor(27, 31, 140); // Mellosoft indigo
@@ -118,7 +107,6 @@ async function generateOrderPdf(order, currentCustomer, settings) {
       doc.setFont("helvetica", "bold");
       doc.text("Email:", pageWidth / 2 + 5, y + 14);
       doc.setFont("helvetica", "normal");
-      // Truncate long emails
       const emailText = currentCustomer.email.length > 28 ? currentCustomer.email.slice(0, 26) + "..." : currentCustomer.email;
       doc.text(emailText, pageWidth / 2 + 30, y + 14);
     }
@@ -168,7 +156,6 @@ async function generateOrderPdf(order, currentCustomer, settings) {
       doc.rect(margin, y - 4, contentWidth, 28, "F");
     }
 
-    // Product name (word wrap if long)
     const productName = item.name || item.productName || item.productId || "Product";
     const category = item.category || "";
     const size = item.size || item.variantSize || "";
@@ -182,7 +169,6 @@ async function generateOrderPdf(order, currentCustomer, settings) {
     doc.setFontSize(9.5);
     doc.setTextColor(20, 21, 26);
 
-    // Wrap product name
     const nameLines = doc.splitTextToSize(productName, contentWidth * 0.43);
     doc.text(nameLines, col1, y);
 
@@ -193,14 +179,12 @@ async function generateOrderPdf(order, currentCustomer, settings) {
       doc.text(`Category: ${category}`, col1, y + (nameLines.length * 4.5) + 1);
     }
 
-    // Variant
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     doc.setTextColor(20, 21, 26);
     if (size) doc.text(`Size: ${size}`, col2, y);
     if (firmness) doc.text(`Firmness: ${firmness}`, col2, y + 6);
 
-    // SKU
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     doc.setTextColor(107, 107, 117);
@@ -209,13 +193,11 @@ async function generateOrderPdf(order, currentCustomer, settings) {
       doc.text(skuLines, col3, y);
     }
 
-    // Qty
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
     doc.setTextColor(20, 21, 26);
     doc.text(String(qty), col4, y);
 
-    // Prices
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9.5);
     doc.setTextColor(27, 31, 140);
@@ -228,7 +210,6 @@ async function generateOrderPdf(order, currentCustomer, settings) {
       doc.text(`MRP: ${fmtINR(actualPrice)}`, col5, y + 6, { align: "right" });
     }
 
-    // Thin separator per item
     doc.setDrawColor(230, 230, 228);
     doc.setLineWidth(0.2);
     doc.line(margin, y + 24, pageWidth - margin, y + 24);
@@ -400,7 +381,15 @@ async function generateOrderPdf(order, currentCustomer, settings) {
   return doc;
 }
 
-export default function DownloadOrderPdf({ order, variant = "primary" }) {
+export default function DownloadOrderPdf({
+  order,
+  variant = "primary",
+  label = "Download Order Copy",
+  mobileLabel = "Download Copy",
+  style = {},
+  customBtnStyle = {},
+  className = ""
+}) {
   const { currentCustomer, isAuthenticated } = useCustomerAuth();
   const { settings } = useStore();
   const [status, setStatus] = useState("idle"); // idle | loading | error
@@ -409,21 +398,18 @@ export default function DownloadOrderPdf({ order, variant = "primary" }) {
   const handleDownload = async () => {
     if (status === "loading") return;
 
-    // Auth check
     if (!isAuthenticated || !currentCustomer) {
       setErrorMsg("Please log in to download your order copy.");
       setStatus("error");
       return;
     }
 
-    // Order existence check
     if (!order) {
       setErrorMsg("Order not found.");
       setStatus("error");
       return;
     }
 
-    // Ownership check — compare currentCustomer.id against order userId/customerId
     const orderOwnerId = order.userId || order.customerId;
     const currentUserId = currentCustomer.id;
     if (orderOwnerId && currentUserId && orderOwnerId !== currentUserId) {
@@ -449,16 +435,15 @@ export default function DownloadOrderPdf({ order, variant = "primary" }) {
   };
 
   const isLoading = status === "loading";
-
-  // Style variants
   const isPrimary = variant === "primary";
-  const btnStyle = {
+
+  const defaultBtnStyle = {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    gap: "8px",
-    height: "44px",
-    padding: "0 20px",
+    gap: "6px",
+    height: "46px",
+    padding: "0 12px",
     borderRadius: "999px",
     border: isPrimary ? "none" : "1.5px solid #1B1F8C",
     backgroundColor: isPrimary ? "#1B1F8C" : "#F4F5FF",
@@ -470,27 +455,31 @@ export default function DownloadOrderPdf({ order, variant = "primary" }) {
     transition: "all 0.18s ease",
     fontFamily: "inherit",
     whiteSpace: "nowrap",
-    width: variant === "full" ? "100%" : "auto",
-    minWidth: "180px"
+    width: "100%",
+    boxSizing: "border-box",
+    ...customBtnStyle
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "inherit", gap: "6px" }}>
+    <div style={{ display: "flex", flexDirection: "column", width: "100%", ...style }} className={className}>
       <button
         onClick={handleDownload}
-        style={btnStyle}
+        style={defaultBtnStyle}
+        className="download-order-pdf-btn"
         disabled={isLoading}
         title="Download your order as a PDF"
+        type="button"
       >
         {isLoading ? (
           <>
             <span style={spinnerStyle} />
-            <span>Generating PDF...</span>
+            <span style={{ fontSize: "13px" }}>Generating...</span>
           </>
         ) : (
           <>
-            <Download size={16} />
-            <span>Download Order Copy</span>
+            <Download size={15} style={{ flexShrink: 0 }} />
+            <span className="download-btn-desktop-text">{label}</span>
+            <span className="download-btn-mobile-text">{mobileLabel}</span>
           </>
         )}
       </button>
@@ -521,5 +510,6 @@ const errorStyle = {
   border: "1px solid #FECACA",
   borderRadius: "8px",
   padding: "6px 12px",
-  maxWidth: "300px"
+  maxWidth: "300px",
+  marginTop: "4px"
 };

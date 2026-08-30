@@ -43,10 +43,10 @@ export default function OrderConfirmationView() {
           <h2 style={{ fontSize: "24px", color: "#1B1F8C", margin: "0 0 12px 0" }}>Order Not Found</h2>
           <p style={{ color: "#6B6B75", marginBottom: "20px" }}>We couldn't find the order you are looking for.</p>
           <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
-            <button onClick={() => navigateTo("orders")} style={primaryBtnStyle}>
+            <button onClick={() => navigateTo("orders")} style={primaryBtnStyle} type="button">
               View My Orders
             </button>
-            <button onClick={() => navigateTo("catalog")} style={primaryBtnStyle}>
+            <button onClick={() => navigateTo("catalog")} style={primaryBtnStyle} type="button">
               Return to Store
             </button>
           </div>
@@ -69,11 +69,137 @@ export default function OrderConfirmationView() {
   const estDeliveryMax = formatEstDate(new Date(orderDate.getTime() + 5 * 24 * 60 * 60 * 1000));
 
   return (
-    <div style={containerStyle}>
-      {/* SUCCESS CONFIRMATION BANNER */}
-      <div style={bannerCardStyle}>
+    <div style={containerStyle} className="confirmation-container">
+      <style>{`
+        .confirmation-container {
+          width: 100% !important;
+          max-width: 1600px !important;
+          box-sizing: border-box !important;
+          min-width: 0 !important;
+        }
+        .confirmation-layout-grid {
+          width: 100% !important;
+          box-sizing: border-box !important;
+          min-width: 0 !important;
+        }
+        .confirmation-left-col, .confirmation-right-col {
+          min-width: 0 !important;
+          width: 100% !important;
+          box-sizing: border-box !important;
+        }
+        .confirmation-addr-text {
+          overflow-wrap: anywhere !important;
+          word-break: break-word !important;
+        }
+        .download-btn-mobile-text {
+          display: none;
+        }
+        .download-btn-desktop-text {
+          display: inline;
+        }
+        .confirmation-action-row {
+          display: flex !important;
+          align-items: center !important;
+          gap: 10px !important;
+          width: 100% !important;
+        }
+        .confirmation-download-col {
+          flex: 0 1 42% !important;
+          min-width: 0 !important;
+        }
+        .confirmation-view-orders-btn {
+          flex: 1 1 58% !important;
+          min-width: 0 !important;
+        }
+        
+        @media (max-width: 992px) {
+          .confirmation-layout-grid {
+            grid-template-columns: 1fr !important;
+            gap: 24px !important;
+          }
+          .confirmation-right-col {
+            position: static !important;
+            top: auto !important;
+            width: 100% !important;
+          }
+        }
+
+        @media (max-width: 768px) {
+          .confirmation-container {
+            padding: 16px 16px 40px 16px !important;
+          }
+          .confirmation-banner-card {
+            padding: 16px 8px 20px 8px !important;
+            margin-bottom: 20px !important;
+          }
+          .confirmation-section-card {
+            padding: 0 !important;
+            border: none !important;
+            background: transparent !important;
+            box-shadow: none !important;
+          }
+          .confirmation-summary-card {
+            padding: 20px 16px !important;
+            border-radius: 16px !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+          }
+          .confirmation-details-grid {
+            grid-template-columns: 1fr !important;
+            gap: 12px !important;
+            width: 100% !important;
+          }
+          .confirmation-address-box, .confirmation-timeline-box {
+            width: 100% !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
+          }
+          .confirmation-item-card {
+            display: grid !important;
+            grid-template-columns: 72px minmax(0, 1fr) !important;
+            gap: 12px !important;
+            padding: 12px !important;
+            box-sizing: border-box !important;
+          }
+          .confirmation-item-img {
+            width: 72px !important;
+            height: 72px !important;
+          }
+          .download-btn-desktop-text {
+            display: none !important;
+          }
+          .download-btn-mobile-text {
+            display: inline !important;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .confirmation-container {
+            padding: 12px 12px 36px 12px !important;
+          }
+          .confirmation-banner-card {
+            padding: 12px 0 18px 0 !important;
+          }
+          .confirmation-summary-card {
+            padding: 18px 14px !important;
+            border-radius: 14px !important;
+          }
+          .confirmation-item-card {
+            grid-template-columns: 60px minmax(0, 1fr) !important;
+            gap: 10px !important;
+            padding: 10px !important;
+          }
+          .confirmation-item-img {
+            width: 60px !important;
+            height: 60px !important;
+          }
+        }
+      `}</style>
+
+      {/* SUCCESS CONFIRMATION BANNER (Outer border removed) */}
+      <div style={bannerCardStyle} className="confirmation-banner-card">
         <div style={iconBadgeStyle}>
-          <CheckCircle2 size={48} color="#FFFFFF" />
+          <CheckCircle2 size={44} color="#FFFFFF" />
         </div>
         <h1 style={titleStyle}>Order Confirmed!</h1>
         <p style={subtitleStyle}>✓ Your order has been placed successfully.</p>
@@ -83,23 +209,23 @@ export default function OrderConfirmationView() {
       </div>
 
       {/* TWO COLUMN SUMMARY */}
-      <div style={layoutGridStyle}>
+      <div style={layoutGridStyle} className="confirmation-layout-grid">
         
-        {/* LEFT COLUMN: ORDER ITEMS & DELIVERY DETAILS */}
-        <div style={leftColStyle}>
+        {/* LEFT COLUMN: ORDER ITEMS & DELIVERY DETAILS (Outer borders removed) */}
+        <div style={leftColStyle} className="confirmation-left-col">
           
           {/* SECTION 1: ORDERED PRODUCTS */}
-          <div style={sectionCardStyle}>
+          <div style={sectionCardStyle} className="confirmation-section-card">
             <h3 style={sectionHeadingStyle}>
               <Package size={18} color="#1B1F8C" />
               <span>Ordered Products ({items.length})</span>
             </h3>
 
-            <div style={itemsListStyle}>
+            <div style={itemsListStyle} className="confirmation-items-list">
               {items.map((item, idx) => (
-                <div key={idx} style={itemCardStyle}>
-                  <img src={item.image || "/asset/img1.jpg"} alt={item.name || item.productName} style={itemImageStyle} />
-                  <div style={itemMetaStyle}>
+                <div key={idx} style={itemCardStyle} className="confirmation-item-card">
+                  <img src={item.image || "/asset/img1.jpg"} alt={item.name || item.productName} style={itemImageStyle} className="confirmation-item-img" />
+                  <div style={itemMetaStyle} className="confirmation-item-meta">
                     <h4 style={itemNameStyle}>{item.name || item.productName}</h4>
                     <div style={variantChipsStyle}>
                       <span style={chipBlueStyle}>Size: {item.size || item.variantSize || "Standard"}</span>
@@ -117,24 +243,24 @@ export default function OrderConfirmationView() {
           </div>
 
           {/* SECTION 2: DELIVERY ADDRESS & ESTIMATED TIMELINE */}
-          <div style={sectionCardStyle}>
+          <div style={sectionCardStyle} className="confirmation-section-card">
             <h3 style={sectionHeadingStyle}>
               <MapPin size={18} color="#1B1F8C" />
               <span>Delivery Details</span>
             </h3>
 
-            <div style={detailsGridStyle}>
-              <div style={addressBoxStyle}>
-                <strong style={{ fontSize: "15px", color: "#14151A", display: "block", marginBottom: "4px" }}>
+            <div style={detailsGridStyle} className="confirmation-details-grid">
+              <div style={addressBoxStyle} className="confirmation-address-box">
+                <strong style={{ fontSize: "15px", color: "#14151A", display: "block", marginBottom: "4px" }} className="confirmation-addr-text">
                   {address.fullName || currentOrder.customerName || "Customer"}
                 </strong>
-                <p style={addrTextStyle}>{address.addressLine1}</p>
-                {address.addressLine2 && <p style={addrTextStyle}>{address.addressLine2}</p>}
-                <p style={addrTextStyle}>{address.city}, {address.state} - <strong>{address.pincode}</strong></p>
-                <p style={{ ...addrTextStyle, marginTop: "6px", color: "#1B1F8C", fontWeight: "600" }}>📞 {address.phone || currentOrder.phone}</p>
+                <p style={addrTextStyle} className="confirmation-addr-text">{address.addressLine1}</p>
+                {address.addressLine2 && <p style={addrTextStyle} className="confirmation-addr-text">{address.addressLine2}</p>}
+                <p style={addrTextStyle} className="confirmation-addr-text">{address.city}, {address.state} - <strong>{address.pincode}</strong></p>
+                <p style={{ ...addrTextStyle, marginTop: "6px", color: "#1B1F8C", fontWeight: "600" }} className="confirmation-addr-text">📞 {address.phone || currentOrder.phone}</p>
               </div>
 
-              <div style={timelineBoxStyle}>
+              <div style={timelineBoxStyle} className="confirmation-timeline-box">
                 <div style={timelineHeaderStyle}>
                   <Calendar size={18} color="#16A34A" />
                   <strong style={{ color: "#16A34A", fontSize: "14px" }}>Estimated Delivery</strong>
@@ -148,9 +274,10 @@ export default function OrderConfirmationView() {
           </div>
         </div>
 
-        {/* RIGHT COLUMN: PAYMENT SUMMARY & ACTIONS */}
-        <div style={rightColStyle}>
-          <div style={summaryCardStyle}>
+        {/* RIGHT COLUMN: PAYMENT SUMMARY CARD & ACTIONS */}
+        <div style={rightColStyle} className="confirmation-right-col">
+          {/* PAYMENT SUMMARY (Must remain as a clean bordered card) */}
+          <div style={summaryCardStyle} className="confirmation-summary-card">
             <h3 style={summaryTitleStyle}>Payment Summary</h3>
 
             <div style={paymentMetaBoxStyle}>
@@ -207,20 +334,46 @@ export default function OrderConfirmationView() {
               <span style={totalLabelStyle}>Total Paid</span>
               <span style={totalValStyle}>{formatPrice(currentOrder.totalAmount)}</span>
             </div>
+          </div>
 
-            <div style={actionButtonsGroupStyle}>
-              {/* PDF Download — prominently placed above navigation actions */}
-              <DownloadOrderPdf order={currentOrder} variant="primary" />
+          {/* ACTION BUTTONS: Download Copy + View Orders in ONE row, Continue Shopping on separate row */}
+          <div style={actionButtonsGroupStyle}>
+            <div style={primaryActionRowStyle} className="confirmation-action-row">
+              <div style={downloadColStyle} className="confirmation-download-col">
+                <DownloadOrderPdf
+                  order={currentOrder}
+                  variant="primary"
+                  label="Download Order Copy"
+                  mobileLabel="Download Copy"
+                  customBtnStyle={{
+                    height: "46px",
+                    fontSize: "13.5px",
+                    fontWeight: "700",
+                    padding: "0 10px"
+                  }}
+                />
+              </div>
 
-              <button onClick={() => navigateTo("orders")} style={viewOrdersBtnStyle}>
-                <ShoppingBag size={16} />
+              <button
+                onClick={() => navigateTo("orders")}
+                style={viewOrdersBtnStyle}
+                className="confirmation-view-orders-btn"
+                type="button"
+              >
+                <ShoppingBag size={15} style={{ flexShrink: 0 }} />
                 <span>View My Orders</span>
               </button>
-              <button onClick={() => navigateTo("catalog")} style={continueBtnStyle}>
-                <span>Continue Shopping</span>
-                <ArrowRight size={16} />
-              </button>
             </div>
+
+            <button
+              onClick={() => navigateTo("catalog")}
+              style={continueBtnStyle}
+              className="confirmation-continue-btn"
+              type="button"
+            >
+              <span>Continue Shopping</span>
+              <ArrowRight size={15} />
+            </button>
           </div>
         </div>
       </div>
@@ -230,65 +383,66 @@ export default function OrderConfirmationView() {
 
 // Inlined Style Tokens
 const containerStyle = {
-  maxWidth: "1720px",
+  maxWidth: "1600px",
   margin: "0 auto",
-  padding: "40px 48px 80px 48px",
+  padding: "36px 40px 72px 40px",
   width: "100%",
   boxSizing: "border-box"
 };
 
 const bannerCardStyle = {
-  backgroundColor: "#FFFFFF",
-  border: "1px solid #E7E7E2",
-  borderRadius: "24px",
-  padding: "48px 32px",
+  backgroundColor: "transparent",
+  border: "none",
+  borderRadius: "0",
+  padding: "16px 16px 28px 16px",
   textAlign: "center",
   display: "flex",
   flexDirection: "column",
   alignItems: "center",
-  gap: "12px",
-  marginBottom: "36px",
-  boxShadow: "0 10px 30px rgba(22, 163, 74, 0.08)"
+  gap: "10px",
+  marginBottom: "28px",
+  boxShadow: "none"
 };
 
 const iconBadgeStyle = {
-  width: "80px",
-  height: "80px",
+  width: "72px",
+  height: "72px",
   borderRadius: "50%",
   backgroundColor: "#16A34A",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  boxShadow: "0 8px 24px rgba(22, 163, 74, 0.3)"
+  boxShadow: "0 6px 20px rgba(22, 163, 74, 0.25)",
+  marginBottom: "4px"
 };
 
 const titleStyle = {
-  fontSize: "36px",
+  fontSize: "32px",
   fontWeight: "800",
   color: "#1B1F8C",
   margin: 0
 };
 
 const subtitleStyle = {
-  fontSize: "18px",
+  fontSize: "16px",
   fontWeight: "600",
   color: "#16A34A",
   margin: 0
 };
 
 const orderIdTagStyle = {
-  backgroundColor: "#F7F7F2",
+  backgroundColor: "#FAFAF7",
   border: "1px solid #E7E7E2",
-  padding: "8px 20px",
+  padding: "6px 18px",
   borderRadius: "999px",
-  fontSize: "14px",
+  fontSize: "13.5px",
   color: "#14151A",
-  marginTop: "6px"
+  marginTop: "4px"
 };
 
 const layoutGridStyle = {
   display: "grid",
-  gridTemplateColumns: "1.6fr 1fr",
+  gridTemplateColumns: "1.55fr 1fr",
   gap: "32px",
   alignItems: "flex-start"
 };
@@ -301,31 +455,35 @@ const leftColStyle = {
 
 const rightColStyle = {
   position: "sticky",
-  top: "100px"
+  top: "100px",
+  display: "flex",
+  flexDirection: "column",
+  gap: "16px"
 };
 
+// Section cards (Outer border removed)
 const sectionCardStyle = {
-  backgroundColor: "#FFFFFF",
-  border: "1px solid #E7E7E2",
-  borderRadius: "20px",
-  padding: "32px",
-  boxShadow: "0 4px 16px rgba(0,0,0,0.02)"
+  backgroundColor: "transparent",
+  border: "none",
+  borderRadius: "0",
+  padding: "0",
+  boxShadow: "none"
 };
 
 const sectionHeadingStyle = {
-  fontSize: "20px",
+  fontSize: "19px",
   fontWeight: "800",
   color: "#1B1F8C",
-  margin: "0 0 20px 0",
+  margin: "0 0 16px 0",
   display: "flex",
   alignItems: "center",
-  gap: "10px"
+  gap: "8px"
 };
 
 const itemsListStyle = {
   display: "flex",
   flexDirection: "column",
-  gap: "16px"
+  gap: "14px"
 };
 
 const itemCardStyle = {
@@ -335,12 +493,13 @@ const itemCardStyle = {
   borderRadius: "16px",
   backgroundColor: "#FAFAF7",
   border: "1px solid #E7E7E2",
-  alignItems: "center"
+  alignItems: "center",
+  boxShadow: "0 1px 4px rgba(0,0,0,0.02)"
 };
 
 const itemImageStyle = {
-  width: "84px",
-  height: "84px",
+  width: "80px",
+  height: "80px",
   objectFit: "cover",
   borderRadius: "12px",
   backgroundColor: "#FFFFFF",
@@ -355,7 +514,7 @@ const itemMetaStyle = {
 };
 
 const itemNameStyle = {
-  fontSize: "16px",
+  fontSize: "15.5px",
   fontWeight: "700",
   color: "#14151A",
   margin: 0
@@ -409,14 +568,14 @@ const priceStyle = {
 const detailsGridStyle = {
   display: "grid",
   gridTemplateColumns: "1fr 1fr",
-  gap: "20px"
+  gap: "16px"
 };
 
 const addressBoxStyle = {
   backgroundColor: "#FAFAF7",
   border: "1px solid #E7E7E2",
   borderRadius: "14px",
-  padding: "20px"
+  padding: "18px"
 };
 
 const addrTextStyle = {
@@ -429,7 +588,7 @@ const timelineBoxStyle = {
   backgroundColor: "rgba(22, 163, 74, 0.06)",
   border: "1px solid rgba(22, 163, 74, 0.2)",
   borderRadius: "14px",
-  padding: "20px",
+  padding: "18px",
   display: "flex",
   flexDirection: "column",
   gap: "8px"
@@ -442,7 +601,7 @@ const timelineHeaderStyle = {
 };
 
 const estDateValStyle = {
-  fontSize: "20px",
+  fontSize: "18px",
   fontWeight: "800",
   color: "#16A34A"
 };
@@ -452,19 +611,20 @@ const estNoteStyle = {
   color: "#6B6B75"
 };
 
+// Payment Summary Card (Border preserved)
 const summaryCardStyle = {
   backgroundColor: "#FFFFFF",
   border: "1px solid #E7E7E2",
   borderRadius: "20px",
-  padding: "32px",
-  boxShadow: "0 6px 20px rgba(0,0,0,0.03)",
+  padding: "26px",
+  boxShadow: "0 4px 16px rgba(0,0,0,0.03)",
   display: "flex",
   flexDirection: "column",
-  gap: "20px"
+  gap: "16px"
 };
 
 const summaryTitleStyle = {
-  fontSize: "20px",
+  fontSize: "19px",
   fontWeight: "800",
   color: "#1B1F8C",
   margin: 0
@@ -474,10 +634,10 @@ const paymentMetaBoxStyle = {
   backgroundColor: "#FAFAF7",
   border: "1px solid #E7E7E2",
   borderRadius: "12px",
-  padding: "16px",
+  padding: "14px 16px",
   display: "flex",
   flexDirection: "column",
-  gap: "10px"
+  gap: "8px"
 };
 
 const metaRowStyle = {
@@ -511,13 +671,13 @@ const summaryDividerStyle = {
 const rowsGroupStyle = {
   display: "flex",
   flexDirection: "column",
-  gap: "10px"
+  gap: "9px"
 };
 
 const rowItemStyle = {
   display: "flex",
   justifyContent: "space-between",
-  fontSize: "14px"
+  fontSize: "13.5px"
 };
 
 const rowLabelStyle = {
@@ -536,13 +696,13 @@ const totalRowStyle = {
 };
 
 const totalLabelStyle = {
-  fontSize: "18px",
+  fontSize: "17px",
   fontWeight: "800",
   color: "#14151A"
 };
 
 const totalValStyle = {
-  fontSize: "24px",
+  fontSize: "22px",
   fontWeight: "800",
   color: "#1B1F8C"
 };
@@ -550,40 +710,61 @@ const totalValStyle = {
 const actionButtonsGroupStyle = {
   display: "flex",
   flexDirection: "column",
-  gap: "12px",
-  marginTop: "4px"
+  gap: "10px",
+  width: "100%",
+  boxSizing: "border-box"
+};
+
+const primaryActionRowStyle = {
+  display: "flex",
+  alignItems: "center",
+  gap: "10px",
+  width: "100%"
+};
+
+const downloadColStyle = {
+  flex: "0 1 42%",
+  minWidth: "0"
 };
 
 const viewOrdersBtnStyle = {
-  width: "100%",
+  flex: "1 1 58%",
+  minWidth: "0",
+  height: "46px",
   backgroundColor: "#1B1F8C",
   color: "#FFFFFF",
   border: "none",
   borderRadius: "999px",
-  padding: "14px",
-  fontSize: "15px",
+  padding: "0 14px",
+  fontSize: "13.5px",
   fontWeight: "700",
   cursor: "pointer",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  gap: "8px"
+  gap: "6px",
+  whiteSpace: "nowrap",
+  boxSizing: "border-box",
+  transition: "all 0.18s ease"
 };
 
 const continueBtnStyle = {
   width: "100%",
+  height: "46px",
   backgroundColor: "#FAFAF7",
   color: "#1B1F8C",
-  border: "1px solid #1B1F8C",
+  border: "1.5px solid #1B1F8C",
   borderRadius: "999px",
-  padding: "14px",
-  fontSize: "15px",
+  padding: "0 16px",
+  fontSize: "14px",
   fontWeight: "700",
   cursor: "pointer",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  gap: "8px"
+  gap: "6px",
+  boxSizing: "border-box",
+  transition: "all 0.18s ease"
 };
 
 const emptyContainerStyle = {

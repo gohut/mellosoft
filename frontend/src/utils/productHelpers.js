@@ -924,3 +924,42 @@ export function filterProductsByCategory(products, categoryKey) {
 export function getCategoryCount(products, categoryKey) {
   return getProductsByCategory(products, categoryKey).length;
 }
+
+/**
+ * Calculate dynamic average rating and review count from canonical customer reviews.
+ * @param {string|Object} productOrId - Product ID or Product object
+ * @param {Array} allReviews - Canonical reviews array
+ * @returns {{ averageRating: number, reviewCount: number, hasReviews: boolean }}
+ */
+export function getProductReviewStats(productOrId, allReviews = []) {
+  if (!productOrId) {
+    return { averageRating: 4.8, reviewCount: 0, hasReviews: false };
+  }
+
+  const productId = typeof productOrId === "object" ? (productOrId.id || productOrId.slug || productOrId.Product_Id) : productOrId;
+  const productFallbackReviews = typeof productOrId === "object" && Array.isArray(productOrId.reviews) ? productOrId.reviews : [];
+
+  const normId = String(productId || "").toLowerCase().trim();
+  const prodReviews = (allReviews || []).filter((r) => {
+    const rProdId = String(r.productId || r.product_id || r.product || "").toLowerCase().trim();
+    const isMatch = rProdId === normId || (rProdId && normId && (rProdId.includes(normId) || normId.includes(rProdId)));
+    const isApproved = (r.status || "Approved").toLowerCase() === "approved";
+    return isMatch && isApproved;
+  });
+
+  const effectiveList = prodReviews.length > 0 ? prodReviews : productFallbackReviews;
+
+  if (effectiveList.length === 0) {
+    return { averageRating: 4.8, reviewCount: 0, hasReviews: false };
+  }
+
+  const sum = effectiveList.reduce((acc, r) => acc + (Number(r.rating) || 5), 0);
+  const avg = parseFloat((sum / effectiveList.length).toFixed(1));
+
+  return {
+    averageRating: isNaN(avg) ? 4.8 : avg,
+    reviewCount: effectiveList.length,
+    hasReviews: true,
+  };
+}
+

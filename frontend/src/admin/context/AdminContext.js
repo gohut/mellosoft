@@ -11,6 +11,7 @@ import { buildInitialTrackingHistory } from "../../utils/trackingHelpers";
 import { getProductPrimaryImage, getDeletedProductIds, saveDeletedProductId, isProductDeleted, isSameProduct, ensureRequiredCategories, getMainCategoryProductCount, getSubcategoryProductCount } from "../../utils/productHelpers";
 import { migrateProductsBase64, migrateReviewsBase64 } from "../../utils/imageStorage";
 import { getSavedSettings, saveSettingsToStorage, normalizeSettings, SETTINGS_UPDATED_EVENT } from "../../utils/settingsHelpers";
+import { normalizeCustomerId } from "../../utils/customerHelpers";
 
 const AdminContext = createContext();
 
@@ -406,7 +407,7 @@ export function AdminProvider({ children }) {
         const saved = localStorage.getItem(ORDERS_STORAGE_KEY);
         if (saved) {
           const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) {
+          if (Array.isArray(parsed) && parsed.length > 0) {
             return parsed;
           }
         }
@@ -414,7 +415,7 @@ export function AdminProvider({ children }) {
         console.error("Failed to load orders from localStorage:", e);
       }
     }
-    return [];
+    return MOCK_ORDERS;
   });
 
   // Hydrate customers from localStorage
@@ -424,15 +425,35 @@ export function AdminProvider({ children }) {
         const saved = localStorage.getItem(CUSTOMERS_STORAGE_KEY);
         if (saved) {
           const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) {
-            return parsed;
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const mergedMap = new Map();
+            (MOCK_CUSTOMERS || []).forEach((mc) => {
+              const canonicalId = normalizeCustomerId(mc.customerId || mc.id);
+              mergedMap.set(mc.email.toLowerCase(), { ...mc, id: canonicalId, customerId: canonicalId });
+            });
+            parsed.forEach((c) => {
+              if (!c || !c.email) return;
+              const key = c.email.toLowerCase();
+              const canonicalId = normalizeCustomerId(c.customerId || c.id);
+              const existing = mergedMap.get(key);
+              mergedMap.set(key, {
+                ...existing,
+                ...c,
+                id: canonicalId,
+                customerId: canonicalId,
+                savedAddresses: (c.savedAddresses && c.savedAddresses.length > 0)
+                  ? c.savedAddresses
+                  : (existing?.savedAddresses || []),
+              });
+            });
+            return Array.from(mergedMap.values());
           }
         }
       } catch (e) {
         console.error("Failed to load customers from localStorage:", e);
       }
     }
-    return [];
+    return MOCK_CUSTOMERS;
   });
 
   // Hydrate wishlists from localStorage
@@ -845,7 +866,28 @@ export function AdminProvider({ children }) {
         if (savedCustomers) {
           const parsed = JSON.parse(savedCustomers);
           if (Array.isArray(parsed)) {
-            setCustomers((prev) => (JSON.stringify(prev) === JSON.stringify(parsed) ? prev : parsed));
+            const mergedMap = new Map();
+            (MOCK_CUSTOMERS || []).forEach((mc) => {
+              const canonicalId = normalizeCustomerId(mc.customerId || mc.id);
+              mergedMap.set(mc.email.toLowerCase(), { ...mc, id: canonicalId, customerId: canonicalId });
+            });
+            parsed.forEach((c) => {
+              if (!c || !c.email) return;
+              const key = c.email.toLowerCase();
+              const canonicalId = normalizeCustomerId(c.customerId || c.id);
+              const existing = mergedMap.get(key);
+              mergedMap.set(key, {
+                ...existing,
+                ...c,
+                id: canonicalId,
+                customerId: canonicalId,
+                savedAddresses: (c.savedAddresses && c.savedAddresses.length > 0)
+                  ? c.savedAddresses
+                  : (existing?.savedAddresses || []),
+              });
+            });
+            const nextCustList = Array.from(mergedMap.values());
+            setCustomers((prev) => (JSON.stringify(prev) === JSON.stringify(nextCustList) ? prev : nextCustList));
           }
         }
       } catch (e) {

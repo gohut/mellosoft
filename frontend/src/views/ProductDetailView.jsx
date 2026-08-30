@@ -10,13 +10,16 @@ import ProductCard from "../components/ProductCard";
 import { formatPrice, calculateDiscountedPrice } from "../utils/currency";
 import { getVariantForSelection } from "../utils/variantHelpers";
 import { useRouter, useParams } from "next/navigation";
-import { getProductByIdentifier, getRelatedProducts, getMattressRecommendations, getProductPrimaryImage, getProductGalleryImages, isBedFrameProduct, isAccessoryProduct } from "../utils/productHelpers";
+import { getProductByIdentifier, getRelatedProducts, getMattressRecommendations, getProductPrimaryImage, getProductGalleryImages, getProductCategoryLabel, isBedFrameProduct, isAccessoryProduct } from "../utils/productHelpers";
 import { getResolvedImageUrlSync } from "../utils/imageStorage";
 import MattressSelector from "../components/MattressSelector";
+import AuthModal from "../components/AuthModal";
+import { useCustomerAuth } from "../context/CustomerAuthContext";
 
 export default function ProductDetailView({ productId: initialProductId }) {
   const router = useRouter();
   const params = useParams();
+  const { isAuthenticated, setIntendedView } = useCustomerAuth();
   const { 
     products,
     selectedProductId, 
@@ -28,6 +31,8 @@ export default function ProductDetailView({ productId: initialProductId }) {
     cart,
     setCheckoutItems,
     setSearchQuery,
+    authModal,
+    setAuthModal,
     setSelectedProductId,
     setView,
     settings
@@ -105,7 +110,11 @@ export default function ProductDetailView({ productId: initialProductId }) {
   const discountPercent = useMemo(() => {
     if (!product) return 0;
     const d = product?.discountPercent ?? product?.Discount_Percentage;
-    return typeof d === "number" ? d : 10;
+    return typeof d === "number" ? d : 0;
+  }, [product]);
+
+  const categoryLabel = useMemo(() => {
+    return getProductCategoryLabel(product);
   }, [product]);
 
   const actualPriceForSize = useMemo(() => {
@@ -139,10 +148,28 @@ export default function ProductDetailView({ productId: initialProductId }) {
 
   const isVariantOutOfStock = useMemo(() => {
     if (selectedVariant) {
-      return selectedVariant.Stock === 0 || selectedVariant.Status === "Out of Stock";
+      const stockNum = typeof selectedVariant.Stock === "number" ? selectedVariant.Stock : (typeof selectedVariant.stock === "number" ? selectedVariant.stock : (parseInt(selectedVariant.Stock ?? selectedVariant.stock, 10)));
+      if (!isNaN(stockNum) && stockNum <= 0) return true;
+      const st = (selectedVariant.Status || selectedVariant.status || "").toLowerCase().trim();
+      if (st === "out of stock" || st === "outofstock" || st === "out_of_stock") return true;
+      return false;
+    }
+    if (product?.Status === "Out of Stock" || product?.status === "Out of Stock") return true;
+    if (product?.Stock === 0 || product?.stock === 0) return true;
+    return false;
+  }, [selectedVariant, product]);
+
+  const isVariantLowStock = useMemo(() => {
+    if (isVariantOutOfStock) return false;
+    if (selectedVariant) {
+      const stockNum = typeof selectedVariant.Stock === "number" ? selectedVariant.Stock : (typeof selectedVariant.stock === "number" ? selectedVariant.stock : (parseInt(selectedVariant.Stock ?? selectedVariant.stock, 10)));
+      const threshold = typeof selectedVariant.Threshold === "number" ? selectedVariant.Threshold : (parseInt(selectedVariant.Threshold ?? selectedVariant.threshold, 10) || 10);
+      if (!isNaN(stockNum) && stockNum > 0 && stockNum <= threshold) return true;
+      const st = (selectedVariant.Status || selectedVariant.status || "").toLowerCase().trim();
+      if (st === "low stock" || st === "lowstock") return true;
     }
     return false;
-  }, [selectedVariant]);
+  }, [selectedVariant, isVariantOutOfStock]);
 
   const [reviewsVersion, setReviewsVersion] = useState(0);
 
@@ -248,31 +275,54 @@ export default function ProductDetailView({ productId: initialProductId }) {
 
   const handleAddToCart = () => {
     if (!product || isVariantOutOfStock) return;
+    if (!isAuthenticated) {
+      if (typeof window !== "undefined") {
+        setIntendedView(window.location.pathname);
+      }
+      setAuthModal("login");
+      return;
+    }
     addToCart(product, selectedFirmness, selectedSize, quantity);
   };
 
   const goBackToCatalog = () => {
-    navigateTo("catalog");
+    // Always use browser history first — this correctly handles:
+    // /mattresses → product → Back → /mattresses
+    // / (home) → product → Back → /
+    // /wishlist → product → Back → /wishlist
+    // /search → product → Back → /search
+    // Product A → Product B (You May Also Like) → Back → Product A
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+      return;
+    }
+    // Fallback for direct URL entry (no history): route to canonical parent category
+    if (isBedFrame) {
+      router.push("/bed-frames");
+    } else if (isAccessory) {
+      router.push("/accessories");
+    } else {
+      router.push("/mattresses");
+    }
   };
 
   const handleBuyNow = () => {
     if (!product) return;
-    if (!selectedSize || !selectedFirmness) {
-      return;
-    }
+    const firmnessVal = selectedFirmness || (product.availableFirmness || product.firmnessOptions)?.[0] || "Standard";
+    const sizeVal = selectedSize || (product.availableSizes || product.sizeOptions)?.[0] || "Standard";
     if (isVariantOutOfStock) return;
 
     // Build a single checkout item from the selected variant
     const checkoutItem = {
-      cartItemId: `buynow-${product.id}-${selectedFirmness}-${selectedSize}`,
+      cartItemId: `buynow-${product.id}-${firmnessVal}-${sizeVal}`,
       productId: product.id,
       id: product.id,
       productName: product.name,
       name: product.name,
       category: product.category || "mattress",
-      size: selectedSize,
-      firmness: selectedFirmness,
-      sku: selectedVariant?.SKU || `MEL-${(selectedSize || "STD").toUpperCase()}-${(selectedFirmness || "STD").toUpperCase()}`,
+      size: sizeVal,
+      firmness: firmnessVal,
+      sku: selectedVariant?.SKU || `MEL-${(sizeVal || "STD").toUpperCase()}-${(firmnessVal || "STD").toUpperCase()}`,
       quantity: quantity,
       qty: quantity,
       actualPrice: actualPriceForSize,
@@ -285,8 +335,19 @@ export default function ProductDetailView({ productId: initialProductId }) {
     if (typeof window !== "undefined") {
       try {
         sessionStorage.setItem("mellosoft_checkout_items", JSON.stringify([checkoutItem]));
-      } catch {}
+      } catch (e) {
+        console.error("Failed to save buy now item to sessionStorage:", e);
+      }
     }
+
+    if (!isAuthenticated) {
+      if (typeof window !== "undefined") {
+        setIntendedView("checkout");
+      }
+      setAuthModal("login");
+      return;
+    }
+
     navigateTo("checkout");
   };
 
@@ -446,6 +507,13 @@ export default function ProductDetailView({ productId: initialProductId }) {
                 <button
                   onClick={(event) => {
                     event.stopPropagation();
+                    if (!isAuthenticated) {
+                      if (typeof window !== "undefined") {
+                        setIntendedView(window.location.pathname);
+                      }
+                      setAuthModal("login");
+                      return;
+                    }
                     toggleWishlist(product.id);
                   }}
                   style={floatingIconBtnStyle}
@@ -473,16 +541,20 @@ export default function ProductDetailView({ productId: initialProductId }) {
           
           {/* Thumbnail strip - ONLY rendered when product has > 1 valid distinct image */}
           {galleryImages.length > 1 && (
-            <div style={thumbnailStripStyle} className="desktop-thumbnails">
+            <div style={thumbnailStripStyle} className="product-thumbnails">
               {galleryImages.map((img, index) => (
-                <div 
+                <button 
                   key={index} 
+                  type="button"
                   onClick={() => setActiveImgIndex(index)}
+                  className={`product-thumbnail ${activeImgIndex === index ? "active" : ""}`}
                   style={{
                     ...thumbnailWrapperStyle,
                     borderColor: activeImgIndex === index ? "#1B1F8C" : "#E7E7E2",
+                    borderWidth: activeImgIndex === index ? "2px" : "1.5px",
                     transform: activeImgIndex === index ? "scale(1.02)" : "scale(1)"
                   }}
+                  aria-label={`View image ${index + 1}`}
                 >
                   <img 
                     src={img} 
@@ -492,7 +564,7 @@ export default function ProductDetailView({ productId: initialProductId }) {
                       e.target.src = "/images/mattresses/foam/haven.jpg";
                     }}
                   />
-                </div>
+                </button>
               ))}
             </div>
           )}
@@ -501,7 +573,59 @@ export default function ProductDetailView({ productId: initialProductId }) {
         {/* Right Column: Order Configuration */}
         <div style={configColStyle}>
           
-          <span style={brandLabelStyle}>Mellosoft Premium Series</span>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "4px" }}>
+            <span style={brandLabelStyle}>Mellosoft Premium Series</span>
+            {/* Single Product Badge */}
+            {(product.badge || categoryLabel) && (
+              <span
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 800,
+                  color: "#FFFFFF",
+                  backgroundColor: product.badgeColor || (String(product.badge || categoryLabel).toUpperCase() === "NEW" ? "#16A34A" : "#DC2626"),
+                  padding: "2px 10px",
+                  borderRadius: "999px",
+                  letterSpacing: "0.03em",
+                  textTransform: "uppercase",
+                  display: "inline-block",
+                }}
+              >
+                {product.badge || categoryLabel}
+              </span>
+            )}
+            {/* Live Real-time Stock Alert Badge: ONLY show when Out of Stock or Low Stock */}
+            {isVariantOutOfStock ? (
+              <span style={{
+                fontSize: "11.5px",
+                fontWeight: 700,
+                color: "#DC2626",
+                backgroundColor: "#FEE2E2",
+                border: "1px solid #FECACA",
+                padding: "2px 10px",
+                borderRadius: "999px",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+              }}>
+                ● Out of Stock
+              </span>
+            ) : isVariantLowStock ? (
+              <span style={{
+                fontSize: "11.5px",
+                fontWeight: 700,
+                color: "#D97706",
+                backgroundColor: "#FEF3C7",
+                border: "1px solid #FDE68A",
+                padding: "2px 10px",
+                borderRadius: "999px",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+              }}>
+                ● Low Stock
+              </span>
+            ) : null}
+          </div>
           <h2 style={titleStyle}>{product.name}</h2>
           {product.tagline && (
             <p style={{ fontSize: "15px", fontStyle: "italic", color: "#1B1F8C", marginTop: "4px" }}>
@@ -532,10 +656,15 @@ export default function ProductDetailView({ productId: initialProductId }) {
           {product.thicknessOptions ? (
             <MattressSelector
               product={product}
+              discountPercent={discountPercent}
               onSelectionChange={(selection) => {
-                if (selection.price) {
-                  setSelectedSize(selection.dimension);
-                  setSelectedFirmness(selection.thickness);
+                if (selection) {
+                  if (selection.dimension) {
+                    setSelectedSize(selection.dimension);
+                  }
+                  if (selection.thickness || selection.variantName) {
+                    setSelectedFirmness(selection.thickness || selection.variantName);
+                  }
                 }
               }}
               onEnquire={(data) => {
@@ -586,8 +715,11 @@ export default function ProductDetailView({ productId: initialProductId }) {
                   disabled={isVariantOutOfStock}
                   style={{
                     ...addCartBtnStyle,
-                    opacity: isVariantOutOfStock ? 0.5 : 1,
+                    opacity: isVariantOutOfStock ? 0.6 : 1,
                     cursor: isVariantOutOfStock ? "not-allowed" : "pointer",
+                    backgroundColor: isVariantOutOfStock ? "#F1F5F9" : "#FFFFFF",
+                    borderColor: isVariantOutOfStock ? "#CBD5E1" : "#1B1F8C",
+                    color: isVariantOutOfStock ? "#94A3B8" : "#1B1F8C",
                   }}
                 >
                   {isVariantOutOfStock ? "Out of Stock" : "Add to Cart"}
@@ -598,11 +730,13 @@ export default function ProductDetailView({ productId: initialProductId }) {
                   disabled={isVariantOutOfStock}
                   style={{
                     ...buyNowBtnStyle,
-                    opacity: isVariantOutOfStock ? 0.5 : 1,
+                    opacity: isVariantOutOfStock ? 0.6 : 1,
                     cursor: isVariantOutOfStock ? "not-allowed" : "pointer",
+                    backgroundColor: isVariantOutOfStock ? "#CBD5E1" : "#16A34A",
+                    color: isVariantOutOfStock ? "#64748B" : "#FFFFFF",
                   }}
                 >
-                  Buy Now
+                  {isVariantOutOfStock ? "Out of Stock" : "Buy Now"}
                 </button>
               </div>
             ) : (
@@ -655,38 +789,8 @@ export default function ProductDetailView({ productId: initialProductId }) {
         </div>
       </div>
 
-      {/* ================= RECOMMENDED CAROUSEL ================= */}
-      <section style={carouselSectionStyle}>
-        <h3 style={carouselHeadingStyle}>You may also like</h3>
-        <div style={recommendationsGridStyle} className="recommendations-row">
-          {recommendations.map((rec) => (
-            <div key={rec.id || rec.slug || rec.Product_Id} style={{ flex: "1 1 280px", height: "100%" }}>
-              <ProductCard
-                product={rec}
-                showContactForPrice={false}
-                onClick={(recommendedProduct) => {
-                  const targetId = recommendedProduct.slug || recommendedProduct.id || recommendedProduct.Product_Id;
-                  if (!targetId) return;
-                  setSelectedProductId(targetId);
-                  setView("detail");
-                  const targetUrl = `/product/${encodeURIComponent(String(targetId).trim())}`;
-                  if (router && typeof router.push === "function") {
-                    router.push(targetUrl);
-                  } else if (typeof window !== "undefined") {
-                    window.location.href = targetUrl;
-                  }
-                  if (typeof window !== "undefined") {
-                    window.scrollTo({ top: 0, behavior: "smooth" });
-                  }
-                }}
-              />
-            </div>
-          ))}
-        </div>
-      </section>
-
       {/* Tabbed Info & Reviews Section */}
-      <section style={tabbedSectionStyle}>
+      <section style={tabbedSectionStyle} className="detail-tabbed-section">
         
         {/* Tab Header Selector */}
         <div style={tabHeaderStyle} className="detail-tab-header">
@@ -701,12 +805,6 @@ export default function ProductDetailView({ productId: initialProductId }) {
             style={{ ...tabBtnStyle, borderBottomColor: activeTab === "reviews" ? "#1B1F8C" : "transparent", color: activeTab === "reviews" ? "#1B1F8C" : "#6B6B75" }}
           >
             Customer Reviews ({ratingStats.total})
-          </button>
-          <button 
-            onClick={() => setActiveTab("discussion")}
-            style={{ ...tabBtnStyle, borderBottomColor: activeTab === "discussion" ? "#1B1F8C" : "transparent", color: activeTab === "discussion" ? "#1B1F8C" : "#6B6B75" }}
-          >
-            Q&A
           </button>
         </div>
 
@@ -729,25 +827,6 @@ export default function ProductDetailView({ productId: initialProductId }) {
               <p style={{ fontSize: "14.5px", color: "#6B6B75", marginTop: "16px" }}>
                 Specs: {product.specs}
               </p>
-            </div>
-          )}
-
-          {activeTab === "discussion" && (
-            <div style={{ padding: "10px 0" }}>
-              <h4 style={panelHeaderStyle}>Product Questions & Answers</h4>
-              <p style={{ fontSize: "14.5px", color: "#6B6B75" }}>
-                Have questions about the {product.name}? Ask our community or sleeping engineers.
-              </p>
-              
-              <div style={mockQuestionStyle}>
-                <h5 style={{ fontWeight: "700", color: "#1B1F8C" }}>Q: How long does the mattress take to expand fully?</h5>
-                <p style={{ color: "#6B6B75", marginTop: "4px" }}>A: It expands to 95% of its height within 2 hours. However, we recommend letting it breath for 24 hours to reach full firmness and release any minor compressed packaging scent.</p>
-              </div>
-
-              <div style={mockQuestionStyle}>
-                <h5 style={{ fontWeight: "700", color: "#1B1F8C" }}>Q: Can I use this mattress on an adjustable bed frame?</h5>
-                <p style={{ color: "#6B6B75", marginTop: "4px" }}>A: Yes! All Mellosoft mattress designs are completely compatible with adjustable bases, slatted platforms, and traditional box springs.</p>
-              </div>
             </div>
           )}
 
@@ -864,6 +943,38 @@ export default function ProductDetailView({ productId: initialProductId }) {
         </div>
       </section>
 
+      {/* ================= RECOMMENDED CAROUSEL (Below Product Details & Reviews) ================= */}
+      {recommendations && recommendations.length > 0 && (
+        <section style={carouselSectionStyle} className="recommendations-section">
+          <h3 style={carouselHeadingStyle} className="recommendations-heading">You may also like</h3>
+          <div style={recommendationsGridStyle} className="recommendations-row">
+            {recommendations.map((rec) => (
+              <div key={rec.id || rec.slug || rec.Product_Id} style={{ flex: "1 1 280px", height: "100%" }}>
+                <ProductCard
+                  product={rec}
+                  showContactForPrice={false}
+                  onClick={(recommendedProduct) => {
+                    const targetId = recommendedProduct.slug || recommendedProduct.id || recommendedProduct.Product_Id;
+                    if (!targetId) return;
+                    setSelectedProductId(targetId);
+                    setView("detail");
+                    const targetUrl = `/product/${encodeURIComponent(String(targetId).trim())}`;
+                    if (router && typeof router.push === "function") {
+                      router.push(targetUrl);
+                    } else if (typeof window !== "undefined") {
+                      window.location.href = targetUrl;
+                    }
+                    if (typeof window !== "undefined") {
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {viewerOpen && (
         <div
           style={viewerOverlayStyle}
@@ -966,13 +1077,15 @@ export default function ProductDetailView({ productId: initialProductId }) {
         </div>
       )}
 
+      {authModal && <AuthModal type={authModal} />}
+
       <style>{`
         @media (max-width: 767px) {
           .detail-breadcrumb {
             display: none !important;
           }
           .detail-page {
-            padding: 0 16px 56px !important;
+            padding: 0 16px 40px !important;
             max-width: none !important;
             overflow-x: hidden !important;
             background: #f7f7f2 !important;
@@ -981,8 +1094,8 @@ export default function ProductDetailView({ productId: initialProductId }) {
             display: grid !important;
             grid-template-columns: 1fr !important;
             width: auto !important;
-            gap: 22px !important;
-            margin: 0 -16px 28px !important;
+            gap: 20px !important;
+            margin: 0 -16px 20px !important;
             overflow: hidden !important;
           }
           .detail-main-grid > * {
@@ -995,10 +1108,13 @@ export default function ProductDetailView({ productId: initialProductId }) {
           .detail-main-image {
             border-radius: 0 !important;
             border: none !important;
-            height: 72vh !important;
-            min-height: 480px !important;
+            width: 100% !important;
+            height: 50vh !important;
+            min-height: 280px !important;
+            max-height: 440px !important;
             padding-top: 0 !important;
-            background: #f7f7f2 !important;
+            background: #FAFAF7 !important;
+            position: relative !important;
           }
           .detail-floating-actions {
             display: flex !important;
@@ -1007,24 +1123,68 @@ export default function ProductDetailView({ productId: initialProductId }) {
             padding: calc(env(safe-area-inset-top) + 14px) 14px 0 !important;
           }
           .detail-gallery-img {
+            width: 100% !important;
             height: 100% !important;
             object-fit: cover !important;
-            object-position: center bottom !important;
-            transform: scale(1.52) !important;
-            transform-origin: center bottom !important;
+            object-position: center top !important;
+            transform: none !important;
           }
-          .desktop-thumbnails {
+          .product-thumbnails {
+            display: flex !important;
+            gap: 8px !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+            overflow-x: auto !important;
+            overflow-y: hidden !important;
+            padding: 10px 16px 2px !important;
+            margin: 0 !important;
+            -webkit-overflow-scrolling: touch !important;
+            scrollbar-width: none !important;
+          }
+          .product-thumbnails::-webkit-scrollbar {
             display: none !important;
+          }
+          .product-thumbnail {
+            flex: 0 0 64px !important;
+            width: 64px !important;
+            height: 64px !important;
+            min-width: 64px !important;
+            border-radius: 10px !important;
+            border-width: 2px !important;
+            padding: 0 !important;
+            cursor: pointer !important;
+          }
+          .product-thumbnail img {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: cover !important;
+            border-radius: 8px !important;
           }
           .detail-page h2 {
             font-size: 24px !important;
             line-height: 1.16 !important;
             margin-bottom: 8px !important;
           }
+          .recommendations-section {
+            margin-top: 0 !important;
+            padding-top: 20px !important;
+            border-top: 1px solid #E7E7E2 !important;
+          }
+          .recommendations-heading {
+            font-size: 18px !important;
+            text-align: left !important;
+            margin-bottom: 14px !important;
+          }
+          .detail-tabbed-section {
+            margin-top: 24px !important;
+            padding-top: 20px !important;
+            border-top: 1px solid #E7E7E2 !important;
+          }
           .detail-page h3 {
             font-size: 18px !important;
             text-align: left !important;
-            margin-bottom: 18px !important;
+            margin-bottom: 14px !important;
           }
           .recommendations-row {
             overflow-x: auto !important;
@@ -1175,7 +1335,7 @@ const mainLayoutGridStyle = {
   gridTemplateColumns: "1.1fr 1fr",
   gap: "48px",
   alignItems: "flex-start",
-  marginBottom: "60px"
+  marginBottom: "36px"
 };
 
 // Gallery
@@ -1255,24 +1415,30 @@ const floatingCartBadgeStyle = {
 
 const thumbnailStripStyle = {
   display: "flex",
-  gap: "12px"
+  gap: "12px",
+  flexWrap: "wrap",
+  marginTop: "4px"
 };
 
 const thumbnailWrapperStyle = {
   width: "80px",
   height: "80px",
+  flex: "0 0 80px",
   borderRadius: "12px",
-  border: "2px solid",
+  border: "2px solid #E7E7E2",
   cursor: "pointer",
   overflow: "hidden",
   backgroundColor: "#FFFFFF",
-  transition: "all 0.2s cubic-bezier(0.16, 1, 0.3, 1)"
+  padding: 0,
+  transition: "all 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
+  boxSizing: "border-box"
 };
 
 const thumbnailImageStyle = {
   width: "100%",
   height: "100%",
-  objectFit: "cover"
+  objectFit: "cover",
+  display: "block"
 };
 
 // Configuration Column (Right)
@@ -1339,8 +1505,9 @@ const purchaseBlockStyle = {
   display: "flex",
   flexDirection: "column",
   gap: "12px",
-  padding: "2px 0 20px",
-  marginBottom: "20px"
+  marginTop: "14px",
+  padding: "0 0 14px",
+  marginBottom: "14px"
 };
 
 const qtyFieldStyle = {
@@ -1392,7 +1559,7 @@ const buyNowBtnStyle = {
 const deliveryBoxStyle = {
   display: "flex",
   flexDirection: "column",
-  gap: "12px"
+  gap: "10px"
 };
 
 const deliveryItemStyle = {
@@ -1409,9 +1576,9 @@ const deliveryTextStyle = {
 
 // Tabs section
 const tabbedSectionStyle = {
-  marginTop: "20px",
+  marginTop: "36px",
   borderTop: "1px solid #E7E7E2",
-  paddingTop: "40px"
+  paddingTop: "32px"
 };
 
 const tabHeaderStyle = {
@@ -1614,16 +1781,16 @@ const breakdownValueStyle = {
 
 // Carousel section
 const carouselSectionStyle = {
-  marginTop: "60px",
+  marginTop: "0",
   borderTop: "1px solid #E7E7E2",
-  paddingTop: "60px"
+  paddingTop: "32px"
 };
 
 const carouselHeadingStyle = {
   fontSize: "22px",
   fontWeight: "800",
   color: "#1B1F8C",
-  marginBottom: "30px",
+  marginBottom: "20px",
   textAlign: "center"
 };
 

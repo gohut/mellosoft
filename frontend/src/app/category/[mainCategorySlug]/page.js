@@ -6,6 +6,7 @@ import Footer from "../../../components/Footer";
 import AuthModal from "../../../components/AuthModal";
 import EmptyState from "../../../components/EmptyState";
 import ProductCard from "../../../components/ProductCard";
+import MobileSubcategoryDropdown from "../../../components/MobileSubcategoryDropdown";
 import { useStore } from "../../../context/StoreContext";
 import { isProductInCategory, getCategoryCount } from "../../../utils/productHelpers";
 import { ensureProductPricing } from "../../../utils/pricingEngine";
@@ -94,29 +95,44 @@ export default function GenericCategoryPage({ params }) {
       <main style={{ flexGrow: 1, display: "flex", flexDirection: "column", width: "100%", backgroundColor: "#FFFFFF" }}>
         <div style={{ maxWidth: "1280px", margin: "0 auto", padding: "24px 24px 80px 24px", width: "100%" }}>
 
-          {/* Category Pills */}
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", marginBottom: "24px" }}>
-            <button
-              type="button"
-              onClick={() => setSelectedCategory("all")}
-              style={{ ...pillStyle, backgroundColor: selectedCategory === "all" ? "#1B1F8C" : "#FFFFFF", color: selectedCategory === "all" ? "#FFFFFF" : "#14151A", borderColor: selectedCategory === "all" ? "#1B1F8C" : "#E7E7E2" }}
-            >
-              All {mainCategory.name} ({categoryCounts.all})
-            </button>
-            {subcategoryList.map((cat) => {
-              const slug = cat.slug || cat.id;
-              const isSelected = selectedCategory === slug;
-              return (
-                <button
-                  key={slug}
-                  type="button"
-                  onClick={() => setSelectedCategory(slug)}
-                  style={{ ...pillStyle, backgroundColor: isSelected ? "#1B1F8C" : "#FFFFFF", color: isSelected ? "#FFFFFF" : "#14151A", borderColor: isSelected ? "#1B1F8C" : "#E7E7E2" }}
-                >
-                  {cat.name} ({categoryCounts[slug] || 0})
-                </button>
-              );
-            })}
+          {/* Category Pills & Mobile Dropdown */}
+          <div style={{ marginBottom: "24px" }} className="generic-category-filter-bar">
+            {/* Desktop Category Pills */}
+            <div className="desktop-category-pills" style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+              <button
+                type="button"
+                onClick={() => setSelectedCategory("all")}
+                style={{ ...pillStyle, backgroundColor: selectedCategory === "all" ? "#1B1F8C" : "#FFFFFF", color: selectedCategory === "all" ? "#FFFFFF" : "#14151A", borderColor: selectedCategory === "all" ? "#1B1F8C" : "#E7E7E2" }}
+              >
+                All {mainCategory.name} ({categoryCounts.all})
+              </button>
+              {subcategoryList.map((cat) => {
+                const slug = cat.slug || cat.id;
+                const isSelected = selectedCategory === slug;
+                return (
+                  <button
+                    key={slug}
+                    type="button"
+                    onClick={() => setSelectedCategory(slug)}
+                    style={{ ...pillStyle, backgroundColor: isSelected ? "#1B1F8C" : "#FFFFFF", color: isSelected ? "#FFFFFF" : "#14151A", borderColor: isSelected ? "#1B1F8C" : "#E7E7E2" }}
+                  >
+                    {cat.name} ({categoryCounts[slug] || 0})
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Mobile Category Row: Dropdown */}
+            <div className="mobile-category-row" style={{ display: "none", alignItems: "center", width: "100%" }}>
+              <MobileSubcategoryDropdown
+                items={subcategoryList}
+                categoryCounts={categoryCounts}
+                selectedValue={selectedCategory}
+                onChange={setSelectedCategory}
+                allLabel={`All ${mainCategory.name}`}
+                allCount={categoryCounts.all}
+              />
+            </div>
           </div>
 
           {/* Results Count */}
@@ -148,6 +164,24 @@ export default function GenericCategoryPage({ params }) {
       </main>
       <Footer />
       {authModal && <AuthModal type={authModal} />}
+      <style>{`
+        @media (max-width: 768px) {
+          .desktop-category-pills {
+            display: none !important;
+          }
+          .mobile-category-row {
+            display: flex !important;
+          }
+        }
+        @media (min-width: 769px) {
+          .desktop-category-pills {
+            display: flex !important;
+          }
+          .mobile-category-row {
+            display: none !important;
+          }
+        }
+      `}</style>
     </>
   );
 }

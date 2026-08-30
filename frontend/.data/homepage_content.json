@@ -1,0 +1,307 @@
+{
+  "homepageConfig": {
+    "sections": [
+      {
+        "id": "hero-slider",
+        "label": "Hero Slides",
+        "description": "Main hero banner slideshow at the top of the page",
+        "visible": true,
+        "type": "global",
+        "name": "Hero Slides",
+        "backgroundColor": "#FFFFFF",
+        "styles": {
+          "backgroundColor": "#FFFFFF"
+        },
+        "isCustom": false,
+        "productIds": [],
+        "title": "Hero Slides",
+        "subtitle": "Main hero banner slideshow at the top of the page"
+      },
+      {
+        "id": "shop-by-category",
+        "label": "Shop by Category",
+        "description": "Category grid letting customers browse by product type",
+        "visible": true,
+        "type": "global",
+        "name": "Shop by Category",
+        "backgroundColor": "#FFFFFF",
+        "styles": {
+          "backgroundColor": "#FFFFFF"
+        },
+        "isCustom": false,
+        "productIds": [],
+        "title": "Shop by Category",
+        "subtitle": "Category grid letting customers browse by product type"
+      },
+      {
+        "id": "promo-001",
+        "label": "Classic Comfort",
+        "description": "Promotional Banner • Promotion",
+        "visible": true,
+        "type": "promo-banner",
+        "bannerId": "promo-001"
+      },
+      {
+        "id": "promo-002",
+        "label": "Get 30% off essentials",
+        "description": "Promotional Banner • Promotion",
+        "visible": true,
+        "type": "promo-banner",
+        "bannerId": "promo-002"
+      },
+      {
+        "id": "new-arrivals",
+        "label": "New Arrivals",
+        "description": "Showcase of the latest products added to the store",
+        "visible": true,
+        "type": "global",
+        "name": "New Arrivals",
+        "backgroundColor": "#FFFFFF",
+        "styles": {
+          "backgroundColor": "#FFFFFF"
+        },
+        "isCustom": false,
+        "productIds": [],
+        "title": "New Arrivals",
+        "subtitle": "Showcase of the latest products added to the store"
+      },
+      {
+        "id": "best-sellers",
+        "label": "Best Sellers",
+        "description": "Top-selling products ranked by purchase frequency",
+        "visible": true,
+        "type": "global",
+        "name": "Best Sellers",
+        "backgroundColor": "#FFFFFF",
+        "styles": {
+          "backgroundColor": "#FFFFFF"
+        },
+        "isCustom": false,
+        "productIds": [],
+        "title": "Best Sellers",
+        "subtitle": "Top-selling products ranked by purchase frequency"
+      },
+      {
+        "id": "promo-003",
+        "label": "Free assembly included",
+        "description": "Promotional Banner • Promotion",
+        "visible": false,
+        "type": "promo-banner",
+        "bannerId": "promo-003"
+      },
+      {
+        "id": "customer-reviews",
+        "label": "Customer Reviews",
+        "description": "Customer reviews and feedback carousel section",
+        "visible": true,
+        "type": "global",
+        "name": "Customer Reviews",
+        "backgroundColor": "#FFFFFF",
+        "styles": {
+          "backgroundColor": "#FFFFFF"
+        },
+        "isCustom": false,
+        "productIds": [],
+        "title": "Customer Reviews",
+        "subtitle": "Customer reviews and feedback carousel section"
+      }
+    ]
+  },
+  "banners": [
+    {
+      "id": "hero-001",
+      "productId": "classic-mattress",
+      "title": "Mellosoft Classic Mattress",
+      "type": "Offer",
+      "image": "/asset/img2.jpg",
+      "subtitle": "Enjoy 60% savings",
+      "description": "Handcrafted memory foam & hybrid mattresses at up to 60% off.",
+      "ctaText": "Shop Now",
+      "ctaLink": "mattress",
+      "isActive": true,
+      "displayOrder": 1
+    },
+    {
+      "id": "hero-002",
+      "productId": "luxe-hybrid",
+      "title": "Mellosoft Luxe Hybrid",
+      "type": "Offer",
+      "image": "/asset/img1.jpg",
+      "subtitle": "Luxe Hybrid Comfort",
+      "description": "Pocket coil bounce meets pressure-relieving memory foam layer.",
+      "ctaText": "Shop Now",
+      "ctaLink": "mattress",
+      "isActive": true,
+      "displayOrder": 2
+    },
+    {
+      "id": "hero-003",
+      "productId": "ortho-support",
+      "title": "Mellosoft Ortho Support",
+      "type": "Offer",
+      "image": "/asset/img2.jpg",
+      "subtitle": "Spinal Alignment Care",
+      "description": "Extra firm orthopedic support for healthy spinal posture.",
+      "ctaText": "Shop Now",
+      "ctaLink": "mattress",
+      "isActive": true,
+      "displayOrder": 3
+    },
+    {
+      "id": "hero-004",
+      "productId": "ergo-air",
+      "title": "Mellosoft Ergo Air",
+      "type": "Offer",
+      "image": "/asset/img1.jpg",
+      "subtitle": "Breathable Airflow Tech",
+      "description": "Advanced cooling gel foam with ergonomic body contours.",
+      "ctaText": "Shop Now",
+      "ctaLink": "mattress",
+      "isActive": true,
+      "displayOrder": 4
+    },
+    {
+      "id": "promo-001",
+      "title": "Classic Comfort",
+      "type": "Promotion",
+      "image": "/asset/img2.jpg",
+      "subtitle": "Limited Mattress Event",
+      "description": "Handcrafted memory foam & hybrid mattresses at up to 60% off.",
+      "ctaText": "Shop Now",
+      "ctaLink": "mattress",
+      "isActive": true,
+      "displayOrder": 1
+    },
+    {
+      "id": "promo-002",
+      "title": "Get 30% off essentials",
+      "type": "Promotion",
+      "image": "/asset/pillow.png",
+      "subtitle": "Pillows and protectors",
+      "description": "Luxury down pillows and organic bamboo protectors for ultimate sleep care.",
+      "ctaText": "Explore Now",
+      "ctaLink": "pillows",
+      "isActive": true,
+      "displayOrder": 2
+    },
+    {
+      "id": "promo-003",
+      "title": "Free assembly included",
+      "type": "Promotion",
+      "image": "/asset/bedframe.png",
+      "subtitle": "New bed frame collection",
+      "description": "Handcrafted platform frames made from solid sustainable oak.",
+      "ctaText": "Discover Frames",
+      "ctaLink": "bed frames",
+      "isActive": true,
+      "displayOrder": 3
+    }
+  ],
+  "bannerTypes": [
+    {
+      "id": "type-offer",
+      "name": "Offer"
+    },
+    {
+      "id": "type-arrival",
+      "name": "New Arrival"
+    },
+    {
+      "id": "type-promo",
+      "name": "Promotion"
+    },
+    {
+      "id": "type-collection",
+      "name": "Collection"
+    }
+  ],
+  "newArrivalItems": [
+    {
+      "id": "na-1",
+      "productId": "foamcloud",
+      "displayOrder": 1,
+      "isActive": true
+    },
+    {
+      "id": "na-2",
+      "productId": "orthocare",
+      "displayOrder": 2,
+      "isActive": true
+    },
+    {
+      "id": "na-3",
+      "productId": "springease",
+      "displayOrder": 3,
+      "isActive": true
+    },
+    {
+      "id": "na-4",
+      "productId": "latexpure",
+      "displayOrder": 4,
+      "isActive": true
+    },
+    {
+      "id": "na-5",
+      "productId": "memorycloud",
+      "displayOrder": 5,
+      "isActive": true
+    },
+    {
+      "id": "na-6",
+      "productId": "memory-contour",
+      "displayOrder": 6,
+      "isActive": true
+    },
+    {
+      "id": "na-7",
+      "productId": "natura-latex",
+      "displayOrder": 7,
+      "isActive": true
+    },
+    {
+      "id": "na-8",
+      "productId": "aqua-guard",
+      "displayOrder": 8,
+      "isActive": true
+    },
+    {
+      "id": "na-9",
+      "productId": "cloud-duvet",
+      "displayOrder": 9,
+      "isActive": true
+    },
+    {
+      "id": "na-10",
+      "productId": "flexi-bed",
+      "displayOrder": 10,
+      "isActive": true
+    }
+  ],
+  "bestSellerItems": [
+    {
+      "id": "bs-1",
+      "productId": "foamcloud",
+      "displayOrder": 1,
+      "isActive": true
+    },
+    {
+      "id": "bs-2",
+      "productId": "orthocare",
+      "displayOrder": 2,
+      "isActive": true
+    },
+    {
+      "id": "bs-3",
+      "productId": "springease",
+      "displayOrder": 3,
+      "isActive": true
+    },
+    {
+      "id": "bs-4",
+      "productId": "latexpure",
+      "displayOrder": 4,
+      "isActive": true
+    }
+  ],
+  "updatedAt": "2026-08-26T19:49:04.605Z"
+}

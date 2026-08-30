@@ -1,0 +1,74 @@
+/* ============================================================
+   SkeletonBase.css — Shimmer animation for skeleton loaders
+   Imported once by Skeleton.jsx; all skeleton components use these classes.
+   ============================================================ */
+
+.skeleton-block {
+  position: relative;
+  overflow: hidden;
+  background-color: #EBEBEB;
+  border-radius: 6px;
+  display: block;
+  pointer-events: none;
+  user-select: none;
+  min-width: 0;
+}
+
+/* Shimmer sweep */
+.skeleton-block::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.58) 50%,
+    transparent 100%
+  );
+  animation: skeletonShimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes skeletonShimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Softer variant for card backgrounds */
+.skeleton-card {
+  background-color: #FFFFFF;
+  border: 1px solid #E7E7E2;
+  border-radius: 16px;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* Circle variant */
+.skeleton-circle {
+  border-radius: 50% !important;
+}
+
+/* Pill variant */
+.skeleton-pill {
+  border-radius: 999px !important;
+}
+
+/* Rounded rect variant */
+.skeleton-rounded {
+  border-radius: 12px !important;
+}
+
+/* Image placeholder — maintains aspect ratio */
+.skeleton-img-1-082 {
+  width: 100%;
+  aspect-ratio: 1 / 0.82;
+  flex-shrink: 0;
+}
+
+/* Reduced motion: disable shimmer */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-block::after {
+    animation: none;
+  }
+}
