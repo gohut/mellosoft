@@ -28,16 +28,29 @@ export default function MatrixPricingManager({
   onVariantsChange,
   prices = {},
   onPricesChange,
+  stocks = {},
+  onStocksChange,
+  discountPercent = 0,
+  onDiscountPercentChange,
+  defaultStock = 25,
   categoryName = "ORTHO MATTRESS",
   invalidCellKeys = new Set()
 }) {
+  // Table view mode: "price" | "stock"
+  const [tableMode, setTableMode] = useState("price");
+
   // Local state for opening "Add Size" input box per category
   const [activeAddSizeCategory, setActiveAddSizeCategory] = useState(null);
   const [widthInput, setWidthInput] = useState("");
   const [heightInput, setHeightInput] = useState("");
 
+  // Local state for adding new Bed Category
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [newCategoryInput, setNewCategoryInput] = useState("");
+
   // Local state for adding variant name
   const [variantInput, setVariantInput] = useState("");
+  const [bulkStockVal, setBulkStockVal] = useState("");
 
   // Helper to toggle bed category enabled state
   const toggleBedCategory = (catName) => {
@@ -50,6 +63,37 @@ export default function MatrixPricingManager({
       }
     };
     onBedSizesChange(updated);
+  };
+
+  // Helper to add a new bed category
+  const handleAddCategory = () => {
+    const name = newCategoryInput.trim();
+    if (!name) return;
+    const normalizedKey = name.charAt(0).toUpperCase() + name.slice(1);
+    if (bedSizes[normalizedKey] || bedSizes[name]) {
+      alert(`Category "${name}" already exists.`);
+      return;
+    }
+    const updated = {
+      ...bedSizes,
+      [normalizedKey]: {
+        enabled: true,
+        dimensions: []
+      }
+    };
+    onBedSizesChange(updated);
+    setNewCategoryInput("");
+    setIsAddingCategory(false);
+    setActiveAddSizeCategory(normalizedKey);
+  };
+
+  // Helper to remove a bed category
+  const handleRemoveCategory = (catName) => {
+    if (window.confirm(`Are you sure you want to remove the "${catName}" bed category and its dimensions?`)) {
+      const updated = { ...bedSizes };
+      delete updated[catName];
+      onBedSizesChange(updated);
+    }
   };
 
   // Helper to add dimension to a category
@@ -156,21 +200,140 @@ export default function MatrixPricingManager({
     });
   };
 
+  // Helper to update stock in matrix cell
+  const handleStockCellChange = (variantName, dimension, val) => {
+    if (!onStocksChange) return;
+    const numVal = val === "" ? "" : Math.max(0, parseInt(val, 10) || 0);
+    const normV = normalizeVariantKey(variantName);
+    const normD = normalizeDimensionKey(dimension);
+
+    let existingKey = variantName;
+    if (stocks && stocks[normV]) {
+      existingKey = normV;
+    } else if (stocks) {
+      for (const k of Object.keys(stocks)) {
+        if (normalizeVariantKey(k) === normV) {
+          existingKey = k;
+          break;
+        }
+      }
+    }
+
+    const variantStocks = (stocks && stocks[existingKey]) ? { ...stocks[existingKey] } : {};
+
+    let targetDimKey = normD;
+    for (const dK of Object.keys(variantStocks)) {
+      if (normalizeDimensionKey(dK) === normD) {
+        targetDimKey = dK;
+        break;
+      }
+    }
+
+    variantStocks[targetDimKey] = numVal;
+
+    onStocksChange({
+      ...(stocks || {}),
+      [existingKey]: variantStocks
+    });
+  };
+
+  // Helper to apply bulk stock to all active cells
+  const handleApplyBulkStock = () => {
+    if (!onStocksChange || bulkStockVal === "") return;
+    const qty = Math.max(0, parseInt(bulkStockVal, 10) || 0);
+    const newStocks = { ...(stocks || {}) };
+
+    variants.forEach((vName) => {
+      newStocks[vName] = newStocks[vName] || {};
+      Object.keys(bedSizes).forEach((cat) => {
+        if (bedSizes[cat]?.enabled) {
+          (bedSizes[cat]?.dimensions || []).forEach((dim) => {
+            newStocks[vName][dim] = qty;
+          });
+        }
+      });
+    });
+
+    onStocksChange(newStocks);
+  };
+
   return (
     <div style={containerStyle}>
       {/* ─── SECTION 1: BED SIZES & CUSTOM DIMENSIONS ────────────────────── */}
       <div style={cardSectionStyle}>
-        <div style={sectionHeaderStyle}>
-          <h3 style={sectionTitleStyle}>1. Bed Sizes & Dimensions</h3>
-          <p style={sectionSubtextStyle}>
-            Enable bed categories and click "Add Size" to enter width & height dimensions.
-          </p>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "12px", marginBottom: "12px" }}>
+          <div>
+            <h3 style={sectionTitleStyle}>1. Bed Sizes & Dimensions</h3>
+            <p style={sectionSubtextStyle}>
+              Enable bed categories, add custom bed sizes, and click "Add Size" to enter width & height dimensions.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsAddingCategory((prev) => !prev)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              backgroundColor: isAddingCategory ? "#F1F5F9" : "#EEF0FF",
+              color: "#1B1F8C",
+              border: "1px solid #1B1F8C",
+              borderRadius: "8px",
+              padding: "7px 14px",
+              fontSize: "12.5px",
+              fontWeight: 700,
+              cursor: "pointer",
+              transition: "all 0.15s ease",
+            }}
+          >
+            <Plus size={15} /> Add Bed Category / Size
+          </button>
         </div>
 
+        {/* Inline Add New Bed Category Form */}
+        {isAddingCategory && (
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", backgroundColor: "#F8FAFC", padding: "12px 16px", borderRadius: "10px", border: "1px solid #CBD5E1", marginBottom: "16px", flexWrap: "wrap" }}>
+            <span style={{ fontSize: "13px", fontWeight: 700, color: "#1E293B" }}>New Bed Category Name:</span>
+            <input
+              type="text"
+              placeholder="e.g. Custom Bed, Diwan, California King, Super Single"
+              value={newCategoryInput}
+              onChange={(e) => setNewCategoryInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleAddCategory();
+                }
+              }}
+              style={{ flex: 1, minWidth: "240px", height: "36px", padding: "0 12px", borderRadius: "8px", border: "1px solid #94A3B8", fontSize: "13px" }}
+            />
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button
+                type="button"
+                onClick={handleAddCategory}
+                style={{ backgroundColor: "#1B1F8C", color: "#FFFFFF", border: "none", borderRadius: "6px", padding: "7px 14px", fontSize: "12.5px", fontWeight: 700, cursor: "pointer" }}
+              >
+                Add Category
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAddingCategory(false);
+                  setNewCategoryInput("");
+                }}
+                style={{ backgroundColor: "#FFFFFF", color: "#64748B", border: "1px solid #CBD5E1", borderRadius: "6px", padding: "7px 12px", fontSize: "12.5px", fontWeight: 600, cursor: "pointer" }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
         <div style={categoriesGridStyle}>
-          {["Single", "Double", "Queen", "King"].map((catName) => {
+          {Object.keys(bedSizes).map((catName) => {
             const catData = bedSizes[catName] || { enabled: false, dimensions: [] };
             const isAdding = activeAddSizeCategory === catName;
+            const isCustom = !["Single", "Double", "Queen", "King"].includes(catName);
 
             return (
               <div
@@ -190,20 +353,41 @@ export default function MatrixPricingManager({
                       style={checkboxStyle}
                     />
                     <strong style={{ fontSize: "15px", color: catData.enabled ? "#1B1F8C" : "#14151A" }}>
-                      {catName.toUpperCase()} BED
+                      {catName.toUpperCase().includes("BED") ? catName.toUpperCase() : `${catName.toUpperCase()} BED`}
                     </strong>
                   </label>
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!catData.enabled) toggleBedCategory(catName);
-                      setActiveAddSizeCategory(isAdding ? null : catName);
-                    }}
-                    style={addSizeBtnStyle}
-                  >
-                    <Plus size={14} /> Add Size
-                  </button>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!catData.enabled) toggleBedCategory(catName);
+                        setActiveAddSizeCategory(isAdding ? null : catName);
+                      }}
+                      style={addSizeBtnStyle}
+                    >
+                      <Plus size={14} /> Add Size
+                    </button>
+                    {isCustom && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveCategory(catName)}
+                        style={{
+                          backgroundColor: "transparent",
+                          border: "none",
+                          color: "#DC2626",
+                          cursor: "pointer",
+                          padding: "4px",
+                          display: "flex",
+                          alignItems: "center",
+                          borderRadius: "4px",
+                        }}
+                        title={`Delete ${catName} Category`}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Inline Add Size Input Box */}
@@ -324,30 +508,90 @@ export default function MatrixPricingManager({
         </div>
       </div>
 
-      {/* ─── SECTION 3: MATRIX PRICING TABLE (MATCHING REFERENCE IMAGE) ───── */}
+      {/* ─── SECTION 3: MATRIX PRICING & STOCK TABLE (PRICE & STOCK TOGETHER) ───── */}
       {variants.length > 0 && (
         <div style={cardSectionStyle}>
-          <div style={sectionHeaderStyle}>
-            <h3 style={sectionTitleStyle}>3. Matrix Pricing Table</h3>
-            <p style={sectionSubtextStyle}>
-              Enter prices for each bed size dimension and variant combination.
-            </p>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "16px", marginBottom: "18px" }}>
+            <div>
+              <h3 style={sectionTitleStyle}>3. Matrix Pricing & Stock Table</h3>
+              <p style={sectionSubtextStyle}>
+                Manage both Price (₹) and Stock Quantity (units) for each bed size dimension and variant combination on the same table.
+              </p>
+            </div>
+
+            {/* Quick Controllers for Discount and Bulk Stock */}
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+              {/* DISCOUNT CONTROLLER */}
+              {onDiscountPercentChange && (
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", backgroundColor: "#F0FDF4", padding: "4px 10px", borderRadius: "8px", border: "1px solid #BBF7D0" }}>
+                  <span style={{ fontSize: "12px", color: "#166534", fontWeight: 700 }}>🏷️ Discount:</span>
+                  <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+                    <input
+                      type="number"
+                      min="0"
+                      max="99"
+                      step="1"
+                      placeholder="0"
+                      value={discountPercent}
+                      onChange={(e) => onDiscountPercentChange(e.target.value)}
+                      style={{ width: "52px", height: "26px", padding: "0 16px 0 6px", borderRadius: "4px", border: "1px solid #86EFAC", fontSize: "12px", fontWeight: 700, textAlign: "center", backgroundColor: "#FFFFFF", color: "#15803D" }}
+                    />
+                    <span style={{ position: "absolute", right: "5px", fontSize: "11px", color: "#166534", fontWeight: 800 }}>%</span>
+                  </div>
+                  {Number(discountPercent) > 0 && (
+                    <span style={{ fontSize: "11px", color: "#15803D", fontWeight: 700 }}>
+                      ({discountPercent}% OFF)
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* BULK STOCK SETTER */}
+              {onStocksChange && (
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", backgroundColor: "#F8FAFC", padding: "4px 10px", borderRadius: "8px", border: "1px solid #CBD5E1" }}>
+                  <span style={{ fontSize: "12px", color: "#334155", fontWeight: 700 }}>📦 Bulk Stock:</span>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder={String(defaultStock)}
+                    value={bulkStockVal}
+                    onChange={(e) => setBulkStockVal(e.target.value)}
+                    style={{ width: "55px", height: "26px", padding: "0 6px", borderRadius: "4px", border: "1px solid #94A3B8", fontSize: "12px", fontWeight: 700, textAlign: "center", backgroundColor: "#FFFFFF" }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleApplyBulkStock}
+                    style={{ border: "none", backgroundColor: "#1B1F8C", color: "#FFFFFF", fontSize: "11.5px", fontWeight: 700, padding: "4px 10px", borderRadius: "4px", cursor: "pointer" }}
+                  >
+                    Apply to All
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           <div style={tableWrapStyle}>
             <table style={matrixTableStyle}>
               <thead>
                 <tr>
-                  <th style={categoryHeaderThStyle}>{categoryName.toUpperCase()}</th>
+                  <th rowSpan={2} style={categoryHeaderThStyle}>{categoryName.toUpperCase()} / DIMENSION</th>
                   {variants.map((vName) => (
-                    <th key={vName} style={variantHeaderThStyle}>
-                      {vName.toUpperCase()}
+                    <th key={vName} colSpan={2} style={variantHeaderThStyle}>
+                      <span style={{ fontSize: "14px", fontWeight: 800 }}>{vName.toUpperCase()}</span>
                     </th>
+                  ))}
+                </tr>
+                <tr>
+                  {variants.map((vName) => (
+                    <React.Fragment key={`sub-${vName}`}>
+                      <th style={subHeaderPriceThStyle}>PRICE (₹)</th>
+                      <th style={subHeaderStockThStyle}>STOCK (QTY)</th>
+                    </React.Fragment>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {["Single", "Double", "Queen", "King"].map((catName) => {
+                {Object.keys(bedSizes).map((catName) => {
                   const catData = bedSizes[catName];
                   if (!catData || !catData.enabled || !catData.dimensions || catData.dimensions.length === 0) {
                     return null;
@@ -358,10 +602,10 @@ export default function MatrixPricingManager({
                       {/* Bed Category Banner Row */}
                       <tr>
                         <td
-                          colSpan={variants.length + 1}
+                          colSpan={variants.length * 2 + 1}
                           style={categoryRowTdStyle}
                         >
-                          {catName.toUpperCase()}
+                          {catName.toUpperCase().includes("BED") ? catName.toUpperCase() : `${catName.toUpperCase()} BED`}
                         </td>
                       </tr>
 
@@ -371,31 +615,87 @@ export default function MatrixPricingManager({
                           <td style={dimTdStyle}>{dim}</td>
                           {variants.map((vName) => {
                             const currentPrice = getMatrixCellValue(prices, vName, dim);
+                            const currentStock = getMatrixCellValue(stocks, vName, dim);
                             const cellKey = `${vName}::${dim}`;
                             const isInvalid = invalidCellKeys && (
                               invalidCellKeys instanceof Set
                                 ? invalidCellKeys.has(cellKey)
                                 : Array.isArray(invalidCellKeys) && invalidCellKeys.includes(cellKey)
                             );
-                            const cellId = `matrix-cell-${vName.replace(/[^a-zA-Z0-9]/g, '-')}-${dim.replace(/[^a-zA-Z0-9]/g, '-')}`;
+
+                            const displayStockVal = currentStock !== "" && currentStock !== undefined && currentStock !== null
+                              ? currentStock
+                              : "";
+                            const numStock = displayStockVal !== "" ? Number(displayStockVal) : defaultStock;
+                            const isOutOfStock = numStock === 0;
+                            const isLowStock = numStock > 0 && numStock <= 10;
+
+                            const numPrice = Number(currentPrice);
+                            const hasValidPrice = !isNaN(numPrice) && numPrice > 0;
+                            const dPct = Number(discountPercent) || 0;
+                            const salePrice = hasValidPrice && dPct > 0
+                              ? Math.round(numPrice * (1 - dPct / 100))
+                              : null;
 
                             return (
-                              <td key={vName} style={cellTdStyle}>
-                                <input
-                                  id={cellId}
-                                  type="number"
-                                  placeholder="Enter price"
-                                  value={currentPrice}
-                                  onChange={(e) => handlePriceCellChange(vName, dim, e.target.value)}
-                                  style={{
-                                    ...cellInputStyle,
-                                    borderColor: isInvalid ? "#DC2626" : "#CBD5E1",
-                                    backgroundColor: isInvalid ? "#FEF2F2" : "#FFFFFF",
-                                    color: isInvalid ? "#991B1B" : "#14151A",
-                                    boxShadow: isInvalid ? "0 0 0 1px #DC2626" : "none"
-                                  }}
-                                />
-                              </td>
+                              <React.Fragment key={vName}>
+                                {/* 1. PRICE CELL */}
+                                <td style={{ ...cellTdStyle, backgroundColor: "#FFFFFF" }}>
+                                  <input
+                                    id={`matrix-price-${vName.replace(/[^a-zA-Z0-9]/g, '-')}-${dim.replace(/[^a-zA-Z0-9]/g, '-')}`}
+                                    type="number"
+                                    placeholder="Price"
+                                    value={currentPrice}
+                                    onChange={(e) => handlePriceCellChange(vName, dim, e.target.value)}
+                                    style={{
+                                      ...cellInputStyle,
+                                      borderColor: isInvalid ? "#DC2626" : "#CBD5E1",
+                                      backgroundColor: isInvalid ? "#FEF2F2" : "#FFFFFF",
+                                      color: isInvalid ? "#991B1B" : "#14151A",
+                                      boxShadow: isInvalid ? "0 0 0 1px #DC2626" : "none"
+                                    }}
+                                  />
+                                  <div style={{
+                                    fontSize: "11.5px",
+                                    fontWeight: 700,
+                                    marginTop: "3px",
+                                    textAlign: "center",
+                                    minHeight: "16px",
+                                    color: salePrice !== null ? "#15803D" : "#6B6B75"
+                                  }}>
+                                    {salePrice !== null ? `Sale: ₹${salePrice.toLocaleString("en-IN")}` : (hasValidPrice ? `MRP: ₹${numPrice.toLocaleString("en-IN")}` : "—")}
+                                  </div>
+                                </td>
+
+                                {/* 2. STOCK CELL */}
+                                <td style={{ ...cellTdStyle, backgroundColor: "#FAFAF8" }}>
+                                  <input
+                                    id={`matrix-stock-${vName.replace(/[^a-zA-Z0-9]/g, '-')}-${dim.replace(/[^a-zA-Z0-9]/g, '-')}`}
+                                    type="number"
+                                    min="0"
+                                    placeholder={String(defaultStock)}
+                                    value={displayStockVal}
+                                    onChange={(e) => handleStockCellChange(vName, dim, e.target.value)}
+                                    style={{
+                                      ...cellInputStyle,
+                                      borderColor: isOutOfStock ? "#FCA5A5" : (isLowStock ? "#FCD34D" : "#CBD5E1"),
+                                      backgroundColor: "#FFFFFF",
+                                      color: "#14151A",
+                                      fontWeight: 600,
+                                    }}
+                                  />
+                                  <div style={{
+                                    fontSize: "11.5px",
+                                    fontWeight: 700,
+                                    marginTop: "3px",
+                                    textAlign: "center",
+                                    minHeight: "16px",
+                                    color: isOutOfStock ? "#DC2626" : (isLowStock ? "#D97706" : "#16A34A")
+                                  }}>
+                                    {isOutOfStock ? "● Out of Stock" : (isLowStock ? "● Low Stock" : "● In Stock")}
+                                  </div>
+                                </td>
+                              </React.Fragment>
                             );
                           })}
                         </tr>
@@ -660,10 +960,33 @@ const variantHeaderThStyle = {
   color: "#FFFFFF",
   fontSize: "14px",
   fontWeight: "800",
-  padding: "14px 16px",
+  padding: "12px 16px",
   textAlign: "center",
   borderRight: "1px solid rgba(255,255,255,0.2)",
-  minWidth: "140px"
+};
+
+const subHeaderPriceThStyle = {
+  backgroundColor: "#3A0E1C",
+  color: "#FFFFFF",
+  fontSize: "11px",
+  fontWeight: "700",
+  padding: "8px 12px",
+  textAlign: "center",
+  borderRight: "1px solid rgba(255,255,255,0.15)",
+  letterSpacing: "0.04em",
+  minWidth: "125px"
+};
+
+const subHeaderStockThStyle = {
+  backgroundColor: "#2E0A16",
+  color: "#FFFFFF",
+  fontSize: "11px",
+  fontWeight: "700",
+  padding: "8px 12px",
+  textAlign: "center",
+  borderRight: "1px solid rgba(255,255,255,0.15)",
+  letterSpacing: "0.04em",
+  minWidth: "125px"
 };
 
 const categoryRowTdStyle = {

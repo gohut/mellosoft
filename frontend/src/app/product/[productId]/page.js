@@ -4,12 +4,13 @@ import React, { use, useEffect, useState } from "react";
 import Header from "../../../components/Header";
 import Footer from "../../../components/Footer";
 import ProductDetailView from "../../../views/ProductDetailView";
+import AuthModal from "../../../components/AuthModal";
 import { useStore } from "../../../context/StoreContext";
 import MellosoftLoader from "../../../components/MellosoftLoader";
 
 export default function ProductPage({ params }) {
   const resolvedParams = use(params);
-  const { setSelectedProductId, setView, products } = useStore();
+  const { setSelectedProductId, setView, products, authModal } = useStore();
   const [ready, setReady] = useState(false);
 
   let productId = "";
@@ -46,6 +47,7 @@ export default function ProductPage({ params }) {
         <ProductDetailView productId={productId} />
       </main>
       <Footer />
+      {authModal && <AuthModal type={authModal} />}
     </>
   );
 }

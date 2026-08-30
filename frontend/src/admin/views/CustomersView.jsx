@@ -5,6 +5,8 @@ import { createPortal } from "react-dom";
 import { useAdmin } from "../context/AdminContext";
 import DataTable from "../components/DataTable";
 import StatusBadge from "../components/StatusBadge";
+import AdminStatCard from "../components/AdminStatCard";
+import Skeleton from "../../components/skeleton/Skeleton";
 import { X, Search, RotateCcw, ShoppingBag, DollarSign, TrendingUp, Package, Clock, Heart, ShoppingCart } from "lucide-react";
 import { formatPrice, calculateDiscountedPrice } from "../../utils/currency";
 import { normalizeCustomerId, matchCustomer } from "../../utils/customerHelpers";
@@ -26,6 +28,24 @@ const filterSelectStyle = {
   fontWeight: 600,
   outline: "none",
   cursor: "pointer",
+};
+
+const statsRowStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(4, 1fr)",
+  gap: "16px",
+  marginBottom: "4px",
+};
+
+const statSkeletonCardStyle = {
+  backgroundColor: "#FFFFFF",
+  border: "1px solid #E7E7E2",
+  borderRadius: "14px",
+  padding: "18px 20px",
+  display: "flex",
+  flexDirection: "column",
+  gap: "4px",
+  boxShadow: "0 1px 3px rgba(0, 0, 0, 0.02)",
 };
 
 export default function CustomersView() {
@@ -58,6 +78,26 @@ export default function CustomersView() {
       };
     });
   }, [customers, orders]);
+
+  // Calculate aggregate summary metrics across ALL registered customers (unaffected by filters)
+  const customerStats = useMemo(() => {
+    const total = (customers || []).length;
+    const active = (customers || []).filter(
+      (c) => (c.status || "Active").toLowerCase() === "active"
+    ).length;
+    const inactive = (customers || []).filter((c) => {
+      const st = (c.status || "").toLowerCase();
+      return st === "inactive" || st === "disabled" || st === "suspended";
+    }).length;
+    const totalSpending = customerTableRows.reduce((sum, c) => sum + (c.totalSpent || 0), 0);
+
+    return {
+      total,
+      active,
+      inactive,
+      totalSpending,
+    };
+  }, [customers, customerTableRows]);
 
   // Combined Filters Logic (AND)
   const filteredCustomers = useMemo(() => {
@@ -186,7 +226,7 @@ export default function CustomersView() {
   ];
 
   return (
-    <div className="admin-fade-in" style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+    <div className="admin-fade-in" style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
       <div>
         <h3 style={{ fontSize: "18px", fontWeight: 700, color: "#14151A", margin: 0 }}>Customer Management</h3>
         <p style={{ fontSize: "13px", color: "#6B6B75", marginTop: "4px" }}>
@@ -196,6 +236,46 @@ export default function CustomersView() {
             <>{customerTableRows.length} registered customers</>
           )}
         </p>
+      </div>
+
+      {/* Customer Summary Statistics Cards */}
+      <div className="customer-stats-grid" style={statsRowStyle}>
+        {!customers ? (
+          [1, 2, 3, 4].map((i) => (
+            <div key={i} style={statSkeletonCardStyle}>
+              <Skeleton width="55%" height={13} borderRadius={4} />
+              <Skeleton width="40%" height={26} borderRadius={6} style={{ margin: "6px 0" }} />
+              <Skeleton width="70%" height={11} borderRadius={4} />
+            </div>
+          ))
+        ) : (
+          <>
+            <AdminStatCard
+              title="Total Customers"
+              value={customerStats.total}
+              subtitle="Registered customers"
+              tone="default"
+            />
+            <AdminStatCard
+              title="Active Customers"
+              value={customerStats.active}
+              subtitle="Currently active accounts"
+              tone="success"
+            />
+            <AdminStatCard
+              title="Inactive Customers"
+              value={customerStats.inactive}
+              subtitle="Inactive customer accounts"
+              tone="danger"
+            />
+            <AdminStatCard
+              title="Total Spending"
+              value={formatPrice(customerStats.totalSpending)}
+              subtitle="Customer purchase value"
+              tone="primary"
+            />
+          </>
+        )}
       </div>
 
       {/* Customer Filters Bar */}

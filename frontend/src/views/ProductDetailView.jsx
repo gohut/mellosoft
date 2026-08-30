@@ -10,9 +10,10 @@ import ProductCard from "../components/ProductCard";
 import { formatPrice, calculateDiscountedPrice } from "../utils/currency";
 import { getVariantForSelection } from "../utils/variantHelpers";
 import { useRouter, useParams } from "next/navigation";
-import { getProductByIdentifier, getRelatedProducts, getMattressRecommendations, getProductPrimaryImage, getProductGalleryImages, isBedFrameProduct, isAccessoryProduct } from "../utils/productHelpers";
+import { getProductByIdentifier, getRelatedProducts, getMattressRecommendations, getProductPrimaryImage, getProductGalleryImages, getProductCategoryLabel, isBedFrameProduct, isAccessoryProduct } from "../utils/productHelpers";
 import { getResolvedImageUrlSync } from "../utils/imageStorage";
 import MattressSelector from "../components/MattressSelector";
+import AuthModal from "../components/AuthModal";
 import { useCustomerAuth } from "../context/CustomerAuthContext";
 
 export default function ProductDetailView({ productId: initialProductId }) {
@@ -30,6 +31,7 @@ export default function ProductDetailView({ productId: initialProductId }) {
     cart,
     setCheckoutItems,
     setSearchQuery,
+    authModal,
     setAuthModal,
     setSelectedProductId,
     setView,
@@ -111,6 +113,10 @@ export default function ProductDetailView({ productId: initialProductId }) {
     return typeof d === "number" ? d : 0;
   }, [product]);
 
+  const categoryLabel = useMemo(() => {
+    return getProductCategoryLabel(product);
+  }, [product]);
+
   const actualPriceForSize = useMemo(() => {
     if (!product) return 0;
     if (selectedVariant && selectedVariant.Actual_Price !== undefined) {
@@ -142,10 +148,28 @@ export default function ProductDetailView({ productId: initialProductId }) {
 
   const isVariantOutOfStock = useMemo(() => {
     if (selectedVariant) {
-      return selectedVariant.Stock === 0 || selectedVariant.Status === "Out of Stock";
+      const stockNum = typeof selectedVariant.Stock === "number" ? selectedVariant.Stock : (typeof selectedVariant.stock === "number" ? selectedVariant.stock : (parseInt(selectedVariant.Stock ?? selectedVariant.stock, 10)));
+      if (!isNaN(stockNum) && stockNum <= 0) return true;
+      const st = (selectedVariant.Status || selectedVariant.status || "").toLowerCase().trim();
+      if (st === "out of stock" || st === "outofstock" || st === "out_of_stock") return true;
+      return false;
+    }
+    if (product?.Status === "Out of Stock" || product?.status === "Out of Stock") return true;
+    if (product?.Stock === 0 || product?.stock === 0) return true;
+    return false;
+  }, [selectedVariant, product]);
+
+  const isVariantLowStock = useMemo(() => {
+    if (isVariantOutOfStock) return false;
+    if (selectedVariant) {
+      const stockNum = typeof selectedVariant.Stock === "number" ? selectedVariant.Stock : (typeof selectedVariant.stock === "number" ? selectedVariant.stock : (parseInt(selectedVariant.Stock ?? selectedVariant.stock, 10)));
+      const threshold = typeof selectedVariant.Threshold === "number" ? selectedVariant.Threshold : (parseInt(selectedVariant.Threshold ?? selectedVariant.threshold, 10) || 10);
+      if (!isNaN(stockNum) && stockNum > 0 && stockNum <= threshold) return true;
+      const st = (selectedVariant.Status || selectedVariant.status || "").toLowerCase().trim();
+      if (st === "low stock" || st === "lowstock") return true;
     }
     return false;
-  }, [selectedVariant]);
+  }, [selectedVariant, isVariantOutOfStock]);
 
   const [reviewsVersion, setReviewsVersion] = useState(0);
 
@@ -549,7 +573,59 @@ export default function ProductDetailView({ productId: initialProductId }) {
         {/* Right Column: Order Configuration */}
         <div style={configColStyle}>
           
-          <span style={brandLabelStyle}>Mellosoft Premium Series</span>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "4px" }}>
+            <span style={brandLabelStyle}>Mellosoft Premium Series</span>
+            {/* Single Product Badge */}
+            {(product.badge || categoryLabel) && (
+              <span
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 800,
+                  color: "#FFFFFF",
+                  backgroundColor: product.badgeColor || (String(product.badge || categoryLabel).toUpperCase() === "NEW" ? "#16A34A" : "#DC2626"),
+                  padding: "2px 10px",
+                  borderRadius: "999px",
+                  letterSpacing: "0.03em",
+                  textTransform: "uppercase",
+                  display: "inline-block",
+                }}
+              >
+                {product.badge || categoryLabel}
+              </span>
+            )}
+            {/* Live Real-time Stock Alert Badge: ONLY show when Out of Stock or Low Stock */}
+            {isVariantOutOfStock ? (
+              <span style={{
+                fontSize: "11.5px",
+                fontWeight: 700,
+                color: "#DC2626",
+                backgroundColor: "#FEE2E2",
+                border: "1px solid #FECACA",
+                padding: "2px 10px",
+                borderRadius: "999px",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+              }}>
+                ● Out of Stock
+              </span>
+            ) : isVariantLowStock ? (
+              <span style={{
+                fontSize: "11.5px",
+                fontWeight: 700,
+                color: "#D97706",
+                backgroundColor: "#FEF3C7",
+                border: "1px solid #FDE68A",
+                padding: "2px 10px",
+                borderRadius: "999px",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+              }}>
+                ● Low Stock
+              </span>
+            ) : null}
+          </div>
           <h2 style={titleStyle}>{product.name}</h2>
           {product.tagline && (
             <p style={{ fontSize: "15px", fontStyle: "italic", color: "#1B1F8C", marginTop: "4px" }}>
@@ -582,9 +658,13 @@ export default function ProductDetailView({ productId: initialProductId }) {
               product={product}
               discountPercent={discountPercent}
               onSelectionChange={(selection) => {
-                if (selection.price) {
-                  setSelectedSize(selection.dimension);
-                  setSelectedFirmness(selection.thickness);
+                if (selection) {
+                  if (selection.dimension) {
+                    setSelectedSize(selection.dimension);
+                  }
+                  if (selection.thickness || selection.variantName) {
+                    setSelectedFirmness(selection.thickness || selection.variantName);
+                  }
                 }
               }}
               onEnquire={(data) => {
@@ -635,8 +715,11 @@ export default function ProductDetailView({ productId: initialProductId }) {
                   disabled={isVariantOutOfStock}
                   style={{
                     ...addCartBtnStyle,
-                    opacity: isVariantOutOfStock ? 0.5 : 1,
+                    opacity: isVariantOutOfStock ? 0.6 : 1,
                     cursor: isVariantOutOfStock ? "not-allowed" : "pointer",
+                    backgroundColor: isVariantOutOfStock ? "#F1F5F9" : "#FFFFFF",
+                    borderColor: isVariantOutOfStock ? "#CBD5E1" : "#1B1F8C",
+                    color: isVariantOutOfStock ? "#94A3B8" : "#1B1F8C",
                   }}
                 >
                   {isVariantOutOfStock ? "Out of Stock" : "Add to Cart"}
@@ -647,11 +730,13 @@ export default function ProductDetailView({ productId: initialProductId }) {
                   disabled={isVariantOutOfStock}
                   style={{
                     ...buyNowBtnStyle,
-                    opacity: isVariantOutOfStock ? 0.5 : 1,
+                    opacity: isVariantOutOfStock ? 0.6 : 1,
                     cursor: isVariantOutOfStock ? "not-allowed" : "pointer",
+                    backgroundColor: isVariantOutOfStock ? "#CBD5E1" : "#16A34A",
+                    color: isVariantOutOfStock ? "#64748B" : "#FFFFFF",
                   }}
                 >
-                  Buy Now
+                  {isVariantOutOfStock ? "Out of Stock" : "Buy Now"}
                 </button>
               </div>
             ) : (
@@ -704,36 +789,6 @@ export default function ProductDetailView({ productId: initialProductId }) {
         </div>
       </div>
 
-      {/* ================= RECOMMENDED CAROUSEL ================= */}
-      <section style={carouselSectionStyle} className="recommendations-section">
-        <h3 style={carouselHeadingStyle} className="recommendations-heading">You may also like</h3>
-        <div style={recommendationsGridStyle} className="recommendations-row">
-          {recommendations.map((rec) => (
-            <div key={rec.id || rec.slug || rec.Product_Id} style={{ flex: "1 1 280px", height: "100%" }}>
-              <ProductCard
-                product={rec}
-                showContactForPrice={false}
-                onClick={(recommendedProduct) => {
-                  const targetId = recommendedProduct.slug || recommendedProduct.id || recommendedProduct.Product_Id;
-                  if (!targetId) return;
-                  setSelectedProductId(targetId);
-                  setView("detail");
-                  const targetUrl = `/product/${encodeURIComponent(String(targetId).trim())}`;
-                  if (router && typeof router.push === "function") {
-                    router.push(targetUrl);
-                  } else if (typeof window !== "undefined") {
-                    window.location.href = targetUrl;
-                  }
-                  if (typeof window !== "undefined") {
-                    window.scrollTo({ top: 0, behavior: "smooth" });
-                  }
-                }}
-              />
-            </div>
-          ))}
-        </div>
-      </section>
-
       {/* Tabbed Info & Reviews Section */}
       <section style={tabbedSectionStyle} className="detail-tabbed-section">
         
@@ -750,12 +805,6 @@ export default function ProductDetailView({ productId: initialProductId }) {
             style={{ ...tabBtnStyle, borderBottomColor: activeTab === "reviews" ? "#1B1F8C" : "transparent", color: activeTab === "reviews" ? "#1B1F8C" : "#6B6B75" }}
           >
             Customer Reviews ({ratingStats.total})
-          </button>
-          <button 
-            onClick={() => setActiveTab("discussion")}
-            style={{ ...tabBtnStyle, borderBottomColor: activeTab === "discussion" ? "#1B1F8C" : "transparent", color: activeTab === "discussion" ? "#1B1F8C" : "#6B6B75" }}
-          >
-            Q&A
           </button>
         </div>
 
@@ -778,25 +827,6 @@ export default function ProductDetailView({ productId: initialProductId }) {
               <p style={{ fontSize: "14.5px", color: "#6B6B75", marginTop: "16px" }}>
                 Specs: {product.specs}
               </p>
-            </div>
-          )}
-
-          {activeTab === "discussion" && (
-            <div style={{ padding: "10px 0" }}>
-              <h4 style={panelHeaderStyle}>Product Questions & Answers</h4>
-              <p style={{ fontSize: "14.5px", color: "#6B6B75" }}>
-                Have questions about the {product.name}? Ask our community or sleeping engineers.
-              </p>
-              
-              <div style={mockQuestionStyle}>
-                <h5 style={{ fontWeight: "700", color: "#1B1F8C" }}>Q: How long does the mattress take to expand fully?</h5>
-                <p style={{ color: "#6B6B75", marginTop: "4px" }}>A: It expands to 95% of its height within 2 hours. However, we recommend letting it breath for 24 hours to reach full firmness and release any minor compressed packaging scent.</p>
-              </div>
-
-              <div style={mockQuestionStyle}>
-                <h5 style={{ fontWeight: "700", color: "#1B1F8C" }}>Q: Can I use this mattress on an adjustable bed frame?</h5>
-                <p style={{ color: "#6B6B75", marginTop: "4px" }}>A: Yes! All Mellosoft mattress designs are completely compatible with adjustable bases, slatted platforms, and traditional box springs.</p>
-              </div>
             </div>
           )}
 
@@ -913,6 +943,38 @@ export default function ProductDetailView({ productId: initialProductId }) {
         </div>
       </section>
 
+      {/* ================= RECOMMENDED CAROUSEL (Below Product Details & Reviews) ================= */}
+      {recommendations && recommendations.length > 0 && (
+        <section style={carouselSectionStyle} className="recommendations-section">
+          <h3 style={carouselHeadingStyle} className="recommendations-heading">You may also like</h3>
+          <div style={recommendationsGridStyle} className="recommendations-row">
+            {recommendations.map((rec) => (
+              <div key={rec.id || rec.slug || rec.Product_Id} style={{ flex: "1 1 280px", height: "100%" }}>
+                <ProductCard
+                  product={rec}
+                  showContactForPrice={false}
+                  onClick={(recommendedProduct) => {
+                    const targetId = recommendedProduct.slug || recommendedProduct.id || recommendedProduct.Product_Id;
+                    if (!targetId) return;
+                    setSelectedProductId(targetId);
+                    setView("detail");
+                    const targetUrl = `/product/${encodeURIComponent(String(targetId).trim())}`;
+                    if (router && typeof router.push === "function") {
+                      router.push(targetUrl);
+                    } else if (typeof window !== "undefined") {
+                      window.location.href = targetUrl;
+                    }
+                    if (typeof window !== "undefined") {
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {viewerOpen && (
         <div
           style={viewerOverlayStyle}
@@ -1014,6 +1076,8 @@ export default function ProductDetailView({ productId: initialProductId }) {
           </div>
         </div>
       )}
+
+      {authModal && <AuthModal type={authModal} />}
 
       <style>{`
         @media (max-width: 767px) {

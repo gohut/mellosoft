@@ -95,14 +95,49 @@ export function getVariantForSelection(product, selectedSize, selectedFirmness) 
   if (!product) return null;
   const variants = product.variants || [];
   if (variants.length > 0) {
-    const match = variants.find(
+    const clean = (s) => (s || "").toString().trim().toLowerCase().replace(/\s+/g, " ");
+    const sTarget = clean(selectedSize);
+    const fTarget = clean(selectedFirmness);
+
+    // 1. Exact or cleaned string match
+    const exact = variants.find(
       (v) =>
-        (v.Size || v.size) === selectedSize &&
-        (v.Firmness || v.firmness) === selectedFirmness
+        clean(v.Size || v.size) === sTarget &&
+        clean(v.Firmness || v.firmness || v.VariantName || v.thickness) === fTarget
     );
-    if (match) return match;
-    const sizeMatch = variants.find((v) => (v.Size || v.size) === selectedSize);
-    if (sizeMatch) return sizeMatch;
+    if (exact) return exact;
+
+    // 2. Normalized alphanumeric match (e.g. "72 X 30" -> "72x30", "4 INCH" -> "4inch")
+    const norm = (s) => (s || "").toString().toLowerCase().replace(/[^0-9a-z]/g, "");
+    const sNorm = norm(selectedSize);
+    const fNorm = norm(selectedFirmness);
+
+    const normMatch = variants.find((v) => {
+      const vSize = norm(v.Size || v.size);
+      const vFirm = norm(v.Firmness || v.firmness || v.VariantName || v.thickness);
+      return vSize === sNorm && vFirm === fNorm;
+    });
+    if (normMatch) return normMatch;
+
+    // 3. Fallback: match size
+    if (sNorm) {
+      const sizeMatch = variants.find(
+        (v) => clean(v.Size || v.size) === sTarget || norm(v.Size || v.size) === sNorm
+      );
+      if (sizeMatch) return sizeMatch;
+    }
+
+    // 4. Fallback: match firmness
+    if (fNorm) {
+      const firmMatch = variants.find(
+        (v) =>
+          clean(v.Firmness || v.firmness || v.VariantName || v.thickness) === fTarget ||
+          norm(v.Firmness || v.firmness || v.VariantName || v.thickness) === fNorm
+      );
+      if (firmMatch) return firmMatch;
+    }
+
+    return variants[0] || null;
   }
   return null;
 }

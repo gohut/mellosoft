@@ -479,3 +479,120 @@
   }
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   Admin Dashboard Redesign Styles & Responsive Breakpoints
+   ───────────────────────────────────────────────────────────────────────────── */
+.analytics-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+  width: 100%;
+}
+
+.analytics-chart-row,
+.analytics-middle-row {
+  display: grid;
+  grid-template-columns: 1.8fr 1fr;
+  gap: 16px;
+  width: 100%;
+}
+
+.analytics-bottom-row {
+  display: grid;
+  grid-template-columns: 1fr 2.1fr;
+  gap: 16px;
+  width: 100%;
+}
+
+.analytics-kpi-card {
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.analytics-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.analytics-box {
+  transition: box-shadow 0.18s ease;
+}
+
+.analytics-box:hover {
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+}
+
+/* Medium Desktop / Small Laptop (1024px - 1280px) */
+@media (max-width: 1280px) {
+  .analytics-kpi-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+}
+
+/* Tablet Breakpoint (769px - 1024px) */
+@media (max-width: 1024px) {
+  .analytics-chart-row,
+  .analytics-middle-row,
+  .analytics-bottom-row {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Mobile Breakpoint (<= 768px) */
+@media (max-width: 768px) {
+  .analytics-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+  
+  .admin-desktop-only {
+    display: none !important;
+  }
+  
+  .admin-mobile-only {
+    display: flex !important;
+  }
+}
+
+/* Small Mobile (<= 480px) */
+@media (max-width: 480px) {
+  .analytics-kpi-grid {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Customer Summary Statistics Grid & Cards
+   ───────────────────────────────────────────────────────────────────────────── */
+.customer-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  width: 100%;
+}
+
+.admin-stat-card {
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.admin-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+}
+
+@media (max-width: 1024px) {
+  .customer-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 14px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .customer-stats-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+}
+
+
+

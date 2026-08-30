@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from "react";
 import { useStore } from "../context/StoreContext";
 import { formatPrice, getMinimumProductPrice, getEffectivePrice } from "../utils/currency";
-import { getProductUrl, getProductPrimaryImage } from "../utils/productHelpers";
+import { getProductUrl, getProductPrimaryImage, getProductReviewStats } from "../utils/productHelpers";
 import { ensureProductPricing } from "../utils/pricingEngine";
 import { CATEGORY_FALLBACK_IMAGES, ACCESSORY_FALLBACK_IMAGES } from "../data/mattressData";
 import { useRouter } from "next/navigation";
@@ -17,7 +17,7 @@ export default function ProductCard({
 }) {
   const router = useRouter();
   const { isAuthenticated, setIntendedView } = useCustomerAuth();
-  const { wishlist, toggleWishlist, navigateTo, setSelectedProductId, setView, setAuthModal } = useStore();
+  const { wishlist, toggleWishlist, navigateTo, setSelectedProductId, setView, setAuthModal, reviews = [] } = useStore();
 
   const product = useMemo(() => {
     return ensureProductPricing(rawProduct);
@@ -46,24 +46,30 @@ export default function ProductCard({
   const discountPct = Number(product.discountPercent ?? product.Discount_Percentage ?? 0);
   const { hasDiscount, discountedPrice: discountedMinPrice } = getEffectivePrice(minPrice, discountPct);
 
+  const reviewStats = useMemo(() => {
+    return getProductReviewStats(product.id, reviews);
+  }, [product.id, reviews]);
+
   const ratingVal = useMemo(() => {
+    if (reviewStats.hasReviews) return reviewStats.averageRating;
     const r = product.rating ?? product.averageRating ?? product.Rating;
     if (typeof r === "number" && !isNaN(r) && r > 0) return r;
     if (typeof r === "string" && !isNaN(parseFloat(r)) && parseFloat(r) > 0) return parseFloat(r);
     return 4.8;
-  }, [product.rating, product.averageRating, product.Rating]);
+  }, [reviewStats, product.rating, product.averageRating, product.Rating]);
 
   const reviewCount = useMemo(() => {
+    if (reviewStats.hasReviews) return reviewStats.reviewCount;
     const c = product.reviewCount ?? product.reviewsCount ?? product.review_count ?? product.Reviews_Count;
-    if (typeof c === "number" && !isNaN(c) && c >= 0) return c;
-    if (typeof c === "string" && !isNaN(parseInt(c, 10))) return parseInt(c, 10);
+    if (typeof c === "number" && !isNaN(c) && c > 0) return c;
+    if (typeof c === "string" && !isNaN(parseInt(c, 10)) && parseInt(c, 10) > 0) return parseInt(c, 10);
     if (Array.isArray(product.reviews) && product.reviews.length > 0) return product.reviews.length;
     // Deterministic pleasant count per product
     const seed = (String(product.id || product.slug || product.name || "mello"))
       .split("")
       .reduce((acc, char) => acc + char.charCodeAt(0), 0);
     return (seed % 150) + 24;
-  }, [product.reviewCount, product.reviewsCount, product.review_count, product.Reviews_Count, product.reviews, product.id, product.slug, product.name]);
+  }, [reviewStats, product.reviewCount, product.reviewsCount, product.review_count, product.Reviews_Count, product.reviews, product.id, product.slug, product.name]);
 
   const handleWishlistClick = (event) => {
     event.stopPropagation();
@@ -160,8 +166,17 @@ export default function ProductCard({
           }}
         />
 
-        {/* CATEGORY / NEW ARRIVAL BADGE */}
-        {product.isNewArrival ? (
+        {/* CATEGORY / CUSTOM BADGE / NEW ARRIVAL BADGE */}
+        {product.badge && String(product.badge).trim() !== "" ? (
+          <span
+            style={{
+              ...badgeStyle,
+              backgroundColor: product.badgeColor || (String(product.badge).toUpperCase() === "NEW" ? "#16A34A" : "#1B1F8C"),
+            }}
+          >
+            {product.badge}
+          </span>
+        ) : product.isNewArrival ? (
           <span style={{ ...badgeStyle, backgroundColor: "#16A34A" }}>
             NEW
           </span>

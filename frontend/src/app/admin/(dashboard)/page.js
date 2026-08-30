@@ -10,6 +10,7 @@ import AddProductView from "../../../admin/views/AddProductView";
 import AdminProductDetailView from "../../../admin/views/AdminProductDetailView";
 import EditProductView from "../../../admin/views/EditProductView";
 import CategoriesView from "../../../admin/views/CategoriesView";
+import InventoryView from "../../../admin/views/InventoryView";
 import BannersView from "../../../admin/views/BannersView";
 import ContentView from "../../../admin/views/ContentView";
 import OrdersView from "../../../admin/views/OrdersView";
@@ -49,6 +50,9 @@ export default function AdminPage() {
       case "categories":
         if (!hasPermission("products", "view")) return <AccessDeniedPanel moduleName="Categories" onBack={() => navigateTo(firstAllowedRoute)} />;
         return <CategoriesView />;
+      case "inventory":
+        if (!hasPermission("products", "view")) return <AccessDeniedPanel moduleName="Inventory" onBack={() => navigateTo(firstAllowedRoute)} />;
+        return <InventoryView />;
       case "banners":
         // Legacy route — redirect to Content section
         navigateTo("content");
