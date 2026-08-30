@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect } from "react";
 import { STANDARD_SIZES, getCalculatedPrice } from "../data/mattressData";
-import { formatPrice } from "../utils/currency";
+import { formatPrice, getEffectivePrice } from "../utils/currency";
 
-export default function MattressSelector({ product, onSelectionChange, onEnquire }) {
+export default function MattressSelector({ product, onSelectionChange, onEnquire, discountPercent = 0 }) {
   // Variants (e.g. BLOOM 6', BLOOM 8' or thickness options)
   const variantOptions = product?.variantsList || product?.thicknessOptions || ["4 inch", "5 inch"];
   const [selectedVariant, setSelectedVariant] = useState(variantOptions[0]);
@@ -153,12 +153,28 @@ export default function MattressSelector({ product, onSelectionChange, onEnquire
       </div>
 
       {/* 5. DYNAMIC PRICE DISPLAY */}
-      <div style={priceCardStyle}>
+      <div style={priceCardStyle} className="mattress-price-card">
         <div>
           <span style={priceLabelStyle}>Calculated Price</span>
-          {price !== null && price !== undefined ? (
-            <div style={priceValueStyle}>{formatPrice(price)}</div>
-          ) : (
+          {price !== null && price !== undefined ? (() => {
+            const pct = Number(discountPercent) || 0;
+            const { hasDiscount, discountedPrice, discountedPrice: dp } = getEffectivePrice(price, pct);
+            return (
+              <div>
+                {hasDiscount && (
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "2px" }}>
+                    <span style={{ fontSize: "13px", color: "#9CA3AF", textDecoration: "line-through", fontWeight: 500 }}>
+                      {formatPrice(price)}
+                    </span>
+                    <span style={{ backgroundColor: "#DCFCE7", color: "#15803D", fontSize: "11px", fontWeight: 800, padding: "2px 8px", borderRadius: "999px" }}>
+                      {pct}% OFF
+                    </span>
+                  </div>
+                )}
+                <div style={priceValueStyle}>{formatPrice(hasDiscount ? dp : price)}</div>
+              </div>
+            );
+          })() : (
             <div style={contactPriceStyle}>Contact for Price</div>
           )}
         </div>
@@ -180,11 +196,12 @@ export default function MattressSelector({ product, onSelectionChange, onEnquire
 const selectorContainerStyle = {
   display: "flex",
   flexDirection: "column",
-  gap: "20px",
-  backgroundColor: "#FAFAFA",
-  borderRadius: "16px",
-  padding: "24px",
-  border: "1px solid #E7E7E2"
+  gap: "16px",
+  backgroundColor: "transparent",
+  padding: "0",
+  border: "none",
+  outline: "none",
+  boxShadow: "none"
 };
 
 const sectionStyle = {
@@ -256,11 +273,13 @@ const priceCardStyle = {
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
-  backgroundColor: "#FFFFFF",
-  padding: "16px 20px",
-  borderRadius: "12px",
-  border: "1px solid #E7E7E2",
-  marginTop: "8px"
+  backgroundColor: "transparent",
+  padding: "0",
+  borderRadius: "0",
+  border: "none",
+  boxShadow: "none",
+  outline: "none",
+  marginTop: "2px"
 };
 
 const priceLabelStyle = {

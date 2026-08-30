@@ -16,11 +16,17 @@ export default function CheckoutView() {
     selectedAddress,
     setSelectedAddress,
     navigateTo,
-    settings
+    settings,
+    setAuthModal
   } = useStore();
 
-  const { currentCustomer } = useCustomerAuth();
-  const userId = currentCustomer ? currentCustomer.id : "C001";
+  const { currentCustomer, isAuthenticated, setIntendedView } = useCustomerAuth();
+  const userId = currentCustomer
+    ? (currentCustomer.customerId || currentCustomer.id)
+    : "CUS-0001";
+
+  // Addresses saved on the customer profile record (single source of truth)
+  const profileAddresses = (currentCustomer?.savedAddresses || []);
 
   const [isHydrated, setIsHydrated] = useState(false);
   useEffect(() => {
@@ -43,33 +49,46 @@ export default function CheckoutView() {
     return [];
   }, [checkoutItems, cart]);
 
-  // Saved address for this user
+  // Fallback: single-address legacy store (for PaymentView compat)
   const savedAddress = (userAddresses && userAddresses[userId]) ? userAddresses[userId] : null;
 
-  // State for Address Form
+  // Which profile address is currently selected in checkout
+  const defaultAddr = profileAddresses.find((a) => a.isDefault) || profileAddresses[0] || null;
+  const [selectedProfileAddrId, setSelectedProfileAddrId] = useState(null);
+
+  // State for manual address form (new address or override)
   const [editingAddress, setEditingAddress] = useState(false);
   const [formAddress, setFormAddress] = useState({
-    fullName: savedAddress?.fullName || currentCustomer?.name || "Rahul Sharma",
-    phone: savedAddress?.phone || currentCustomer?.phone || "+91 98765 43210",
-    addressLine1: savedAddress?.addressLine1 || "123 Indiranagar 100ft Road",
-    addressLine2: savedAddress?.addressLine2 || "Near Metro Station",
-    city: savedAddress?.city || "Bengaluru",
-    state: savedAddress?.state || "Karnataka",
-    pincode: savedAddress?.pincode || "560038",
-    landmark: savedAddress?.landmark || "Opposite FabIndia"
+    fullName: currentCustomer?.name || "Rahul Sharma",
+    phone: currentCustomer?.phone || "+91 98765 43210",
+    addressLine1: "",
+    addressLine2: "",
+    city: "",
+    state: "",
+    pincode: "",
+    landmark: ""
   });
 
   const [addressError, setAddressError] = useState("");
 
-  // Sync saved address to form when available
+  // On mount: auto-select default address from profile or fallback to legacy savedAddress
   useEffect(() => {
-    if (savedAddress) {
-      setFormAddress(savedAddress);
+    if (profileAddresses.length > 0) {
+      const def = profileAddresses.find((a) => a.isDefault) || profileAddresses[0];
+      setSelectedProfileAddrId(def.id);
+      // Map profile address to checkout selectedAddress format
+      const mapped = {
+        ...def,
+        pincode: def.postalCode || def.pincode || ""
+      };
+      setSelectedAddress(mapped);
+      saveUserAddress(userId, mapped);
+    } else if (savedAddress) {
+      setFormAddress((prev) => ({ ...prev, ...savedAddress }));
       setSelectedAddress(savedAddress);
-    } else {
-      setSelectedAddress(formAddress);
     }
-  }, [savedAddress]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isHydrated]);
 
   // Dynamic price & shipping calculations from settings
   const {
@@ -109,11 +128,21 @@ export default function CheckoutView() {
     setEditingAddress(false);
   };
 
+  // Called when user selects a profile address card
+  const handleSelectProfileAddr = (addr) => {
+    setSelectedProfileAddrId(addr.id);
+    const mapped = { ...addr, pincode: addr.postalCode || addr.pincode || "" };
+    setSelectedAddress(mapped);
+    saveUserAddress(userId, mapped);
+    setEditingAddress(false);
+    setAddressError("");
+  };
+
   const handleProceedToPayment = () => {
     const addr = selectedAddress || savedAddress || formAddress;
-    if (!addr || !addr.fullName || !addr.addressLine1 || !addr.city || !addr.pincode) {
-      setAddressError("Please complete and save a valid delivery address before proceeding.");
-      setEditingAddress(true);
+    const pincode = addr?.pincode || addr?.postalCode || "";
+    if (!addr || !addr.fullName || !addr.addressLine1 || !addr.city || !pincode) {
+      setAddressError("Please select or enter a valid delivery address before proceeding.");
       return;
     }
     setSelectedAddress(addr);
@@ -133,6 +162,27 @@ export default function CheckoutView() {
       <div style={emptyContainerStyle}>
         <div style={emptyCardStyle}>
           <p style={{ color: "#6B6B75", margin: 0 }}>Loading checkout...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div style={emptyContainerStyle}>
+        <div style={emptyCardStyle}>
+          <h2 style={{ fontSize: "24px", color: "#1B1F8C", margin: "0 0 12px 0" }}>Sign In to Complete Order</h2>
+          <p style={{ color: "#6B6B75", marginBottom: "20px" }}>Please sign in or create an account to select delivery address and place your order.</p>
+          <button
+            onClick={() => {
+              if (setIntendedView) setIntendedView("checkout");
+              if (setAuthModal) setAuthModal("login");
+            }}
+            style={primaryBtnStyle}
+            className="hover-lift"
+          >
+            Sign In to Checkout
+          </button>
         </div>
       </div>
     );
@@ -312,9 +362,9 @@ export default function CheckoutView() {
         </button>
         <div style={stepperStyle} className="checkout-stepper">
           <span style={activeStepStyle}>1. Delivery Address</span>
-          <span style={stepDividerStyle}>→</span>
+          <span style={stepDividerStyle}>&rarr;</span>
           <span style={inactiveStepStyle}>2. Payment</span>
-          <span style={stepDividerStyle}>→</span>
+          <span style={stepDividerStyle}>&rarr;</span>
           <span style={inactiveStepStyle}>3. Confirmation</span>
         </div>
       </div>
@@ -354,21 +404,72 @@ export default function CheckoutView() {
           <div style={cardSectionStyle} className="checkout-card-section">
             <div style={sectionHeaderFlexStyle}>
               <h2 style={sectionTitleStyle}>2. Delivery Address</h2>
-              {savedAddress && !editingAddress && (
-                <button onClick={() => setEditingAddress(true)} style={secondaryIconBtnStyle}>
-                  <Edit2 size={14} />
-                  <span>Edit Address</span>
+              {!editingAddress && (
+                <button onClick={() => { setEditingAddress(true); setAddressError(""); }} style={secondaryIconBtnStyle}>
+                  <Plus size={14} />
+                  <span>Use a Different Address</span>
                 </button>
               )}
             </div>
 
             {addressError && (
               <div style={errorAlertStyle}>
-                <span>⚠️ {addressError}</span>
+                <span>{addressError}</span>
               </div>
             )}
 
-            {savedAddress && !editingAddress ? (
+            {/* Saved profile addresses as selectable cards */}
+            {!editingAddress && profileAddresses.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "16px" }}>
+                {profileAddresses.map((addr) => {
+                  const isSelected = selectedProfileAddrId === addr.id;
+                  return (
+                    <div
+                      key={addr.id}
+                      onClick={() => handleSelectProfileAddr(addr)}
+                      style={{
+                        border: isSelected ? "2px solid #1B1F8C" : "1px solid #E7E7E2",
+                        borderRadius: "12px",
+                        padding: "16px",
+                        cursor: "pointer",
+                        backgroundColor: isSelected ? "rgba(27,31,140,0.04)" : "#FAFAF7",
+                        transition: "all 0.2s ease"
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "6px", marginBottom: "8px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          {isSelected && <CheckCircle2 size={16} color="#1B1F8C" />}
+                          <span style={{ fontSize: "11px", fontWeight: "800", letterSpacing: "0.08em", color: isSelected ? "#1B1F8C" : "#6B6B75", textTransform: "uppercase" }}>
+                            {addr.label || "Home"}
+                          </span>
+                          {addr.isDefault && (
+                            <span style={{ fontSize: "10px", fontWeight: "700", color: "#16A34A", backgroundColor: "rgba(22,163,74,0.1)", padding: "2px 8px", borderRadius: "8px" }}>Default</span>
+                          )}
+                        </div>
+                      </div>
+                      <p style={{ fontSize: "13.5px", color: "#14151A", lineHeight: "1.6", margin: 0, overflowWrap: "anywhere" }} className="checkout-address-text">
+                        <strong>{addr.fullName}</strong><br />
+                        {addr.addressLine1}{addr.addressLine2 ? `, ${addr.addressLine2}` : ""}{addr.landmark ? ` - ${addr.landmark}` : ""}<br />
+                        {addr.city}, {addr.state} - {addr.postalCode || addr.pincode}<br />
+                        Phone: {addr.phone}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* No saved addresses and not editing: show empty state */}
+            {!editingAddress && profileAddresses.length === 0 && !savedAddress && (
+              <div style={{ textAlign: "center", padding: "24px", color: "#6B6B75", border: "1px dashed #E7E7E2", borderRadius: "12px", marginBottom: "16px" }}>
+                <MapPin size={28} style={{ margin: "0 auto 10px", display: "block", color: "#CCCCCC" }} />
+                <p style={{ margin: 0, fontSize: "14px", fontWeight: "600" }}>No saved addresses</p>
+                <p style={{ margin: "4px 0 0", fontSize: "13px" }}>Enter a delivery address below to continue.</p>
+              </div>
+            )}
+
+            {/* Legacy single savedAddress display (fallback) */}
+            {!editingAddress && profileAddresses.length === 0 && savedAddress && (
               <div style={addressDisplayCardStyle} className="checkout-address-display-card">
                 <div style={addressCardHeaderStyle}>
                   <div style={addressCardBadgeStyle}>
@@ -380,16 +481,15 @@ export default function CheckoutView() {
                   <strong style={{ fontSize: "16px", color: "#14151A", display: "block" }} className="checkout-address-text">{savedAddress.fullName}</strong>
                   <p style={addressTextLineStyle} className="checkout-address-text">{savedAddress.addressLine1}</p>
                   {savedAddress.addressLine2 && <p style={addressTextLineStyle} className="checkout-address-text">{savedAddress.addressLine2}</p>}
-                  <p style={addressTextLineStyle} className="checkout-address-text">{savedAddress.city}, {savedAddress.state} - <strong>{savedAddress.pincode}</strong></p>
+                  <p style={addressTextLineStyle} className="checkout-address-text">{savedAddress.city}, {savedAddress.state} - <strong>{savedAddress.pincode || savedAddress.postalCode}</strong></p>
                   {savedAddress.landmark && <p style={addressTextLineStyle} className="checkout-address-text">Landmark: {savedAddress.landmark}</p>}
-                  <p style={{ ...addressTextLineStyle, marginTop: "6px", color: "#1B1F8C", fontWeight: "600" }} className="checkout-address-text">📞 {savedAddress.phone}</p>
+                  <p style={{ ...addressTextLineStyle, marginTop: "6px", color: "#1B1F8C", fontWeight: "600" }} className="checkout-address-text">Phone: {savedAddress.phone}</p>
                 </div>
-                <button onClick={() => setEditingAddress(true)} style={changeAddrBtnStyle}>
-                  <Plus size={14} />
-                  <span>Add or Change Address</span>
-                </button>
               </div>
-            ) : (
+            )}
+
+            {/* Manual address form: shown when no profile addresses or user wants a different address */}
+            {(editingAddress || (profileAddresses.length === 0 && !savedAddress)) && (
               <form onSubmit={handleSaveAddressSubmit} style={addressFormStyle} className="checkout-address-form">
                 <div style={formGridStyle} className="checkout-form-grid">
                   <div style={fieldGroupStyle}>
@@ -489,9 +589,9 @@ export default function CheckoutView() {
 
                 <div style={formActionsRowStyle} className="checkout-form-actions">
                   <button type="submit" style={saveAddrBtnStyle} className="checkout-save-btn">
-                    Save & Use Address
+                    Use This Address
                   </button>
-                  {savedAddress && (
+                  {(profileAddresses.length > 0 || savedAddress) && (
                     <button type="button" onClick={() => setEditingAddress(false)} style={cancelAddrBtnStyle} className="checkout-cancel-btn">
                       Cancel
                     </button>
@@ -516,7 +616,7 @@ export default function CheckoutView() {
               {discountSavings > 0 && (
                 <div style={summaryRowStyle}>
                   <span style={summaryLabelStyle}>Product Discount</span>
-                  <span style={{ ...summaryValStyle, color: "#16A34A" }}>–{formatPrice(discountSavings)}</span>
+                  <span style={{ ...summaryValStyle, color: "#16A34A" }}>-{formatPrice(discountSavings)}</span>
                 </div>
               )}
 

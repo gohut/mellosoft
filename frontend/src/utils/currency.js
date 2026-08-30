@@ -16,6 +16,21 @@ export function calculateDiscountedPrice(actualPrice, discountPercent) {
   return Math.round(discounted * 100) / 100;
 }
 
+/**
+ * Returns a structured breakdown of effective pricing for a product/price value.
+ * @param {number} actualPrice - The raw/base price before any discount
+ * @param {number} discountPercent - Percentage discount (0–99)
+ * @returns {{ actualPrice: number, discountPercent: number, discountedPrice: number, hasDiscount: boolean, savedAmount: number }}
+ */
+export function getEffectivePrice(actualPrice, discountPercent) {
+  const price = Number(actualPrice) || 0;
+  const pct = Math.max(0, Math.min(99, Number(discountPercent) || 0));
+  const hasDiscount = pct > 0 && price > 0;
+  const discountedPrice = hasDiscount ? calculateDiscountedPrice(price, pct) : price;
+  const savedAmount = hasDiscount ? Math.round(price - discountedPrice) : 0;
+  return { actualPrice: price, discountPercent: pct, discountedPrice, hasDiscount, savedAmount };
+}
+
 export function getProductPrices(product, selectedSize = null) {
   if (!product) return { actualPrice: 0, discountPercent: 0, discountedPrice: 0 };
 

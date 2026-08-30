@@ -7,22 +7,11 @@ import DataTable from "../components/DataTable";
 import StatusBadge from "../components/StatusBadge";
 import { X, Search, RotateCcw, ShoppingBag, DollarSign, TrendingUp, Package, Clock, Heart, ShoppingCart } from "lucide-react";
 import { formatPrice, calculateDiscountedPrice } from "../../utils/currency";
+import { normalizeCustomerId, matchCustomer } from "../../utils/customerHelpers";
 
 export function getCustomerDisplayId(customer, index = 0) {
   if (!customer) return `CUS-0001`;
-  if (customer.customerId && typeof customer.customerId === "string") {
-    return customer.customerId;
-  }
-  if (customer.id && typeof customer.id === "string" && customer.id.startsWith("CUS-")) {
-    return customer.id;
-  }
-  if (customer.id && typeof customer.id === "string" && customer.id.startsWith("C")) {
-    const num = parseInt(customer.id.substring(1), 10);
-    if (!isNaN(num)) {
-      return `CUS-${String(num).padStart(4, "0")}`;
-    }
-  }
-  return `CUS-${String(index + 1).padStart(4, "0")}`;
+  return normalizeCustomerId(customer.customerId || customer.id || index + 1);
 }
 
 const filterSelectStyle = {
@@ -55,9 +44,7 @@ export default function CustomersView() {
   const customerTableRows = useMemo(() => {
     return (customers || []).map((c, idx) => {
       const displayId = getCustomerDisplayId(c, idx);
-      const custOrders = (orders || []).filter(
-        (o) => o.customerId === c.id || o.customerId === c.customerId || o.customerId === displayId
-      );
+      const custOrders = (orders || []).filter((o) => matchCustomer(o, c));
       const ordersCount = custOrders.length;
       const totalSpent = custOrders
         .filter((o) => o.orderStatus !== "Cancelled" && (o.paymentStatus === "Paid" || o.orderStatus === "Delivered" || o.orderStatus === "Processing" || o.orderStatus === "Shipped" || o.totalAmount > 0))
@@ -402,20 +389,24 @@ function CustomerDetailsModal({ customerId, canEdit, onClose, onStatusToggle }) 
 
   // Load customer record strictly from central state via customerId
   const customer = useMemo(() => {
-    return (customers || []).find((c) => c.id === customerId);
+    return (customers || []).find((c) =>
+      matchCustomer({ customerId }, c) || c.id === customerId || c.customerId === customerId
+    );
   }, [customers, customerId]);
 
   // Find all orders belonging to this customerId
   const customerOrders = useMemo(() => {
+    if (!customer) return [];
     return (orders || [])
-      .filter((o) => o.customerId === customerId)
+      .filter((o) => matchCustomer(o, customer))
       .sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date));
-  }, [orders, customerId]);
+  }, [orders, customer]);
 
   // Find all wishlist entries belonging to this customerId
   const customerWishlistEntries = useMemo(() => {
-    return (wishlists || []).filter((w) => w.customerId === customerId);
-  }, [wishlists, customerId]);
+    if (!customer) return [];
+    return (wishlists || []).filter((w) => matchCustomer(w, customer));
+  }, [wishlists, customer]);
 
   // Resolve products for wishlist entries
   const resolvedWishlistProducts = useMemo(() => {
@@ -426,8 +417,9 @@ function CustomerDetailsModal({ customerId, canEdit, onClose, onStatusToggle }) 
 
   // Find all cart items belonging to this customer
   const customerCartItems = useMemo(() => {
-    return (carts || []).filter((c) => c.customerId === customerId);
-  }, [carts, customerId]);
+    if (!customer) return [];
+    return (carts || []).filter((c) => matchCustomer(c, customer));
+  }, [carts, customer]);
 
   // Calculate cart subtotal: sum of (discountPrice × quantity) per item
   const cartSubtotal = useMemo(() => {
@@ -694,7 +686,7 @@ function CustomerDetailsModal({ customerId, canEdit, onClose, onStatusToggle }) 
                   <div>
                     <span style={{ color: "#6B6B75", fontSize: "11px", fontWeight: 700, textTransform: "uppercase" }}>Customer ID</span>
                     <div style={{ fontWeight: 600, color: "#1B1F8C", marginTop: "4px" }}>
-                      {customer.id || "Not available"}
+                      {getCustomerDisplayId(customer)}
                     </div>
                   </div>
 
@@ -786,9 +778,55 @@ function CustomerDetailsModal({ customerId, canEdit, onClose, onStatusToggle }) 
                 padding: "20px",
               }}>
                 <h6 style={{ fontSize: "14px", fontWeight: 700, color: "#14151A", margin: "0 0 16px" }}>
-                  Address Information
+                  Address Information {Array.isArray(customer.savedAddresses) && customer.savedAddresses.length > 0 ? `(${customer.savedAddresses.length})` : ""}
                 </h6>
-                {customer.address || customer.city || customer.state || customer.pincode || customer.country ? (
+                {Array.isArray(customer.savedAddresses) && customer.savedAddresses.length > 0 ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                    {customer.savedAddresses.map((addr, aIdx) => (
+                      <div
+                        key={addr.id || aIdx}
+                        style={{
+                          backgroundColor: "#FAFAF7",
+                          border: "1px solid #E7E7E2",
+                          borderRadius: "10px",
+                          padding: "16px",
+                        }}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px", flexWrap: "wrap", gap: "6px" }}>
+                          <span style={{
+                            fontSize: "11px",
+                            fontWeight: 800,
+                            letterSpacing: "0.08em",
+                            color: "#1B1F8C",
+                            textTransform: "uppercase"
+                          }}>
+                            {addr.label || "HOME"}
+                          </span>
+                          {addr.isDefault && (
+                            <span style={{
+                              fontSize: "10px",
+                              fontWeight: 700,
+                              color: "#16A34A",
+                              backgroundColor: "rgba(22,163,74,0.1)",
+                              padding: "2px 8px",
+                              borderRadius: "8px",
+                              border: "1px solid rgba(22,163,74,0.2)"
+                            }}>
+                              Default
+                            </span>
+                          )}
+                        </div>
+                        <p style={{ fontSize: "13.5px", color: "#14151A", lineHeight: "1.7", margin: 0 }}>
+                          <strong>{addr.fullName || customer.name}</strong><br />
+                          {addr.addressLine1}{addr.addressLine2 ? `, ${addr.addressLine2}` : ""}{addr.landmark ? ` - ${addr.landmark}` : ""}<br />
+                          {addr.city}, {addr.state} - {addr.postalCode || addr.pincode}<br />
+                          {addr.country || "India"}<br />
+                          Phone: {addr.phone || customer.phone || "Not available"}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (customer.address || customer.city || customer.state || customer.pincode || customer.country) ? (
                   <div style={{
                     display: "grid",
                     gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",

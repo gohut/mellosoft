@@ -10,6 +10,7 @@ import PromotionalBannerSlider from "../components/PromotionalBannerSlider";
 import PromoBannerCard from "../components/PromoBannerCard";
 import HeroSlideCard from "../components/HeroSlideCard";
 import { formatPrice } from "../utils/currency";
+import { HomepageSkeleton } from "../components/skeleton";
 
 export const CATEGORY_IMAGES = {
   "memory-foam": "/assets/categories/memory-foam.jpg",
@@ -36,25 +37,9 @@ export default function HomeView() {
   const sliderTrackRef = useRef(null);
   const [activeSlide, setActiveSlide] = useState(0);
 
-  useEffect(() => {
-    let isMounted = true;
-    const refreshHomepage = async () => {
-      try {
-        const res = await fetch("/api/content/homepage", {
-          cache: "no-store",
-          headers: { Pragma: "no-cache" }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.success && isMounted && typeof window !== "undefined") {
-            window.dispatchEvent(new CustomEvent("mellosoft_homepage_updated", { detail: data }));
-          }
-        }
-      } catch (e) {}
-    };
-    refreshHomepage();
-    return () => { isMounted = false; };
-  }, []);
+  // Hydration guard: show skeleton during SSR→client mount window
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   const mattresses = useMemo(() => (products || MOCK_PRODUCTS).filter((product) => product.category === "mattress"), [products]);
   const featuredMattresses = useMemo(() => mattresses.slice(0, 4), [mattresses]);
@@ -67,14 +52,7 @@ export default function HomeView() {
         .sort((a, b) => (Number(a.displayOrder) || 0) - (Number(b.displayOrder) || 0));
 
       const resolved = activeItems
-        .map((item) => {
-          const targetId = String(item.productId || item.id || "").trim().toLowerCase();
-          return allProds.find((p) =>
-            String(p.id || "").trim().toLowerCase() === targetId ||
-            String(p.slug || "").trim().toLowerCase() === targetId ||
-            String(p.Product_Id || "").trim().toLowerCase() === targetId
-          );
-        })
+        .map((item) => allProds.find((p) => p.id === item.productId || p.id === item.id))
         .filter(Boolean);
 
       if (resolved.length > 0) return resolved;
@@ -90,14 +68,7 @@ export default function HomeView() {
         .sort((a, b) => (Number(a.displayOrder) || 0) - (Number(b.displayOrder) || 0));
 
       const resolved = activeItems
-        .map((item) => {
-          const targetId = String(item.productId || item.id || "").trim().toLowerCase();
-          return allProds.find((p) =>
-            String(p.id || "").trim().toLowerCase() === targetId ||
-            String(p.slug || "").trim().toLowerCase() === targetId ||
-            String(p.Product_Id || "").trim().toLowerCase() === targetId
-          );
-        })
+        .map((item) => allProds.find((p) => p.id === item.productId || p.id === item.id))
         .filter(Boolean);
 
       if (resolved.length > 0) return resolved.slice(0, 10);
@@ -198,6 +169,10 @@ export default function HomeView() {
     navigateTo("catalog");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
+  if (!mounted) {
+    return <HomepageSkeleton />;
+  }
 
   return (
     <div style={pageWrapperStyle}>
@@ -311,7 +286,7 @@ export default function HomeView() {
                         style={{ ...categoryTileStyle, backgroundColor: item.color }}
                         className="category-tile"
                       >
-                        <span style={categoryLabelStyle}>{item.label}</span>
+                        <span style={categoryLabelStyle} className="category-tile-label">{item.label}</span>
                         <div style={categoryImageWrapperStyle} className="category-img-wrapper">
                           <img
                             src={item.image}
@@ -336,17 +311,15 @@ export default function HomeView() {
             );
 
           case "best-sellers":
-            const bsBg = section.backgroundColor || section.styles?.backgroundColor || "#1B1F8C";
-            const isBsDefaultBg = bsBg.toLowerCase() === "#1b1f8c";
             return (
               <ProductRow
                 key="best-sellers"
-                title={section.name || section.label || section.title || "Best Sellers"}
-                tagline={section.description || section.subtitle || section.tagline || "Loved by thousands of happy sleepers."}
+                title="Best Sellers"
+                tagline="Loved by thousands of happy sleepers."
                 products={bestSellers}
-                background={bsBg}
-                titleColor={isBsDefaultBg ? "#00B138" : undefined}
-                taglineColor={isBsDefaultBg ? "#C7CBEF" : undefined}
+                background="#1B1F8C"
+                titleColor="#00B138"
+                taglineColor="#C7CBEF"
                 scrollable
                 variant="bestSeller"
               />
@@ -356,10 +329,9 @@ export default function HomeView() {
             return (
               <ProductRow
                 key="new-arrivals"
-                title={section.name || section.label || section.title || "New Arrivals"}
-                tagline={section.description || section.subtitle || section.tagline || "Fresh drops, fresh comfort."}
+                title="New Arrivals"
+                tagline="Fresh drops, fresh comfort."
                 products={newArrivals}
-                background={section.backgroundColor || section.styles?.backgroundColor || undefined}
                 onAction={() => goToCatalog("All")}
                 scrollable
               />
@@ -519,6 +491,40 @@ export default function HomeView() {
             min-width: 0 !important;
             max-width: none !important;
             scroll-snap-align: start !important;
+            overflow: hidden !important;
+            padding: 8px 10px 8px 14px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+          }
+          .category-row .category-tile .category-tile-label {
+            flex: 0 0 38% !important;
+            max-width: 42% !important;
+            min-width: 0 !important;
+          }
+          .category-row .category-tile .category-img-wrapper {
+            flex: 1 1 58% !important;
+            width: auto !important;
+            max-width: 60% !important;
+            height: 100% !important;
+            max-height: 100% !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            min-width: 0 !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            overflow: visible !important;
+          }
+          .category-row .category-tile img {
+            width: clamp(88px, 14vw, 115px) !important;
+            max-width: 100% !important;
+            height: auto !important;
+            max-height: 88% !important;
+            object-fit: contain !important;
+            background: transparent !important;
+            flex-shrink: 0 !important;
+            mix-blend-mode: multiply !important;
           }
         }
 
@@ -541,13 +547,19 @@ export default function HomeView() {
           .category-carousel-wrap::-webkit-scrollbar {
             display: none !important;
           }
+          .category-section {
+            padding: 14px 0 10px !important;
+          }
+          .category-header {
+            margin-bottom: 10px !important;
+          }
           .category-row {
             display: flex !important;
             width: max-content !important;
             min-width: 100% !important;
             flex-wrap: nowrap !important;
             gap: 10px !important;
-            padding: 2px 16px 14px 0 !important;
+            padding: 2px 16px 6px 0 !important;
             margin: 0 !important;
             scroll-snap-type: x proximity !important;
             box-sizing: border-box !important;
@@ -559,17 +571,51 @@ export default function HomeView() {
             max-width: none !important;
             scroll-snap-align: start !important;
             aspect-ratio: 2.2 / 1 !important;
+            overflow: hidden !important;
+            padding: 6px 8px 6px 12px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+          }
+          .category-row .category-tile .category-tile-label {
+            flex: 0 0 38% !important;
+            max-width: 40% !important;
+            min-width: 0 !important;
+            font-size: clamp(11px, 6.8cqi, 14px) !important;
+            line-height: 1.15 !important;
+            word-break: normal !important;
+          }
+          .category-row .category-tile .category-img-wrapper {
+            flex: 1 1 60% !important;
+            width: auto !important;
+            max-width: 62% !important;
+            height: 100% !important;
+            max-height: 100% !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            min-width: 0 !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            overflow: visible !important;
           }
           .category-row .category-tile img {
-            max-width: 48% !important;
+            width: clamp(82px, 28vw, 108px) !important;
+            max-width: 100% !important;
             height: auto !important;
+            max-height: 88% !important;
             object-fit: contain !important;
+            background: transparent !important;
             flex-shrink: 0 !important;
+            mix-blend-mode: multiply !important;
           }
 
           .peek-slider {
             gap: 10px !important;
-            padding: 14px 16px 18px 24px !important;
+            padding: 10px 16px 12px 24px !important;
+          }
+          .peek-dots {
+            padding: 0 0 8px !important;
           }
           .peek-slide {
             width: 82vw !important;
@@ -601,20 +647,36 @@ export default function HomeView() {
             font-size: 11px !important;
           }
 
+          .home-product-section {
+            padding: 14px 0 12px !important;
+          }
+          .best-seller-section {
+            padding: 16px 0 14px !important;
+          }
+          .section-header {
+            margin-bottom: 10px !important;
+          }
+
           .product-row {
             overflow-x: auto !important;
             display: grid !important;
             grid-auto-flow: column !important;
             grid-auto-columns: minmax(220px, 68vw) !important;
             grid-template-columns: none !important;
-            gap: 14px !important;
-            padding: 2px 24px 14px !important;
+            gap: 12px !important;
+            padding: 2px 24px 8px !important;
             margin: 0 -16px !important;
             scroll-snap-type: x mandatory;
             scroll-padding-left: 24px !important;
+            align-items: stretch !important;
+          }
+          .product-row > * {
+            display: flex !important;
+            flex-direction: column !important;
+            height: 100% !important;
           }
           .single-promo-banner-section {
-            padding: 14px 0 !important;
+            padding: 10px 0 !important;
             width: 100% !important;
             display: flex !important;
             justify-content: center !important;
@@ -660,11 +722,15 @@ export default function HomeView() {
             padding-right: 64px;
             scroll-padding-left: 64px;
             scroll-padding-right: 64px;
+            align-items: stretch !important;
           }
           .product-row-scroll .product-item-scroll {
             flex: 0 0 260px;
             min-width: 260px;
             scroll-snap-align: start;
+            display: flex !important;
+            flex-direction: column !important;
+            height: auto !important;
           }
           .row-fade {
             display: block;
@@ -682,8 +748,8 @@ export default function HomeView() {
 
 function SectionHeader({ title, tagline, action, onAction, titleColor, taglineColor, compact = false }) {
   return (
-    <div style={compact ? { ...sectionHeaderStyle, marginBottom: "24px" } : sectionHeaderStyle}>
-      <div style={sectionHeaderTextWrapStyle}>
+    <div style={compact ? { ...sectionHeaderStyle, marginBottom: "14px" } : sectionHeaderStyle} className="section-header">
+      <div style={sectionHeaderTextWrapStyle} className="section-header-text-wrap">
         <h2 style={titleColor ? { ...sectionTitleStyle, color: titleColor } : sectionTitleStyle}>{title}</h2>
         {tagline && (
           <p style={taglineColor ? { ...sectionTaglineStyle, color: taglineColor } : sectionTaglineStyle}>
@@ -809,7 +875,7 @@ const sliderSectionStyle = {
 };
 
 const promoSectionWrapperStyle = {
-  padding: "20px 0 16px",
+  padding: "14px 0 12px",
   width: "100%",
   boxSizing: "border-box",
   display: "flex",
@@ -822,9 +888,9 @@ const peekSliderTrackStyle = {
   overflowX: "auto",
   scrollSnapType: "x mandatory",
   WebkitOverflowScrolling: "touch",
-  paddingTop: "20px",
+  paddingTop: "14px",
   paddingRight: "24px",
-  paddingBottom: "24px",
+  paddingBottom: "14px",
   paddingLeft: "24px",
   scrollbarWidth: "none"
 };
@@ -834,7 +900,7 @@ const peekDotsRowStyle = {
   justifyContent: "center",
   alignItems: "center",
   gap: "8px",
-  padding: "0 0 20px",
+  padding: "0 0 12px",
   backgroundColor: "#FFFFFF"
 };
 
@@ -920,7 +986,7 @@ const peekShopBtnStyle = {
 };
 
 const categorySectionStyle = {
-  padding: "28px 0 24px"
+  padding: "24px 0 20px"
 };
 
 const categoryHeaderStyle = {
@@ -928,7 +994,7 @@ const categoryHeaderStyle = {
   alignItems: "center",
   justifyContent: "space-between",
   gap: "16px",
-  marginBottom: "18px"
+  marginBottom: "14px"
 };
 
 const categoryTitleStyle = {
@@ -1174,11 +1240,11 @@ const promoButtonStyle = {
 };
 
 const productSectionStyle = {
-  padding: "52px 0"
+  padding: "32px 0 28px"
 };
 
 const bestSellerSectionStyle = {
-  padding: "36px 0 32px"
+  padding: "32px 0 28px"
 };
 
 const sectionHeaderStyle = {
@@ -1186,7 +1252,7 @@ const sectionHeaderStyle = {
   justifyContent: "space-between",
   alignItems: "flex-start",
   gap: "16px",
-  marginBottom: "20px"
+  marginBottom: "16px"
 };
 
 const sectionHeaderTextWrapStyle = {

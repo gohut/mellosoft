@@ -13,7 +13,7 @@ export default function ProfilePage() {
   return (
     <>
       <Header />
-      <main style={{ flexGrow: 1, display: "flex", flexDirection: "column", width: "100%", backgroundColor: "#FFFFFF" }}>
+      <main style={{ flexGrow: 1, display: "flex", flexDirection: "column", width: "100%", maxWidth: "100%", minWidth: 0, boxSizing: "border-box", backgroundColor: "#FFFFFF" }}>
         <ProfileView />
       </main>
       <Footer />

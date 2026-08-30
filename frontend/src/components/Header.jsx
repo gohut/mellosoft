@@ -5,9 +5,14 @@ import { usePathname, useRouter } from "next/navigation";
 import { useStore } from "../context/StoreContext";
 import { useCustomerAuth } from "../context/CustomerAuthContext";
 import { MOCK_PRODUCTS } from "../data/products";
-import { formatPrice } from "../utils/currency";
 import { getResolvedImageUrlSync } from "../utils/imageStorage";
 import { getListingBackRoute } from "../utils/navigationHelpers";
+import {
+  getSubcategoryUrl,
+  MATTRESS_CATEGORY_LIST,
+  ACCESSORY_CATEGORY_LIST,
+  BED_FRAME_CATEGORY_LIST
+} from "../utils/productHelpers";
 
 export default function Header() {
   const pathname = usePathname() || "/";
@@ -21,7 +26,8 @@ export default function Header() {
     searchQuery,
     setSearchQuery,
     setActiveFilters,
-    settings
+    settings,
+    categories
   } = useStore();
 
   const { currentCustomer, isAuthenticated } = useCustomerAuth();
@@ -58,6 +64,37 @@ export default function Header() {
   const isBedFramesActive = pathname === "/bed-frames" || pathname.startsWith("/bed-frames/");
   const isAboutActive = pathname === "/about";
   const isContactActive = pathname === "/contact";
+
+  // Dynamic Subcategory lists for Mattresses, Accessories, Bed Frames
+  const mattressSubcategories = React.useMemo(() => {
+    const main = (categories || []).find(
+      (c) => c.slug === "mattresses" || c.id === "CAT-MATTRESSES" || (c.name && c.name.toLowerCase() === "mattresses")
+    );
+    if (main && Array.isArray(main.subcategories) && main.subcategories.length > 0) {
+      return main.subcategories.filter((s) => s.active !== false);
+    }
+    return MATTRESS_CATEGORY_LIST;
+  }, [categories]);
+
+  const accessorySubcategories = React.useMemo(() => {
+    const main = (categories || []).find(
+      (c) => c.slug === "accessories" || c.id === "CAT-ACCESSORIES" || (c.name && c.name.toLowerCase() === "accessories")
+    );
+    if (main && Array.isArray(main.subcategories) && main.subcategories.length > 0) {
+      return main.subcategories.filter((s) => s.active !== false);
+    }
+    return ACCESSORY_CATEGORY_LIST;
+  }, [categories]);
+
+  const bedFrameSubcategories = React.useMemo(() => {
+    const main = (categories || []).find(
+      (c) => c.slug === "bed-frames" || c.id === "CAT-BED-FRAMES" || (c.name && c.name.toLowerCase() === "bed frames")
+    );
+    if (main && Array.isArray(main.subcategories) && main.subcategories.length > 0) {
+      return main.subcategories.filter((s) => s.active !== false);
+    }
+    return BED_FRAME_CATEGORY_LIST;
+  }, [categories]);
 
   const isNestedMobileView = !isHome;
   const isDetailView = pathname.startsWith("/product/");
@@ -147,65 +184,16 @@ export default function Header() {
   };
 
   const goBack = () => {
-    if (!pathname) {
+    // Product detail pages use actual browser history (supports all entry points:
+    // listing, homepage, wishlist, search, You May Also Like chains)
+    if (isDetailView) {
       router.back();
       return;
     }
-
-    // ── PRODUCT DETAIL ──────────────────────────────────────────────────────
-    // Note: mobile header is hidden on /product/* so this branch only fires
-    // if goBack() is ever called directly from desktop or fallback.
-    if (pathname.startsWith("/product/")) {
-      router.back();
-      return;
-    }
-
-    // ── MAIN LISTING PAGES → Home ────────────────────────────────────────────
-    if (
-      pathname === "/mattresses" ||
-      pathname === "/accessories" ||
-      pathname === "/bed-frames"
-    ) {
-      handleNavClick("/");
-      return;
-    }
-
-    // ── MATTRESS SUBCATEGORY → /mattresses ───────────────────────────────────
-    if (pathname.startsWith("/mattresses/")) {
-      handleNavClick("/mattresses");
-      return;
-    }
-
-    // ── ACCESSORIES SUBCATEGORY → /accessories ───────────────────────────────
-    if (pathname.startsWith("/accessories/")) {
-      handleNavClick("/accessories");
-      return;
-    }
-
-    // ── BED-FRAMES SUBCATEGORY → /bed-frames ─────────────────────────────────
-    if (pathname.startsWith("/bed-frames/")) {
-      handleNavClick("/bed-frames");
-      return;
-    }
-
-    // ── GENERIC CATEGORY ROUTES ─────────────────────────────────────────────
-    const parts = pathname.split("/").filter(Boolean);
-
-    // /category/[mainSlug] → Home
-    if (parts[0] === "category" && parts.length === 2) {
-      handleNavClick("/");
-      return;
-    }
-
-    // /category/[mainSlug]/[subSlug] → /category/[mainSlug]
-    if (parts[0] === "category" && parts.length >= 3) {
-      handleNavClick(`/category/${parts[1]}`);
-      return;
-    }
-
-    // ── DEFAULT FALLBACK ─────────────────────────────────────────────────────
-    // For any unrecognized page (about, contact, policy pages, etc.) → Home
-    handleNavClick("/");
+    // Listing and subcategory pages use the explicit hierarchy helper:
+    // main listing -> "/", subcategory -> parent main category
+    const backRoute = getListingBackRoute(pathname);
+    handleNavClick(backRoute);
   };
 
   const handleMobileBack = () => {
@@ -216,7 +204,6 @@ export default function Header() {
     }
     goBack();
   };
-
 
   return (
     <>
@@ -263,21 +250,24 @@ export default function Header() {
 
               {mattressDropdown && (
                 <div style={dropdownMenuStyle}>
-                  <button onClick={() => handleNavClick("/mattresses/foam")} style={dropdownItemStyle}>
-                    Foam Mattress
-                  </button>
-                  <button onClick={() => handleNavClick("/mattresses/ortho")} style={dropdownItemStyle}>
-                    Ortho Mattress
-                  </button>
-                  <button onClick={() => handleNavClick("/mattresses/spring")} style={dropdownItemStyle}>
-                    Spring Mattress
-                  </button>
-                  <button onClick={() => handleNavClick("/mattresses/latex")} style={dropdownItemStyle}>
-                    Latex Mattress
-                  </button>
-                  <button onClick={() => handleNavClick("/mattresses/memory-foam")} style={dropdownItemStyle}>
-                    Memory Foam Mattress
-                  </button>
+                  {mattressSubcategories.map((sub) => {
+                    const slug = sub.slug || sub.id;
+                    const url = getSubcategoryUrl("mattresses", slug);
+                    const isActive = pathname === url;
+                    return (
+                      <button
+                        key={sub.id || slug}
+                        onClick={() => handleNavClick(url)}
+                        style={{
+                          ...dropdownItemStyle,
+                          color: isActive ? "#1B1F8C" : "#14151A",
+                          fontWeight: isActive ? "700" : "500"
+                        }}
+                      >
+                        {sub.name}
+                      </button>
+                    );
+                  })}
                   <div style={{ borderTop: "1px solid #E7E7E2", marginTop: "4px", paddingTop: "4px" }}>
                     <button onClick={() => handleNavClick("/mattresses")} style={{ ...dropdownItemStyle, fontWeight: "700", color: "#1B1F8C" }}>
                       View All Mattresses →
@@ -306,27 +296,24 @@ export default function Header() {
 
               {accessoriesDropdown && (
                 <div style={dropdownMenuStyle}>
-                  <button onClick={() => handleNavClick("/accessories/memory-foam-pillow")} style={dropdownItemStyle}>
-                    Memory Foam Pillow
-                  </button>
-                  <button onClick={() => handleNavClick("/accessories/latex-pillow")} style={dropdownItemStyle}>
-                    Latex Pillow
-                  </button>
-                  <button onClick={() => handleNavClick("/accessories/fiber-pillow")} style={dropdownItemStyle}>
-                    Fiber Pillow
-                  </button>
-                  <button onClick={() => handleNavClick("/accessories/mattress-protector")} style={dropdownItemStyle}>
-                    Mattress Protector
-                  </button>
-                  <button onClick={() => handleNavClick("/accessories/fitted-bedspread")} style={dropdownItemStyle}>
-                    Fitted Bedspread
-                  </button>
-                  <button onClick={() => handleNavClick("/accessories/blanket-duvet")} style={dropdownItemStyle}>
-                    Blanket / Duvet
-                  </button>
-                  <button onClick={() => handleNavClick("/accessories/travel-bed")} style={dropdownItemStyle}>
-                    Travel Bed
-                  </button>
+                  {accessorySubcategories.map((sub) => {
+                    const slug = sub.slug || sub.id;
+                    const url = getSubcategoryUrl("accessories", slug);
+                    const isActive = pathname === url;
+                    return (
+                      <button
+                        key={sub.id || slug}
+                        onClick={() => handleNavClick(url)}
+                        style={{
+                          ...dropdownItemStyle,
+                          color: isActive ? "#1B1F8C" : "#14151A",
+                          fontWeight: isActive ? "700" : "500"
+                        }}
+                      >
+                        {sub.name}
+                      </button>
+                    );
+                  })}
                   <div style={{ borderTop: "1px solid #E7E7E2", marginTop: "4px", paddingTop: "4px" }}>
                     <button onClick={() => handleNavClick("/accessories")} style={{ ...dropdownItemStyle, fontWeight: "700", color: "#1B1F8C" }}>
                       View All Accessories →
@@ -355,12 +342,24 @@ export default function Header() {
 
               {bedFramesDropdown && (
                 <div style={dropdownMenuStyle}>
-                  <button onClick={() => handleNavClick("/bed-frames/wooden-bed-frame")} style={dropdownItemStyle}>
-                    Wooden Bed Frame
-                  </button>
-                  <button onClick={() => handleNavClick("/bed-frames/platform-bed")} style={dropdownItemStyle}>
-                    Platform Bed
-                  </button>
+                  {bedFrameSubcategories.map((sub) => {
+                    const slug = sub.slug || sub.id;
+                    const url = getSubcategoryUrl("bed-frames", slug);
+                    const isActive = pathname === url;
+                    return (
+                      <button
+                        key={sub.id || slug}
+                        onClick={() => handleNavClick(url)}
+                        style={{
+                          ...dropdownItemStyle,
+                          color: isActive ? "#1B1F8C" : "#14151A",
+                          fontWeight: isActive ? "700" : "500"
+                        }}
+                      >
+                        {sub.name}
+                      </button>
+                    );
+                  })}
                   <div style={{ borderTop: "1px solid #E7E7E2", marginTop: "4px", paddingTop: "4px" }}>
                     <button onClick={() => handleNavClick("/bed-frames")} style={{ ...dropdownItemStyle, fontWeight: "700", color: "#1B1F8C" }}>
                       View All Bed Frames →
@@ -509,11 +508,27 @@ export default function Header() {
                 </button>
                 {mobileMattressOpen && (
                   <div style={mobileSubMenuStyle}>
-                    <button onClick={() => goToCategory("foam")} style={mobileSubLinkStyle}>Foam Mattress</button>
-                    <button onClick={() => goToCategory("ortho")} style={mobileSubLinkStyle}>Ortho Mattress</button>
-                    <button onClick={() => goToCategory("spring")} style={mobileSubLinkStyle}>Spring Mattress</button>
-                    <button onClick={() => goToCategory("latex")} style={mobileSubLinkStyle}>Latex Mattress</button>
-                    <button onClick={() => goToCategory("memory-foam")} style={mobileSubLinkStyle}>Memory Foam Mattress</button>
+                    {mattressSubcategories.map((sub) => {
+                      const slug = sub.slug || sub.id;
+                      const url = getSubcategoryUrl("mattresses", slug);
+                      const isActive = pathname === url;
+                      return (
+                        <button
+                          key={sub.id || slug}
+                          onClick={() => handleNavClick(url)}
+                          style={{
+                            ...mobileSubLinkStyle,
+                            color: isActive ? "#1B1F8C" : "#14151A",
+                            fontWeight: isActive ? "700" : "500"
+                          }}
+                        >
+                          {sub.name}
+                        </button>
+                      );
+                    })}
+                    <button onClick={() => handleNavClick("/mattresses")} style={{ ...mobileSubLinkStyle, fontWeight: "700", color: "#1B1F8C" }}>
+                      View All Mattresses →
+                    </button>
                   </div>
                 )}
               </div>
@@ -527,13 +542,27 @@ export default function Header() {
                 </button>
                 {mobileAccessoriesOpen && (
                   <div style={mobileSubMenuStyle}>
-                    <button onClick={() => goToProduct("memory-foam-pillow")} style={mobileSubLinkStyle}>Memory Foam Pillow</button>
-                    <button onClick={() => goToProduct("latex-pillow")} style={mobileSubLinkStyle}>Latex Pillow</button>
-                    <button onClick={() => goToProduct("fiber-pillow")} style={mobileSubLinkStyle}>Fiber Pillow</button>
-                    <button onClick={() => goToProduct("mattress-protector")} style={mobileSubLinkStyle}>Mattress Protector</button>
-                    <button onClick={() => goToProduct("fitted-bedspread")} style={mobileSubLinkStyle}>Fitted Bedspread</button>
-                    <button onClick={() => goToProduct("blanket-duvet")} style={mobileSubLinkStyle}>Blanket / Duvet</button>
-                    <button onClick={() => goToProduct("travel-bed")} style={mobileSubLinkStyle}>Travel Bed</button>
+                    {accessorySubcategories.map((sub) => {
+                      const slug = sub.slug || sub.id;
+                      const url = getSubcategoryUrl("accessories", slug);
+                      const isActive = pathname === url;
+                      return (
+                        <button
+                          key={sub.id || slug}
+                          onClick={() => handleNavClick(url)}
+                          style={{
+                            ...mobileSubLinkStyle,
+                            color: isActive ? "#1B1F8C" : "#14151A",
+                            fontWeight: isActive ? "700" : "500"
+                          }}
+                        >
+                          {sub.name}
+                        </button>
+                      );
+                    })}
+                    <button onClick={() => handleNavClick("/accessories")} style={{ ...mobileSubLinkStyle, fontWeight: "700", color: "#1B1F8C" }}>
+                      View All Accessories →
+                    </button>
                   </div>
                 )}
               </div>
@@ -547,9 +576,27 @@ export default function Header() {
                 </button>
                 {mobileBedFramesOpen && (
                   <div style={mobileSubMenuStyle}>
-                    <button onClick={() => handleNavClick("/bed-frames/wooden-bed-frame")} style={mobileSubLinkStyle}>Wooden Bed Frame</button>
-                    <button onClick={() => handleNavClick("/bed-frames/platform-bed")} style={mobileSubLinkStyle}>Platform Bed</button>
-                    <button onClick={() => handleNavClick("/bed-frames")} style={{ ...mobileSubLinkStyle, fontWeight: "700", color: "#1B1F8C" }}>View All Bed Frames</button>
+                    {bedFrameSubcategories.map((sub) => {
+                      const slug = sub.slug || sub.id;
+                      const url = getSubcategoryUrl("bed-frames", slug);
+                      const isActive = pathname === url;
+                      return (
+                        <button
+                          key={sub.id || slug}
+                          onClick={() => handleNavClick(url)}
+                          style={{
+                            ...mobileSubLinkStyle,
+                            color: isActive ? "#1B1F8C" : "#14151A",
+                            fontWeight: isActive ? "700" : "500"
+                          }}
+                        >
+                          {sub.name}
+                        </button>
+                      );
+                    })}
+                    <button onClick={() => handleNavClick("/bed-frames")} style={{ ...mobileSubLinkStyle, fontWeight: "700", color: "#1B1F8C" }}>
+                      View All Bed Frames →
+                    </button>
                   </div>
                 )}
               </div>

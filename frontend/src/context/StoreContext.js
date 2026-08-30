@@ -3,12 +3,13 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { MOCK_PRODUCTS } from "../data/products";
-import { MOCK_ORDERS, MOCK_CARTS, MOCK_WISHLISTS, MOCK_BANNERS, MOCK_REVIEWS, MOCK_CATEGORIES } from "../admin/data/adminMockData";
-import { calculateDiscountedPrice } from "../utils/currency";
+import { MOCK_CATEGORIES, MOCK_ORDERS, MOCK_WISHLISTS, MOCK_CARTS, MOCK_REVIEWS, MOCK_BANNERS } from "../admin/data/adminMockData";
+import { useCustomerAuth } from "./CustomerAuthContext";
+import { normalizeCustomerId, matchCustomer } from "../utils/customerHelpers";
 import { getVariantForSelection } from "../utils/variantHelpers";
 import { ensureProductPricing } from "../utils/pricingEngine";
+import { calculateDiscountedPrice } from "../utils/currency";
 import { getProductPrimaryImage, getDeletedProductIds, isProductDeleted, ensureRequiredCategories } from "../utils/productHelpers";
-import { useCustomerAuth } from "./CustomerAuthContext";
 import { DEFAULT_SETTINGS, getSavedSettings, saveSettingsToStorage, normalizeSettings, SETTINGS_UPDATED_EVENT } from "../utils/settingsHelpers";
 
 const StoreContext = createContext();
@@ -30,7 +31,9 @@ export function StoreProvider({ children }) {
     sort: "Recommended"
   });
 
-  const currentCustomerId = currentCustomer ? currentCustomer.id : "C001";
+  const currentCustomerId = currentCustomer
+    ? normalizeCustomerId(currentCustomer.customerId || currentCustomer.id)
+    : "CUS-0001";
 
   // User Commerce State
   const [cart, setCart] = useState([]);
@@ -171,43 +174,8 @@ export function StoreProvider({ children }) {
   const activeNewArrivalBanners = sortedBanners.filter((b) => b.type === "New Arrival");
   const activeBanners = sortedBanners;
 
-  // Hydration-safe initial loading from localStorage and server API
+  // Hydration-safe initial loading from localStorage
   useEffect(() => {
-    // Helper to fetch latest global homepage data from server API
-    const fetchServerHomepageData = async () => {
-      try {
-        const res = await fetch("/api/content/homepage", {
-          cache: "no-store",
-          headers: { "Pragma": "no-cache" }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.success) {
-            if (data.homepageConfig && Array.isArray(data.homepageConfig.sections) && data.homepageConfig.sections.length > 0) {
-              setHomepageConfig((prev) => (JSON.stringify(prev) === JSON.stringify(data.homepageConfig) ? prev : data.homepageConfig));
-              try { localStorage.setItem("mellosoft_homepage_config", JSON.stringify(data.homepageConfig)); } catch {}
-            }
-            if (Array.isArray(data.banners) && data.banners.length > 0) {
-              setBanners((prev) => (JSON.stringify(prev) === JSON.stringify(data.banners) ? prev : data.banners));
-              try { localStorage.setItem("mellosoft_banners", JSON.stringify(data.banners)); } catch {}
-            }
-            if (Array.isArray(data.newArrivalItems) && data.newArrivalItems.length > 0) {
-              const nextNA = data.newArrivalItems.map((item, idx) => ({ ...item, displayOrder: idx + 1 }));
-              setNewArrivalItems((prev) => (JSON.stringify(prev) === JSON.stringify(nextNA) ? prev : nextNA));
-              try { localStorage.setItem("mellosoft_new_arrivals_config", JSON.stringify(nextNA)); } catch {}
-            }
-            if (Array.isArray(data.bestSellerItems) && data.bestSellerItems.length > 0) {
-              const nextBS = data.bestSellerItems.map((item, idx) => ({ ...item, displayOrder: idx + 1 }));
-              setBestSellerItems((prev) => (JSON.stringify(prev) === JSON.stringify(nextBS) ? prev : nextBS));
-              try { localStorage.setItem("mellosoft_best_sellers_config", JSON.stringify(nextBS)); } catch {}
-            }
-          }
-        }
-      } catch (e) {
-        console.warn("Could not fetch server homepage content in StoreContext:", e);
-      }
-    };
-
     const syncStore = () => {
       // Sync reviews
       try {
@@ -401,11 +369,13 @@ export function StoreProvider({ children }) {
         const savedOrders = localStorage.getItem("mellosoft_orders");
         if (savedOrders) {
           const parsed = JSON.parse(savedOrders);
-          if (Array.isArray(parsed)) {
+          if (Array.isArray(parsed) && parsed.length > 0) {
             setOrders((prev) => (JSON.stringify(prev) === JSON.stringify(parsed) ? prev : parsed));
+          } else {
+            setOrders((prev) => (JSON.stringify(prev) === JSON.stringify(MOCK_ORDERS) ? prev : MOCK_ORDERS));
           }
         } else {
-          setOrders([]);
+          setOrders((prev) => (JSON.stringify(prev) === JSON.stringify(MOCK_ORDERS) ? prev : MOCK_ORDERS));
         }
       } catch (e) {
         console.error("Failed to load orders from localStorage:", e);
@@ -413,41 +383,9 @@ export function StoreProvider({ children }) {
     };
 
     syncStore();
-    fetchServerHomepageData();
-
-    const handleFocus = () => {
-      syncStore();
-      fetchServerHomepageData();
-    };
-
-    const handleHomepageEvent = (e) => {
-      if (e?.detail) {
-        if (e.detail.homepageConfig && Array.isArray(e.detail.homepageConfig.sections) && e.detail.homepageConfig.sections.length > 0) {
-          setHomepageConfig((prev) => (JSON.stringify(prev) === JSON.stringify(e.detail.homepageConfig) ? prev : e.detail.homepageConfig));
-        }
-        if (Array.isArray(e.detail.banners) && e.detail.banners.length > 0) {
-          setBanners((prev) => (JSON.stringify(prev) === JSON.stringify(e.detail.banners) ? prev : e.detail.banners));
-        }
-        if (Array.isArray(e.detail.newArrivalItems) && e.detail.newArrivalItems.length > 0) {
-          const nextNA = e.detail.newArrivalItems.map((item, idx) => ({ ...item, displayOrder: idx + 1 }));
-          setNewArrivalItems((prev) => (JSON.stringify(prev) === JSON.stringify(nextNA) ? prev : nextNA));
-        }
-        if (Array.isArray(e.detail.bestSellerItems) && e.detail.bestSellerItems.length > 0) {
-          const nextBS = e.detail.bestSellerItems.map((item, idx) => ({ ...item, displayOrder: idx + 1 }));
-          setBestSellerItems((prev) => (JSON.stringify(prev) === JSON.stringify(nextBS) ? prev : nextBS));
-        }
-      }
-      syncStore();
-      fetchServerHomepageData();
-    };
-
     window.addEventListener("storage", syncStore);
     window.addEventListener("mellosoft_orders_updated", syncStore);
     window.addEventListener("mellosoft:products-updated", syncStore);
-    window.addEventListener("mellosoft_homepage_updated", handleHomepageEvent);
-    window.addEventListener("mellosoft_banners_updated", handleHomepageEvent);
-    window.addEventListener("focus", handleFocus);
-    document.addEventListener("visibilitychange", handleFocus);
 
     // Load user addresses
     try {
@@ -464,10 +402,6 @@ export function StoreProvider({ children }) {
       window.removeEventListener("storage", syncStore);
       window.removeEventListener("mellosoft_orders_updated", syncStore);
       window.removeEventListener("mellosoft:products-updated", syncStore);
-      window.removeEventListener("mellosoft_homepage_updated", handleHomepageEvent);
-      window.removeEventListener("mellosoft_banners_updated", handleHomepageEvent);
-      window.removeEventListener("focus", handleFocus);
-      document.removeEventListener("visibilitychange", handleFocus);
     };
   }, []);
 
@@ -623,8 +557,8 @@ export function StoreProvider({ children }) {
       return;
     }
 
-    // Auth protection for customer-specific pages if accessing while logged out (orders, profile)
-    const protectedViews = ["orders", "profile"];
+    // Auth protection for customer-specific pages if accessing while logged out
+    const protectedViews = ["orders", "profile", "cart", "wishlist", "checkout", "payment"];
     if (protectedViews.includes(newView) && !isAuthenticated) {
       setIntendedView(newView);
       setAuthModal("login");
@@ -649,6 +583,8 @@ export function StoreProvider({ children }) {
       orders: "/orders",
       search: "/search",
       profile: "/profile",
+      login: "/login",
+      signup: "/signup",
       checkout: "/checkout",
       payment: "/checkout/payment",
       confirmation: selectedOrderId ? `/order-confirmation/${selectedOrderId}` : "/order-confirmation",
@@ -748,18 +684,20 @@ export function StoreProvider({ children }) {
         let custsList = savedCusts ? JSON.parse(savedCusts) : [];
         if (!Array.isArray(custsList)) custsList = [];
 
-        const custId = newOrder.customerId || newOrder.userId || currentCustomerId || "C001";
+        const custId = normalizeCustomerId(newOrder.customerId || newOrder.userId || currentCustomerId || "CUS-0001");
         const custEmail = newOrder.email || currentCustomer?.email || "customer@mellosoft.com";
         const custName = newOrder.customerName || newOrder.deliveryAddress?.fullName || currentCustomer?.name || "Customer";
         const custPhone = newOrder.phone || newOrder.deliveryAddress?.phone || currentCustomer?.phone || "";
 
         const existingIdx = custsList.findIndex(
-          (c) => c.id === custId || (custEmail && c.email?.toLowerCase() === custEmail.toLowerCase())
+          (c) => c.id === custId || c.customerId === custId || (custEmail && c.email?.toLowerCase() === custEmail.toLowerCase())
         );
 
         if (existingIdx >= 0) {
           custsList[existingIdx] = {
             ...custsList[existingIdx],
+            id: custId,
+            customerId: custId,
             name: custName || custsList[existingIdx].name,
             phone: custPhone || custsList[existingIdx].phone,
             email: custEmail || custsList[existingIdx].email,
@@ -768,6 +706,7 @@ export function StoreProvider({ children }) {
         } else {
           custsList.push({
             id: custId,
+            customerId: custId,
             name: custName,
             email: custEmail,
             phone: custPhone,
@@ -890,7 +829,7 @@ export function StoreProvider({ children }) {
       );
 
       const variant = getVariantForSelection(product, size, firmness);
-      const discountPercent = product?.discountPercent ?? product?.Discount_Percentage ?? 10;
+      const discountPercent = product?.discountPercent ?? product?.Discount_Percentage ?? 0;
       const rawPrice = Number(
         (variant && variant.Actual_Price) ??
         (product.firmnessPrices && product.firmnessPrices[firmness]) ??
@@ -921,6 +860,7 @@ export function StoreProvider({ children }) {
             actualPrice: rawPrice,
             price,
             discountPrice: price,
+            discountPercent,
             qty,
             quantity: qty,
             image: product.images?.[0] || "/asset/img1.jpg"
@@ -1003,11 +943,7 @@ export function StoreProvider({ children }) {
         bestSellerItems,
         customerOrders: (orders || []).filter((o) => {
           if (!currentCustomer && !currentCustomerId) return false;
-          const matchId = currentCustomerId && (o.customerId === currentCustomerId || o.userId === currentCustomerId);
-          const matchCustObjId = currentCustomer?.id && (o.customerId === currentCustomer.id || o.userId === currentCustomer.id);
-          const matchCustCode = currentCustomer?.customerId && (o.customerId === currentCustomer.customerId);
-          const matchEmail = currentCustomer?.email && (o.email?.toLowerCase() === currentCustomer.email.toLowerCase() || o.customerEmail?.toLowerCase() === currentCustomer.email.toLowerCase());
-          return Boolean(matchId || matchCustObjId || matchCustCode || matchEmail);
+          return matchCustomer(o, currentCustomer || { id: currentCustomerId, customerId: currentCustomerId });
         }),
         checkoutItems,
         setCheckoutItems,

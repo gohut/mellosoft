@@ -7,7 +7,9 @@ import { MATTRESS_CATEGORY_LIST, getMattressCategoryMeta, isProductInCategory, g
 import ProductCard from "../components/ProductCard";
 import EmptyState from "../components/EmptyState";
 import MattressFilterPanel from "../components/MattressFilterPanel";
+import MobileSubcategoryDropdown from "../components/MobileSubcategoryDropdown";
 import { SlidersHorizontal, X } from "lucide-react";
+import { ProductGridSkeleton } from "../components/skeleton";
 
 export default function CatalogView({ categoryParam = "all" }) {
   const { searchQuery, setSearchQuery, activeFilters, setActiveFilters, products } = useStore();
@@ -22,6 +24,10 @@ export default function CatalogView({ categoryParam = "all" }) {
   const [priceAvailability, setPriceAvailability] = useState("All");
   const [sortBy, setSortBy] = useState("Recommended");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+
+  // Hydration guard — show skeleton until client mounts
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   // Sync state if categoryParam changes via router
   useEffect(() => {
@@ -165,56 +171,86 @@ export default function CatalogView({ categoryParam = "all" }) {
       {/* ── FILTERING & CONTROLS BAR ──────────────────────────────────── */}
       <div style={filterBarContainerStyle}>
         
-        {/* Category Pills & Filter Button in Single Flex Row */}
-        <div style={categoryRowWrapStyle}>
-          {/* Green Filter Toggle Button FIRST */}
-          <button
-            type="button"
-            onClick={() => setIsFilterOpen((prev) => !prev)}
-            className="filter-toggle-btn"
-            style={{
-              ...filterToggleBtnStyle,
-              backgroundColor: isFilterOpen ? "#15803D" : "#16A34A",
-              color: "#FFFFFF",
-              borderColor: isFilterOpen ? "#15803D" : "#16A34A"
-            }}
-          >
-            <SlidersHorizontal size={15} color="#FFFFFF" />
-            <span>Filter{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}</span>
-          </button>
+        {/* Category Pills & Filter Button */}
+        <div style={categoryRowWrapStyle} className="catalog-filter-bar">
+          {/* Desktop Category Pills */}
+          <div className="desktop-category-pills" style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+            <button
+              type="button"
+              onClick={() => setIsFilterOpen((prev) => !prev)}
+              className="filter-toggle-btn"
+              style={{
+                ...filterToggleBtnStyle,
+                backgroundColor: isFilterOpen ? "#15803D" : "#16A34A",
+                color: "#FFFFFF",
+                borderColor: isFilterOpen ? "#15803D" : "#16A34A"
+              }}
+            >
+              <SlidersHorizontal size={15} color="#FFFFFF" />
+              <span>Filter{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => handleCategorySelect("all")}
-            style={{
-              ...categoryPillBtnStyle,
-              backgroundColor: (selectedCategory === "all" || selectedCategory === "All" || selectedCategory === "mattress") ? "#1B1F8C" : "#FFFFFF",
-              color: (selectedCategory === "all" || selectedCategory === "All" || selectedCategory === "mattress") ? "#FFFFFF" : "#14151A",
-              borderColor: (selectedCategory === "all" || selectedCategory === "All" || selectedCategory === "mattress") ? "#1B1F8C" : "#E7E7E2"
-            }}
-          >
-            All Products ({categoryCounts.all})
-          </button>
+            <button
+              type="button"
+              onClick={() => handleCategorySelect("all")}
+              style={{
+                ...categoryPillBtnStyle,
+                backgroundColor: (selectedCategory === "all" || selectedCategory === "All" || selectedCategory === "mattress") ? "#1B1F8C" : "#FFFFFF",
+                color: (selectedCategory === "all" || selectedCategory === "All" || selectedCategory === "mattress") ? "#FFFFFF" : "#14151A",
+                borderColor: (selectedCategory === "all" || selectedCategory === "All" || selectedCategory === "mattress") ? "#1B1F8C" : "#E7E7E2"
+              }}
+            >
+              All Products ({categoryCounts.all})
+            </button>
 
-          {MATTRESS_CATEGORY_LIST.map((cat) => {
-            const isSelected = selectedCategory === cat.slug;
-            const count = categoryCounts[cat.slug] || 0;
-            return (
-              <button
-                key={cat.id}
-                type="button"
-                onClick={() => handleCategorySelect(cat.slug)}
-                style={{
-                  ...categoryPillBtnStyle,
-                  backgroundColor: isSelected ? "#1B1F8C" : "#FFFFFF",
-                  color: isSelected ? "#FFFFFF" : "#14151A",
-                  borderColor: isSelected ? "#1B1F8C" : "#E7E7E2"
-                }}
-              >
-                {cat.name} ({count})
-              </button>
-            );
-          })}
+            {MATTRESS_CATEGORY_LIST.map((cat) => {
+              const isSelected = selectedCategory === cat.slug;
+              const count = categoryCounts[cat.slug] || 0;
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => handleCategorySelect(cat.slug)}
+                  style={{
+                    ...categoryPillBtnStyle,
+                    backgroundColor: isSelected ? "#1B1F8C" : "#FFFFFF",
+                    color: isSelected ? "#FFFFFF" : "#14151A",
+                    borderColor: isSelected ? "#1B1F8C" : "#E7E7E2"
+                  }}
+                >
+                  {cat.name} ({count})
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Mobile Category Row: Filter + Dropdown */}
+          <div className="mobile-category-row" style={{ display: "none", alignItems: "center", gap: "10px", width: "100%" }}>
+            <button
+              type="button"
+              onClick={() => setIsFilterOpen((prev) => !prev)}
+              className="filter-toggle-btn"
+              style={{
+                ...filterToggleBtnStyle,
+                backgroundColor: isFilterOpen ? "#15803D" : "#16A34A",
+                color: "#FFFFFF",
+                borderColor: isFilterOpen ? "#15803D" : "#16A34A",
+                flexShrink: 0
+              }}
+            >
+              <SlidersHorizontal size={15} color="#FFFFFF" />
+              <span>Filter{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}</span>
+            </button>
+
+            <MobileSubcategoryDropdown
+              items={MATTRESS_CATEGORY_LIST}
+              categoryCounts={categoryCounts}
+              selectedValue={selectedCategory}
+              onChange={handleCategorySelect}
+              allLabel="All Products"
+              allCount={categoryCounts.all}
+            />
+          </div>
         </div>
 
         {/* Results Count Line */}
@@ -274,7 +310,9 @@ export default function CatalogView({ categoryParam = "all" }) {
       </div>
 
       {/* ── PRODUCT GRID ────────────────────────────────────────────────────── */}
-      {filteredProducts.length > 0 ? (
+      {!mounted ? (
+        <ProductGridSkeleton count={8} gridStyle={{ padding: "0 20px 24px" }} />
+      ) : filteredProducts.length > 0 ? (
         <div className="catalog-grid" style={gridStyle}>
           {filteredProducts.map((product) => (
             <div key={product.id} style={{ height: "100%" }}>
@@ -300,10 +338,24 @@ export default function CatalogView({ categoryParam = "all" }) {
           border-color: #15803D !important;
           color: #FFFFFF !important;
         }
-        @media (max-width: 767px) {
+        @media (max-width: 768px) {
+          .desktop-category-pills {
+            display: none !important;
+          }
+          .mobile-category-row {
+            display: flex !important;
+          }
           .catalog-grid {
             grid-template-columns: repeat(1, 1fr) !important;
             gap: 16px !important;
+          }
+        }
+        @media (min-width: 769px) {
+          .desktop-category-pills {
+            display: flex !important;
+          }
+          .mobile-category-row {
+            display: none !important;
           }
         }
       `}</style>

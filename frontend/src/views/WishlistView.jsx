@@ -2,12 +2,14 @@
 
 import React, { useMemo } from "react";
 import { useStore } from "../context/StoreContext";
+import { useCustomerAuth } from "../context/CustomerAuthContext";
 import { MOCK_PRODUCTS } from "../data/products";
 import ProductCard from "../components/ProductCard";
 import EmptyState from "../components/EmptyState";
 
 export default function WishlistView() {
-  const { wishlist, toggleWishlist, moveToCart, navigateTo, products } = useStore();
+  const { wishlist, toggleWishlist, moveToCart, navigateTo, products, setAuthModal } = useStore();
+  const { isAuthenticated, setIntendedView } = useCustomerAuth();
 
   const savedProducts = useMemo(() => {
     const list = (products && products.length > 0) ? products : MOCK_PRODUCTS;
@@ -26,6 +28,46 @@ export default function WishlistView() {
       moveToCart(p.id, "Medium", "Queen");
     });
   };
+
+  if (!isAuthenticated) {
+    return (
+      <div style={emptyWrapperStyle}>
+        <div style={{
+          maxWidth: "480px",
+          margin: "40px auto",
+          backgroundColor: "#FAFAF7",
+          border: "1px solid #E7E7E2",
+          borderRadius: "16px",
+          padding: "40px 24px",
+          textAlign: "center"
+        }}>
+          <h3 style={{ fontSize: "20px", fontWeight: 800, color: "#14151A", marginBottom: "8px" }}>Sign In to View Your Wishlist</h3>
+          <p style={{ fontSize: "14px", color: "#6B6B75", marginBottom: "24px", lineHeight: 1.6 }}>
+            Please sign in to save and manage your favorite mattresses and sleep accessories.
+          </p>
+          <button
+            onClick={() => {
+              if (setIntendedView) setIntendedView("/wishlist");
+              if (setAuthModal) setAuthModal("login");
+            }}
+            style={{
+              padding: "12px 28px",
+              backgroundColor: "#1B1F8C",
+              color: "#FFFFFF",
+              border: "none",
+              borderRadius: "24px",
+              fontSize: "14px",
+              fontWeight: 700,
+              cursor: "pointer"
+            }}
+            className="hover-lift"
+          >
+            Sign In to Account
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (savedProducts.length === 0) {
     return (

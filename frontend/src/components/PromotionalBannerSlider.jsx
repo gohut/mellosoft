@@ -76,13 +76,13 @@ export default function PromotionalBannerSlider({ banners: bannersProp }) {
         }
         @media (max-width: 767px) {
           .promotional-banner-section {
-            padding: 14px 0 !important;
+            padding: 10px 0 !important;
           }
           .promo-banner-container {
             width: calc(100% - 20px) !important;
           }
           .promo-banners-static-list {
-            gap: 14px !important;
+            gap: 12px !important;
           }
         }
       `}</style>
@@ -91,7 +91,7 @@ export default function PromotionalBannerSlider({ banners: bannersProp }) {
 }
 
 const sectionWrapperStyle = {
-  padding: "24px 0 20px",
+  padding: "16px 0 14px",
   width: "100%",
   boxSizing: "border-box",
   display: "flex",

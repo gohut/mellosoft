@@ -16,11 +16,14 @@ export default function PaymentView() {
     placeOrder,
     navigateTo,
     setSelectedOrderId,
-    settings
+    settings,
+    setAuthModal
   } = useStore();
 
-  const { currentCustomer } = useCustomerAuth();
-  const userId = currentCustomer ? currentCustomer.id : "C001";
+  const { currentCustomer, isAuthenticated, setIntendedView } = useCustomerAuth();
+  const userId = currentCustomer
+    ? (currentCustomer.customerId || currentCustomer.id)
+    : "CUS-0001";
 
   const [isHydrated, setIsHydrated] = useState(false);
   useEffect(() => {
@@ -191,7 +194,28 @@ export default function PaymentView() {
     return (
       <div style={emptyContainerStyle}>
         <div style={emptyCardStyle}>
-          <p style={{ color: "#6B6B75", margin: 0 }}>Loading checkout details...</p>
+          <p style={{ color: "#6B6B75", margin: 0 }}>Loading payment options...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div style={emptyContainerStyle}>
+        <div style={emptyCardStyle}>
+          <h2 style={{ fontSize: "24px", color: "#1B1F8C", margin: "0 0 12px 0" }}>Sign In to Complete Payment</h2>
+          <p style={{ color: "#6B6B75", marginBottom: "20px" }}>Please sign in to complete payment and place your order.</p>
+          <button
+            onClick={() => {
+              if (setIntendedView) setIntendedView("payment");
+              if (setAuthModal) setAuthModal("login");
+            }}
+            style={primaryBtnStyle}
+            className="hover-lift"
+          >
+            Sign In to Account
+          </button>
         </div>
       </div>
     );

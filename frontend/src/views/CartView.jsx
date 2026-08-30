@@ -2,14 +2,22 @@
 
 import React from "react";
 import { useStore } from "../context/StoreContext";
+import { useCustomerAuth } from "../context/CustomerAuthContext";
 import QuantityStepper from "../components/QuantityStepper";
 import EmptyState from "../components/EmptyState";
 import { formatPrice } from "../utils/currency";
 
 export default function CartView() {
-  const { cart, updateQty, removeFromCart, clearCart, navigateTo, products, currentCustomerId, setCheckoutItems } = useStore();
+  const { cart, updateQty, removeFromCart, clearCart, navigateTo, products, currentCustomerId, setCheckoutItems, setAuthModal } = useStore();
+  const { isAuthenticated, setIntendedView } = useCustomerAuth();
 
   const subtotal = cart.reduce((acc, item) => acc + (item.price || item.discountPrice || 0) * (item.qty || item.quantity || 1), 0);
+  const totalSaved = cart.reduce((acc, item) => {
+    const actual = item.actualPrice || 0;
+    const paid = item.price || item.discountPrice || 0;
+    if (actual > paid) return acc + (actual - paid) * (item.qty || item.quantity || 1);
+    return acc;
+  }, 0);
   const delivery = subtotal >= 5000 || subtotal === 0 ? 0 : 150;
   const total = subtotal + delivery;
 
@@ -43,6 +51,46 @@ export default function CartView() {
     }
     navigateTo("checkout");
   };
+
+  if (!isAuthenticated) {
+    return (
+      <div style={emptyWrapperStyle}>
+        <div style={{
+          maxWidth: "480px",
+          margin: "40px auto",
+          backgroundColor: "#FAFAF7",
+          border: "1px solid #E7E7E2",
+          borderRadius: "16px",
+          padding: "40px 24px",
+          textAlign: "center"
+        }}>
+          <h3 style={{ fontSize: "20px", fontWeight: 800, color: "#14151A", marginBottom: "8px" }}>Sign In to View Your Cart</h3>
+          <p style={{ fontSize: "14px", color: "#6B6B75", marginBottom: "24px", lineHeight: 1.6 }}>
+            Please sign in to access your saved shopping cart and proceed to checkout.
+          </p>
+          <button
+            onClick={() => {
+              if (setIntendedView) setIntendedView("/cart");
+              if (setAuthModal) setAuthModal("login");
+            }}
+            style={{
+              padding: "12px 28px",
+              backgroundColor: "#1B1F8C",
+              color: "#FFFFFF",
+              border: "none",
+              borderRadius: "24px",
+              fontSize: "14px",
+              fontWeight: 700,
+              cursor: "pointer"
+            }}
+            className="hover-lift"
+          >
+            Sign In to Account
+          </button>
+        </div>
+      </div>
+    );
+  }
 
 
   if (cart.length === 0) {
@@ -117,6 +165,11 @@ export default function CartView() {
                     onChange={(newQty) => updateQty(item.cartItemId, newQty)} 
                   />
                   <div style={itemPriceBlockStyle}>
+                    {item.actualPrice && item.actualPrice > item.price ? (
+                      <span style={{ fontSize: "12px", color: "#9CA3AF", textDecoration: "line-through", display: "block", textAlign: "right" }}>
+                        {formatPrice(item.actualPrice)} each
+                      </span>
+                    ) : null}
                     <span style={itemSinglePriceStyle}>{formatPrice(item.price)} each</span>
                     <span style={itemTotalPriceStyle}>{formatPrice(item.price * item.qty)}</span>
                   </div>
@@ -142,6 +195,13 @@ export default function CartView() {
                 {delivery === 0 ? <span style={{ color: "#16A34A" }}>Free</span> : formatPrice(delivery)}
               </span>
             </div>
+
+            {totalSaved > 0 && (
+              <div style={{ ...summaryRowStyle, backgroundColor: "#F0FDF4", borderRadius: "8px", padding: "8px 10px", margin: "4px 0" }}>
+                <span style={{ fontSize: "13px", fontWeight: 700, color: "#15803D" }}>🎉 You saved</span>
+                <span style={{ fontSize: "13px", fontWeight: 800, color: "#15803D" }}>{formatPrice(Math.round(totalSaved))}</span>
+              </div>
+            )}
 
             <div style={dividerStyle} />
 

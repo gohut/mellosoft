@@ -421,6 +421,51 @@ export default function EditProductView() {
                     placeholder="Enter specifications..."
                   />
                 </div>
+
+                {/* DISCOUNT FIELD */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                  <div style={fieldGroup}>
+                    <label style={labelStyle}>
+                      <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <Percent size={13} />
+                        Discount (%)
+                      </span>
+                    </label>
+                    <div style={{ position: "relative" }}>
+                      <input
+                        type="number"
+                        min="0"
+                        max="99"
+                        step="1"
+                        value={form.discountPercent}
+                        onChange={(e) => update("discountPercent", e.target.value)}
+                        style={{ ...inputStyle, paddingRight: "40px" }}
+                        placeholder="0"
+                      />
+                      <span style={{ position: "absolute", right: "14px", top: "50%", transform: "translateY(-50%)", fontSize: "14px", color: "#9CA3AF", fontWeight: 700 }}>%</span>
+                    </div>
+                    {Number(form.discountPercent) > 0 ? (
+                      <span style={{ fontSize: "11px", color: "#15803D", fontWeight: 600 }}>
+                        💰 {form.discountPercent}% off will apply on all prices
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: "11px", color: "#9CA3AF" }}>0 = no discount</span>
+                    )}
+                  </div>
+                  <div style={fieldGroup}>
+                    <label style={labelStyle}>Rating</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="5"
+                      step="0.1"
+                      value={form.rating}
+                      onChange={(e) => update("rating", e.target.value)}
+                      style={inputStyle}
+                      placeholder="4.8"
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* Product Images */}

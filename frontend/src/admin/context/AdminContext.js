@@ -11,6 +11,7 @@ import { buildInitialTrackingHistory } from "../../utils/trackingHelpers";
 import { getProductPrimaryImage, getDeletedProductIds, saveDeletedProductId, isProductDeleted, isSameProduct, ensureRequiredCategories, getMainCategoryProductCount, getSubcategoryProductCount } from "../../utils/productHelpers";
 import { migrateProductsBase64, migrateReviewsBase64 } from "../../utils/imageStorage";
 import { getSavedSettings, saveSettingsToStorage, normalizeSettings, SETTINGS_UPDATED_EVENT } from "../../utils/settingsHelpers";
+import { normalizeCustomerId } from "../../utils/customerHelpers";
 
 const AdminContext = createContext();
 
@@ -199,17 +200,12 @@ const sanitizeHomepageConfig = (configSections, currentBanners) => {
     const globalDef = ALL_GLOBAL_SECTIONS.find((g) => g.id === sec.id);
     const isCustomSection = sec.isCustom === true || (sec.type === "product-section" && !globalDef);
 
-    const resolvedLabel = sec.label || sec.name || sec.title || (globalDef ? globalDef.label : "Section");
-    const resolvedDesc = sec.description !== undefined ? sec.description : (sec.subtitle !== undefined ? sec.subtitle : (globalDef ? globalDef.description : ""));
-
     result.push({
       ...sec,
       id: globalDef ? globalDef.id : sec.id,
-      label: resolvedLabel,
-      name: resolvedLabel,
-      title: resolvedLabel,
-      description: resolvedDesc,
-      subtitle: resolvedDesc,
+      label: sec.name || (globalDef ? globalDef.label : sec.label),
+      name: sec.name || (globalDef ? globalDef.label : sec.label),
+      description: sec.description !== undefined ? sec.description : (globalDef ? globalDef.description : ""),
       backgroundColor: sec.backgroundColor || sec.styles?.backgroundColor || "#FFFFFF",
       styles: sec.styles || { backgroundColor: sec.backgroundColor || "#FFFFFF" },
       type: sec.type || (globalDef ? "global" : "product-section"),
@@ -411,7 +407,7 @@ export function AdminProvider({ children }) {
         const saved = localStorage.getItem(ORDERS_STORAGE_KEY);
         if (saved) {
           const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) {
+          if (Array.isArray(parsed) && parsed.length > 0) {
             return parsed;
           }
         }
@@ -419,7 +415,7 @@ export function AdminProvider({ children }) {
         console.error("Failed to load orders from localStorage:", e);
       }
     }
-    return [];
+    return MOCK_ORDERS;
   });
 
   // Hydrate customers from localStorage
@@ -429,15 +425,35 @@ export function AdminProvider({ children }) {
         const saved = localStorage.getItem(CUSTOMERS_STORAGE_KEY);
         if (saved) {
           const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) {
-            return parsed;
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const mergedMap = new Map();
+            (MOCK_CUSTOMERS || []).forEach((mc) => {
+              const canonicalId = normalizeCustomerId(mc.customerId || mc.id);
+              mergedMap.set(mc.email.toLowerCase(), { ...mc, id: canonicalId, customerId: canonicalId });
+            });
+            parsed.forEach((c) => {
+              if (!c || !c.email) return;
+              const key = c.email.toLowerCase();
+              const canonicalId = normalizeCustomerId(c.customerId || c.id);
+              const existing = mergedMap.get(key);
+              mergedMap.set(key, {
+                ...existing,
+                ...c,
+                id: canonicalId,
+                customerId: canonicalId,
+                savedAddresses: (c.savedAddresses && c.savedAddresses.length > 0)
+                  ? c.savedAddresses
+                  : (existing?.savedAddresses || []),
+              });
+            });
+            return Array.from(mergedMap.values());
           }
         }
       } catch (e) {
         console.error("Failed to load customers from localStorage:", e);
       }
     }
-    return [];
+    return MOCK_CUSTOMERS;
   });
 
   // Hydrate wishlists from localStorage
@@ -638,66 +654,7 @@ export function AdminProvider({ children }) {
   const isFirstBSRef = useRef(true);
   const isFirstHomepageRef = useRef(true);
 
-  // Helper to sync homepage data to central API
-  const syncHomepageToServer = useCallback(async (dataToSync) => {
-    try {
-      const res = await fetch("/api/content/homepage", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(dataToSync),
-        cache: "no-store"
-      });
-      if (!res.ok) {
-        console.warn("Failed to sync homepage data to server:", res.status);
-        return { success: false };
-      }
-      return await res.json();
-    } catch (err) {
-      console.warn("Network error syncing homepage data:", err);
-      return { success: false };
-    }
-  }, []);
-
-  // Hydrate homepage data from central server API on mount
-  useEffect(() => {
-    let isMounted = true;
-    async function fetchServerHomepageData() {
-      try {
-        const res = await fetch("/api/content/homepage", { cache: "no-store" });
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.success && isMounted) {
-            if (data.homepageConfig && Array.isArray(data.homepageConfig.sections) && data.homepageConfig.sections.length > 0) {
-              setHomepageConfig(data.homepageConfig);
-              try { localStorage.setItem(HOMEPAGE_CONFIG_KEY, JSON.stringify(data.homepageConfig)); } catch {}
-            }
-            if (Array.isArray(data.banners) && data.banners.length > 0) {
-              setBanners(data.banners);
-              try { localStorage.setItem(BANNERS_STORAGE_KEY, JSON.stringify(data.banners)); } catch {}
-            }
-            if (Array.isArray(data.bannerTypes) && data.bannerTypes.length > 0) {
-              setBannerTypes(data.bannerTypes);
-              try { localStorage.setItem(BANNER_TYPES_STORAGE_KEY, JSON.stringify(data.bannerTypes)); } catch {}
-            }
-            if (Array.isArray(data.newArrivalItems) && data.newArrivalItems.length > 0) {
-              setNewArrivalItems(data.newArrivalItems);
-              try { localStorage.setItem("mellosoft_new_arrivals_config", JSON.stringify(data.newArrivalItems)); } catch {}
-            }
-            if (Array.isArray(data.bestSellerItems) && data.bestSellerItems.length > 0) {
-              setBestSellerItems(data.bestSellerItems);
-              try { localStorage.setItem("mellosoft_best_sellers_config", JSON.stringify(data.bestSellerItems)); } catch {}
-            }
-          }
-        }
-      } catch (e) {
-        console.warn("Could not fetch server homepage data in AdminContext:", e);
-      }
-    }
-    fetchServerHomepageData();
-    return () => { isMounted = false; };
-  }, []);
-
-  // Persist banners to localStorage and central server
+  // Persist banners to localStorage
   useEffect(() => {
     try {
       localStorage.setItem(BANNERS_STORAGE_KEY, JSON.stringify(banners));
@@ -705,30 +662,26 @@ export function AdminProvider({ children }) {
         isFirstBannersRef.current = false;
         return;
       }
-      syncHomepageToServer({ banners });
       if (typeof window !== "undefined") {
         setTimeout(() => {
-          window.dispatchEvent(new CustomEvent("mellosoft_homepage_updated", { detail: { banners } }));
-          window.dispatchEvent(new CustomEvent("mellosoft_banners_updated", { detail: { banners } }));
           window.dispatchEvent(new Event("storage"));
         }, 0);
       }
     } catch (e) {
       console.error("Failed to save banners to localStorage:", e);
     }
-  }, [banners, syncHomepageToServer]);
+  }, [banners]);
 
-  // Persist banner types to localStorage and central server
+  // Persist banner types to localStorage
   useEffect(() => {
     try {
       localStorage.setItem(BANNER_TYPES_STORAGE_KEY, JSON.stringify(bannerTypes));
-      syncHomepageToServer({ bannerTypes });
     } catch (e) {
       console.error("Failed to save banner types to localStorage:", e);
     }
-  }, [bannerTypes, syncHomepageToServer]);
+  }, [bannerTypes]);
 
-  // Persist new arrival items to localStorage and central server
+  // Persist new arrival items to localStorage
   useEffect(() => {
     try {
       localStorage.setItem("mellosoft_new_arrivals_config", JSON.stringify(newArrivalItems));
@@ -736,19 +689,17 @@ export function AdminProvider({ children }) {
         isFirstNARef.current = false;
         return;
       }
-      syncHomepageToServer({ newArrivalItems });
       if (typeof window !== "undefined") {
         setTimeout(() => {
-          window.dispatchEvent(new CustomEvent("mellosoft_homepage_updated", { detail: { newArrivalItems } }));
           window.dispatchEvent(new Event("storage"));
         }, 0);
       }
     } catch (e) {
       console.error("Failed to save new arrivals config to localStorage:", e);
     }
-  }, [newArrivalItems, syncHomepageToServer]);
+  }, [newArrivalItems]);
 
-  // Persist best seller items to localStorage and central server
+  // Persist best seller items to localStorage
   useEffect(() => {
     try {
       localStorage.setItem("mellosoft_best_sellers_config", JSON.stringify(bestSellerItems));
@@ -756,19 +707,17 @@ export function AdminProvider({ children }) {
         isFirstBSRef.current = false;
         return;
       }
-      syncHomepageToServer({ bestSellerItems });
       if (typeof window !== "undefined") {
         setTimeout(() => {
-          window.dispatchEvent(new CustomEvent("mellosoft_homepage_updated", { detail: { bestSellerItems } }));
           window.dispatchEvent(new Event("storage"));
         }, 0);
       }
     } catch (e) {
       console.error("Failed to save best sellers config to localStorage:", e);
     }
-  }, [bestSellerItems, syncHomepageToServer]);
+  }, [bestSellerItems]);
 
-  // Persist homepage config to localStorage and central server
+  // Persist homepage config to localStorage
   useEffect(() => {
     try {
       localStorage.setItem(HOMEPAGE_CONFIG_KEY, JSON.stringify(homepageConfig));
@@ -776,17 +725,15 @@ export function AdminProvider({ children }) {
         isFirstHomepageRef.current = false;
         return;
       }
-      syncHomepageToServer({ homepageConfig });
       if (typeof window !== "undefined") {
         setTimeout(() => {
-          window.dispatchEvent(new CustomEvent("mellosoft_homepage_updated", { detail: { homepageConfig } }));
           window.dispatchEvent(new Event("storage"));
         }, 0);
       }
     } catch (e) {
       console.error("Failed to save homepage config to localStorage:", e);
     }
-  }, [homepageConfig, syncHomepageToServer]);
+  }, [homepageConfig]);
 
   // One-time automatic migration of any legacy base64 images in localStorage products & reviews to IndexedDB
   useEffect(() => {
@@ -919,7 +866,28 @@ export function AdminProvider({ children }) {
         if (savedCustomers) {
           const parsed = JSON.parse(savedCustomers);
           if (Array.isArray(parsed)) {
-            setCustomers((prev) => (JSON.stringify(prev) === JSON.stringify(parsed) ? prev : parsed));
+            const mergedMap = new Map();
+            (MOCK_CUSTOMERS || []).forEach((mc) => {
+              const canonicalId = normalizeCustomerId(mc.customerId || mc.id);
+              mergedMap.set(mc.email.toLowerCase(), { ...mc, id: canonicalId, customerId: canonicalId });
+            });
+            parsed.forEach((c) => {
+              if (!c || !c.email) return;
+              const key = c.email.toLowerCase();
+              const canonicalId = normalizeCustomerId(c.customerId || c.id);
+              const existing = mergedMap.get(key);
+              mergedMap.set(key, {
+                ...existing,
+                ...c,
+                id: canonicalId,
+                customerId: canonicalId,
+                savedAddresses: (c.savedAddresses && c.savedAddresses.length > 0)
+                  ? c.savedAddresses
+                  : (existing?.savedAddresses || []),
+              });
+            });
+            const nextCustList = Array.from(mergedMap.values());
+            setCustomers((prev) => (JSON.stringify(prev) === JSON.stringify(nextCustList) ? prev : nextCustList));
           }
         }
       } catch (e) {

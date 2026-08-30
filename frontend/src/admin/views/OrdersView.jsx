@@ -7,6 +7,7 @@ import DataTable from "../components/DataTable";
 import StatusBadge from "../components/StatusBadge";
 import { X, Package, User, Calendar, Hash, Search, CreditCard } from "lucide-react";
 import { formatPrice } from "../../utils/currency";
+import { matchCustomer } from "../../utils/customerHelpers";
 
 const filterTabs = ["All", "Pending", "Processing", "Confirmed", "Shipped", "Out for Delivery", "Delivered", "Cancelled"];
 const PAYMENT_OPTIONS = ["Pending", "Paid", "Failed", "Refunded"];
@@ -55,7 +56,7 @@ export default function OrdersView() {
     if (q) {
       result = result.filter((o) => {
         const idMatch = (o.id || o.orderId || "").toLowerCase().includes(q);
-        const cust = (customers || []).find((c) => c.id === o.customerId) || {};
+        const cust = (customers || []).find((c) => matchCustomer(o, c)) || {};
         const custNameMatch = (o.customerName || cust.name || o.customer || "").toLowerCase().includes(q);
         const custEmailMatch = (o.email || cust.email || "").toLowerCase().includes(q);
         const custPhoneMatch = (o.phone || cust.phone || "").toLowerCase().includes(q);
@@ -93,7 +94,7 @@ export default function OrdersView() {
     {
       key: "customerId", label: "CUSTOMER",
       render: (val, row) => {
-        const cust = (customers || []).find((c) => c.id === val) || { name: row.customer || "Customer" };
+        const cust = (customers || []).find((c) => matchCustomer(row, c)) || { name: row.customerName || row.customer || "Customer" };
         return <span style={{ fontWeight: 500 }}>{cust.name}</span>;
       },
     },
@@ -262,11 +263,11 @@ function OrderDetailsModal({ orderId, canEdit, onClose, onSave }) {
   // Lookup Customer by customerId
   const customer = useMemo(() => {
     if (!order) return null;
-    return (customers || []).find((c) => c.id === order.customerId) || {
-      name: order.customer || "Customer",
+    return (customers || []).find((c) => matchCustomer(order, c)) || {
+      name: order.customerName || order.customer || "Customer",
       email: order.email || "customer@example.com",
-      phone: "+91 98765 43210",
-      address: "123 Green Park Extension, Block B, New Delhi, Delhi 110016, India",
+      phone: order.phone || "+91 98765 43210",
+      address: order.deliveryAddress?.addressLine1 || "123 Green Park Extension, Block B, New Delhi, Delhi 110016, India",
     };
   }, [customers, order]);
 

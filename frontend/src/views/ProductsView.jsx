@@ -190,96 +190,11 @@ export default function ProductsView() {
       {/* 4. RESPONSIVE PRODUCT GRID (4 Desktop / 2-3 Tablet / 1-2 Mobile) */}
       {filteredProducts.length > 0 ? (
         <div style={gridFourColStyle} className="products-responsive-grid">
-          {filteredProducts.map((product) => {
-            const isWishlisted = wishlist.includes(product.id);
-            const discountPercent = product.discountPercent ?? product.Discount_Percentage ?? 10;
-            const actualPrice = product.Actual_Price ?? product.price ?? 999;
-            const discountPrice = calculateDiscountedPrice(actualPrice, discountPercent);
-            const sizeCount = product.sizeOptions?.length || 4;
-            const firmnessCount = product.firmnessOptions?.length || 3;
-
-            return (
-              <div
-                key={product.id}
-                onClick={() => navigateTo("detail", product.id)}
-                style={productCardContainerStyle}
-                className="custom-product-card"
-              >
-                {/* Product Image Box */}
-                <div style={cardImageWrapperStyle}>
-                  <img
-                    src={product.images?.[0] || "/asset/img1.jpg"}
-                    alt={product.name || product.Product_Name}
-                    style={cardImageStyle}
-                  />
-                  {product.badge && (
-                    <span style={cardBadgeStyle}>{product.badge}</span>
-                  )}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleWishlist(product.id);
-                    }}
-                    style={wishlistHeartBtnStyle}
-                    aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
-                  >
-                    <Heart
-                      size={16}
-                      fill={isWishlisted ? "#16A34A" : "none"}
-                      color={isWishlisted ? "#16A34A" : "#1B1F8C"}
-                    />
-                  </button>
-                </div>
-
-                {/* Product Card Details */}
-                <div style={cardBodyStyle}>
-                  <span style={cardCatBadgeStyle}>
-                    {(product.category || "MATTRESS").toUpperCase()}
-                  </span>
-                  
-                  <h3 style={cardTitleStyle}>
-                    {product.name || product.Product_Name}
-                  </h3>
-                  
-                  <p style={cardDescStyle}>
-                    {product.tagline || product.description || "Premium sleep ergonomics and comfort."}
-                  </p>
-
-                  {/* Size & Firmness Pills */}
-                  <div style={specsRowStyle}>
-                    <span style={specPillStyle}>{sizeCount} Sizes</span>
-                    <span style={specPillStyle}>{firmnessCount} Firmness Options</span>
-                  </div>
-
-                  {/* Price & Discount Line */}
-                  <div style={priceRowStyle}>
-                    <div style={priceGroupStyle}>
-                      <span style={discountPriceStyle}>{formatPrice(discountPrice)}</span>
-                      {discountPercent > 0 && actualPrice > discountPrice && (
-                        <span style={actualPriceStyle}>{formatPrice(actualPrice)}</span>
-                      )}
-                    </div>
-                    {discountPercent > 0 && (
-                      <span style={discountPillStyle}>{discountPercent}% OFF</span>
-                    )}
-                  </div>
-
-                  {/* Rating Line */}
-                  <div style={ratingRowStyle}>
-                    <Star size={14} fill="#16A34A" color="#16A34A" />
-                    <span style={ratingValStyle}>{Number(product.rating || 4.8).toFixed(1)}</span>
-                    <span style={reviewCountStyle}>({product.reviewCount || 42} reviews)</span>
-                  </div>
-
-                  {/* View Product CTA Button */}
-                  <button style={viewProductBtnStyle}>
-                    <span>View Product</span>
-                    <ArrowRight size={15} />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+          {filteredProducts.map((product) => (
+            <div key={product.id} style={{ height: "100%" }}>
+              <ProductCard product={product} />
+            </div>
+          ))}
         </div>
       ) : (
         <div style={emptyWrapperStyle}>
