@@ -140,7 +140,7 @@ export default function AccessoriesView({ categoryParam = "all" }) {
   }
 
   return (
-    <div style={containerStyle}>
+    <div style={containerStyle} className="catalog-page-container">
       {/* ── FILTERING & CONTROLS BAR ──────────────────────────────────── */}
       <div style={filterBarContainerStyle}>
         
@@ -300,6 +300,9 @@ export default function AccessoriesView({ categoryParam = "all" }) {
           color: #FFFFFF !important;
         }
         @media (max-width: 768px) {
+          .catalog-page-container {
+            padding: 14px 14px 60px 14px !important;
+          }
           .desktop-category-pills {
             display: none !important;
           }
@@ -307,8 +310,15 @@ export default function AccessoriesView({ categoryParam = "all" }) {
             display: flex !important;
           }
           .catalog-grid {
-            grid-template-columns: repeat(1, 1fr) !important;
-            gap: 16px !important;
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 10px !important;
+          }
+        }
+        @media (max-width: 310px) {
+          .catalog-grid {
+            grid-template-columns: 1fr !important;
+            gap: 14px !important;
           }
         }
         @media (min-width: 769px) {

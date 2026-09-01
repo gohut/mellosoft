@@ -72,6 +72,17 @@ export default function ProductCardSkeleton() {
           <Skeleton width="34%" height={16} borderRadius={4} />
         </div>
       </div>
+      <style>{`
+        @media (max-width: 767px) {
+          .skeleton-card {
+            border-radius: 12px !important;
+          }
+          .skeleton-card > div:last-child {
+            padding: 8px 10px 10px !important;
+            gap: 4px !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

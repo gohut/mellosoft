@@ -14,6 +14,7 @@ export default function ProductGridSkeleton({ count = 8, gridStyle = {} }) {
     <div
       aria-busy="true"
       aria-label="Loading products"
+      className="catalog-grid"
       style={{
         display: "grid",
         gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",

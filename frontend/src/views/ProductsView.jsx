@@ -110,7 +110,7 @@ export default function ProductsView() {
   }, [products, localSearch, searchQuery, selectedCategory]);
 
   return (
-    <div style={containerStyle}>
+    <div style={containerStyle} className="catalog-page-container">
       {/* 1. PAGE HEADER */}
       <div style={headerBannerStyle}>
         <span style={eyebrowStyle}>MELLOSOFT SLEEP COLLECTION</span>
@@ -218,13 +218,22 @@ export default function ProductsView() {
         @media (max-width: 840px) {
           .products-responsive-grid {
             grid-template-columns: repeat(2, 1fr) !important;
-            gap: 20px !important;
+            gap: 14px !important;
           }
         }
-        @media (max-width: 520px) {
+        @media (max-width: 767px) {
+          .catalog-page-container {
+            padding: 14px 14px 60px 14px !important;
+          }
+          .products-responsive-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 10px !important;
+          }
+        }
+        @media (max-width: 310px) {
           .products-responsive-grid {
             grid-template-columns: 1fr !important;
-            gap: 16px !important;
+            gap: 14px !important;
           }
         }
       `}</style>

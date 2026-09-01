@@ -71,12 +71,12 @@ export default function GenericSubcategoryPage({ params }) {
     <>
       <Header />
       <main style={{ flexGrow: 1, display: "flex", flexDirection: "column", width: "100%", backgroundColor: "#FFFFFF" }}>
-        <div style={{ maxWidth: "1280px", margin: "0 auto", padding: "24px 24px 80px 24px", width: "100%" }}>
+        <div style={{ maxWidth: "1280px", margin: "0 auto", padding: "24px 24px 80px 24px", width: "100%" }} className="catalog-page-container">
           <div style={{ fontSize: "13px", color: "#6B6B75", marginBottom: "24px" }}>
             Showing <strong>{filteredProducts.length}</strong> {subcategory.name.toLowerCase()} products
           </div>
           {filteredProducts.length > 0 ? (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "24px" }}>
+            <div className="catalog-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "24px" }}>
               {filteredProducts.map((item) => (
                 <div key={item.id} style={{ height: "100%" }}>
                   <ProductCard product={item} />
@@ -98,6 +98,24 @@ export default function GenericSubcategoryPage({ params }) {
       </main>
       <Footer />
       {authModal && <AuthModal type={authModal} />}
+      <style>{`
+        @media (max-width: 768px) {
+          .catalog-page-container {
+            padding: 14px 14px 60px 14px !important;
+          }
+          .catalog-grid {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 10px !important;
+          }
+        }
+        @media (max-width: 310px) {
+          .catalog-grid {
+            grid-template-columns: 1fr !important;
+            gap: 14px !important;
+          }
+        }
+      `}</style>
     </>
   );
 }

@@ -72,12 +72,26 @@ export default function ProductDetailView({ productId: initialProductId }) {
     return getProductGalleryImages(product);
   }, [product]);
 
-  // Gallery Active Image
+  // Gallery Active Image & Sliding Swipe States
   const [activeImgIndex, setActiveImgIndex] = useState(0);
   const [touchStartX, setTouchStartX] = useState(null);
+  const [touchStartY, setTouchStartY] = useState(null);
+  const [dragOffset, setDragOffset] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const thumbnailStripRef = useRef(null);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [reviewModalImage, setReviewModalImage] = useState(null);
   const swipeMovedRef = useRef(false);
+
+  // Auto-scroll active thumbnail into view
+  useEffect(() => {
+    if (thumbnailStripRef.current) {
+      const activeEl = thumbnailStripRef.current.querySelector(".product-thumbnail.active");
+      if (activeEl) {
+        activeEl.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+      }
+    }
+  }, [activeImgIndex]);
 
   // Selector options states
   const [selectedFirmness, setSelectedFirmness] = useState("");
@@ -352,34 +366,70 @@ export default function ProductDetailView({ productId: initialProductId }) {
   };
 
   const showPreviousImage = () => {
-    if (!product?.images?.length) return;
-    setActiveImgIndex((current) => (current - 1 + product.images.length) % product.images.length);
+    if (!galleryImages.length) return;
+    setActiveImgIndex((current) => (current - 1 + galleryImages.length) % galleryImages.length);
   };
 
   const showNextImage = () => {
-    if (!product?.images?.length) return;
-    setActiveImgIndex((current) => (current + 1) % product.images.length);
+    if (!galleryImages.length) return;
+    setActiveImgIndex((current) => (current + 1) % galleryImages.length);
   };
 
-  const handleImageTouchEnd = (event) => {
-    if (touchStartX === null) return;
-    const deltaX = touchStartX - event.changedTouches[0].clientX;
-    if (Math.abs(deltaX) > 45) {
+  const handleTouchStart = (event) => {
+    if (!event.touches || event.touches.length === 0) return;
+    setTouchStartX(event.touches[0].clientX);
+    setTouchStartY(event.touches[0].clientY);
+    setDragOffset(0);
+    setIsDragging(false);
+    swipeMovedRef.current = false;
+  };
+
+  const handleTouchMove = (event) => {
+    if (touchStartX === null || !event.touches || event.touches.length === 0) return;
+    const currentX = event.touches[0].clientX;
+    const currentY = event.touches[0].clientY;
+    const deltaX = currentX - touchStartX;
+    const deltaY = currentY - (touchStartY || currentY);
+
+    // If user is clearly scrolling vertically, don't lock horizontal swipe
+    if (!isDragging && Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 8) {
+      return;
+    }
+
+    if (Math.abs(deltaX) > 6 || isDragging) {
+      setIsDragging(true);
       swipeMovedRef.current = true;
-      if (deltaX > 0) {
-        showNextImage();
-      } else {
-        showPreviousImage();
+      // Resistance at edges
+      const isAtStart = activeImgIndex === 0 && deltaX > 0;
+      const isAtEnd = activeImgIndex === galleryImages.length - 1 && deltaX < 0;
+      const appliedDelta = (isAtStart || isAtEnd) ? deltaX * 0.28 : deltaX;
+      setDragOffset(appliedDelta);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (touchStartX === null) return;
+    
+    if (isDragging) {
+      const threshold = 40;
+      if (dragOffset < -threshold && activeImgIndex < galleryImages.length - 1) {
+        setActiveImgIndex((prev) => prev + 1);
+      } else if (dragOffset > threshold && activeImgIndex > 0) {
+        setActiveImgIndex((prev) => prev - 1);
       }
       window.setTimeout(() => {
         swipeMovedRef.current = false;
       }, 160);
     }
+
+    setIsDragging(false);
+    setDragOffset(0);
     setTouchStartX(null);
+    setTouchStartY(null);
   };
 
   const handleMainImageClick = () => {
-    if (swipeMovedRef.current) return;
+    if (swipeMovedRef.current || isDragging || Math.abs(dragOffset) > 5) return;
     setViewerOpen(true);
   };
 
@@ -478,18 +528,49 @@ export default function ProductDetailView({ productId: initialProductId }) {
             style={mainImageWrapperStyle}
             className="detail-main-image"
             onClick={handleMainImageClick}
-            onTouchStart={(event) => setTouchStartX(event.touches[0].clientX)}
-            onTouchEnd={handleImageTouchEnd}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            onTouchCancel={handleTouchEnd}
           >
-            <img 
-              src={galleryImages[activeImgIndex] || galleryImages[0] || getProductPrimaryImage(product)} 
-              alt={product.name} 
-              style={mainImageStyle} 
-              className="detail-gallery-img"
-              onError={(e) => {
-                e.target.src = "/images/mattresses/foam/haven.jpg";
+            {/* Sliding Track with all gallery images */}
+            <div
+              className="gallery-slider-track"
+              style={{
+                display: "flex",
+                width: "100%",
+                height: "100%",
+                transform: isDragging
+                  ? `translateX(calc(-${activeImgIndex * 100}% + ${dragOffset}px))`
+                  : `translateX(-${activeImgIndex * 100}%)`,
+                transition: isDragging ? "none" : "transform 0.38s cubic-bezier(0.22, 1, 0.36, 1)",
+                willChange: "transform"
               }}
-            />
+            >
+              {galleryImages.map((img, index) => (
+                <div
+                  key={index}
+                  style={{
+                    flex: "0 0 100%",
+                    width: "100%",
+                    height: "100%",
+                    position: "relative",
+                    overflow: "hidden"
+                  }}
+                >
+                  <img 
+                    src={img} 
+                    alt={`${product.name} image ${index + 1}`} 
+                    style={mainImageStyle} 
+                    className="detail-gallery-img"
+                    onError={(e) => {
+                      e.target.src = "/images/mattresses/foam/haven.jpg";
+                    }}
+                    draggable={false}
+                  />
+                </div>
+              ))}
+            </div>
 
             <div style={floatingActionsWrapStyle} className="detail-floating-actions">
               <button
@@ -541,7 +622,7 @@ export default function ProductDetailView({ productId: initialProductId }) {
           
           {/* Thumbnail strip - ONLY rendered when product has > 1 valid distinct image */}
           {galleryImages.length > 1 && (
-            <div style={thumbnailStripStyle} className="product-thumbnails">
+            <div ref={thumbnailStripRef} style={thumbnailStripStyle} className="product-thumbnails">
               {galleryImages.map((img, index) => (
                 <button 
                   key={index} 
@@ -979,8 +1060,9 @@ export default function ProductDetailView({ productId: initialProductId }) {
         <div
           style={viewerOverlayStyle}
           className="image-viewer"
-          onTouchStart={(event) => setTouchStartX(event.touches[0].clientX)}
-          onTouchEnd={handleImageTouchEnd}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
           role="dialog"
           aria-modal="true"
           aria-label={`${product.name} image viewer`}
@@ -999,7 +1081,7 @@ export default function ProductDetailView({ productId: initialProductId }) {
             </svg>
           </button>
 
-          <img src={product.images[activeImgIndex] || product.images[0]} alt={product.name} style={viewerImageStyle} />
+          <img src={galleryImages[activeImgIndex] || galleryImages[0] || product.images?.[0]} alt={product.name} style={viewerImageStyle} />
 
           <button onClick={showNextImage} style={{ ...viewerNavBtnStyle, right: "14px" }} aria-label="Next image">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
@@ -1008,7 +1090,7 @@ export default function ProductDetailView({ productId: initialProductId }) {
             </svg>
           </button>
 
-          <span style={viewerCountStyle}>{activeImgIndex + 1} / {product.images.length}</span>
+          <span style={viewerCountStyle}>{activeImgIndex + 1} / {galleryImages.length || product.images?.length || 1}</span>
         </div>
       )}
 
@@ -1190,10 +1272,23 @@ export default function ProductDetailView({ productId: initialProductId }) {
             overflow-x: auto !important;
             display: grid !important;
             grid-auto-flow: column !important;
-            grid-auto-columns: minmax(220px, 68vw) !important;
+            grid-auto-columns: minmax(240px, 75vw) !important;
             grid-template-columns: none !important;
             gap: 14px !important;
-            padding-bottom: 12px !important;
+            padding: 4px 16px 12px !important;
+            margin: 0 -16px !important;
+            scroll-snap-type: x mandatory;
+            scroll-padding-left: 16px !important;
+            -webkit-overflow-scrolling: touch !important;
+            scrollbar-width: none !important;
+            -ms-overflow-style: none !important;
+          }
+          .recommendations-row::-webkit-scrollbar {
+            display: none !important;
+          }
+          .recommendations-row > * {
+            scroll-snap-align: start;
+            min-width: 0 !important;
           }
           .detail-option-row {
             display: grid !important;
@@ -1263,6 +1358,15 @@ export default function ProductDetailView({ productId: initialProductId }) {
             min-width: 16px !important;
             font-size: 12px !important;
           }
+        }
+
+        .gallery-slider-track {
+          display: flex !important;
+          width: 100% !important;
+          height: 100% !important;
+          user-select: none !important;
+          -webkit-user-drag: none !important;
+          touch-action: pan-y !important;
         }
       `}</style>
     </div>
@@ -1797,7 +1901,8 @@ const carouselHeadingStyle = {
 const recommendationsGridStyle = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-  gap: "30px"
+  gap: "30px",
+  scrollbarWidth: "none"
 };
 
 const mockQuestionStyle = {

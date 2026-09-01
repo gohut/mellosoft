@@ -149,7 +149,7 @@ export default function ProductCard({
       className="product-card"
     >
       {/* 1. IMAGE WRAPPER */}
-      <div style={imageWrapperStyle}>
+      <div style={imageWrapperStyle} className="pc-img-wrap">
         <img
           src={imgSrc}
           alt={`Mellosoft ${product.name} ${product.categoryName || product.category || "Product"}`}
@@ -169,6 +169,7 @@ export default function ProductCard({
         {/* CATEGORY / CUSTOM BADGE / NEW ARRIVAL BADGE */}
         {product.badge && String(product.badge).trim() !== "" ? (
           <span
+            className="pc-badge"
             style={{
               ...badgeStyle,
               backgroundColor: product.badgeColor || (String(product.badge).toUpperCase() === "NEW" ? "#16A34A" : "#1B1F8C"),
@@ -177,11 +178,11 @@ export default function ProductCard({
             {product.badge}
           </span>
         ) : product.isNewArrival ? (
-          <span style={{ ...badgeStyle, backgroundColor: "#16A34A" }}>
+          <span className="pc-badge" style={{ ...badgeStyle, backgroundColor: "#16A34A" }}>
             NEW
           </span>
         ) : (
-          <span style={badgeStyle}>
+          <span className="pc-badge" style={badgeStyle}>
             {product.categoryName || (product.category ? product.category.toUpperCase() : "SLEEP")}
           </span>
         )}
@@ -217,20 +218,20 @@ export default function ProductCard({
         </span>
 
         {/* Product Title */}
-        <h4 style={titleStyle}>{product.name}</h4>
+        <h4 style={titleStyle} className="pc-title">{product.name}</h4>
 
         {/* Material / Feature Tag Chip */}
         {specLabel && (
-          <div style={specWrapperStyle}>
-            <div style={constructionBadgeStyle}>
-              <span style={specBadgeTextStyle}>
+          <div style={specWrapperStyle} className="pc-spec-wrap">
+            <div style={constructionBadgeStyle} className="pc-spec-badge">
+              <span style={specBadgeTextStyle} className="pc-spec-text">
                 {specLabel}
               </span>
             </div>
           </div>
         )}
 
-        {/* Rating Row (placed between material chip and price) */}
+        {/* Rating Row */}
         <div style={ratingRowStyle} className="pc-rating-row">
           <svg
             width="13"
@@ -246,21 +247,21 @@ export default function ProductCard({
           >
             <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
           </svg>
-          <span style={ratingValueStyle}>{ratingVal.toFixed(1)}</span>
-          <span style={reviewCountStyle}>({reviewCount})</span>
+          <span style={ratingValueStyle} className="pc-rating-val">{ratingVal.toFixed(1)}</span>
+          <span style={reviewCountStyle} className="pc-review-count">({reviewCount})</span>
         </div>
 
         {/* Price Row */}
         <div style={metaRowStyle} className="pc-price-wrap">
-          <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-            <span style={priceLabelStyle}>STARTING FROM</span>
+          <div style={{ display: "flex", alignItems: "center", gap: "5px", flexWrap: "wrap" }}>
+            <span style={priceLabelStyle} className="pc-price-label">STARTING FROM</span>
             {hasDiscount && (
-              <span style={discountBadgeStyle}>{discountPct}% OFF</span>
+              <span style={discountBadgeStyle} className="pc-discount-badge">{discountPct}% OFF</span>
             )}
           </div>
           {hasDiscount ? (
             <div style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
-              <span style={originalPriceStyle}>{formatPrice(minPrice)}</span>
+              <span style={originalPriceStyle} className="pc-orig-price">{formatPrice(minPrice)}</span>
               <div style={priceValueStyle} className="pc-price">{formatPrice(discountedMinPrice)}</div>
             </div>
           ) : (
