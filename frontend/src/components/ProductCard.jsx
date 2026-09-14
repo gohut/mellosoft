@@ -9,6 +9,67 @@ import { CATEGORY_FALLBACK_IMAGES, ACCESSORY_FALLBACK_IMAGES } from "../data/mat
 import { useRouter } from "next/navigation";
 import { useCustomerAuth } from "../context/CustomerAuthContext";
 
+function ShadedStar({ fillPercentage = 100, size = 12, color = "#F59E0B", emptyColor = "#E2E8F0" }) {
+  return (
+    <div
+      style={{
+        position: "relative",
+        width: size,
+        height: size,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0
+      }}
+    >
+      {/* Background Empty Star */}
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill={emptyColor}
+        stroke={emptyColor}
+        strokeWidth="1"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+        style={{ position: "absolute", top: 0, left: 0 }}
+      >
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+      </svg>
+
+      {/* Foreground Filled Star with percentage clip width */}
+      {fillPercentage > 0 && (
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: `${fillPercentage}%`,
+            height: "100%",
+            overflow: "hidden"
+          }}
+        >
+          <svg
+            width={size}
+            height={size}
+            viewBox="0 0 24 24"
+            fill={color}
+            stroke={color}
+            strokeWidth="1"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+            style={{ position: "absolute", top: 0, left: 0, minWidth: size, maxWidth: "none" }}
+          >
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+          </svg>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ProductCard({
   product: rawProduct,
   showContactForPrice = true,
@@ -233,20 +294,24 @@ export default function ProductCard({
 
         {/* Rating Row */}
         <div style={ratingRowStyle} className="pc-rating-row">
-          <svg
-            width="13"
-            height="13"
-            viewBox="0 0 24 24"
-            fill="#16A34A"
-            stroke="#16A34A"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-            style={{ flexShrink: 0 }}
-          >
-            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-          </svg>
+          <div style={{ display: "flex", alignItems: "center", gap: "2px" }} aria-label={`${ratingVal.toFixed(1)} out of 5 stars`}>
+            {[1, 2, 3, 4, 5].map((starIndex) => {
+              let fillPercentage = 0;
+              if (ratingVal >= starIndex) {
+                fillPercentage = 100;
+              } else if (ratingVal > starIndex - 1) {
+                fillPercentage = Math.round((ratingVal - (starIndex - 1)) * 100);
+              }
+              return (
+                <ShadedStar
+                  key={starIndex}
+                  fillPercentage={fillPercentage}
+                  size={12}
+                  color="#F59E0B"
+                />
+              );
+            })}
+          </div>
           <span style={ratingValueStyle} className="pc-rating-val">{ratingVal.toFixed(1)}</span>
           <span style={reviewCountStyle} className="pc-review-count">({reviewCount})</span>
         </div>
@@ -254,7 +319,7 @@ export default function ProductCard({
         {/* Price Row */}
         <div style={metaRowStyle} className="pc-price-wrap">
           <div style={{ display: "flex", alignItems: "center", gap: "5px", flexWrap: "wrap" }}>
-            <span style={priceLabelStyle} className="pc-price-label">STARTING FROM</span>
+            <span style={priceLabelStyle} className="pc-price-label">PRICE</span>
             {hasDiscount && (
               <span style={discountBadgeStyle} className="pc-discount-badge">{discountPct}% OFF</span>
             )}

@@ -59,6 +59,10 @@ function buildInitialForm() {
       "Layer Details: Multi-layer comfort design",
       "100-Night Sleep Trial & Direct Manufacturer Warranty"
     ],
+    deliveryPerks: [
+      { id: "perk-1", icon: "truck", text: "Free shipping on orders over ₹5,000" },
+      { id: "perk-2", icon: "check", text: "100-night trial with free pickups and full refunds" }
+    ],
     bedSizes: JSON.parse(JSON.stringify(DEFAULT_BED_SIZES)),
     variantsList: ["6 INCH", "8 INCH"],
     matrixPrices: {},
@@ -133,6 +137,31 @@ export default function AddProductView() {
   };
   const removeFeature = (idx) => {
     setForm((prev) => ({ ...prev, features: prev.features.filter((_, i) => i !== idx) }));
+  };
+
+  const addPerk = (icon = "truck", text = "") => {
+    setForm((prev) => ({
+      ...prev,
+      deliveryPerks: [
+        ...(prev.deliveryPerks || []),
+        { id: `perk-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`, icon, text }
+      ]
+    }));
+  };
+
+  const updatePerk = (idx, key, val) => {
+    setForm((prev) => {
+      const next = [...(prev.deliveryPerks || [])];
+      next[idx] = { ...next[idx], [key]: val };
+      return { ...prev, deliveryPerks: next };
+    });
+  };
+
+  const removePerk = (idx) => {
+    setForm((prev) => ({
+      ...prev,
+      deliveryPerks: (prev.deliveryPerks || []).filter((_, i) => i !== idx)
+    }));
   };
 
   const validate = () => {
@@ -285,7 +314,8 @@ export default function AddProductView() {
       images: form.images.length > 0 ? form.images : ["/images/mattresses/foam/haven.jpg"],
       imageUrl: form.images.length > 0 ? form.images[0] : "/images/mattresses/foam/haven.jpg",
       thumbnail: form.images.length > 0 ? form.images[0] : "/images/mattresses/foam/haven.jpg",
-      features: cleanFeatures
+      features: cleanFeatures,
+      deliveryPerks: (form.deliveryPerks || []).filter((p) => p && p.text && p.text.trim().length > 0)
     };
 
     addProduct(newProduct);
@@ -375,14 +405,35 @@ export default function AddProductView() {
                       const selectedMainId = e.target.value;
                       const mainCat = categories.find((c) => c.id === selectedMainId || c.slug === selectedMainId);
                       const firstSub = mainCat?.subcategories?.[0];
-                      setForm((prev) => ({
-                        ...prev,
-                        mainCategoryId: selectedMainId,
-                        parentCategory: mainCat?.slug || selectedMainId,
-                        category: mainCat?.slug || selectedMainId,
-                        subCategory: firstSub?.slug || firstSub?.id || "ortho",
-                        subCategoryId: firstSub?.id || "SUB-ORTHO"
-                      }));
+                      const isAcc = selectedMainId === "CAT-ACCESSORIES" || mainCat?.slug === "accessories";
+                      setForm((prev) => {
+                        const isDefaultMattressPerk = prev.deliveryPerks?.length === 2 &&
+                          prev.deliveryPerks[1]?.text?.includes("100-night");
+                        const isDefaultAccPerk = prev.deliveryPerks?.length === 2 &&
+                          prev.deliveryPerks[1]?.text?.includes("Warranty");
+                        
+                        let nextPerks = prev.deliveryPerks;
+                        if (isAcc && isDefaultMattressPerk) {
+                          nextPerks = [
+                            { id: "perk-1", icon: "truck", text: "Free shipping on orders over ₹5,000" },
+                            { id: "perk-2", icon: "shield", text: "Official Manufacturer Warranty & Easy Returns" }
+                          ];
+                        } else if (!isAcc && isDefaultAccPerk) {
+                          nextPerks = [
+                            { id: "perk-1", icon: "truck", text: "Free shipping on orders over ₹5,000" },
+                            { id: "perk-2", icon: "check", text: "100-night trial with free pickups and full refunds" }
+                          ];
+                        }
+                        return {
+                          ...prev,
+                          mainCategoryId: selectedMainId,
+                          parentCategory: mainCat?.slug || selectedMainId,
+                          category: mainCat?.slug || selectedMainId,
+                          subCategory: firstSub?.slug || firstSub?.id || "ortho",
+                          subCategoryId: firstSub?.id || "SUB-ORTHO",
+                          deliveryPerks: nextPerks
+                        };
+                      });
                     }}
                     style={inputStyle}
                   >
@@ -627,6 +678,237 @@ export default function AddProductView() {
               </div>
 
             </div>
+          </div>
+
+          {/* Delivery & Guarantee Perks Card (Shown under Buy Now on Product Page) */}
+          <div style={{ ...cardStyle, width: "100%" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "12px", marginBottom: "8px" }}>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <h4 style={cardTitleStyle}>Delivery & Guarantee Perks</h4>
+                  <span style={{ fontSize: "11px", fontWeight: 700, color: "#16A34A", backgroundColor: "#DCFCE7", padding: "2px 8px", borderRadius: "12px" }}>
+                    Shown under Buy Now
+                  </span>
+                </div>
+                <p style={{ fontSize: "12.5px", color: "#6B6B75", margin: "4px 0 0" }}>
+                  Highlights displayed directly below the purchase button on the product details page (e.g. Free shipping, 100-night trial, warranty).
+                </p>
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  onClick={() => setForm((prev) => ({
+                    ...prev,
+                    deliveryPerks: [
+                      { id: `perk-${Date.now()}-1`, icon: "truck", text: "Free shipping on orders over ₹5,000" },
+                      { id: `perk-${Date.now()}-2`, icon: "check", text: "100-night trial with free pickups and full refunds" }
+                    ]
+                  }))}
+                  style={{
+                    border: "1px solid #E2E8F0",
+                    backgroundColor: "#FFFFFF",
+                    color: "#475569",
+                    padding: "6px 12px",
+                    borderRadius: "7px",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                  title="Load standard mattress perks"
+                >
+                  Reset Mattress Perks
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setForm((prev) => ({
+                    ...prev,
+                    deliveryPerks: [
+                      { id: `perk-${Date.now()}-1`, icon: "truck", text: "Free shipping on orders over ₹5,000" },
+                      { id: `perk-${Date.now()}-2`, icon: "shield", text: "Official Manufacturer Warranty & Easy Returns" }
+                    ]
+                  }))}
+                  style={{
+                    border: "1px solid #E2E8F0",
+                    backgroundColor: "#FFFFFF",
+                    color: "#475569",
+                    padding: "6px 12px",
+                    borderRadius: "7px",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                  title="Load accessory perks"
+                >
+                  Reset Accessory Perks
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => addPerk("truck", "")}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    padding: "6px 14px",
+                    borderRadius: "8px",
+                    border: "1px solid #1B1F8C",
+                    backgroundColor: "#EEF0FF",
+                    color: "#1B1F8C",
+                    fontSize: "12.5px",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  <Plus size={14} /> Add Perk
+                </button>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "14px" }}>
+              {form.deliveryPerks && form.deliveryPerks.length > 0 ? (
+                form.deliveryPerks.map((perk, idx) => (
+                  <div
+                    key={perk.id || idx}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "10px",
+                      backgroundColor: "#FAFAF7",
+                      padding: "8px 12px",
+                      borderRadius: "8px",
+                      border: "1px solid #F0F0EC",
+                      flexWrap: "wrap"
+                    }}
+                  >
+                    {/* Icon selector */}
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <span style={{ fontSize: "12px", fontWeight: 600, color: "#6B6B75" }}>Icon:</span>
+                      <select
+                        value={perk.icon || "truck"}
+                        onChange={(e) => updatePerk(idx, "icon", e.target.value)}
+                        style={{
+                          ...inputStyle,
+                          height: "36px",
+                          width: "auto",
+                          padding: "4px 10px",
+                          fontSize: "13px",
+                          cursor: "pointer",
+                          backgroundColor: "#FFFFFF"
+                        }}
+                      >
+                        <option value="truck">🚚 Truck (Shipping)</option>
+                        <option value="check">✓ Checkmark (Trial / Guarantee)</option>
+                        <option value="shield">🛡️ Shield (Warranty)</option>
+                        <option value="box">📦 Box (Return / Pickup)</option>
+                        <option value="clock">⏱️ Clock (Express / Dispatch)</option>
+                      </select>
+                    </div>
+
+                    {/* Text input */}
+                    <input
+                      type="text"
+                      value={perk.text || ""}
+                      onChange={(e) => updatePerk(idx, "text", e.target.value)}
+                      style={{
+                        ...inputStyle,
+                        flex: 1,
+                        minWidth: "240px",
+                        height: "36px",
+                        fontSize: "13.5px",
+                        backgroundColor: "#FFFFFF"
+                      }}
+                      placeholder="e.g. Free shipping on orders over ₹5,000"
+                    />
+
+                    {/* Remove button */}
+                    <button
+                      type="button"
+                      onClick={() => removePerk(idx)}
+                      style={{
+                        border: "1px solid #FCA5A5",
+                        backgroundColor: "#FEF2F2",
+                        color: "#DC2626",
+                        width: "36px",
+                        height: "36px",
+                        borderRadius: "8px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: "pointer",
+                        flexShrink: 0,
+                      }}
+                      title="Remove perk"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <div style={{ padding: "16px", textAlign: "center", backgroundColor: "#FAFAF7", borderRadius: "8px", border: "1px dashed #E7E7E2" }}>
+                  <p style={{ fontSize: "13px", color: "#6B6B75", margin: "0 0 8px" }}>No delivery or guarantee perks added.</p>
+                  <button
+                    type="button"
+                    onClick={() => addPerk("truck", "Free shipping on orders over ₹5,000")}
+                    style={{
+                      border: "none",
+                      backgroundColor: "#1B1F8C",
+                      color: "#FFFFFF",
+                      padding: "7px 16px",
+                      borderRadius: "6px",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    + Add First Perk
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Live Storefront Preview */}
+            {form.deliveryPerks && form.deliveryPerks.filter((p) => p.text && p.text.trim()).length > 0 && (
+              <div style={{ marginTop: "16px", padding: "12px 16px", backgroundColor: "#FFFFFF", borderRadius: "8px", border: "1px solid #E7E7E2" }}>
+                <span style={{ fontSize: "11px", fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.5px", display: "block", marginBottom: "8px" }}>
+                  Live Storefront Preview (How buyers see it)
+                </span>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  {form.deliveryPerks.filter((p) => p.text && p.text.trim()).map((p, idx) => (
+                    <div key={idx} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      {p.icon === "truck" ? (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5" style={{ flexShrink: 0 }}>
+                          <rect x="1" y="3" width="15" height="13" />
+                          <polygon points="16 8 20 8 23 11 23 16 16 16" />
+                          <circle cx="5.5" cy="18.5" r="2.5" />
+                          <circle cx="18.5" cy="18.5" r="2.5" />
+                        </svg>
+                      ) : p.icon === "shield" ? (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5" style={{ flexShrink: 0 }}>
+                          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                        </svg>
+                      ) : p.icon === "box" ? (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5" style={{ flexShrink: 0 }}>
+                          <polyline points="1 4 1 10 7 10" />
+                          <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                        </svg>
+                      ) : p.icon === "clock" ? (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5" style={{ flexShrink: 0 }}>
+                          <circle cx="12" cy="12" r="10" />
+                          <polyline points="12 6 12 12 16 14" />
+                        </svg>
+                      ) : (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5" style={{ flexShrink: 0 }}>
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      )}
+                      <span style={{ fontSize: "13px", color: "#6B6B75", fontWeight: 500 }}>{p.text}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Key Features & Highlights Card (Full Width with Left-Right 2-Column Grid) */}

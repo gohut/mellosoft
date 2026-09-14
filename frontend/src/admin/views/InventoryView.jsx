@@ -338,7 +338,7 @@ export default function InventoryView() {
       label: "STATUS",
       render: (val) => <StatusBadge status={val} />,
     },
-    {
+    ...(hasPermission && hasPermission("products", "edit") ? [{
       key: "actions",
       label: "ACTION",
       align: "center",
@@ -352,7 +352,7 @@ export default function InventoryView() {
           <span>Manage</span>
         </button>
       ),
-    },
+    }] : []),
   ];
 
   return (

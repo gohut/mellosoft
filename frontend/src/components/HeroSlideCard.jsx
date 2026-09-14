@@ -38,7 +38,7 @@ export default function HeroSlideCard({
   const cardStyle = {
     position: "relative",
     width: preview ? "100%" : style.width || "560px",
-    height: preview ? "230px" : style.height || "260px",
+    height: style.height || (preview ? "230px" : "260px"),
     borderRadius: preview ? "16px" : "22px",
     overflow: "hidden",
     backgroundColor: "#14151A",

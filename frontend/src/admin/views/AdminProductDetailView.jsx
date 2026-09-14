@@ -47,9 +47,10 @@ const BED_CATEGORY_BADGE_COLORS = {
   Standard: { bg: "#F3F4F6", color: "#374151", border: "#E5E7EB" },
 };
 
-export default function AdminProductDetailView() {
+export default function AdminProductDetailView({ productId }) {
   const { products, selectedProductId, navigateTo, updateProduct, deleteProduct, hasPermission, reviews = [] } = useAdmin();
-  const product = products.find((p) => p.id === selectedProductId) || products[0];
+  const targetId = productId || selectedProductId;
+  const product = products.find((p) => String(p.id) === String(targetId) || String(p.Product_Id) === String(targetId)) || products[0];
 
   const reviewStats = useMemo(() => {
     return getProductReviewStats(product, reviews);
@@ -130,40 +131,78 @@ export default function AdminProductDetailView() {
   // Dynamic collections for the User-like product selector
   const variantOptions = useMemo(() => {
     const list = Array.from(new Set(effectiveVariants.map((v) => v.Firmness || v.VariantName || "Standard")));
-    return list.length > 0 ? list : (product?.thicknessOptions || ["4 INCH", "5 INCH"]);
+    return list.length > 0 ? list : (product?.thicknessOptions || ["Standard"]);
   }, [effectiveVariants, product]);
 
-  const bedCategoryOptions = ["Single", "Double", "Queen", "King"];
+  const bedCategoryOptions = useMemo(() => {
+    const cats = [];
+    if (effectiveVariants && effectiveVariants.length > 0) {
+      effectiveVariants.forEach((v) => {
+        const cat = v.SizeCategory || getBedCategoryForDimension(v.Size);
+        if (cat && cat !== "Standard" && !cats.includes(cat)) {
+          cats.push(cat);
+        }
+      });
+      if (cats.length > 0) return cats;
+    }
+    if (product?.bedSizes) {
+      const enabledCats = Object.keys(product.bedSizes).filter((cat) => {
+        const c = product.bedSizes[cat];
+        return c?.enabled && Array.isArray(c?.dimensions) && c.dimensions.length > 0;
+      });
+      if (enabledCats.length > 0) return enabledCats;
+    }
+    return [];
+  }, [effectiveVariants, product]);
 
-  const [selectedVariantOption, setSelectedVariantOption] = useState(() => variantOptions[0] || "4 INCH");
-  const [selectedBedSizeCategory, setSelectedBedSizeCategory] = useState("Single");
+  const [selectedVariantOption, setSelectedVariantOption] = useState(() => variantOptions[0] || "Standard");
+  const [selectedBedSizeCategory, setSelectedBedSizeCategory] = useState(() => bedCategoryOptions[0] || "");
 
   const dimensionsForSelectedCategory = useMemo(() => {
-    const matched = effectiveVariants.filter((v) => {
-      const cat = getBedCategoryForDimension(v.Size);
-      return cat === selectedBedSizeCategory;
-    });
-    const uniqueDims = Array.from(new Set(matched.map((v) => v.Size)));
-    if (uniqueDims.length > 0) return uniqueDims;
-    if (selectedBedSizeCategory === "Single") return ["72 X 30", "72 X 36", "75 X 30", "75 X 36", "78 X 30", "78 X 36", "84 X 36"];
-    if (selectedBedSizeCategory === "Double") return ["72 X 42", "72 X 44", "72 X 48", "75 X 44", "75 X 48", "78 X 48", "84 X 48"];
-    if (selectedBedSizeCategory === "Queen") return ["72 X 60", "75 X 60", "78 X 60", "84 X 60"];
-    if (selectedBedSizeCategory === "King") return ["72 X 72", "75 X 72", "78 X 72", "84 X 72"];
-    return [];
-  }, [effectiveVariants, selectedBedSizeCategory]);
+    if (bedCategoryOptions.length > 0) {
+      const matched = effectiveVariants.filter((v) => {
+        const cat = v.SizeCategory || getBedCategoryForDimension(v.Size);
+        return cat === selectedBedSizeCategory;
+      });
+      const uniqueDims = Array.from(new Set(matched.map((v) => v.Size).filter(Boolean)));
+      if (uniqueDims.length > 0) return uniqueDims;
 
-  const [selectedDimension, setSelectedDimension] = useState(() => dimensionsForSelectedCategory[0] || "72 X 30");
+      if (product?.bedSizes?.[selectedBedSizeCategory]?.dimensions?.length > 0) {
+        return product.bedSizes[selectedBedSizeCategory].dimensions;
+      }
+      return [];
+    }
+
+    // No bed categories (e.g. Standard dimension, accessory, or single combination)
+    const allDims = Array.from(new Set(effectiveVariants.map((v) => v.Size).filter(Boolean)));
+    if (allDims.length > 0) return allDims;
+    if (Array.isArray(product?.sizeOptions) && product.sizeOptions.length > 0) {
+      return product.sizeOptions;
+    }
+    return ["Standard"];
+  }, [effectiveVariants, selectedBedSizeCategory, bedCategoryOptions, product]);
+
+  const [selectedDimension, setSelectedDimension] = useState(() => dimensionsForSelectedCategory[0] || "Standard");
 
   // Selected Size + Firmness state
-  const [selectedSize, setSelectedSize] = useState(() => dimensionsForSelectedCategory[0] || "72 X 30");
-  const [selectedFirmness, setSelectedFirmness] = useState(() => variantOptions[0] || "4 INCH");
+  const [selectedSize, setSelectedSize] = useState(() => dimensionsForSelectedCategory[0] || "Standard");
+  const [selectedFirmness, setSelectedFirmness] = useState(() => variantOptions[0] || "Standard");
+
+  // Keep category synced
+  useEffect(() => {
+    if (bedCategoryOptions.length > 0 && !bedCategoryOptions.includes(selectedBedSizeCategory)) {
+      setSelectedBedSizeCategory(bedCategoryOptions[0]);
+    } else if (bedCategoryOptions.length === 0 && selectedBedSizeCategory !== "") {
+      setSelectedBedSizeCategory("");
+    }
+  }, [bedCategoryOptions, selectedBedSizeCategory]);
 
   // Keep dimensions and variant synced when category or options change
   useEffect(() => {
     if (dimensionsForSelectedCategory.length > 0 && !dimensionsForSelectedCategory.includes(selectedDimension)) {
       setSelectedDimension(dimensionsForSelectedCategory[0]);
     }
-  }, [selectedBedSizeCategory, dimensionsForSelectedCategory, selectedDimension]);
+  }, [dimensionsForSelectedCategory, selectedDimension]);
 
   useEffect(() => {
     if (variantOptions.length > 0 && !variantOptions.includes(selectedVariantOption)) {
@@ -277,10 +316,13 @@ export default function AdminProductDetailView() {
   }, [effectiveVariants, selectedBedCategory, matrixSearch]);
 
   const categoryCounts = useMemo(() => {
-    const counts = { All: distinctDimensions.length, Single: 0, Double: 0, Queen: 0, King: 0 };
+    const counts = { All: distinctDimensions.length };
     distinctDimensions.forEach((dim) => {
       const cat = getBedCategoryForDimension(dim);
-      if (counts[cat] !== undefined) counts[cat]++;
+      if (counts[cat] === undefined) {
+        counts[cat] = 0;
+      }
+      counts[cat]++;
     });
     return counts;
   }, [distinctDimensions]);
@@ -402,18 +444,41 @@ export default function AdminProductDetailView() {
       )}
 
       {/* Header row: title + action buttons */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "16px", flexWrap: "wrap" }}>
+      <div
+        className="admin-product-detail-header"
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: "16px",
+          flexWrap: "wrap",
+          width: "100%",
+          boxSizing: "border-box",
+        }}
+      >
         <div>
           <h2 style={{ fontSize: "22px", fontWeight: 700, color: "#14151A", margin: 0 }}>{product.Product_Name || product.name}</h2>
           <p style={{ fontSize: "13px", color: "#6B6B75", margin: "4px 0 0" }}>
             ID: <code style={{ fontFamily: "monospace", backgroundColor: "#F0F0EC", padding: "1px 6px", borderRadius: "4px" }}>{product.Product_Id || product.id}</code>
           </p>
         </div>
-        <div style={{ display: "flex", gap: "10px", flexShrink: 0, flexWrap: "wrap" }}>
+        <div
+          className="admin-product-detail-actions admin-sliding-tabs"
+          style={{
+            display: "flex",
+            gap: "10px",
+            flexWrap: "nowrap",
+            overflowX: "auto",
+            overflowY: "hidden",
+            WebkitOverflowScrolling: "touch",
+            maxWidth: "100%",
+            boxSizing: "border-box",
+          }}
+        >
           {hasPermission("products", "edit") && (
             <button
               onClick={handleOpenStockModal}
-              style={stockBtnStyle}
+              style={{ ...stockBtnStyle, flexShrink: 0, whiteSpace: "nowrap" }}
               onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#047857"; }}
               onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "#059669"; }}
               title="Quickly view and update variant stock quantities"
@@ -425,7 +490,7 @@ export default function AdminProductDetailView() {
           {hasPermission("products", "edit") && (
             <button
               onClick={() => navigateTo("edit-product", product.id)}
-              style={editBtnStyle}
+              style={{ ...editBtnStyle, flexShrink: 0, whiteSpace: "nowrap" }}
               onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#14176C"; }}
               onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "#1B1F8C"; }}
             >
@@ -436,7 +501,7 @@ export default function AdminProductDetailView() {
           {hasPermission("products", "delete") && (
             <button
               onClick={() => setShowDelete(true)}
-              style={deleteBtnStyle}
+              style={{ ...deleteBtnStyle, flexShrink: 0, whiteSpace: "nowrap" }}
               onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#B91C1C"; }}
               onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "#DC2626"; }}
             >
@@ -640,46 +705,49 @@ export default function AdminProductDetailView() {
             )}
 
             {/* 2. BED SIZE Selection */}
-            <div style={{ marginTop: "4px" }}>
-              <label style={{ fontSize: "12px", fontWeight: 800, color: "#6B6B75", textTransform: "uppercase", display: "block", marginBottom: "8px" }}>
-                BED SIZE: <strong style={{ color: "#1B1F8C" }}>{selectedBedSizeCategory.toUpperCase()}</strong>
-              </label>
-              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                {bedCategoryOptions.map((cat) => {
-                  const isSelected = cat === selectedBedSizeCategory;
-                  return (
-                    <button
-                      key={cat}
-                      type="button"
-                      onClick={() => setSelectedBedSizeCategory(cat)}
-                      style={{
-                        height: "36px",
-                        padding: "0 18px",
-                        borderRadius: "8px",
-                        fontSize: "12.5px",
-                        fontWeight: 700,
-                        border: "1px solid",
-                        cursor: "pointer",
-                        backgroundColor: isSelected ? "#1B1F8C" : "#FFFFFF",
-                        color: isSelected ? "#FFFFFF" : "#14151A",
-                        borderColor: isSelected ? "#1B1F8C" : "#E7E7E2",
-                        transition: "all 0.15s ease",
-                      }}
-                    >
-                      {cat.toUpperCase()}
-                    </button>
-                  );
-                })}
+            {bedCategoryOptions.length > 1 && (
+              <div style={{ marginTop: "4px" }}>
+                <label style={{ fontSize: "12px", fontWeight: 800, color: "#6B6B75", textTransform: "uppercase", display: "block", marginBottom: "8px" }}>
+                  BED SIZE: <strong style={{ color: "#1B1F8C" }}>{selectedBedSizeCategory.toUpperCase()}</strong>
+                </label>
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                  {bedCategoryOptions.map((cat) => {
+                    const isSelected = cat === selectedBedSizeCategory;
+                    return (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => setSelectedBedSizeCategory(cat)}
+                        style={{
+                          height: "36px",
+                          padding: "0 18px",
+                          borderRadius: "8px",
+                          fontSize: "12.5px",
+                          fontWeight: 700,
+                          border: "1px solid",
+                          cursor: "pointer",
+                          backgroundColor: isSelected ? "#1B1F8C" : "#FFFFFF",
+                          color: isSelected ? "#FFFFFF" : "#14151A",
+                          borderColor: isSelected ? "#1B1F8C" : "#E7E7E2",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        {cat.toUpperCase()}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* 3. DIMENSION (INCHES) Selection */}
-            <div style={{ marginTop: "4px" }}>
-              <label style={{ fontSize: "12px", fontWeight: 800, color: "#6B6B75", textTransform: "uppercase", display: "block", marginBottom: "8px" }}>
-                DIMENSION (INCHES): <strong style={{ color: "#1B1F8C" }}>{selectedDimension}</strong>
-              </label>
-              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                {dimensionsForSelectedCategory.map((dim) => {
+            {dimensionsForSelectedCategory.length > 0 && (
+              <div style={{ marginTop: "4px" }}>
+                <label style={{ fontSize: "12px", fontWeight: 800, color: "#6B6B75", textTransform: "uppercase", display: "block", marginBottom: "8px" }}>
+                  DIMENSION{dimensionsForSelectedCategory.length === 1 && dimensionsForSelectedCategory[0].toLowerCase() === "standard" ? "" : " (INCHES)"}: <strong style={{ color: "#1B1F8C" }}>{selectedDimension}</strong>
+                </label>
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                  {dimensionsForSelectedCategory.map((dim) => {
                   const isSelected = dim === selectedDimension;
                   return (
                     <button
@@ -706,6 +774,7 @@ export default function AdminProductDetailView() {
                 })}
               </div>
             </div>
+          )}
 
             {/* 4. Calculated Price Block */}
             <div style={{ backgroundColor: "#F7F8FF", padding: "16px 20px", borderRadius: "12px", border: "1px solid #DCE4FF", marginTop: "8px" }}>
@@ -732,6 +801,59 @@ export default function AdminProductDetailView() {
             {/* Description */}
             {product.description && (
               <p style={{ fontSize: "14px", color: "#4B5563", lineHeight: 1.7, margin: "8px 0 0" }}>{product.description}</p>
+            )}
+
+            {/* Delivery & Policy Highlights */}
+            {((product.deliveryPerks && product.deliveryPerks.length > 0) || product.shippingText || product.trialText) && (
+              <div style={{ marginTop: "16px", paddingTop: "14px", borderTop: "1px solid #F0F0EC", display: "flex", flexDirection: "column", gap: "8px" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: "11px", fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    Delivery & Policy Highlights
+                  </span>
+                  {hasPermission("products", "edit") && (
+                    <button
+                      onClick={() => navigateTo("edit-product", product.id)}
+                      style={{ border: "none", background: "none", color: "#1B1F8C", fontSize: "11.5px", fontWeight: 700, cursor: "pointer", padding: 0 }}
+                    >
+                      Edit Perks →
+                    </button>
+                  )}
+                </div>
+                {(product.deliveryPerks && product.deliveryPerks.length > 0 ? product.deliveryPerks : [
+                  { icon: "truck", text: product.shippingText || "Free shipping on orders over ₹5,000" },
+                  { icon: "check", text: product.trialText || "100-night trial with free pickups and full refunds" }
+                ]).map((perk, idx) => (
+                  <div key={idx} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    {perk.icon === "truck" ? (
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5" style={{ flexShrink: 0 }}>
+                        <rect x="1" y="3" width="15" height="13" />
+                        <polygon points="16 8 20 8 23 11 23 16 16 16" />
+                        <circle cx="5.5" cy="18.5" r="2.5" />
+                        <circle cx="18.5" cy="18.5" r="2.5" />
+                      </svg>
+                    ) : perk.icon === "shield" ? (
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5" style={{ flexShrink: 0 }}>
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                      </svg>
+                    ) : perk.icon === "box" ? (
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5" style={{ flexShrink: 0 }}>
+                        <polyline points="1 4 1 10 7 10" />
+                        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                      </svg>
+                    ) : perk.icon === "clock" ? (
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5" style={{ flexShrink: 0 }}>
+                        <circle cx="12" cy="12" r="10" />
+                        <polyline points="12 6 12 12 16 14" />
+                      </svg>
+                    ) : (
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5" style={{ flexShrink: 0 }}>
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    )}
+                    <span style={{ fontSize: "13px", color: "#4B5563", fontWeight: 500 }}>{perk.text}</span>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
 
@@ -863,51 +985,55 @@ export default function AdminProductDetailView() {
           </div>
 
           {/* Bed Category Preset Filter Tabs */}
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", margin: "14px 0 6px" }}>
-            <span style={{ fontSize: "12px", fontWeight: 700, color: "#6B6B75", textTransform: "uppercase", marginRight: "4px" }}>
-              Bed Category:
-            </span>
-            {["All", "Single", "Double", "Queen", "King"].map((cat) => {
-              const isActive = selectedBedCategory === cat;
-              const count = categoryCounts[cat] || (cat === "All" ? distinctDimensions.length : 0);
-              const colorTheme = BED_CATEGORY_BADGE_COLORS[cat] || { bg: "#F3F4F6", color: "#14151A", border: "#E7E7E2" };
-              return (
-                <button
-                  key={cat}
-                  type="button"
-                  onClick={() => setSelectedBedCategory(cat)}
-                  style={{
-                    border: "1px solid",
-                    borderColor: isActive ? "#1B1F8C" : colorTheme.border,
-                    backgroundColor: isActive ? "#1B1F8C" : colorTheme.bg,
-                    color: isActive ? "#FFFFFF" : colorTheme.color,
-                    padding: "5px 12px",
-                    borderRadius: "999px",
-                    fontSize: "12px",
-                    fontWeight: isActive ? 700 : 600,
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    transition: "all 0.15s ease",
-                  }}
-                >
-                  <span>{cat === "All" ? "All Sizes" : cat}</span>
-                  <span
-                    style={{
-                      fontSize: "10.5px",
-                      padding: "1px 6px",
-                      borderRadius: "999px",
-                      backgroundColor: isActive ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.06)",
-                      color: isActive ? "#FFFFFF" : "inherit",
-                    }}
-                  >
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+          {Object.keys(categoryCounts).length > 2 && (
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", margin: "14px 0 6px" }}>
+              <span style={{ fontSize: "12px", fontWeight: 700, color: "#6B6B75", textTransform: "uppercase", marginRight: "4px" }}>
+                Bed Category:
+              </span>
+              {Object.keys(categoryCounts)
+                .filter((cat) => cat === "All" || categoryCounts[cat] > 0)
+                .map((cat) => {
+                  const isActive = selectedBedCategory === cat;
+                  const count = categoryCounts[cat] || (cat === "All" ? distinctDimensions.length : 0);
+                  const colorTheme = BED_CATEGORY_BADGE_COLORS[cat] || { bg: "#F3F4F6", color: "#14151A", border: "#E7E7E2" };
+                  return (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setSelectedBedCategory(cat)}
+                      style={{
+                        border: "1px solid",
+                        borderColor: isActive ? "#1B1F8C" : colorTheme.border,
+                        backgroundColor: isActive ? "#1B1F8C" : colorTheme.bg,
+                        color: isActive ? "#FFFFFF" : colorTheme.color,
+                        padding: "5px 12px",
+                        borderRadius: "999px",
+                        fontSize: "12px",
+                        fontWeight: isActive ? 700 : 600,
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        transition: "all 0.15s ease",
+                      }}
+                    >
+                      <span>{cat === "All" ? "All Sizes" : cat}</span>
+                      <span
+                        style={{
+                          fontSize: "10.5px",
+                          padding: "1px 6px",
+                          borderRadius: "999px",
+                          backgroundColor: isActive ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.06)",
+                          color: isActive ? "#FFFFFF" : "inherit",
+                        }}
+                      >
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+            </div>
+          )}
 
           {/* ── MATRIX VIEW (2D Pivot Table: Dimensions x Firmness/Variants) ── */}
           {matrixViewMode === "matrix" ? (

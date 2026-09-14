@@ -49,7 +49,7 @@ export default function PromoBannerCard({
   const cardStyle = {
     position: "relative",
     width: "100%",
-    height: preview ? "220px" : style.height || "240px",
+    height: style.height || (preview ? "220px" : "240px"),
     minHeight: "0px",
     borderRadius: preview ? "14px" : "12px",
     overflow: "hidden",
@@ -128,7 +128,7 @@ export default function PromoBannerCard({
           box-shadow: 0 6px 18px rgba(22, 163, 74, 0.4) !important;
         }
         @media (max-width: 1024px) {
-          .promo-banner-card {
+          .promo-banner-card:not(.admin-promo-preview) {
             height: 210px !important;
           }
           .banner-content-overlay {
@@ -166,6 +166,7 @@ export default function PromoBannerCard({
             line-height: 1.25 !important;
             display: -webkit-box !important;
             -webkit-line-clamp: 2 !important;
+            line-clamp: 2 !important;
             -webkit-box-orient: vertical !important;
             overflow: hidden !important;
           }

@@ -10,7 +10,7 @@ import Skeleton from "./Skeleton";
  *     Product title
  *     Material/construction chip
  *     Rating row
- *     Price section (STARTING FROM + price)
+ *     Price section (PRICE + price)
  */
 export default function ProductCardSkeleton() {
   return (

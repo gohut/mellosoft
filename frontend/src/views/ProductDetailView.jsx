@@ -105,8 +105,15 @@ export default function ProductDetailView({ productId: initialProductId }) {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       if (!product) return;
-      setSelectedFirmness((product.availableFirmness || product.firmnessOptions || product.firmness)?.[0] || "Medium");
-      setSelectedSize((product.availableSizes || product.sizeOptions || product.sizes)?.[0] || "Twin");
+      const initialFirm = product.variants?.[0]?.Firmness ||
+        product.variants?.[0]?.VariantName ||
+        (product.availableFirmness || product.firmnessOptions || product.firmness)?.[0] ||
+        "Medium";
+      const initialSize = product.variants?.[0]?.Size ||
+        (product.availableSizes || product.sizeOptions || product.sizes)?.[0] ||
+        "Standard";
+      setSelectedFirmness(initialFirm);
+      setSelectedSize(initialSize);
       setQuantity(1);
       setActiveImgIndex(0);
       setActiveTab("reviews");
@@ -130,6 +137,50 @@ export default function ProductDetailView({ productId: initialProductId }) {
   const categoryLabel = useMemo(() => {
     return getProductCategoryLabel(product);
   }, [product]);
+
+  // Dynamic delivery, trial, and warranty perks configured per product by admin
+  const activeDeliveryPerks = useMemo(() => {
+    if (!product) return [];
+
+    // 1. If admin explicitly configured deliveryPerks array
+    if (Array.isArray(product.deliveryPerks)) {
+      return product.deliveryPerks
+        .map((p, idx) => {
+          if (typeof p === "string") {
+            const isTruck = /shipping|delivery|dispatch|ship/i.test(p);
+            const isShield = /warranty|guarantee|shield/i.test(p);
+            const isBox = /return|pickup|refund/i.test(p);
+            const isClock = /hour|day|fast|speed|express/i.test(p);
+            const icon = isTruck ? "truck" : isShield ? "shield" : isBox ? "box" : isClock ? "clock" : "check";
+            return { id: `perk-${idx}`, icon, text: p };
+          }
+          return {
+            id: p.id || `perk-${idx}`,
+            icon: p.icon || (/shipping|delivery/i.test(p.text || "") ? "truck" : "check"),
+            text: p.text || ""
+          };
+        })
+        .filter((p) => Boolean(p.text && p.text.trim()));
+    }
+
+    // 2. Backward-compatible fallback for products without explicit deliveryPerks
+    const freeShipLimit = Number(settings?.shipping?.freeShippingAmount || 5000).toLocaleString("en-IN");
+    const shipText = product.shippingText || `Free shipping on orders over ₹${freeShipLimit}`;
+    
+    const isAcc = (product.parentCategory === "accessories" || product.category === "accessories" || product.mainCategoryId === "CAT-ACCESSORIES");
+    const isBedFrame = (product.parentCategory === "bed-frames" || product.mainCategoryId === "CAT-BED-FRAMES");
+    
+    const trialText = product.trialText || (isAcc || isBedFrame
+      ? "Official Manufacturer Warranty & Easy Returns"
+      : "100-night trial with free pickups and full refunds");
+
+    const fallback = [
+      { id: "p1", icon: "truck", text: shipText },
+      { id: "p2", icon: (isAcc || isBedFrame ? "shield" : "check"), text: trialText }
+    ];
+
+    return fallback.filter((p) => Boolean(p.text && p.text.trim()));
+  }, [product, settings?.shipping?.freeShippingAmount]);
 
   const actualPriceForSize = useMemo(() => {
     if (!product) return 0;
@@ -766,19 +817,23 @@ export default function ProductDetailView({ productId: initialProductId }) {
 
           {!product.thicknessOptions && (
             <div style={optionControlsRowStyle} className="detail-option-row">
-              <FirmnessSizeSelector
-                label="Variant"
-                options={product.firmnessOptions}
-                selected={selectedFirmness}
-                onChange={setSelectedFirmness}
-              />
+              {Array.isArray(product.firmnessOptions) && product.firmnessOptions.length > 1 && (
+                <FirmnessSizeSelector
+                  label="Variant"
+                  options={product.firmnessOptions}
+                  selected={selectedFirmness}
+                  onChange={setSelectedFirmness}
+                />
+              )}
 
-              <FirmnessSizeSelector
-                label="Size"
-                options={product.sizeOptions}
-                selected={selectedSize}
-                onChange={setSelectedSize}
-              />
+              {Array.isArray(product.sizeOptions) && product.sizeOptions.length > 1 && (
+                <FirmnessSizeSelector
+                  label="Size"
+                  options={product.sizeOptions}
+                  selected={selectedSize}
+                  onChange={setSelectedSize}
+                />
+              )}
 
               <div style={qtyFieldStyle} className="detail-option-control detail-qty-field">
                 <label style={qtyLabelStyle}>Quantity</label>
@@ -849,23 +904,16 @@ export default function ProductDetailView({ productId: initialProductId }) {
             <p style={descriptionStyle}>{product.description}</p>
           </div>
 
-          <div style={deliveryBoxStyle}>
-            <div style={deliveryItemStyle}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5">
-                <rect x="1" y="3" width="15" height="13" />
-                <polygon points="16 8 20 8 23 11 23 16 16 16" />
-                <circle cx="5.5" cy="18.5" r="2.5" />
-                <circle cx="18.5" cy="18.5" r="2.5" />
-              </svg>
-              <span style={deliveryTextStyle}>Free shipping on orders over ₹{Number(settings?.shipping?.freeShippingAmount || 5000).toLocaleString("en-IN")}</span>
+          {activeDeliveryPerks.length > 0 && (
+            <div style={deliveryBoxStyle}>
+              {activeDeliveryPerks.map((perk, idx) => (
+                <div key={perk.id || idx} style={deliveryItemStyle}>
+                  {renderDeliveryPerkIcon(perk.icon)}
+                  <span style={deliveryTextStyle}>{perk.text}</span>
+                </div>
+              ))}
             </div>
-            <div style={deliveryItemStyle}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-              <span style={deliveryTextStyle}>100-night trial with free pickups and full refunds</span>
-            </div>
-          </div>
+          )}
 
         </div>
       </div>
@@ -1399,6 +1447,51 @@ function HeartIcon({ filled }) {
       <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
     </svg>
   );
+}
+
+function renderDeliveryPerkIcon(iconType) {
+  switch (iconType) {
+    case "truck":
+    case "shipping":
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5" style={{ flexShrink: 0 }}>
+          <rect x="1" y="3" width="15" height="13" />
+          <polygon points="16 8 20 8 23 11 23 16 16 16" />
+          <circle cx="5.5" cy="18.5" r="2.5" />
+          <circle cx="18.5" cy="18.5" r="2.5" />
+        </svg>
+      );
+    case "shield":
+    case "warranty":
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5" style={{ flexShrink: 0 }}>
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        </svg>
+      );
+    case "box":
+    case "return":
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5" style={{ flexShrink: 0 }}>
+          <polyline points="1 4 1 10 7 10" />
+          <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+        </svg>
+      );
+    case "clock":
+    case "speed":
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5" style={{ flexShrink: 0 }}>
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
+        </svg>
+      );
+    case "check":
+    default:
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5" style={{ flexShrink: 0 }}>
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      );
+  }
 }
 
 // Styling Object Configurations

@@ -36,6 +36,10 @@ const mattressProductsFormatted = MATTRESS_PRODUCTS.map((rawProd) => {
       `Layer Details: ${Object.entries(prod.layers || {}).map(([t, l]) => `${t}: ${l}`).join(" | ") || "Multi-layer comfort design"}`,
       "100-Night Sleep Trial & Direct Manufacturer Warranty"
     ],
+    deliveryPerks: [
+      { id: "perk-1", icon: "truck", text: "Free shipping on orders over ₹5,000" },
+      { id: "perk-2", icon: "check", text: "100-night trial with free pickups and full refunds" }
+    ],
     isNewArrival: prod.isNewArrival ?? false,
     newArrivalOrder: prod.newArrivalOrder ?? 999,
     firmnessOptions: prod.thicknessOptions,
@@ -100,6 +104,10 @@ const accessoryProductsFormatted = (ACCESSORY_PRODUCTS || []).map((rawAcc) => {
       acc.material ? `Material: ${acc.material}` : "Certified Sleep Grade Material",
       "Official Manufacturer Warranty & Easy Returns"
     ],
+    deliveryPerks: [
+      { id: "perk-1", icon: "truck", text: "Free shipping on orders over ₹5,000" },
+      { id: "perk-2", icon: "shield", text: "Official Manufacturer Warranty & Easy Returns" }
+    ],
     firmnessOptions: acc.firmness ? [acc.firmness] : ["Standard"],
     sizeOptions: acc.sizes || ["Standard"],
     sizePrices: acc.sizePrices || {}
@@ -143,6 +151,10 @@ const bedFrameProductsFormatted = (BED_FRAME_PRODUCTS || []).map((rawFrame) => {
       frame.material ? `Material: ${frame.material}` : "Premium Solid Wood Construction",
       `Available Sizes: ${(frame.sizes || ["Queen", "King"]).join(", ")}`,
       "Official Manufacturer Warranty & Easy Returns"
+    ],
+    deliveryPerks: [
+      { id: "perk-1", icon: "truck", text: "Free shipping on orders over ₹5,000" },
+      { id: "perk-2", icon: "shield", text: "Official Manufacturer Warranty & Easy Returns" }
     ],
     firmnessOptions: ["Standard"],
     sizeOptions: frame.sizes || ["Queen", "King"],

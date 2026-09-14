@@ -688,7 +688,22 @@ export default function SalesAnalyticsCard({ navigateTo }) {
         </div>
 
         {/* Top Time Filter Buttons */}
-        <div style={{ display: "flex", gap: "6px", backgroundColor: "#FFFFFF", padding: "4px", borderRadius: "8px", border: "1px solid #E7E7E2" }}>
+        <div
+          className="admin-sliding-tabs"
+          style={{
+            display: "flex",
+            gap: "6px",
+            backgroundColor: "#FFFFFF",
+            padding: "4px",
+            borderRadius: "8px",
+            border: "1px solid #E7E7E2",
+            overflowX: "auto",
+            overflowY: "hidden",
+            flexWrap: "nowrap",
+            WebkitOverflowScrolling: "touch",
+            maxWidth: "100%",
+          }}
+        >
           {TOP_PERIOD_FILTERS.map((filter) => {
             const isActive = selectedTopPeriod === filter.id;
             return (
@@ -706,6 +721,8 @@ export default function SalesAnalyticsCard({ navigateTo }) {
                   cursor: "pointer",
                   transition: "all 0.15s ease",
                   fontFamily: "inherit",
+                  whiteSpace: "nowrap",
+                  flexShrink: 0,
                 }}
               >
                 {filter.label}

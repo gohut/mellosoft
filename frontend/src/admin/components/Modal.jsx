@@ -65,11 +65,16 @@ export default function Modal({ isOpen, onClose, title, children, width = "560px
           </button>
         </div>
         {/* Body */}
-        <div style={{
-          padding: "24px",
-          overflowY: "auto",
-          flex: 1,
-        }}>
+        <div
+          className="admin-modal modal-dialog"
+          style={{
+            padding: "24px",
+            overflowY: "auto",
+            scrollbarWidth: "none",
+            msOverflowStyle: "none",
+            flex: 1,
+          }}
+        >
           {children}
         </div>
       </div>

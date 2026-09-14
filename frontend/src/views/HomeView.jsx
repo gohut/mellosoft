@@ -97,10 +97,32 @@ const categories = [
 ];
 
 export default function HomeView() {
-  const { navigateTo, setActiveFilters, setSearchQuery, activeHeroBanners, activePromoBanners, homepageConfig, newArrivalItems, bestSellerItems, products, settings } = useStore();
+  const {
+    navigateTo,
+    setActiveFilters,
+    setSearchQuery,
+    activeHeroBanners,
+    activePromoBanners,
+    homepageConfig,
+    homepageCategories,
+    newArrivalItems,
+    bestSellerItems,
+    products,
+    settings
+  } = useStore();
   const router = useRouter();
   const sliderTrackRef = useRef(null);
   const [activeSlide, setActiveSlide] = useState(0);
+
+  // Active homepage category tiles for "Shop by Category" section
+  const activeShopCategories = useMemo(() => {
+    const list = Array.isArray(homepageCategories) && homepageCategories.length > 0
+      ? homepageCategories
+      : categories;
+    return list
+      .filter((item) => item.isActive !== false && item.active !== false && item.status !== "Inactive")
+      .sort((a, b) => (Number(a.displayOrder || a.order || 0)) - (Number(b.displayOrder || b.order || 0)));
+  }, [homepageCategories]);
 
   // Hydration guard: show skeleton during SSR→client mount window
   const [mounted, setMounted] = useState(false);
@@ -330,9 +352,9 @@ export default function HomeView() {
                 </div>
                 <div className="category-carousel-wrap">
                   <div className="category-row" style={categoryRowStyle}>
-                    {categories.map((item) => (
+                    {activeShopCategories.map((item) => (
                       <button
-                        key={item.label}
+                        key={item.id || item.label}
                         type="button"
                         onClick={() => {
                           // Items with an explicit href (bed-frames, pillows, protectors) navigate via router
@@ -346,7 +368,7 @@ export default function HomeView() {
                             return;
                           }
                           // Fallback: use internal catalog filter for mattresses
-                          goToCatalog(item.category, item.firmness || "All");
+                          goToCatalog(item.category || "mattress", item.firmness || "All");
                         }}
                         style={{ ...categoryTileStyle, background: item.gradient || item.color }}
                         className="category-tile"
@@ -594,6 +616,72 @@ export default function HomeView() {
           width: 100%;
           padding: 0 48px;
           box-sizing: border-box;
+          overflow-x: auto !important;
+          overflow-y: hidden !important;
+          -webkit-overflow-scrolling: touch !important;
+          scrollbar-width: none !important;
+          scroll-behavior: smooth !important;
+        }
+        .category-carousel-wrap::-webkit-scrollbar {
+          display: none !important;
+          width: 0 !important;
+          height: 0 !important;
+        }
+        .category-row {
+          display: flex !important;
+          width: max-content !important;
+          min-width: 100% !important;
+          flex-wrap: nowrap !important;
+          gap: 14px !important;
+          padding: 4px 0 12px 0 !important;
+          margin: 0 !important;
+          justify-content: flex-start !important;
+          align-items: stretch !important;
+        }
+        .category-row .category-tile {
+          flex: 0 0 clamp(180px, 14vw, 220px) !important;
+          min-width: 175px !important;
+          max-width: 230px !important;
+          height: 80px !important;
+          flex-shrink: 0 !important;
+          overflow: hidden !important;
+          padding: 8px 12px 8px 14px !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: space-between !important;
+          box-sizing: border-box !important;
+        }
+        .category-row .category-tile .category-tile-label {
+          flex: 0 0 42% !important;
+          max-width: 48% !important;
+          min-width: 0 !important;
+          font-size: 13.5px !important;
+          font-weight: 800 !important;
+          line-height: 1.25 !important;
+        }
+        .category-row .category-tile .category-img-wrapper {
+          flex: 1 1 54% !important;
+          width: auto !important;
+          max-width: 58% !important;
+          height: 100% !important;
+          max-height: 100% !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          min-width: 0 !important;
+          padding: 0 !important;
+          margin: 0 !important;
+          overflow: visible !important;
+        }
+        .category-row .category-tile img {
+          width: clamp(80px, 12vw, 110px) !important;
+          max-width: 100% !important;
+          height: auto !important;
+          max-height: 88% !important;
+          object-fit: contain !important;
+          background: transparent !important;
+          flex-shrink: 0 !important;
+          mix-blend-mode: multiply !important;
         }
         
         @media (max-width: 1199px) {
@@ -603,61 +691,15 @@ export default function HomeView() {
           .category-carousel-wrap {
             padding-left: 24px !important;
             padding-right: 0 !important;
-            overflow-x: auto !important;
-            overflow-y: hidden !important;
-            -webkit-overflow-scrolling: touch !important;
-            scrollbar-width: none !important;
           }
           .category-row {
-            display: flex !important;
-            width: max-content !important;
-            min-width: 100% !important;
-            flex-wrap: nowrap !important;
             gap: 12px !important;
             padding: 2px 24px 14px 0 !important;
-            margin: 0 !important;
             scroll-snap-type: x proximity !important;
-            justify-content: flex-start !important;
           }
           .category-row .category-tile {
-            flex: 0 0 clamp(170px, 24vw, 220px) !important;
-            min-width: 0 !important;
-            max-width: none !important;
+            flex: 0 0 clamp(170px, 24vw, 210px) !important;
             scroll-snap-align: start !important;
-            overflow: hidden !important;
-            padding: 8px 10px 8px 14px !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: space-between !important;
-          }
-          .category-row .category-tile .category-tile-label {
-            flex: 0 0 38% !important;
-            max-width: 42% !important;
-            min-width: 0 !important;
-          }
-          .category-row .category-tile .category-img-wrapper {
-            flex: 1 1 58% !important;
-            width: auto !important;
-            max-width: 60% !important;
-            height: 100% !important;
-            max-height: 100% !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            min-width: 0 !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            overflow: visible !important;
-          }
-          .category-row .category-tile img {
-            width: clamp(88px, 14vw, 115px) !important;
-            max-width: 100% !important;
-            height: auto !important;
-            max-height: 88% !important;
-            object-fit: contain !important;
-            background: transparent !important;
-            flex-shrink: 0 !important;
-            mix-blend-mode: multiply !important;
           }
         }
 
@@ -1153,7 +1195,9 @@ const categoryRowStyle = {
   display: "flex",
   alignItems: "stretch",
   gap: "14px",
-  width: "100%"
+  width: "max-content",
+  minWidth: "100%",
+  flexWrap: "nowrap"
 };
 
 const categoryTileStyle = {
@@ -1162,16 +1206,17 @@ const categoryTileStyle = {
   containerType: "inline-size",
   overflow: "hidden",
   border: "none",
-  borderRadius: "clamp(12px, 9cqi, 20px)",
-  padding: "clamp(10px, 6cqi, 16px)",
+  borderRadius: "16px",
+  padding: "10px 14px",
   cursor: "pointer",
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
   textAlign: "left",
-  flex: "1 1 0",
-  minWidth: 0,
-  aspectRatio: "2.4 / 1",
+  flex: "0 0 clamp(180px, 14vw, 220px)",
+  minWidth: "175px",
+  height: "80px",
+  flexShrink: 0,
   transition: "transform 0.2s ease, box-shadow 0.2s ease",
   background: "transparent",
   boxShadow: "none"

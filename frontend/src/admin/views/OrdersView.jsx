@@ -197,7 +197,24 @@ export default function OrdersView() {
       </div>
 
       {/* Filter Tabs */}
-      <div style={{ display: "flex", gap: "4px", backgroundColor: "#FFFFFF", borderRadius: "12px", padding: "4px", border: "1px solid #E7E7E2", flexWrap: "wrap" }}>
+      <div
+        className="admin-sliding-tabs"
+        style={{
+          display: "flex",
+          gap: "6px",
+          backgroundColor: "#FFFFFF",
+          borderRadius: "12px",
+          padding: "4px 6px",
+          border: "1px solid #E7E7E2",
+          overflowX: "auto",
+          overflowY: "hidden",
+          flexWrap: "nowrap",
+          WebkitOverflowScrolling: "touch",
+          width: "100%",
+          maxWidth: "100%",
+          boxSizing: "border-box",
+        }}
+      >
         {filterTabs.map((tab) => (
           <button
             key={tab}
@@ -215,6 +232,7 @@ export default function OrdersView() {
               transition: "all 0.15s ease",
               fontFamily: "inherit",
               whiteSpace: "nowrap",
+              flexShrink: 0,
             }}
           >
             {tab}

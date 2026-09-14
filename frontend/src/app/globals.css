@@ -64,6 +64,72 @@ body {
   background: var(--ink-500);
 }
 
+/* ─── Hide side scrollers on all Admin Popups, Modals & Dialogs ─── */
+.admin-modal::-webkit-scrollbar,
+.admin-modal *::-webkit-scrollbar,
+.modal-overlay::-webkit-scrollbar,
+.modal-overlay *::-webkit-scrollbar,
+.modal-card::-webkit-scrollbar,
+.modal-card *::-webkit-scrollbar,
+.modal-dialog::-webkit-scrollbar,
+.modal-dialog *::-webkit-scrollbar,
+.admin-dialog::-webkit-scrollbar,
+.admin-dialog *::-webkit-scrollbar,
+.admin-overlay::-webkit-scrollbar,
+.admin-overlay *::-webkit-scrollbar,
+.content-modal-card::-webkit-scrollbar,
+.content-modal-card *::-webkit-scrollbar,
+.content-banner-modal-card::-webkit-scrollbar,
+.content-banner-modal-card *::-webkit-scrollbar,
+.content-banner-modal-grid::-webkit-scrollbar,
+.content-banner-modal-grid *::-webkit-scrollbar,
+.content-product-select-list::-webkit-scrollbar,
+.content-product-select-list *::-webkit-scrollbar,
+.content-modal-body::-webkit-scrollbar,
+.content-modal-body *::-webkit-scrollbar,
+.auth-modal-card::-webkit-scrollbar,
+.auth-modal-card *::-webkit-scrollbar,
+.auth-modal-overlay::-webkit-scrollbar,
+.auth-modal-overlay *::-webkit-scrollbar,
+[role="dialog"]::-webkit-scrollbar,
+[role="dialog"] *::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.admin-modal,
+.admin-modal *,
+.modal-overlay,
+.modal-overlay *,
+.modal-card,
+.modal-card *,
+.modal-dialog,
+.modal-dialog *,
+.admin-dialog,
+.admin-dialog *,
+.admin-overlay,
+.admin-overlay *,
+.content-modal-card,
+.content-modal-card *,
+.content-banner-modal-card,
+.content-banner-modal-card *,
+.content-banner-modal-grid,
+.content-banner-modal-grid *,
+.content-product-select-list,
+.content-product-select-list *,
+.content-modal-body,
+.content-modal-body *,
+.auth-modal-card,
+.auth-modal-card *,
+.auth-modal-overlay,
+.auth-modal-overlay *,
+[role="dialog"],
+[role="dialog"] * {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
 /* Typography Utilities */
 h1, h2, h3, h4, h5, h6 {
   font-weight: 700;
@@ -170,6 +236,7 @@ button, a, input, select, textarea {
 .product-description {
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

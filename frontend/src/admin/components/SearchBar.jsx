@@ -3,9 +3,9 @@
 import React from "react";
 import { Search, X } from "lucide-react";
 
-export default function SearchBar({ value, onChange, placeholder = "Search...", style }) {
+export default function SearchBar({ value, onChange, placeholder = "Search...", style, className }) {
   return (
-    <div style={{ position: "relative", ...style }}>
+    <div className={className} style={{ position: "relative", ...style }}>
       <Search
         size={18}
         color="#6B6B75"

@@ -202,7 +202,7 @@ export default function ReviewsView() {
       </div>
 
       {/* Segmented Tab Navigation (Horizontally scrollable on mobile without page overflow) */}
-      <div style={tabNavWrapperStyle}>
+      <div className="admin-sliding-tabs" style={tabNavWrapperStyle}>
         {pendingReviews.length > 0 && (
           <button
             type="button"
@@ -1248,6 +1248,7 @@ const tabBtnStyle = {
   cursor: "pointer",
   transition: "all 0.2s ease",
   whiteSpace: "nowrap",
+  flexShrink: 0,
 };
 
 const activeTabStyle = {
