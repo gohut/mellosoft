@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useStore } from "../context/StoreContext";
 import { getResolvedImageUrlSync } from "../utils/imageStorage";
-import { X } from "lucide-react";
+import { X, ChevronDown } from "lucide-react";
 
 export default function Footer() {
   const { navigateTo, setActiveFilters, settings } = useStore();
@@ -12,6 +12,20 @@ export default function Footer() {
 
   // Info Modal state (for Contact, Policy, etc.)
   const [modalContent, setModalContent] = useState(null);
+
+  // Mobile Accordion state
+  const [expandedSections, setExpandedSections] = useState({
+    quickLinks: false,
+    customerService: false,
+    legal: false
+  });
+
+  const toggleSection = (key) => {
+    setExpandedSections((prev) => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
 
   const handleCategoryClick = (category) => {
     setActiveFilters((prev) => ({
@@ -143,9 +157,20 @@ export default function Footer() {
           </div>
 
           {/* COLUMN 2: QUICK LINKS */}
-          <nav style={colNavStyle} aria-label="Quick Links">
-            <h4 style={colHeadingStyle}>Quick Links</h4>
-            <ul style={linkListStyle}>
+          <div style={colNavStyle} className="footer-col-group">
+            <button
+              type="button"
+              className="footer-accordion-trigger"
+              onClick={() => toggleSection("quickLinks")}
+              aria-expanded={expandedSections.quickLinks}
+            >
+              <h4 style={colHeadingStyle}>Quick Links</h4>
+              <ChevronDown
+                size={18}
+                className={`footer-chevron ${expandedSections.quickLinks ? "rotate-180" : ""}`}
+              />
+            </button>
+            <ul style={linkListStyle} className={`footer-links-list ${expandedSections.quickLinks ? "is-open" : ""}`}>
               <li>
                 <button onClick={() => handleNavClick("home")} style={linkItemBtnStyle} className="footer-link-hover">
                   Home
@@ -181,12 +206,23 @@ export default function Footer() {
                 </button>
               </li>
             </ul>
-          </nav>
+          </div>
 
           {/* COLUMN 3: CUSTOMER SERVICE */}
-          <nav style={colNavStyle} aria-label="Customer Service">
-            <h4 style={colHeadingStyle}>Customer Service</h4>
-            <ul style={linkListStyle}>
+          <div style={colNavStyle} className="footer-col-group">
+            <button
+              type="button"
+              className="footer-accordion-trigger"
+              onClick={() => toggleSection("customerService")}
+              aria-expanded={expandedSections.customerService}
+            >
+              <h4 style={colHeadingStyle}>Customer Service</h4>
+              <ChevronDown
+                size={18}
+                className={`footer-chevron ${expandedSections.customerService ? "rotate-180" : ""}`}
+              />
+            </button>
+            <ul style={linkListStyle} className={`footer-links-list ${expandedSections.customerService ? "is-open" : ""}`}>
               <li>
                 <button
                   onClick={() =>
@@ -249,12 +285,23 @@ export default function Footer() {
                 </button>
               </li>
             </ul>
-          </nav>
+          </div>
 
           {/* COLUMN 4: LEGAL */}
-          <nav style={colNavStyle} aria-label="Legal">
-            <h4 style={colHeadingStyle}>Legal</h4>
-            <ul style={linkListStyle}>
+          <div style={colNavStyle} className="footer-col-group">
+            <button
+              type="button"
+              className="footer-accordion-trigger"
+              onClick={() => toggleSection("legal")}
+              aria-expanded={expandedSections.legal}
+            >
+              <h4 style={colHeadingStyle}>Legal</h4>
+              <ChevronDown
+                size={18}
+                className={`footer-chevron ${expandedSections.legal ? "rotate-180" : ""}`}
+              />
+            </button>
+            <ul style={linkListStyle} className={`footer-links-list ${expandedSections.legal ? "is-open" : ""}`}>
               <li>
                 <button
                   onClick={() => handlePolicyNavigation("/terms")}
@@ -292,7 +339,7 @@ export default function Footer() {
                 </button>
               </li>
             </ul>
-          </nav>
+          </div>
 
         </div>
 
@@ -352,6 +399,35 @@ export default function Footer() {
           transform: translateY(-2px);
         }
 
+        .footer-accordion-trigger {
+          background: none;
+          border: none;
+          padding: 0;
+          margin: 0;
+          text-align: left;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          width: 100%;
+          cursor: default;
+          color: inherit;
+          font-family: inherit;
+        }
+        .footer-chevron {
+          display: none;
+          color: #1B1F8C;
+          transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .footer-chevron.rotate-180 {
+          transform: rotate(180deg);
+        }
+
+        .footer-links-list {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+
         /* Responsive Breakpoints */
         @media (max-width: 1024px) {
           .footer-columns-grid {
@@ -361,12 +437,47 @@ export default function Footer() {
         }
 
         @media (max-width: 640px) {
+          .footer-accordion-trigger {
+            cursor: pointer;
+            padding: 8px 0;
+            user-select: none;
+          }
+          .footer-chevron {
+            display: inline-block !important;
+          }
+          .footer-col-group {
+            border-bottom: 1px solid #F1F1ED;
+            padding-bottom: 12px;
+          }
+          .footer-links-list {
+            display: none !important;
+            padding-top: 6px;
+            padding-bottom: 4px;
+          }
+          .footer-links-list.is-open {
+            display: flex !important;
+            animation: footerExpand 0.2s ease-out forwards;
+          }
+          @keyframes footerExpand {
+            from {
+              opacity: 0;
+              transform: translateY(-4px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
           .footer-columns-grid {
             grid-template-columns: 1fr !important;
-            gap: 32px !important;
+            gap: 16px !important;
+          }
+          .footer-brand-col {
+            padding-bottom: 12px;
+            border-bottom: 1px solid #F1F1ED;
           }
           .storefront-footer {
-            padding: 40px 0 24px 0 !important;
+            padding: 32px 0 24px 0 !important;
           }
         }
       `}</style>

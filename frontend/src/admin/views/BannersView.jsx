@@ -207,20 +207,20 @@ export default function BannersView() {
       </div>
 
       {/* Overview Stat Cards */}
-      <div style={statsRowStyle}>
-        <div style={statCardStyle}>
+      <div style={statsRowStyle} className="content-stats-grid admin-sliding-tabs">
+        <div style={statCardStyle} className="content-stat-card">
           <span style={statLabelStyle}>Total Banners</span>
           <strong style={statValStyle}>{banners?.length || 0}</strong>
           <span style={statSubStyle}>Configured in system</span>
         </div>
 
-        <div style={statCardStyle}>
+        <div style={statCardStyle} className="content-stat-card">
           <span style={statLabelStyle}>Active Banners</span>
           <strong style={{ ...statValStyle, color: "#16A34A" }}>{activeCount}</strong>
           <span style={statSubStyle}>Live on Storefront Slider</span>
         </div>
 
-        <div style={statCardStyle}>
+        <div style={statCardStyle} className="content-stat-card">
           <span style={statLabelStyle}>Inactive Banners</span>
           <strong style={{ ...statValStyle, color: "#DC2626" }}>{inactiveCount}</strong>
           <span style={statSubStyle}>Hidden from customer view</span>
@@ -228,6 +228,7 @@ export default function BannersView() {
 
         <div
           style={{ ...statCardStyle, cursor: "pointer" }}
+          className="content-stat-card"
           onClick={() => setIsManageTypesModalOpen(true)}
           title="Click to view and manage banner types"
         >

@@ -323,7 +323,7 @@ export default function CustomerReviewsSection() {
                 onClick={handlePrev}
                 style={arrowBtnStyle}
                 aria-label="Previous Reviews"
-                className="carousel-arrow-btn"
+                className="carousel-arrow-btn carousel-arrow-prev"
                 type="button"
               >
                 <ChevronLeft size={20} color="#1B1F8C" />
@@ -345,6 +345,7 @@ export default function CustomerReviewsSection() {
                 {approvedReviews.map((rev) => (
                   <div
                     key={rev.id}
+                    className="card-col-wrap"
                     style={{
                       ...cardColWrapStyle,
                       flex: `0 0 ${100 / cardsPerView}%`,
@@ -363,7 +364,7 @@ export default function CustomerReviewsSection() {
                 onClick={handleNext}
                 style={arrowBtnStyle}
                 aria-label="Next Reviews"
-                className="carousel-arrow-btn"
+                className="carousel-arrow-btn carousel-arrow-next"
                 type="button"
               >
                 <ChevronRight size={20} color="#1B1F8C" />
@@ -498,6 +499,40 @@ export default function CustomerReviewsSection() {
           .reviews-title-header {
             margin-bottom: 20px !important;
           }
+          .reviews-carousel-wrap {
+            position: relative !important;
+            display: block !important;
+            gap: 0 !important;
+            width: 100% !important;
+          }
+          .reviews-carousel-wrap .card-col-wrap {
+            padding: 0 4px !important;
+          }
+          .carousel-arrow-btn {
+            position: absolute !important;
+            top: 50% !important;
+            transform: translateY(-50%) !important;
+            width: 38px !important;
+            height: 38px !important;
+            z-index: 10 !important;
+            opacity: 0.55 !important;
+            background-color: rgba(255, 255, 255, 0.85) !important;
+            backdrop-filter: blur(6px) !important;
+            -webkit-backdrop-filter: blur(6px) !important;
+            border: 1px solid rgba(231, 231, 226, 0.9) !important;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12) !important;
+          }
+          .carousel-arrow-btn:hover,
+          .carousel-arrow-btn:active {
+            opacity: 1 !important;
+            background-color: #FFFFFF !important;
+          }
+          .carousel-arrow-prev {
+            left: 8px !important;
+          }
+          .carousel-arrow-next {
+            right: 8px !important;
+          }
           .reviews-grid.single-review,
           .reviews-grid.two-reviews,
           .reviews-grid.three-reviews {
@@ -521,10 +556,6 @@ export default function CustomerReviewsSection() {
           }
           .product-reference {
             margin-top: 16px !important;
-          }
-          .carousel-arrow-btn {
-            width: 36px !important;
-            height: 36px !important;
           }
         }
       `}</style>

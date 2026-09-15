@@ -13,29 +13,116 @@ import { formatPrice } from "../utils/currency";
 import { HomepageSkeleton } from "../components/skeleton";
 
 export const CATEGORY_IMAGES = {
-  "memory-foam": "/assets/categories/memory-foam.jpg",
-  "hybrid": "/assets/categories/hybrid.jpg",
-  "firm": "/assets/categories/firm.jpg",
-  "pillows": "/assets/categories/pillows.jpg",
-  "bed-frames": "/assets/categories/bed-frames.jpg",
-  "protectors": "/assets/categories/protectors.jpg",
+  "memory-foam": "/assets/categories/memory-foam.png",
+  "hybrid": "/assets/categories/hybrid.png",
+  "firm": "/assets/categories/firm.png",
+  "pillows": "/assets/categories/pillows.png",
+  "bed-frames": "/assets/categories/bed-frames.png",
+  "protectors": "/assets/categories/protectors.png",
 };
 
 // route: 'mattress' = filter in mattress catalog; others are explicit Next.js href paths
 const categories = [
-  { id: "memory-foam", label: "Memory Foam", category: "mattress", subcategory: "memory-foam", image: CATEGORY_IMAGES["memory-foam"], color: "#DCEBFA", scale: 1.18 },
-  { id: "hybrid", label: "Hybrid", category: "mattress", subcategory: null, firmness: "Hybrid", image: CATEGORY_IMAGES["hybrid"], color: "#FBE2D0", scale: 1.18 },
-  { id: "firm", label: "Firm", category: "mattress", subcategory: null, firmness: "Firm", image: CATEGORY_IMAGES["firm"], color: "#DDF2E8", scale: 1.18 },
-  { id: "pillows", label: "Pillows", href: "/accessories/memory-foam-pillow", image: CATEGORY_IMAGES["pillows"], color: "#F8DDE3", scale: 1.22 },
-  { id: "bed-frames", label: "Bed Frames", href: "/bed-frames", image: CATEGORY_IMAGES["bed-frames"], color: "#E9E3FA", scale: 1.18 },
-  { id: "protectors", label: "Protectors", href: "/accessories/mattress-protector", image: CATEGORY_IMAGES["protectors"], color: "#F8EACD", scale: 1.20 }
+  { 
+    id: "memory-foam", 
+    label: "Memory Foam", 
+    category: "mattress", 
+    subcategory: "memory-foam", 
+    image: CATEGORY_IMAGES["memory-foam"], 
+    color: "#E0EFFE",
+    gradient: "linear-gradient(135deg, #E8F3FE 0%, #D4E8FC 50%, #C3DEFA 100%)",
+    accentGlow: "rgba(147, 197, 253, 0.5)",
+    ringColor: "rgba(59, 130, 246, 0.16)",
+    scale: 1.18 
+  },
+  { 
+    id: "hybrid", 
+    label: "Hybrid", 
+    category: "mattress", 
+    subcategory: null, 
+    firmness: "Hybrid", 
+    image: CATEGORY_IMAGES["hybrid"], 
+    color: "#FDE6D7",
+    gradient: "linear-gradient(135deg, #FEEDE2 0%, #FCE0CF 50%, #F9CDAF 100%)",
+    accentGlow: "rgba(253, 186, 116, 0.5)",
+    ringColor: "rgba(234, 88, 12, 0.16)",
+    scale: 1.18 
+  },
+  { 
+    id: "firm", 
+    label: "Firm", 
+    category: "mattress", 
+    subcategory: null, 
+    firmness: "Firm", 
+    image: CATEGORY_IMAGES["firm"], 
+    color: "#E0F5EB",
+    gradient: "linear-gradient(135deg, #E8F8F0 0%, #D8F2E4 50%, #BFEBD3 100%)",
+    accentGlow: "rgba(134, 239, 172, 0.5)",
+    ringColor: "rgba(22, 163, 74, 0.16)",
+    scale: 1.18 
+  },
+  { 
+    id: "pillows", 
+    label: "Pillows", 
+    href: "/accessories/memory-foam-pillow", 
+    image: CATEGORY_IMAGES["pillows"], 
+    color: "#FCE4EB",
+    gradient: "linear-gradient(135deg, #FDEEF2 0%, #FADDE5 50%, #F5C6D3 100%)",
+    accentGlow: "rgba(244, 114, 182, 0.5)",
+    ringColor: "rgba(219, 39, 119, 0.16)",
+    scale: 1.22 
+  },
+  { 
+    id: "bed-frames", 
+    label: "Bed Frames", 
+    href: "/bed-frames", 
+    image: CATEGORY_IMAGES["bed-frames"], 
+    color: "#EEE7FD",
+    gradient: "linear-gradient(135deg, #F3EEFE 0%, #EAE0FD 50%, #DAD0F8 100%)",
+    accentGlow: "rgba(192, 132, 252, 0.5)",
+    ringColor: "rgba(147, 51, 234, 0.16)",
+    scale: 1.18 
+  },
+  { 
+    id: "protectors", 
+    label: "Protectors", 
+    href: "/accessories/mattress-protector", 
+    image: CATEGORY_IMAGES["protectors"], 
+    color: "#FCEFD6",
+    gradient: "linear-gradient(135deg, #FEF6E8 0%, #FCEBD0 50%, #F7DCB0 100%)",
+    accentGlow: "rgba(252, 211, 77, 0.5)",
+    ringColor: "rgba(217, 119, 6, 0.16)",
+    scale: 1.20 
+  }
 ];
 
 export default function HomeView() {
-  const { navigateTo, setActiveFilters, setSearchQuery, activeHeroBanners, activePromoBanners, homepageConfig, newArrivalItems, bestSellerItems, products, settings } = useStore();
+  const {
+    navigateTo,
+    setActiveFilters,
+    setSearchQuery,
+    activeHeroBanners,
+    activePromoBanners,
+    homepageConfig,
+    homepageCategories,
+    newArrivalItems,
+    bestSellerItems,
+    products,
+    settings
+  } = useStore();
   const router = useRouter();
   const sliderTrackRef = useRef(null);
   const [activeSlide, setActiveSlide] = useState(0);
+
+  // Active homepage category tiles for "Shop by Category" section
+  const activeShopCategories = useMemo(() => {
+    const list = Array.isArray(homepageCategories) && homepageCategories.length > 0
+      ? homepageCategories
+      : categories;
+    return list
+      .filter((item) => item.isActive !== false && item.active !== false && item.status !== "Inactive")
+      .sort((a, b) => (Number(a.displayOrder || a.order || 0)) - (Number(b.displayOrder || b.order || 0)));
+  }, [homepageCategories]);
 
   // Hydration guard: show skeleton during SSR→client mount window
   const [mounted, setMounted] = useState(false);
@@ -80,12 +167,14 @@ export default function HomeView() {
   }, [newArrivalItems, products]);
 
   const defaultSections = [
-    { id: "hero-slider", visible: true },
-    { id: "shop-by-category", visible: true },
-    { id: "promo-banner", visible: true },
-    { id: "new-arrivals", visible: true },
-    { id: "best-sellers", visible: true },
-    { id: "customer-reviews", visible: true },
+    { id: "hero-slider", visible: true, type: "global" },
+    { id: "shop-by-category", visible: true, type: "global" },
+    { id: "promo-001", visible: true, type: "promo-banner", bannerId: "promo-001" },
+    { id: "new-arrivals", visible: true, type: "global" },
+    { id: "promo-002", visible: true, type: "promo-banner", bannerId: "promo-002" },
+    { id: "best-sellers", visible: true, type: "global" },
+    { id: "promo-003", visible: true, type: "promo-banner", bannerId: "promo-003" },
+    { id: "customer-reviews", visible: true, type: "global" },
   ];
 
   const sectionsToRender = (homepageConfig && Array.isArray(homepageConfig.sections) && homepageConfig.sections.length > 0)
@@ -265,9 +354,9 @@ export default function HomeView() {
                 </div>
                 <div className="category-carousel-wrap">
                   <div className="category-row" style={categoryRowStyle}>
-                    {categories.map((item) => (
+                    {activeShopCategories.map((item) => (
                       <button
-                        key={item.label}
+                        key={item.id || item.label}
                         type="button"
                         onClick={() => {
                           // Items with an explicit href (bed-frames, pillows, protectors) navigate via router
@@ -281,11 +370,25 @@ export default function HomeView() {
                             return;
                           }
                           // Fallback: use internal catalog filter for mattresses
-                          goToCatalog(item.category, item.firmness || "All");
+                          goToCatalog(item.category || "mattress", item.firmness || "All");
                         }}
-                        style={{ ...categoryTileStyle, backgroundColor: item.color }}
+                        style={{ ...categoryTileStyle, background: item.gradient || item.color }}
                         className="category-tile"
                       >
+                        {/* Background design elements */}
+                        <div className="category-tile-pattern" aria-hidden="true" />
+                        <div
+                          className="category-tile-glow"
+                          style={{ background: item.accentGlow }}
+                          aria-hidden="true"
+                        />
+                        <div
+                          className="category-tile-ring"
+                          style={{ borderColor: item.ringColor }}
+                          aria-hidden="true"
+                        />
+                        <div className="category-tile-badge-accent" aria-hidden="true" />
+
                         <span style={categoryLabelStyle} className="category-tile-label">{item.label}</span>
                         <div style={categoryImageWrapperStyle} className="category-img-wrapper">
                           <img
@@ -394,6 +497,63 @@ export default function HomeView() {
 
 
       <style>{`
+        .category-tile {
+          border: 1px solid rgba(255, 255, 255, 0.85) !important;
+          box-shadow: 0 3px 12px rgba(27, 31, 140, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.95) !important;
+          transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease !important;
+        }
+        .category-tile:hover {
+          transform: translateY(-3px) !important;
+          box-shadow: 0 8px 22px rgba(27, 31, 140, 0.09), inset 0 1px 0 #FFFFFF !important;
+          border-color: rgba(255, 255, 255, 0.98) !important;
+        }
+        .category-tile:hover .category-img-wrapper img {
+          transform: scale(1.24) !important;
+        }
+        .category-tile-pattern {
+          position: absolute;
+          inset: 0;
+          opacity: 0.14;
+          background-image: radial-gradient(circle, #1B1F8C 0.85px, transparent 0.85px);
+          background-size: 10px 10px;
+          pointer-events: none;
+          border-radius: inherit;
+          z-index: 0;
+        }
+        .category-tile-glow {
+          position: absolute;
+          right: -10px;
+          top: -10px;
+          width: 120px;
+          height: 120px;
+          border-radius: 50%;
+          pointer-events: none;
+          filter: blur(14px);
+          z-index: 0;
+        }
+        .category-tile-ring {
+          position: absolute;
+          right: -20px;
+          bottom: -24px;
+          width: 100px;
+          height: 100px;
+          border-radius: 50%;
+          border-width: 1.5px;
+          border-style: dashed;
+          pointer-events: none;
+          z-index: 0;
+        }
+        .category-tile-badge-accent {
+          position: absolute;
+          top: -20px;
+          left: -20px;
+          width: 75px;
+          height: 75px;
+          border-radius: 50%;
+          background: radial-gradient(circle, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0) 70%);
+          pointer-events: none;
+          z-index: 0;
+        }
         .category-tile img,
         .category-img-wrapper {
           background: transparent !important;
@@ -403,14 +563,11 @@ export default function HomeView() {
           outline: none !important;
           object-fit: contain !important;
           mix-blend-mode: multiply !important;
+          transition: transform 0.22s ease !important;
         }
         .view-more-btn:hover {
           background-color: #1B1F8C;
           color: #FFFFFF;
-        }
-        .category-tile:hover {
-          transform: translateY(-3px);
-          box-shadow: var(--shadow-md);
         }
         .product-card:hover {
           transform: translateY(-4px);
@@ -435,19 +592,22 @@ export default function HomeView() {
           -ms-overflow-style: none;
         }
         .peek-slider {
-          padding-left: 24px !important;
-          scroll-padding-left: 24px !important;
+          padding-left: 8px !important;
+          padding-right: 8px !important;
+          scroll-padding-left: 8px !important;
         }
         @media (min-width: 640px) {
           .peek-slider {
-            padding-left: 40px !important;
-            scroll-padding-left: 40px !important;
+            padding-left: 8px !important;
+            padding-right: 8px !important;
+            scroll-padding-left: 8px !important;
           }
         }
         @media (min-width: 1024px) {
           .peek-slider {
-            padding-left: 72px !important;
-            scroll-padding-left: 72px !important;
+            padding-left: 8px !important;
+            padding-right: 8px !important;
+            scroll-padding-left: 8px !important;
           }
         }
 
@@ -461,6 +621,72 @@ export default function HomeView() {
           width: 100%;
           padding: 0 48px;
           box-sizing: border-box;
+          overflow-x: auto !important;
+          overflow-y: hidden !important;
+          -webkit-overflow-scrolling: touch !important;
+          scrollbar-width: none !important;
+          scroll-behavior: smooth !important;
+        }
+        .category-carousel-wrap::-webkit-scrollbar {
+          display: none !important;
+          width: 0 !important;
+          height: 0 !important;
+        }
+        .category-row {
+          display: flex !important;
+          width: max-content !important;
+          min-width: 100% !important;
+          flex-wrap: nowrap !important;
+          gap: 14px !important;
+          padding: 4px 0 12px 0 !important;
+          margin: 0 !important;
+          justify-content: flex-start !important;
+          align-items: stretch !important;
+        }
+        .category-row .category-tile {
+          flex: 0 0 clamp(180px, 14vw, 220px) !important;
+          min-width: 175px !important;
+          max-width: 230px !important;
+          height: 80px !important;
+          flex-shrink: 0 !important;
+          overflow: hidden !important;
+          padding: 8px 12px 8px 14px !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: space-between !important;
+          box-sizing: border-box !important;
+        }
+        .category-row .category-tile .category-tile-label {
+          flex: 0 0 42% !important;
+          max-width: 48% !important;
+          min-width: 0 !important;
+          font-size: 13.5px !important;
+          font-weight: 800 !important;
+          line-height: 1.25 !important;
+        }
+        .category-row .category-tile .category-img-wrapper {
+          flex: 1 1 54% !important;
+          width: auto !important;
+          max-width: 58% !important;
+          height: 100% !important;
+          max-height: 100% !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          min-width: 0 !important;
+          padding: 0 !important;
+          margin: 0 !important;
+          overflow: visible !important;
+        }
+        .category-row .category-tile img {
+          width: clamp(80px, 12vw, 110px) !important;
+          max-width: 100% !important;
+          height: auto !important;
+          max-height: 88% !important;
+          object-fit: contain !important;
+          background: transparent !important;
+          flex-shrink: 0 !important;
+          mix-blend-mode: multiply !important;
         }
         
         @media (max-width: 1199px) {
@@ -470,61 +696,15 @@ export default function HomeView() {
           .category-carousel-wrap {
             padding-left: 24px !important;
             padding-right: 0 !important;
-            overflow-x: auto !important;
-            overflow-y: hidden !important;
-            -webkit-overflow-scrolling: touch !important;
-            scrollbar-width: none !important;
           }
           .category-row {
-            display: flex !important;
-            width: max-content !important;
-            min-width: 100% !important;
-            flex-wrap: nowrap !important;
             gap: 12px !important;
             padding: 2px 24px 14px 0 !important;
-            margin: 0 !important;
             scroll-snap-type: x proximity !important;
-            justify-content: flex-start !important;
           }
           .category-row .category-tile {
-            flex: 0 0 clamp(170px, 24vw, 220px) !important;
-            min-width: 0 !important;
-            max-width: none !important;
+            flex: 0 0 clamp(170px, 24vw, 210px) !important;
             scroll-snap-align: start !important;
-            overflow: hidden !important;
-            padding: 8px 10px 8px 14px !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: space-between !important;
-          }
-          .category-row .category-tile .category-tile-label {
-            flex: 0 0 38% !important;
-            max-width: 42% !important;
-            min-width: 0 !important;
-          }
-          .category-row .category-tile .category-img-wrapper {
-            flex: 1 1 58% !important;
-            width: auto !important;
-            max-width: 60% !important;
-            height: 100% !important;
-            max-height: 100% !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            min-width: 0 !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            overflow: visible !important;
-          }
-          .category-row .category-tile img {
-            width: clamp(88px, 14vw, 115px) !important;
-            max-width: 100% !important;
-            height: auto !important;
-            max-height: 88% !important;
-            object-fit: contain !important;
-            background: transparent !important;
-            flex-shrink: 0 !important;
-            mix-blend-mode: multiply !important;
           }
         }
 
@@ -889,9 +1069,9 @@ const peekSliderTrackStyle = {
   scrollSnapType: "x mandatory",
   WebkitOverflowScrolling: "touch",
   paddingTop: "14px",
-  paddingRight: "24px",
+  paddingRight: "8px",
   paddingBottom: "14px",
-  paddingLeft: "24px",
+  paddingLeft: "8px",
   scrollbarWidth: "none"
 };
 
@@ -1020,7 +1200,9 @@ const categoryRowStyle = {
   display: "flex",
   alignItems: "stretch",
   gap: "14px",
-  width: "100%"
+  width: "max-content",
+  minWidth: "100%",
+  flexWrap: "nowrap"
 };
 
 const categoryTileStyle = {
@@ -1029,16 +1211,17 @@ const categoryTileStyle = {
   containerType: "inline-size",
   overflow: "hidden",
   border: "none",
-  borderRadius: "clamp(12px, 9cqi, 20px)",
-  padding: "clamp(10px, 6cqi, 16px)",
+  borderRadius: "16px",
+  padding: "10px 14px",
   cursor: "pointer",
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
   textAlign: "left",
-  flex: "1 1 0",
-  minWidth: 0,
-  aspectRatio: "2.4 / 1",
+  flex: "0 0 clamp(180px, 14vw, 220px)",
+  minWidth: "175px",
+  height: "80px",
+  flexShrink: 0,
   transition: "transform 0.2s ease, box-shadow 0.2s ease",
   background: "transparent",
   boxShadow: "none"

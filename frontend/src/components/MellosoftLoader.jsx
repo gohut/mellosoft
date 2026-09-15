@@ -64,13 +64,19 @@ export default function MellosoftLoader({
 
         {/* ── Ceiling Fan ── */}
         <div className="loader-fan-wrap" aria-hidden="true">
+          <div className="loader-fan-canopy" />
           <div className="loader-fan-rod" />
-          <div className="loader-fan-body">
+          <div className="loader-fan-motor">
+            {/* 3D horizontal plane: fan wings rotate horizontally facing toward the bed */}
+            <div className="loader-fan-rotor-plane">
+              <div className="loader-fan-rotor">
+                <div className="loader-fan-blade loader-blade-1" />
+                <div className="loader-fan-blade loader-blade-2" />
+                <div className="loader-fan-blade loader-blade-3" />
+                <div className="loader-fan-blade loader-blade-4" />
+              </div>
+            </div>
             <div className="loader-fan-hub" />
-            <div className="loader-fan-blade" />
-            <div className="loader-fan-blade" />
-            <div className="loader-fan-blade" />
-            <div className="loader-fan-blade" />
           </div>
         </div>
 
@@ -89,15 +95,18 @@ export default function MellosoftLoader({
           {/* Moon */}
           <span className="loader-moon">🌙</span>
 
-          {/* ZZZ container */}
-          <div className="loader-zzz-container">
-            <span className="loader-zzz loader-zzz-1">Z</span>
-            <span className="loader-zzz loader-zzz-2">Z</span>
-            <span className="loader-zzz loader-zzz-3">Z</span>
-          </div>
-
-          {/* Bed (inline SVG — no external assets required) */}
+          {/* Bed with sleeping person & "z z z z z z" effect */}
           <div className="loader-bed-wrap">
+            {/* "z z z z z z" rising directly from the sleeping person on the bed */}
+            <div className="loader-zzz-stream" aria-hidden="true">
+              <span className="loader-zzz loader-z-1">z</span>
+              <span className="loader-zzz loader-z-2">z</span>
+              <span className="loader-zzz loader-z-3">z</span>
+              <span className="loader-zzz loader-z-4">z</span>
+              <span className="loader-zzz loader-z-5">z</span>
+              <span className="loader-zzz loader-z-6">z</span>
+            </div>
+
             <svg
               className="loader-bed-svg"
               viewBox="0 0 180 90"
@@ -138,33 +147,29 @@ export default function MellosoftLoader({
               {/* Pillow edge detail */}
               <rect x="44" y="42" width="26" height="10" rx="3" fill="none" stroke="#E2E8F0" strokeWidth="0.8" />
 
-              {/* Duvet / blanket */}
-              <rect x="74" y="40" width="68" height="22" rx="5" fill="#DBEAFE" />
-              {/* Duvet fold */}
-              <path d="M74 52 Q108 56 142 52" stroke="#BFDBFE" strokeWidth="1.2" fill="none" />
-              <path d="M74 46 Q108 50 142 46" stroke="#BFDBFE" strokeWidth="0.8" fill="none" />
+              {/* Sleeping person on the pillow */}
+              <g className="loader-sleeper">
+                {/* Sleeping Head */}
+                <circle cx="56" cy="45" r="7.5" fill="#FED7AA" />
+                {/* Cozy hair */}
+                <path d="M49 44 C49 38 63 38 63 44" fill="#4B5563" />
+                {/* Sleeping closed peaceful eye */}
+                <path d="M52 46 Q54 48 57 46" stroke="#4B5563" strokeWidth="1" strokeLinecap="round" fill="none" />
+                {/* Soft cheek blush */}
+                <circle cx="58" cy="47" r="1.5" fill="#FCA5A5" opacity="0.6" />
+              </g>
 
-              {/* Mellosoft logo "M" on pillow — subtle */}
-              <text x="54" y="51" textAnchor="middle" fill="#C7D2FE" fontSize="10" fontWeight="800" fontFamily="Arial, sans-serif">M</text>
+              {/* Duvet / blanket tucked over sleeper with breathing animation */}
+              <g className="loader-duvet-group">
+                <rect x="60" y="39" width="82" height="23" rx="5" fill="#DBEAFE" />
+                {/* Duvet fold edge */}
+                <rect x="58" y="39" width="10" height="23" rx="3" fill="#BFDBFE" />
+                <path d="M60 52 Q100 56 140 52" stroke="#93C5FD" strokeWidth="1.2" fill="none" />
+                <path d="M60 46 Q100 50 140 46" stroke="#BFDBFE" strokeWidth="0.8" fill="none" />
+              </g>
             </svg>
           </div>
         </div>
-      </div>
-
-      {/* ── Loading dots ── */}
-      <div className="loader-dots" aria-hidden="true">
-        <span className="loader-dot" />
-        <span className="loader-dot" />
-        <span className="loader-dot" />
-        <span className="loader-dot" />
-        <span className="loader-dot" />
-        <span className="loader-dot" />
-      </div>
-
-      {/* ── Brand ── */}
-      <div className="loader-brand">
-        <span className="loader-brand-name">Mellosoft</span>
-        <span className="loader-brand-tagline">{label}</span>
       </div>
 
       {/* Screen-reader only status */}

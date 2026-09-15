@@ -13,6 +13,7 @@ import {
   ACCESSORY_CATEGORY_LIST,
   BED_FRAME_CATEGORY_LIST
 } from "../utils/productHelpers";
+import { formatPrice } from "../utils/currency";
 
 export default function Header() {
   const pathname = usePathname() || "/";
@@ -27,13 +28,16 @@ export default function Header() {
     setSearchQuery,
     setActiveFilters,
     settings,
-    categories
+    categories,
+    products
   } = useStore();
 
   const { currentCustomer, isAuthenticated } = useCustomerAuth();
 
   const [desktopSearch, setDesktopSearch] = useState(searchQuery || "");
   const [mobileSearch, setMobileSearch] = useState(searchQuery || "");
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const mobileInputRef = useRef(null);
   const [desktopFocused, setDesktopFocused] = useState(false);
   const [mobileFocused, setMobileFocused] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -121,20 +125,42 @@ export default function Header() {
     };
   }, [isDetailView]);
 
-  const searchActive = mobileFocused || mobileSearch.trim().length > 0;
+  useEffect(() => {
+    setMobileSearchOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (mobileSearchOpen) {
+      const timer = setTimeout(() => {
+        if (mobileInputRef.current) {
+          mobileInputRef.current.focus();
+        }
+      }, 80);
+      return () => clearTimeout(timer);
+    }
+  }, [mobileSearchOpen]);
+
+  const searchActive = mobileSearchOpen || mobileFocused || mobileSearch.trim().length > 0;
   const showMobileLogo = !searchActive && !isNestedMobileView;
 
   const searchProducts = (term) => {
     const query = term.trim().toLowerCase();
     if (!query) return [];
-    return MOCK_PRODUCTS.filter((product) => {
+    const sourceProducts = (products && products.length > 0) ? products : MOCK_PRODUCTS;
+    return sourceProducts.filter((product) => {
+      const name = (product.name || product.Product_Name || "").toLowerCase();
+      const id = (product.Product_Id || product.id || product.slug || "").toLowerCase();
+      const cat = (product.category || product.categoryName || product.categoryLabel || "").toLowerCase();
+      const tagline = (product.tagline || "").toLowerCase();
+      const construction = (product.construction || "").toLowerCase();
       return (
-        product.name.toLowerCase().includes(query) ||
-        (product.category && product.category.toLowerCase().includes(query)) ||
-        (product.tagline && product.tagline.toLowerCase().includes(query)) ||
-        (product.construction && product.construction.toLowerCase().includes(query))
+        name.includes(query) ||
+        id.includes(query) ||
+        cat.includes(query) ||
+        tagline.includes(query) ||
+        construction.includes(query)
       );
-    }).slice(0, 5);
+    }).slice(0, 8);
   };
 
   const desktopSuggestions = searchProducts(desktopSearch);
@@ -467,27 +493,45 @@ export default function Header() {
               </button>
             </div>
 
-            <SearchBox
-              value={mobileSearch}
-              onChange={setMobileSearch}
-              suggestions={mobileSuggestions}
-              focused={mobileFocused}
-              setFocused={setMobileFocused}
-              onProduct={goToProduct}
-              onSubmitSearch={goToSearchResults}
-              formStyle={mobileSearchFormStyle}
-            />
+            <div
+              onClick={() => setMobileSearchOpen(true)}
+              style={mobileSearchFormStyle}
+              className="mobile-search-trigger"
+              role="button"
+              tabIndex={0}
+              aria-label="Open search"
+            >
+              <div style={searchInputWrapStyle} className="mobile-search-pill">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="mobile-search-icon">
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                <div
+                  className="mobile-search-text"
+                  style={{
+                    fontSize: "13px",
+                    color: "#8E8E98",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    userSelect: "none"
+                  }}
+                >
+                  {mobileSearch || "Search by Keyword or Product ID"}
+                </div>
+              </div>
+            </div>
 
-            <button onClick={() => navigateTo("orders")} style={{ ...mobileIconButtonStyle, marginLeft: "6px" }} aria-label="My Orders" title="My Orders">
+            <button onClick={() => navigateTo("orders")} style={{ ...mobileIconButtonStyle, marginLeft: "6px" }} className="mobile-header-btn" aria-label="My Orders" title="My Orders">
               <OrdersIcon active={view === "orders"} />
             </button>
-            <button onClick={() => navigateTo("cart")} style={{ ...mobileIconButtonStyle, marginLeft: "6px" }} aria-label="Open cart" title="Cart">
+            <button onClick={() => navigateTo("cart")} style={{ ...mobileIconButtonStyle, marginLeft: "6px" }} className="mobile-header-btn" aria-label="Open cart" title="Cart">
               <span style={{ position: "relative", display: "flex" }}>
                 <CartIcon />
                 {displayCartCount > 0 && <span style={mobileCartBadgeStyle}>{displayCartCount}</span>}
               </span>
             </button>
-            <button onClick={() => navigateTo(isAuthenticated ? "profile" : "login")} style={{ ...mobileIconButtonStyle, marginLeft: "6px" }} aria-label="Account" title="Account">
+            <button onClick={() => navigateTo(isAuthenticated ? "profile" : "login")} style={{ ...mobileIconButtonStyle, marginLeft: "6px" }} className="mobile-header-btn" aria-label="Account" title="Account">
               <UserIcon active={view === "profile" || view === "login"} />
             </button>
           </div>
@@ -616,6 +660,397 @@ export default function Header() {
           )}
         </header>
       )}
+
+      {/* FULL-SCREEN MOBILE SEARCH OVERLAY */}
+      {mobileSearchOpen && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "#FFFFFF",
+            zIndex: 9999,
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden"
+          }}
+          className="mobile-search-overlay mobile-only"
+        >
+          {/* TOP SEARCH BAR */}
+          <div
+            style={{
+              padding: "calc(env(safe-area-inset-top) + 8px) 12px 10px",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              borderBottom: "1px solid #EBEBEB",
+              backgroundColor: "#FFFFFF",
+              flexShrink: 0
+            }}
+          >
+            {/* BACK CHEVRON */}
+            <button
+              type="button"
+              onClick={() => setMobileSearchOpen(false)}
+              style={{
+                border: "none",
+                background: "transparent",
+                padding: "8px 6px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                color: "#1E293B"
+              }}
+              aria-label="Back"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2D3142" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+
+            {/* SEARCH INPUT PILL */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (mobileSearch.trim()) {
+                  goToSearchResults(mobileSearch);
+                  setMobileSearchOpen(false);
+                }
+              }}
+              style={{
+                flex: 1,
+                display: "flex",
+                alignItems: "center",
+                height: "42px",
+                backgroundColor: "#FFFFFF",
+                border: "1.5px solid #CBD5E1",
+                borderRadius: "9999px",
+                padding: "0 14px",
+                gap: "8px",
+                boxSizing: "border-box"
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+
+              <input
+                ref={mobileInputRef}
+                type="search"
+                value={mobileSearch}
+                onChange={(e) => setMobileSearch(e.target.value)}
+                placeholder="Search by Keyword or Product ID"
+                style={{
+                  flex: 1,
+                  border: "none",
+                  outline: "none",
+                  backgroundColor: "transparent",
+                  fontSize: "14px",
+                  fontWeight: "500",
+                  color: "#14151A"
+                }}
+                aria-label="Search products"
+              />
+
+              {mobileSearch && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileSearch("");
+                    mobileInputRef.current?.focus();
+                  }}
+                  style={{
+                    border: "none",
+                    background: "#E2E8F0",
+                    borderRadius: "50%",
+                    width: "20px",
+                    height: "20px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer",
+                    padding: 0,
+                    color: "#64748B"
+                  }}
+                  aria-label="Clear search input"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              )}
+            </form>
+          </div>
+
+          {/* SEARCH BODY */}
+          <div
+            style={{
+              flex: 1,
+              overflowY: "auto",
+              backgroundColor: "#FAF9F5",
+              padding: "16px",
+              WebkitOverflowScrolling: "touch"
+            }}
+          >
+            {mobileSearch.trim() ? (
+              mobileSuggestions.length > 0 ? (
+                <div>
+                  <div
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: "700",
+                      color: "#64748B",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                      marginBottom: "12px"
+                    }}
+                  >
+                    Products ({mobileSuggestions.length})
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    {mobileSuggestions.map((product) => {
+                      const image = Array.isArray(product.images) && product.images[0] ? product.images[0] : (product.image || "/asset/placeholder.png");
+                      const prodId = product.Product_Id || product.id;
+                      const startingPrice = product.startingPrice || product.price || product.discountPrice;
+
+                      return (
+                        <button
+                          key={product.id || product.slug}
+                          type="button"
+                          onClick={() => {
+                            goToProduct(product.id || product.slug);
+                            setMobileSearchOpen(false);
+                          }}
+                          style={{
+                            border: "1px solid #E7E7E2",
+                            backgroundColor: "#FFFFFF",
+                            borderRadius: "12px",
+                            padding: "10px 12px",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "12px",
+                            textAlign: "left",
+                            cursor: "pointer",
+                            boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
+                            width: "100%"
+                          }}
+                        >
+                          <img
+                            src={image}
+                            alt=""
+                            style={{
+                              width: "48px",
+                              height: "48px",
+                              objectFit: "cover",
+                              borderRadius: "8px",
+                              backgroundColor: "#F7F7F2",
+                              flexShrink: 0
+                            }}
+                          />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div
+                              style={{
+                                fontSize: "14px",
+                                fontWeight: "700",
+                                color: "#1B1F8C",
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis"
+                              }}
+                            >
+                              {product.name || product.Product_Name}
+                            </div>
+                            <div style={{ fontSize: "11px", color: "#6B6B75", marginTop: "2px" }}>
+                              {product.category || "Mattress"} {prodId ? `• ${prodId}` : ""}
+                            </div>
+                            <div style={{ fontSize: "13px", fontWeight: "700", color: "#16A34A", marginTop: "2px" }}>
+                              {startingPrice ? formatPrice(startingPrice) : "Contact for Price"}
+                            </div>
+                          </div>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#CBD5E1" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="9 18 15 12 9 6" />
+                          </svg>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      goToSearchResults(mobileSearch);
+                      setMobileSearchOpen(false);
+                    }}
+                    style={{
+                      width: "100%",
+                      padding: "12px",
+                      backgroundColor: "#1B1F8C",
+                      color: "#FFFFFF",
+                      borderRadius: "10px",
+                      fontWeight: "700",
+                      fontSize: "14px",
+                      border: "none",
+                      marginTop: "14px",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "6px"
+                    }}
+                  >
+                    <span>See all results for &quot;{mobileSearch}&quot;</span>
+                    <span>→</span>
+                  </button>
+                </div>
+              ) : (
+                <div style={{ textAlign: "center", padding: "40px 20px" }}>
+                  <div style={{ fontSize: "36px", marginBottom: "10px" }}>🔍</div>
+                  <div style={{ fontSize: "16px", fontWeight: "700", color: "#1B1F8C", marginBottom: "6px" }}>
+                    No matching products found
+                  </div>
+                  <div style={{ fontSize: "13px", color: "#6B6B75", maxWidth: "260px", margin: "0 auto 20px" }}>
+                    Try searching for another keyword like &quot;Foam&quot;, &quot;Spring&quot;, or product ID.
+                  </div>
+                </div>
+              )
+            ) : (
+              <div>
+                <div
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: "700",
+                    color: "#64748B",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                    marginBottom: "10px"
+                  }}
+                >
+                  Popular Searches
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "24px" }}>
+                  {["Foam Mattress", "Pocket Spring", "Orthopedic", "Dual Comfort", "Pillows", "Protector", "Bed Frame"].map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => {
+                        setMobileSearch(tag);
+                      }}
+                      style={{
+                        padding: "8px 14px",
+                        backgroundColor: "#FFFFFF",
+                        border: "1px solid #E2E8F0",
+                        borderRadius: "20px",
+                        fontSize: "13px",
+                        fontWeight: "600",
+                        color: "#1E293B",
+                        cursor: "pointer"
+                      }}
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+
+                <div
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: "700",
+                    color: "#64748B",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                    marginBottom: "10px"
+                  }}
+                >
+                  Explore Categories
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                  {[
+                    { label: "Mattresses", path: "/mattresses", desc: "Foam, Spring & Ortho" },
+                    { label: "Accessories", path: "/accessories", desc: "Pillows & Protectors" },
+                    { label: "Bed Frames", path: "/bed-frames", desc: "Designer Beds" },
+                    { label: "About Mellosoft", path: "/about", desc: "Our Story & Quality" }
+                  ].map((cat) => (
+                    <button
+                      key={cat.label}
+                      type="button"
+                      onClick={() => {
+                        setMobileSearchOpen(false);
+                        handleNavClick(cat.path);
+                      }}
+                      style={{
+                        backgroundColor: "#FFFFFF",
+                        border: "1px solid #E2E8F0",
+                        borderRadius: "12px",
+                        padding: "12px 14px",
+                        textAlign: "left",
+                        cursor: "pointer"
+                      }}
+                    >
+                      <div style={{ fontSize: "14px", fontWeight: "700", color: "#1B1F8C" }}>{cat.label}</div>
+                      <div style={{ fontSize: "11px", color: "#64748B", marginTop: "2px" }}>{cat.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @media (max-width: 440px) {
+          .mobile-search-trigger {
+            flex: 0 0 40px !important;
+            width: 40px !important;
+            min-width: 40px !important;
+            margin-left: auto !important;
+          }
+          .mobile-search-pill {
+            width: 40px !important;
+            height: 40px !important;
+            padding: 0 !important;
+            justify-content: center !important;
+            border-radius: 999px !important;
+            background-color: rgba(255, 255, 255, 0.86) !important;
+            border: 1px solid rgba(231, 231, 226, 0.85) !important;
+          }
+          .mobile-search-text {
+            display: none !important;
+          }
+          .mobile-search-icon {
+            width: 18px !important;
+            height: 18px !important;
+            stroke: #1B1F8C !important;
+          }
+        }
+        @media (max-width: 290px) {
+          .mobile-search-trigger {
+            flex: 0 0 32px !important;
+            width: 32px !important;
+            min-width: 32px !important;
+          }
+          .mobile-search-pill {
+            width: 32px !important;
+            height: 32px !important;
+          }
+          .mobile-search-icon {
+            width: 15px !important;
+            height: 15px !important;
+          }
+          .mobile-header-btn {
+            width: 32px !important;
+            height: 32px !important;
+            margin-left: 3px !important;
+          }
+          .mobile-header-btn svg {
+            width: 17px !important;
+            height: 17px !important;
+          }
+        }
+      `}</style>
     </>
   );
 }

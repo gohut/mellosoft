@@ -145,6 +145,21 @@
   animation: adminFadeIn 0.2s ease-out;
 }
 
+/* Horizontal sliding tabs (no visible scrollbar) */
+.admin-sliding-tabs {
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  flex-wrap: nowrap !important;
+  -webkit-overflow-scrolling: touch;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.admin-sliding-tabs::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
 /* ─── Responsive & utility classes (formerly inline styled-jsx) ──────────── */
 
 /* Sidebar desktop visibility */
@@ -224,8 +239,79 @@
   }
 
   .admin-header {
-    padding: 0 12px !important;
-    gap: 8px !important;
+    padding: 0 10px !important;
+    gap: 6px !important;
+    height: 56px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .admin-header-left {
+    gap: 6px !important;
+    min-width: 0 !important;
+    flex-shrink: 1 !important;
+    overflow: hidden !important;
+  }
+
+  /* On mobile <= 768px, hide root "Admin >" to maximize space for view title and actions */
+  .admin-header-crumb-root {
+    display: none !important;
+  }
+
+  .admin-header-right {
+    gap: 4px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .admin-header-view-store {
+    padding: 0 !important;
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    justify-content: center !important;
+    border-radius: 8px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .admin-header-view-store-text {
+    display: none !important;
+  }
+
+  .admin-header-icon-btn {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    border-radius: 8px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .admin-header-profile-btn {
+    padding: 0 !important;
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    justify-content: center !important;
+    border-radius: 8px !important;
+    flex-shrink: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  .admin-header-profile-btn > div:first-child {
+    width: 26px !important;
+    height: 26px !important;
+    border-radius: 6px !important;
+    font-size: 12px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .admin-notifications-dropdown {
+    position: fixed !important;
+    top: 58px !important;
+    left: 8px !important;
+    right: 8px !important;
+    width: auto !important;
+    max-width: calc(100vw - 16px) !important;
   }
 
   .admin-add-product-grid {
@@ -233,8 +319,46 @@
   }
 
   .admin-products-topbar {
-    flex-direction: column;
+    flex-direction: column !important;
     align-items: stretch !important;
+    gap: 12px !important;
+    width: 100% !important;
+  }
+
+  .admin-products-filters {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+    width: 100% !important;
+  }
+
+  .admin-products-search {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .admin-products-selects {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+    width: 100% !important;
+  }
+
+  .admin-products-category-select,
+  .admin-products-status-select {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    text-overflow: ellipsis !important;
+    overflow: hidden !important;
+  }
+
+  .admin-products-add-btn {
+    width: 100% !important;
+    justify-content: center !important;
+    box-sizing: border-box !important;
   }
 
   .admin-categories-actions {
@@ -249,6 +373,45 @@
 
   .admin-settings-grid {
     grid-template-columns: 1fr !important;
+  }
+
+  /* Product detail header & actions */
+  .admin-product-detail-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+    width: 100% !important;
+  }
+
+  .admin-product-detail-actions {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    -webkit-overflow-scrolling: touch;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+    gap: 8px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 2px 2px 6px 2px !important;
+    box-sizing: border-box !important;
+  }
+
+  .admin-product-detail-actions::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
+
+  .admin-product-detail-actions button {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+    height: 38px !important;
+    padding: 0 14px !important;
+    font-size: 13px !important;
+    border-radius: 8px !important;
   }
 
   /* Analytics card container */
@@ -352,6 +515,12 @@
 
   .admin-categories-grid {
     grid-template-columns: 1fr !important;
+  }
+
+  .admin-product-detail-actions button {
+    height: 36px !important;
+    padding: 0 12px !important;
+    font-size: 12.5px !important;
   }
 }
 
@@ -540,8 +709,33 @@
 /* Mobile Breakpoint (<= 768px) */
 @media (max-width: 768px) {
   .analytics-kpi-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    -webkit-overflow-scrolling: touch;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
     gap: 10px !important;
+    padding: 2px 2px 6px 2px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .analytics-kpi-grid::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
+
+  .analytics-kpi-grid > .analytics-kpi-card {
+    flex: 0 0 190px !important;
+    min-width: 190px !important;
+    max-width: 210px !important;
+    flex-shrink: 0 !important;
+    box-sizing: border-box !important;
   }
   
   .admin-desktop-only {
@@ -555,9 +749,29 @@
 
 /* Small Mobile (<= 480px) */
 @media (max-width: 480px) {
-  .analytics-kpi-grid {
-    grid-template-columns: 1fr !important;
-    gap: 8px !important;
+  .admin-header {
+    padding: 0 8px !important;
+    gap: 6px !important;
+    height: 54px !important;
+  }
+
+  .admin-header-left {
+    gap: 6px !important;
+  }
+
+  .admin-header-right {
+    gap: 4px !important;
+  }
+
+  .admin-header-has-crumbs .admin-header-crumb-root {
+    display: none !important;
+  }
+
+  .analytics-kpi-grid > .analytics-kpi-card {
+    flex: 0 0 180px !important;
+    min-width: 180px !important;
+    max-width: 190px !important;
+    padding: 12px 14px !important;
   }
 }
 
@@ -587,10 +801,52 @@
   }
 }
 
+@media (max-width: 768px) {
+  .customer-stats-grid,
+  .content-stats-grid {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    -webkit-overflow-scrolling: touch;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+    gap: 12px !important;
+    padding: 2px 2px 6px 2px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .customer-stats-grid::-webkit-scrollbar,
+  .content-stats-grid::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
+
+  .customer-stats-grid > div,
+  .customer-stats-grid > .admin-stat-card,
+  .content-stats-grid > div,
+  .content-stats-grid > .content-stat-card {
+    flex: 0 0 170px !important;
+    min-width: 170px !important;
+    max-width: 200px !important;
+    flex-shrink: 0 !important;
+    box-sizing: border-box !important;
+  }
+}
+
 @media (max-width: 480px) {
-  .customer-stats-grid {
-    grid-template-columns: 1fr !important;
-    gap: 10px !important;
+  .customer-stats-grid > div,
+  .customer-stats-grid > .admin-stat-card,
+  .content-stats-grid > div,
+  .content-stats-grid > .content-stat-card {
+    flex: 0 0 160px !important;
+    min-width: 160px !important;
+    max-width: 185px !important;
+    padding: 12px 14px !important;
   }
 }
 

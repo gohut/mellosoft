@@ -82,7 +82,8 @@ export function checkPermission(role, moduleName, action) {
   }
 
   if (!role.permissions) return false;
-  const modulePerms = role.permissions[moduleName];
+  const targetModule = (moduleName === "inventory" || moduleName === "categories") ? "products" : moduleName;
+  const modulePerms = role.permissions[targetModule];
   if (!modulePerms) return false;
 
   // Normalize action checks with common aliases

@@ -11,6 +11,11 @@ import { ensureProductPricing } from "../utils/pricingEngine";
 import { calculateDiscountedPrice } from "../utils/currency";
 import { getProductPrimaryImage, getDeletedProductIds, isProductDeleted, ensureRequiredCategories } from "../utils/productHelpers";
 import { DEFAULT_SETTINGS, getSavedSettings, saveSettingsToStorage, normalizeSettings, SETTINGS_UPDATED_EVENT } from "../utils/settingsHelpers";
+import {
+  DEFAULT_HOMEPAGE_CATEGORIES,
+  HOMEPAGE_CATEGORIES_STORAGE_KEY,
+  HOMEPAGE_CATEGORIES_UPDATED_EVENT
+} from "../data/homepageCategoriesData";
 
 const StoreContext = createContext();
 
@@ -96,11 +101,15 @@ export function StoreProvider({ children }) {
 
   // Best Sellers Config State synchronized with localStorage ("mellosoft_best_sellers_config")
   const [bestSellerItems, setBestSellerItems] = useState([
-    { id: "bs-1", productId: "foamcloud",  displayOrder: 1, isActive: true },
-    { id: "bs-2", productId: "orthocare",   displayOrder: 2, isActive: true },
-    { id: "bs-3", productId: "springease",  displayOrder: 3, isActive: true },
-    { id: "bs-4", productId: "latexpure",   displayOrder: 4, isActive: true },
+    { id: "bs-1", productId: "foamcloud",   displayOrder: 1, isActive: true },
+    { id: "bs-2", productId: "orthocare",    displayOrder: 2, isActive: true },
+    { id: "bs-3", productId: "springease",   displayOrder: 3, isActive: true },
+    { id: "bs-4", productId: "latexpure",    displayOrder: 4, isActive: true },
+    { id: "bs-5", productId: "comfortnest",  displayOrder: 5, isActive: true },
   ]);
+
+  // Homepage Categories State synchronized with localStorage ("mellosoft_homepage_categories")
+  const [homepageCategories, setHomepageCategories] = useState(DEFAULT_HOMEPAGE_CATEGORIES);
 
   // Homepage Layout Config synchronized with localStorage ("mellosoft_homepage_config")
   const [homepageConfig, setHomepageConfig] = useState({
@@ -108,10 +117,10 @@ export function StoreProvider({ children }) {
       { id: "hero-slider", visible: true, type: "global" },
       { id: "shop-by-category", visible: true, type: "global" },
       { id: "promo-001", visible: true, type: "promo-banner", bannerId: "promo-001" },
-      { id: "promo-002", visible: true, type: "promo-banner", bannerId: "promo-002" },
-      { id: "promo-003", visible: true, type: "promo-banner", bannerId: "promo-003" },
       { id: "new-arrivals", visible: true, type: "global" },
+      { id: "promo-002", visible: true, type: "promo-banner", bannerId: "promo-002" },
       { id: "best-sellers", visible: true, type: "global" },
+      { id: "promo-003", visible: true, type: "promo-banner", bannerId: "promo-003" },
       { id: "customer-reviews", visible: true, type: "global" }
     ]
   });
@@ -227,6 +236,21 @@ export function StoreProvider({ children }) {
         if (savedConfig) {
           const parsed = JSON.parse(savedConfig);
           if (parsed && Array.isArray(parsed.sections) && parsed.sections.length > 0) {
+            const p2Idx = parsed.sections.findIndex((s) => s.id === "promo-002" || s.bannerId === "promo-002");
+            const naIdx = parsed.sections.findIndex((s) => s.id === "new-arrivals");
+            if (p2Idx !== -1 && naIdx !== -1 && p2Idx < naIdx) {
+              parsed.sections = [
+                { id: "hero-slider", visible: true, type: "global" },
+                { id: "shop-by-category", visible: true, type: "global" },
+                { id: "promo-001", visible: true, type: "promo-banner", bannerId: "promo-001" },
+                { id: "new-arrivals", visible: true, type: "global" },
+                { id: "promo-002", visible: true, type: "promo-banner", bannerId: "promo-002" },
+                { id: "best-sellers", visible: true, type: "global" },
+                { id: "promo-003", visible: true, type: "promo-banner", bannerId: "promo-003" },
+                { id: "customer-reviews", visible: true, type: "global" }
+              ];
+              localStorage.setItem("mellosoft_homepage_config", JSON.stringify(parsed));
+            }
             setHomepageConfig((prev) => (JSON.stringify(prev) === JSON.stringify(parsed) ? prev : parsed));
           }
         }
@@ -260,6 +284,21 @@ export function StoreProvider({ children }) {
         }
       } catch (e) {
         console.error("Failed to load best sellers config from localStorage:", e);
+      }
+
+      // Sync homepage categories
+      try {
+        const savedHPCats = localStorage.getItem("mellosoft_homepage_categories");
+        if (savedHPCats) {
+          const parsed = JSON.parse(savedHPCats);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setHomepageCategories((prev) => (JSON.stringify(prev) === JSON.stringify(parsed) ? prev : parsed));
+          }
+        } else {
+          setHomepageCategories((prev) => (JSON.stringify(prev) === JSON.stringify(DEFAULT_HOMEPAGE_CATEGORIES) ? prev : DEFAULT_HOMEPAGE_CATEGORIES));
+        }
+      } catch (e) {
+        console.error("Failed to load homepage categories from localStorage:", e);
       }
 
       // Sync products (merging stored overrides with master catalogue, minus persistent tombstones & respecting v3 migration)
@@ -402,6 +441,7 @@ export function StoreProvider({ children }) {
       window.removeEventListener("storage", syncStore);
       window.removeEventListener("mellosoft_orders_updated", syncStore);
       window.removeEventListener("mellosoft:products-updated", syncStore);
+      window.removeEventListener(HOMEPAGE_CATEGORIES_UPDATED_EVENT, syncStore);
     };
   }, []);
 
@@ -939,6 +979,7 @@ export function StoreProvider({ children }) {
         setBanners,
         reviews,
         homepageConfig,
+        homepageCategories,
         newArrivalItems,
         bestSellerItems,
         customerOrders: (orders || []).filter((o) => {

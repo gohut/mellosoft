@@ -139,38 +139,52 @@ export default function ProductsView() {
   return (
     <div className="admin-fade-in" style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
       {/* Top Bar */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
-        <div style={{ display: "flex", gap: "12px", alignItems: "center", flex: 1, flexWrap: "wrap" }}>
-          <SearchBar value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="Search products..." style={{ width: "260px", minWidth: "180px" }} />
-          <select
-            value={categoryFilter}
-            onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }}
-            style={selectStyle}
-          >
-            <option value="All">All Categories ({totalCount})</option>
-            {categoryTree.map((mainCat) => (
-              <optgroup key={mainCat.id} label={`${mainCat.name} (${mainCat.count})`}>
-                <option value={mainCat.slug || mainCat.id}>All {mainCat.name} ({mainCat.count})</option>
-                {(mainCat.subcategories || []).map((sub) => (
-                  <option key={sub.id} value={sub.slug || sub.id}>
-                    {sub.name} ({sub.count})
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
-          <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} style={selectStyle}>
-            <option value="All">All Status</option>
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-            <option value="Low Stock">Low Stock</option>
-            <option value="Out of Stock">Out of Stock</option>
-          </select>
+      <div className="admin-products-topbar" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
+        <div className="admin-products-filters" style={{ display: "flex", gap: "12px", alignItems: "center", flex: 1, flexWrap: "wrap" }}>
+          <SearchBar
+            value={search}
+            onChange={(v) => { setSearch(v); setPage(1); }}
+            placeholder="Search products..."
+            className="admin-products-search"
+            style={{ width: "260px", minWidth: "180px" }}
+          />
+          <div className="admin-products-selects" style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+            <select
+              value={categoryFilter}
+              onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }}
+              className="admin-products-category-select"
+              style={selectStyle}
+            >
+              <option value="All">All Categories ({totalCount})</option>
+              {categoryTree.map((mainCat) => (
+                <optgroup key={mainCat.id} label={`${mainCat.name} (${mainCat.count})`}>
+                  <option value={mainCat.slug || mainCat.id}>All {mainCat.name} ({mainCat.count})</option>
+                  {(mainCat.subcategories || []).map((sub) => (
+                    <option key={sub.id} value={sub.slug || sub.id}>
+                      {sub.name} ({sub.count})
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+            <select
+              value={statusFilter}
+              onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+              className="admin-products-status-select"
+              style={selectStyle}
+            >
+              <option value="All">All Status</option>
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+              <option value="Low Stock">Low Stock</option>
+              <option value="Out of Stock">Out of Stock</option>
+            </select>
+          </div>
         </div>
         {hasPermission("products", "create") && (
           <button
             onClick={() => navigateTo("add-product")}
-            className="admin-btn-hover"
+            className="admin-btn-hover admin-products-add-btn"
             style={{
               display: "flex",
               alignItems: "center",

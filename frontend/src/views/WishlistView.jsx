@@ -84,7 +84,7 @@ export default function WishlistView() {
   }
 
   return (
-    <div style={containerStyle}>
+    <div style={containerStyle} className="wishlist-page-container">
       
       {/* Header bar with bulk actions */}
       <div style={headerStyle}>
@@ -143,14 +143,19 @@ export default function WishlistView() {
       </div>
       <style>{`
         @media (max-width: 767px) {
+          .wishlist-page-container {
+            padding: 16px 14px 60px 14px !important;
+          }
           .wishlist-grid {
-            overflow-x: auto !important;
             display: grid !important;
-            grid-auto-flow: column !important;
-            grid-auto-columns: minmax(220px, 68vw) !important;
-            grid-template-columns: none !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 10px !important;
+          }
+        }
+        @media (max-width: 310px) {
+          .wishlist-grid {
+            grid-template-columns: 1fr !important;
             gap: 14px !important;
-            padding-bottom: 12px !important;
           }
         }
       `}</style>

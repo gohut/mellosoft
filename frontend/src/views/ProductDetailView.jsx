@@ -72,12 +72,26 @@ export default function ProductDetailView({ productId: initialProductId }) {
     return getProductGalleryImages(product);
   }, [product]);
 
-  // Gallery Active Image
+  // Gallery Active Image & Sliding Swipe States
   const [activeImgIndex, setActiveImgIndex] = useState(0);
   const [touchStartX, setTouchStartX] = useState(null);
+  const [touchStartY, setTouchStartY] = useState(null);
+  const [dragOffset, setDragOffset] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const thumbnailStripRef = useRef(null);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [reviewModalImage, setReviewModalImage] = useState(null);
   const swipeMovedRef = useRef(false);
+
+  // Auto-scroll active thumbnail into view
+  useEffect(() => {
+    if (thumbnailStripRef.current) {
+      const activeEl = thumbnailStripRef.current.querySelector(".product-thumbnail.active");
+      if (activeEl) {
+        activeEl.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+      }
+    }
+  }, [activeImgIndex]);
 
   // Selector options states
   const [selectedFirmness, setSelectedFirmness] = useState("");
@@ -91,8 +105,15 @@ export default function ProductDetailView({ productId: initialProductId }) {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       if (!product) return;
-      setSelectedFirmness((product.availableFirmness || product.firmnessOptions || product.firmness)?.[0] || "Medium");
-      setSelectedSize((product.availableSizes || product.sizeOptions || product.sizes)?.[0] || "Twin");
+      const initialFirm = product.variants?.[0]?.Firmness ||
+        product.variants?.[0]?.VariantName ||
+        (product.availableFirmness || product.firmnessOptions || product.firmness)?.[0] ||
+        "Medium";
+      const initialSize = product.variants?.[0]?.Size ||
+        (product.availableSizes || product.sizeOptions || product.sizes)?.[0] ||
+        "Standard";
+      setSelectedFirmness(initialFirm);
+      setSelectedSize(initialSize);
       setQuantity(1);
       setActiveImgIndex(0);
       setActiveTab("reviews");
@@ -116,6 +137,50 @@ export default function ProductDetailView({ productId: initialProductId }) {
   const categoryLabel = useMemo(() => {
     return getProductCategoryLabel(product);
   }, [product]);
+
+  // Dynamic delivery, trial, and warranty perks configured per product by admin
+  const activeDeliveryPerks = useMemo(() => {
+    if (!product) return [];
+
+    // 1. If admin explicitly configured deliveryPerks array
+    if (Array.isArray(product.deliveryPerks)) {
+      return product.deliveryPerks
+        .map((p, idx) => {
+          if (typeof p === "string") {
+            const isTruck = /shipping|delivery|dispatch|ship/i.test(p);
+            const isShield = /warranty|guarantee|shield/i.test(p);
+            const isBox = /return|pickup|refund/i.test(p);
+            const isClock = /hour|day|fast|speed|express/i.test(p);
+            const icon = isTruck ? "truck" : isShield ? "shield" : isBox ? "box" : isClock ? "clock" : "check";
+            return { id: `perk-${idx}`, icon, text: p };
+          }
+          return {
+            id: p.id || `perk-${idx}`,
+            icon: p.icon || (/shipping|delivery/i.test(p.text || "") ? "truck" : "check"),
+            text: p.text || ""
+          };
+        })
+        .filter((p) => Boolean(p.text && p.text.trim()));
+    }
+
+    // 2. Backward-compatible fallback for products without explicit deliveryPerks
+    const freeShipLimit = Number(settings?.shipping?.freeShippingAmount || 5000).toLocaleString("en-IN");
+    const shipText = product.shippingText || `Free shipping on orders over ₹${freeShipLimit}`;
+    
+    const isAcc = (product.parentCategory === "accessories" || product.category === "accessories" || product.mainCategoryId === "CAT-ACCESSORIES");
+    const isBedFrame = (product.parentCategory === "bed-frames" || product.mainCategoryId === "CAT-BED-FRAMES");
+    
+    const trialText = product.trialText || (isAcc || isBedFrame
+      ? "Official Manufacturer Warranty & Easy Returns"
+      : "100-night trial with free pickups and full refunds");
+
+    const fallback = [
+      { id: "p1", icon: "truck", text: shipText },
+      { id: "p2", icon: (isAcc || isBedFrame ? "shield" : "check"), text: trialText }
+    ];
+
+    return fallback.filter((p) => Boolean(p.text && p.text.trim()));
+  }, [product, settings?.shipping?.freeShippingAmount]);
 
   const actualPriceForSize = useMemo(() => {
     if (!product) return 0;
@@ -352,34 +417,70 @@ export default function ProductDetailView({ productId: initialProductId }) {
   };
 
   const showPreviousImage = () => {
-    if (!product?.images?.length) return;
-    setActiveImgIndex((current) => (current - 1 + product.images.length) % product.images.length);
+    if (!galleryImages.length) return;
+    setActiveImgIndex((current) => (current - 1 + galleryImages.length) % galleryImages.length);
   };
 
   const showNextImage = () => {
-    if (!product?.images?.length) return;
-    setActiveImgIndex((current) => (current + 1) % product.images.length);
+    if (!galleryImages.length) return;
+    setActiveImgIndex((current) => (current + 1) % galleryImages.length);
   };
 
-  const handleImageTouchEnd = (event) => {
-    if (touchStartX === null) return;
-    const deltaX = touchStartX - event.changedTouches[0].clientX;
-    if (Math.abs(deltaX) > 45) {
+  const handleTouchStart = (event) => {
+    if (!event.touches || event.touches.length === 0) return;
+    setTouchStartX(event.touches[0].clientX);
+    setTouchStartY(event.touches[0].clientY);
+    setDragOffset(0);
+    setIsDragging(false);
+    swipeMovedRef.current = false;
+  };
+
+  const handleTouchMove = (event) => {
+    if (touchStartX === null || !event.touches || event.touches.length === 0) return;
+    const currentX = event.touches[0].clientX;
+    const currentY = event.touches[0].clientY;
+    const deltaX = currentX - touchStartX;
+    const deltaY = currentY - (touchStartY || currentY);
+
+    // If user is clearly scrolling vertically, don't lock horizontal swipe
+    if (!isDragging && Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 8) {
+      return;
+    }
+
+    if (Math.abs(deltaX) > 6 || isDragging) {
+      setIsDragging(true);
       swipeMovedRef.current = true;
-      if (deltaX > 0) {
-        showNextImage();
-      } else {
-        showPreviousImage();
+      // Resistance at edges
+      const isAtStart = activeImgIndex === 0 && deltaX > 0;
+      const isAtEnd = activeImgIndex === galleryImages.length - 1 && deltaX < 0;
+      const appliedDelta = (isAtStart || isAtEnd) ? deltaX * 0.28 : deltaX;
+      setDragOffset(appliedDelta);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (touchStartX === null) return;
+    
+    if (isDragging) {
+      const threshold = 40;
+      if (dragOffset < -threshold && activeImgIndex < galleryImages.length - 1) {
+        setActiveImgIndex((prev) => prev + 1);
+      } else if (dragOffset > threshold && activeImgIndex > 0) {
+        setActiveImgIndex((prev) => prev - 1);
       }
       window.setTimeout(() => {
         swipeMovedRef.current = false;
       }, 160);
     }
+
+    setIsDragging(false);
+    setDragOffset(0);
     setTouchStartX(null);
+    setTouchStartY(null);
   };
 
   const handleMainImageClick = () => {
-    if (swipeMovedRef.current) return;
+    if (swipeMovedRef.current || isDragging || Math.abs(dragOffset) > 5) return;
     setViewerOpen(true);
   };
 
@@ -478,18 +579,49 @@ export default function ProductDetailView({ productId: initialProductId }) {
             style={mainImageWrapperStyle}
             className="detail-main-image"
             onClick={handleMainImageClick}
-            onTouchStart={(event) => setTouchStartX(event.touches[0].clientX)}
-            onTouchEnd={handleImageTouchEnd}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            onTouchCancel={handleTouchEnd}
           >
-            <img 
-              src={galleryImages[activeImgIndex] || galleryImages[0] || getProductPrimaryImage(product)} 
-              alt={product.name} 
-              style={mainImageStyle} 
-              className="detail-gallery-img"
-              onError={(e) => {
-                e.target.src = "/images/mattresses/foam/haven.jpg";
+            {/* Sliding Track with all gallery images */}
+            <div
+              className="gallery-slider-track"
+              style={{
+                display: "flex",
+                width: "100%",
+                height: "100%",
+                transform: isDragging
+                  ? `translateX(calc(-${activeImgIndex * 100}% + ${dragOffset}px))`
+                  : `translateX(-${activeImgIndex * 100}%)`,
+                transition: isDragging ? "none" : "transform 0.38s cubic-bezier(0.22, 1, 0.36, 1)",
+                willChange: "transform"
               }}
-            />
+            >
+              {galleryImages.map((img, index) => (
+                <div
+                  key={index}
+                  style={{
+                    flex: "0 0 100%",
+                    width: "100%",
+                    height: "100%",
+                    position: "relative",
+                    overflow: "hidden"
+                  }}
+                >
+                  <img 
+                    src={img} 
+                    alt={`${product.name} image ${index + 1}`} 
+                    style={mainImageStyle} 
+                    className="detail-gallery-img"
+                    onError={(e) => {
+                      e.target.src = "/images/mattresses/foam/haven.jpg";
+                    }}
+                    draggable={false}
+                  />
+                </div>
+              ))}
+            </div>
 
             <div style={floatingActionsWrapStyle} className="detail-floating-actions">
               <button
@@ -541,7 +673,7 @@ export default function ProductDetailView({ productId: initialProductId }) {
           
           {/* Thumbnail strip - ONLY rendered when product has > 1 valid distinct image */}
           {galleryImages.length > 1 && (
-            <div style={thumbnailStripStyle} className="product-thumbnails">
+            <div ref={thumbnailStripRef} style={thumbnailStripStyle} className="product-thumbnails">
               {galleryImages.map((img, index) => (
                 <button 
                   key={index} 
@@ -685,19 +817,23 @@ export default function ProductDetailView({ productId: initialProductId }) {
 
           {!product.thicknessOptions && (
             <div style={optionControlsRowStyle} className="detail-option-row">
-              <FirmnessSizeSelector
-                label="Variant"
-                options={product.firmnessOptions}
-                selected={selectedFirmness}
-                onChange={setSelectedFirmness}
-              />
+              {Array.isArray(product.firmnessOptions) && product.firmnessOptions.length > 1 && (
+                <FirmnessSizeSelector
+                  label="Variant"
+                  options={product.firmnessOptions}
+                  selected={selectedFirmness}
+                  onChange={setSelectedFirmness}
+                />
+              )}
 
-              <FirmnessSizeSelector
-                label="Size"
-                options={product.sizeOptions}
-                selected={selectedSize}
-                onChange={setSelectedSize}
-              />
+              {Array.isArray(product.sizeOptions) && product.sizeOptions.length > 1 && (
+                <FirmnessSizeSelector
+                  label="Size"
+                  options={product.sizeOptions}
+                  selected={selectedSize}
+                  onChange={setSelectedSize}
+                />
+              )}
 
               <div style={qtyFieldStyle} className="detail-option-control detail-qty-field">
                 <label style={qtyLabelStyle}>Quantity</label>
@@ -768,23 +904,16 @@ export default function ProductDetailView({ productId: initialProductId }) {
             <p style={descriptionStyle}>{product.description}</p>
           </div>
 
-          <div style={deliveryBoxStyle}>
-            <div style={deliveryItemStyle}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5">
-                <rect x="1" y="3" width="15" height="13" />
-                <polygon points="16 8 20 8 23 11 23 16 16 16" />
-                <circle cx="5.5" cy="18.5" r="2.5" />
-                <circle cx="18.5" cy="18.5" r="2.5" />
-              </svg>
-              <span style={deliveryTextStyle}>Free shipping on orders over ₹{Number(settings?.shipping?.freeShippingAmount || 5000).toLocaleString("en-IN")}</span>
+          {activeDeliveryPerks.length > 0 && (
+            <div style={deliveryBoxStyle}>
+              {activeDeliveryPerks.map((perk, idx) => (
+                <div key={perk.id || idx} style={deliveryItemStyle}>
+                  {renderDeliveryPerkIcon(perk.icon)}
+                  <span style={deliveryTextStyle}>{perk.text}</span>
+                </div>
+              ))}
             </div>
-            <div style={deliveryItemStyle}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-              <span style={deliveryTextStyle}>100-night trial with free pickups and full refunds</span>
-            </div>
-          </div>
+          )}
 
         </div>
       </div>
@@ -979,8 +1108,9 @@ export default function ProductDetailView({ productId: initialProductId }) {
         <div
           style={viewerOverlayStyle}
           className="image-viewer"
-          onTouchStart={(event) => setTouchStartX(event.touches[0].clientX)}
-          onTouchEnd={handleImageTouchEnd}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
           role="dialog"
           aria-modal="true"
           aria-label={`${product.name} image viewer`}
@@ -999,7 +1129,7 @@ export default function ProductDetailView({ productId: initialProductId }) {
             </svg>
           </button>
 
-          <img src={product.images[activeImgIndex] || product.images[0]} alt={product.name} style={viewerImageStyle} />
+          <img src={galleryImages[activeImgIndex] || galleryImages[0] || product.images?.[0]} alt={product.name} style={viewerImageStyle} />
 
           <button onClick={showNextImage} style={{ ...viewerNavBtnStyle, right: "14px" }} aria-label="Next image">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
@@ -1008,7 +1138,7 @@ export default function ProductDetailView({ productId: initialProductId }) {
             </svg>
           </button>
 
-          <span style={viewerCountStyle}>{activeImgIndex + 1} / {product.images.length}</span>
+          <span style={viewerCountStyle}>{activeImgIndex + 1} / {galleryImages.length || product.images?.length || 1}</span>
         </div>
       )}
 
@@ -1190,10 +1320,23 @@ export default function ProductDetailView({ productId: initialProductId }) {
             overflow-x: auto !important;
             display: grid !important;
             grid-auto-flow: column !important;
-            grid-auto-columns: minmax(220px, 68vw) !important;
+            grid-auto-columns: minmax(240px, 75vw) !important;
             grid-template-columns: none !important;
             gap: 14px !important;
-            padding-bottom: 12px !important;
+            padding: 4px 16px 12px !important;
+            margin: 0 -16px !important;
+            scroll-snap-type: x mandatory;
+            scroll-padding-left: 16px !important;
+            -webkit-overflow-scrolling: touch !important;
+            scrollbar-width: none !important;
+            -ms-overflow-style: none !important;
+          }
+          .recommendations-row::-webkit-scrollbar {
+            display: none !important;
+          }
+          .recommendations-row > * {
+            scroll-snap-align: start;
+            min-width: 0 !important;
           }
           .detail-option-row {
             display: grid !important;
@@ -1264,6 +1407,15 @@ export default function ProductDetailView({ productId: initialProductId }) {
             font-size: 12px !important;
           }
         }
+
+        .gallery-slider-track {
+          display: flex !important;
+          width: 100% !important;
+          height: 100% !important;
+          user-select: none !important;
+          -webkit-user-drag: none !important;
+          touch-action: pan-y !important;
+        }
       `}</style>
     </div>
   );
@@ -1295,6 +1447,51 @@ function HeartIcon({ filled }) {
       <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
     </svg>
   );
+}
+
+function renderDeliveryPerkIcon(iconType) {
+  switch (iconType) {
+    case "truck":
+    case "shipping":
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5" style={{ flexShrink: 0 }}>
+          <rect x="1" y="3" width="15" height="13" />
+          <polygon points="16 8 20 8 23 11 23 16 16 16" />
+          <circle cx="5.5" cy="18.5" r="2.5" />
+          <circle cx="18.5" cy="18.5" r="2.5" />
+        </svg>
+      );
+    case "shield":
+    case "warranty":
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5" style={{ flexShrink: 0 }}>
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        </svg>
+      );
+    case "box":
+    case "return":
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5" style={{ flexShrink: 0 }}>
+          <polyline points="1 4 1 10 7 10" />
+          <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+        </svg>
+      );
+    case "clock":
+    case "speed":
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5" style={{ flexShrink: 0 }}>
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
+        </svg>
+      );
+    case "check":
+    default:
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5" style={{ flexShrink: 0 }}>
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      );
+  }
 }
 
 // Styling Object Configurations
@@ -1797,7 +1994,8 @@ const carouselHeadingStyle = {
 const recommendationsGridStyle = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-  gap: "30px"
+  gap: "30px",
+  scrollbarWidth: "none"
 };
 
 const mockQuestionStyle = {

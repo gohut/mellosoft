@@ -1,19 +1,26 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { useAdmin } from "../context/AdminContext";
+import { useAdminAuth } from "../../context/AdminAuthContext";
 import {
   Bell,
   Settings,
   Menu,
   ChevronRight,
+  ChevronDown,
   X,
   Search,
   ExternalLink,
   Package,
   ShoppingCart,
   Users,
-  AlertCircle
+  AlertCircle,
+  Check,
+  LogOut,
+  Shield,
+  UserCheck
 } from "lucide-react";
 import { formatPrice } from "../../utils/currency";
 
@@ -63,6 +70,9 @@ export default function AdminHeader() {
     setSelectedProductId,
     currentUser,
     currentUserRole,
+    users = [],
+    roles = [],
+    switchUser,
     hasPermission,
     getFirstAllowedAdminView,
     products = [],
@@ -70,11 +80,17 @@ export default function AdminHeader() {
     customers = [],
   } = useAdmin();
 
+  const { logout } = useAdminAuth();
+  const router = useRouter();
+
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [switchToast, setSwitchToast] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [showSearchResults, setShowSearchResults] = useState(false);
   const searchContainerRef = useRef(null);
+  const profileMenuRef = useRef(null);
 
   // Debounce search input (300ms)
   useEffect(() => {
@@ -84,11 +100,14 @@ export default function AdminHeader() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Close search results popup on outside click
+  // Close search results and profile dropdown on outside click
   useEffect(() => {
     function handleClickOutside(e) {
       if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
         setShowSearchResults(false);
+      }
+      if (profileMenuRef.current && !profileMenuRef.current.contains(e.target)) {
+        setShowProfileMenu(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -181,6 +200,30 @@ export default function AdminHeader() {
     return "#1B1F8C";
   })();
 
+  const getRoleMeta = (rName = "") => {
+    const lower = rName.toLowerCase();
+    if (lower.includes("super")) return { badgeBg: "#EEF2FF", badgeColor: "#4F46E5", border: "#C7D2FE", scope: "Full Unrestricted Access" };
+    if (lower.includes("admin")) return { badgeBg: "#E0F2FE", badgeColor: "#0284C7", border: "#BAE6FD", scope: "Catalog & Store Ops" };
+    if (lower.includes("manager")) return { badgeBg: "#FEF3C7", badgeColor: "#D97706", border: "#FDE68A", scope: "Orders & Inventory" };
+    return { badgeBg: "#F3F4F6", badgeColor: "#4B5563", border: "#E5E7EB", scope: "Read-Only Auditor" };
+  };
+
+  const handleSwitchRole = (targetUserId) => {
+    if (!switchUser) return;
+    const res = switchUser(targetUserId);
+    if (res?.success) {
+      setSwitchToast(`Switched active account to ${res.user.name} (${res.role.name})`);
+      setTimeout(() => setSwitchToast(null), 3000);
+    }
+    setShowProfileMenu(false);
+  };
+
+  const handleLogout = () => {
+    setShowProfileMenu(false);
+    if (logout) logout();
+    router.replace("/admin/login");
+  };
+
   return (
     <header
       className="admin-header"
@@ -197,12 +240,17 @@ export default function AdminHeader() {
         padding: "0 24px",
         zIndex: 800,
         gap: "16px",
+        width: "100%",
+        boxSizing: "border-box",
       }}
     >
       {/* ── Left: Mobile Hamburger & Breadcrumb ── */}
-      <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0, flexShrink: 0 }}>
+      <div
+        className="admin-header-left"
+        style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0, flexShrink: 1, overflow: "hidden" }}
+      >
         <button
-          className="admin-mobile-only"
+          className="admin-mobile-only admin-header-icon-btn"
           onClick={toggleMobileSidebar}
           style={{
             width: "36px",
@@ -217,21 +265,37 @@ export default function AdminHeader() {
           }}
           aria-label="Open sidebar"
         >
-          <Menu size={20} color="#14151A" />
+          <Menu size={18} color="#14151A" />
         </button>
 
-        <nav style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", color: "#6B6B75", overflow: "hidden" }}>
-          <button
-            onClick={() => navigateTo("dashboard")}
-            style={crumbBtnStyle}
-            onMouseEnter={(e) => { e.currentTarget.style.color = "#1B1F8C"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = "#6B6B75"; }}
-          >
-            Admin
-          </button>
+        <nav
+          className={`admin-header-breadcrumbs ${crumbs.length > 0 ? "admin-header-has-crumbs" : ""}`}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+            fontSize: "13px",
+            color: "#6B6B75",
+            overflow: "hidden",
+            minWidth: 0,
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          <span className="admin-header-crumb-root" style={{ display: "inline-flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
+            <button
+              onClick={() => navigateTo("dashboard")}
+              style={crumbBtnStyle}
+              onMouseEnter={(e) => { e.currentTarget.style.color = "#1B1F8C"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = "#6B6B75"; }}
+            >
+              Admin
+            </button>
+            {crumbs.length > 0 && <ChevronRight size={14} color="#C0C0BA" style={{ flexShrink: 0 }} />}
+          </span>
           {crumbs.map((crumb, i) => (
             <React.Fragment key={i}>
-              <ChevronRight size={14} color="#C0C0BA" style={{ flexShrink: 0 }} />
+              {i > 0 && <ChevronRight size={14} color="#C0C0BA" style={{ flexShrink: 0 }} />}
               {crumb.nav ? (
                 <button
                   onClick={() => navigateTo(crumb.nav)}
@@ -242,7 +306,20 @@ export default function AdminHeader() {
                   {crumb.label}
                 </button>
               ) : (
-                <span style={{ color: "#14151A", fontWeight: 600, whiteSpace: "nowrap" }}>{crumb.label}</span>
+                <span
+                  style={{
+                    color: "#14151A",
+                    fontWeight: 700,
+                    fontSize: "13.5px",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    maxWidth: "115px",
+                    display: "inline-block",
+                  }}
+                >
+                  {crumb.label}
+                </span>
               )}
             </React.Fragment>
           ))}
@@ -438,52 +515,40 @@ export default function AdminHeader() {
       </div>
 
       {/* ── Right: View Store, Notifications, Profile ── */}
-      <div style={{ display: "flex", alignItems: "center", gap: "10px", flexShrink: 0, marginLeft: "auto" }}>
+      <div
+        className="admin-header-right"
+        style={{ display: "flex", alignItems: "center", gap: "10px", flexShrink: 0, marginLeft: "auto" }}
+      >
         {/* View Store Button */}
         <a
           href="/"
           target="_blank"
           rel="noopener noreferrer"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "6px",
-            height: "36px",
-            padding: "0 14px",
-            backgroundColor: "#F7F7F2",
-            border: "1px solid #E7E7E2",
-            borderRadius: "8px",
-            color: "#14151A",
-            fontSize: "13px",
-            fontWeight: 600,
-            textDecoration: "none",
-            transition: "all 0.15s ease",
-            whiteSpace: "nowrap",
-          }}
+          className="admin-header-icon-btn admin-header-view-store"
+          style={iconBtnStyle}
           onMouseEnter={(e) => {
             e.currentTarget.style.backgroundColor = "#FFFFFF";
             e.currentTarget.style.borderColor = "#1B1F8C";
-            e.currentTarget.style.color = "#1B1F8C";
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = "#F7F7F2";
+            e.currentTarget.style.backgroundColor = "#FFFFFF";
             e.currentTarget.style.borderColor = "#E7E7E2";
-            e.currentTarget.style.color = "#14151A";
           }}
-          title="Open Storefront home in new tab"
+          title="Open Storefront in new tab"
+          aria-label="View Storefront"
         >
-          <span>View Store</span>
-          <ExternalLink size={14} />
+          <ExternalLink size={18} color="#6B6B75" />
         </a>
 
         {/* Notifications Button & Dropdown */}
         <div style={{ position: "relative" }}>
           <button
             onClick={() => setShowNotifications(!showNotifications)}
+            className="admin-header-icon-btn"
             style={iconBtnStyle}
             aria-label="Notifications"
           >
-            <Bell size={19} color="#6B6B75" />
+            <Bell size={18} color="#6B6B75" />
             {unreadCount > 0 && (
               <span
                 style={{
@@ -510,6 +575,7 @@ export default function AdminHeader() {
 
           {showNotifications && (
             <div
+              className="admin-notifications-dropdown"
               style={{
                 position: "absolute",
                 top: "calc(100% + 8px)",
@@ -666,65 +732,288 @@ export default function AdminHeader() {
 
         {/* Settings button if permitted */}
         {hasPermission("settings", "view") && (
-          <button onClick={() => navigateTo("settings")} style={iconBtnStyle} aria-label="Settings">
-            <Settings size={19} color="#6B6B75" />
+          <button onClick={() => navigateTo("settings")} className="admin-header-icon-btn" style={iconBtnStyle} aria-label="Settings">
+            <Settings size={18} color="#6B6B75" />
           </button>
         )}
 
-        {/* Admin Profile Display (Avatar + Name with role-based color) */}
-        <button
-          onClick={() => {
-            if (hasPermission("users", "view") || hasPermission("roles", "view")) {
-              navigateTo("users-roles");
-            } else if (getFirstAllowedAdminView) {
-              navigateTo(getFirstAllowedAdminView());
-            }
-          }}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "10px",
-            border: "1px solid #E7E7E2",
-            backgroundColor: "#FFFFFF",
-            cursor: "pointer",
-            padding: "5px 12px 5px 6px",
-            borderRadius: "10px",
-            transition: "all 0.15s ease",
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#F7F7F2"; e.currentTarget.style.borderColor = roleColor; }}
-          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "#FFFFFF"; e.currentTarget.style.borderColor = "#E7E7E2"; }}
-          title={`${adminName} (${roleName})`}
-        >
-          <div
+        {/* Admin Profile & Role Switcher */}
+        <div ref={profileMenuRef} style={{ position: "relative" }}>
+          <button
+            onClick={() => setShowProfileMenu((prev) => !prev)}
+            className="admin-header-profile-btn"
             style={{
-              width: "32px",
-              height: "32px",
-              borderRadius: "8px",
-              backgroundColor: roleColor,
-              color: "#FFFFFF",
               display: "flex",
               alignItems: "center",
-              justifyContent: "center",
-              fontSize: "13px",
-              fontWeight: 700,
+              gap: "8px",
+              border: "1px solid #E7E7E2",
+              backgroundColor: showProfileMenu ? "#F7F7F2" : "#FFFFFF",
+              cursor: "pointer",
+              padding: "5px 10px 5px 6px",
+              borderRadius: "10px",
+              transition: "all 0.15s ease",
               flexShrink: 0,
             }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#F7F7F2"; e.currentTarget.style.borderColor = roleColor; }}
+            onMouseLeave={(e) => { if (!showProfileMenu) { e.currentTarget.style.backgroundColor = "#FFFFFF"; e.currentTarget.style.borderColor = "#E7E7E2"; } }}
+            title={`${adminName} (${roleName}) — Click to switch role`}
+            aria-label="Admin Profile & Role Switcher"
           >
-            {avatarLetter}
-          </div>
-          <div
-            className="admin-desktop-only"
-            style={{
-              fontSize: "13px",
-              fontWeight: 700,
-              color: roleColor,
-              whiteSpace: "nowrap",
-            }}
-          >
-            {adminName}
-          </div>
-        </button>
+            <div
+              style={{
+                width: "32px",
+                height: "32px",
+                borderRadius: "8px",
+                backgroundColor: roleColor,
+                color: "#FFFFFF",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "13px",
+                fontWeight: 700,
+                flexShrink: 0,
+              }}
+            >
+              {avatarLetter}
+            </div>
+            <div
+              className="admin-desktop-only"
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "flex-start",
+                lineHeight: 1.2,
+                textAlign: "left"
+              }}
+            >
+              <span style={{ fontSize: "13px", fontWeight: 700, color: "#14151A" }}>{adminName}</span>
+              <span style={{ fontSize: "10.5px", fontWeight: 600, color: roleColor }}>{roleName}</span>
+            </div>
+            <ChevronDown
+              size={14}
+              color="#6B6B75"
+              style={{
+                transition: "transform 0.2s ease",
+                transform: showProfileMenu ? "rotate(180deg)" : "none",
+                marginLeft: "2px"
+              }}
+            />
+          </button>
+
+          {/* Profile & Role Switcher Dropdown */}
+          {showProfileMenu && (
+            <div
+              className="admin-profile-dropdown"
+              style={{
+                position: "absolute",
+                top: "calc(100% + 8px)",
+                right: 0,
+                width: "320px",
+                backgroundColor: "#FFFFFF",
+                borderRadius: "14px",
+                border: "1px solid #E7E7E2",
+                boxShadow: "0 12px 36px rgba(0,0,0,0.14)",
+                zIndex: 990,
+                animation: "adminScaleIn 0.2s ease-out",
+                overflow: "hidden",
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
+              {/* Active User Card */}
+              <div style={{ padding: "16px", backgroundColor: "#FAFAF7", borderBottom: "1px solid #E7E7E2" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <div style={{
+                    width: "40px", height: "40px", borderRadius: "10px",
+                    backgroundColor: roleColor, color: "#FFFFFF",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: "16px", fontWeight: 700, flexShrink: 0,
+                  }}>
+                    {avatarLetter}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: "14px", fontWeight: 700, color: "#14151A", display: "flex", alignItems: "center", gap: "6px" }}>
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{adminName}</span>
+                      <span style={{ fontSize: "10px", color: "#16A34A", fontWeight: 700 }}>(Active)</span>
+                    </div>
+                    <div style={{ fontSize: "11.5px", color: "#6B6B75", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: "1px" }}>
+                      {currentUser?.email || "admin@mellosoft.com"}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: "12px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{
+                    fontSize: "11px", fontWeight: 700, padding: "3px 8px", borderRadius: "6px",
+                    backgroundColor: getRoleMeta(roleName).badgeBg,
+                    color: getRoleMeta(roleName).badgeColor,
+                    border: `1px solid ${getRoleMeta(roleName).border}`
+                  }}>
+                    {roleName}
+                  </span>
+                  <span style={{ fontSize: "11px", color: "#6B6B75", fontWeight: 500 }}>
+                    {getRoleMeta(roleName).scope}
+                  </span>
+                </div>
+              </div>
+
+              {/* Quick Role Switcher List */}
+              <div style={{ padding: "12px 14px", borderBottom: "1px solid #E7E7E2" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
+                  <Shield size={13} color="#1B1F8C" />
+                  <span style={{ fontSize: "11px", fontWeight: 700, color: "#1B1F8C", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    Switch Role (Demo & Testing)
+                  </span>
+                </div>
+                <p style={{ fontSize: "11.5px", color: "#6B6B75", margin: "0 0 10px 0", lineHeight: 1.3 }}>
+                  Select an account to test live dynamic permissions:
+                </p>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxHeight: "200px", overflowY: "auto" }}>
+                  {users.map((u) => {
+                    const uRole = roles.find((r) => r.id === u.roleId) || { name: "User" };
+                    const isCurrent = u.id === currentUser?.id;
+                    const meta = getRoleMeta(uRole.name);
+
+                    return (
+                      <button
+                        key={u.id}
+                        type="button"
+                        onClick={() => handleSwitchRole(u.id)}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          padding: "8px 10px",
+                          borderRadius: "8px",
+                          border: `1px solid ${isCurrent ? "#1B1F8C" : "#E7E7E2"}`,
+                          backgroundColor: isCurrent ? "#EEF0FB" : "#FFFFFF",
+                          cursor: "pointer",
+                          textAlign: "left",
+                          transition: "all 0.15s ease",
+                        }}
+                        onMouseEnter={(e) => { if (!isCurrent) e.currentTarget.style.backgroundColor = "#F7F7F2"; }}
+                        onMouseLeave={(e) => { if (!isCurrent) e.currentTarget.style.backgroundColor = "#FFFFFF"; }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0 }}>
+                          <div style={{
+                            width: "24px", height: "24px", borderRadius: "6px",
+                            backgroundColor: meta.badgeBg, color: meta.badgeColor,
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            fontSize: "11px", fontWeight: 700, flexShrink: 0
+                          }}>
+                            {u.name.charAt(0)}
+                          </div>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: "12px", fontWeight: isCurrent ? 700 : 600, color: "#14151A", display: "flex", alignItems: "center", gap: "6px" }}>
+                              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.name}</span>
+                            </div>
+                            <div style={{ fontSize: "10.5px", color: meta.badgeColor, fontWeight: 600 }}>
+                              {uRole.name} • {meta.scope}
+                            </div>
+                          </div>
+                        </div>
+
+                        {isCurrent ? (
+                          <div style={{ width: "18px", height: "18px", borderRadius: "50%", backgroundColor: "#1B1F8C", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            <Check size={11} color="#FFFFFF" strokeWidth={3} />
+                          </div>
+                        ) : (
+                          <span style={{ fontSize: "11px", color: "#6B6B75", fontWeight: 500 }}>Switch</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Footer Links */}
+              <div style={{ padding: "8px 10px", display: "flex", flexDirection: "column", gap: "2px" }}>
+                {(hasPermission("users", "view") || hasPermission("roles", "view")) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowProfileMenu(false);
+                      navigateTo("users-roles");
+                    }}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      padding: "8px 10px",
+                      borderRadius: "8px",
+                      border: "none",
+                      backgroundColor: "transparent",
+                      color: "#14151A",
+                      fontSize: "12.5px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      textAlign: "left",
+                      width: "100%",
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#F7F7F2"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+                  >
+                    <UserCheck size={15} color="#1B1F8C" />
+                    <span>Manage Users & Roles</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    padding: "8px 10px",
+                    borderRadius: "8px",
+                    border: "none",
+                    backgroundColor: "transparent",
+                    color: "#DC2626",
+                    fontSize: "12.5px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    textAlign: "left",
+                    width: "100%",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#FEE2E2"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+                >
+                  <LogOut size={15} color="#DC2626" />
+                  <span>Log Out</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Dynamic Switch Toast */}
+      {switchToast && (
+        <div
+          style={{
+            position: "fixed",
+            top: "76px",
+            right: "24px",
+            zIndex: 99999,
+            backgroundColor: "#1B1F8C",
+            color: "#FFFFFF",
+            padding: "10px 18px",
+            borderRadius: "10px",
+            fontWeight: 600,
+            fontSize: "13px",
+            boxShadow: "0 6px 20px rgba(27,31,140,0.3)",
+            animation: "adminFadeIn 0.25s ease",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+          }}
+        >
+          <Check size={16} color="#86EFAC" strokeWidth={2.5} />
+          <span>{switchToast}</span>
+        </div>
+      )}
     </header>
   );
 }

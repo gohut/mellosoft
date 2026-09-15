@@ -216,8 +216,10 @@ export default function UsersAndRolesView() {
       case "role-admin":
         return { bg: "#E0F2FE", color: "#0284C7", border: "#BAE6FD" };
       case "role-manager":
+      case "role-order-manager":
         return { bg: "#FEF3C7", color: "#D97706", border: "#FDE68A" };
       case "role-staff":
+      case "role-content-manager":
         return { bg: "#F3F4F6", color: "#4B5563", border: "#E5E7EB" };
       default:
         return { bg: "#ECFDF5", color: "#059669", border: "#A7F3D0" };

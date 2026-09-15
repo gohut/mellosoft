@@ -31,7 +31,7 @@ export default function SearchView() {
   };
 
   return (
-    <div style={containerStyle}>
+    <div style={containerStyle} className="search-page-container">
       {/* Search Header Wrapper */}
       <div style={searchHeaderBoxStyle}>
         <div style={inputWrapperStyle}>
@@ -139,11 +139,20 @@ export default function SearchView() {
 
       <style>{`
         @media (max-width: 767px) {
+          .search-page-container {
+            padding: 16px 14px 60px 14px !important;
+          }
           .search-grid {
             display: grid !important;
-            grid-template-columns: repeat(2, 1fr) !important;
-            gap: 14px !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 10px !important;
             overflow-x: visible !important;
+          }
+        }
+        @media (max-width: 310px) {
+          .search-grid {
+            grid-template-columns: 1fr !important;
+            gap: 14px !important;
           }
         }
       `}</style>

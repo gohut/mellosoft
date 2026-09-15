@@ -114,6 +114,16 @@ export default function AuthModal({ type = "login", onClose }) {
         }
         .auth-modal-card {
           animation: authModalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          scrollbar-width: none !important;
+          -ms-overflow-style: none !important;
+        }
+        .auth-modal-card::-webkit-scrollbar,
+        .auth-modal-card *::-webkit-scrollbar,
+        .auth-modal-overlay::-webkit-scrollbar,
+        .auth-modal-overlay *::-webkit-scrollbar {
+          display: none !important;
+          width: 0 !important;
+          height: 0 !important;
         }
         .auth-close-btn:hover {
           background-color: #E7E7E2 !important;
@@ -800,6 +810,8 @@ const modalCardStyle = {
   maxWidth: "480px",
   maxHeight: "90vh",
   overflowY: "auto",
+  scrollbarWidth: "none",
+  msOverflowStyle: "none",
   backgroundColor: "#FFFFFF",
   borderRadius: "24px",
   boxShadow: "0 20px 60px rgba(0, 0, 0, 0.2), 0 4px 16px rgba(0, 0, 0, 0.08)",

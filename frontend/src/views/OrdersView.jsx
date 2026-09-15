@@ -676,7 +676,7 @@ export default function OrdersView() {
 
           @media (max-width: 768px) {
             .orders-detail-container {
-              padding: 16px 16px 40px !important;
+              padding: 20px 14px 40px !important;
             }
             .orders-detail-header-top {
               flex-direction: column !important;
@@ -726,13 +726,22 @@ export default function OrdersView() {
 
           @media (max-width: 480px) {
             .orders-detail-container {
-              padding: 12px 12px 32px !important;
+              padding: 16px 10px 32px !important;
             }
             .order-item-card-inner {
-              flex-direction: column !important;
+              display: flex !important;
+              flex-direction: row !important;
               align-items: flex-start !important;
+              gap: 12px !important;
+            }
+            .item-card-image {
+              width: 64px !important;
+              height: 64px !important;
+              border-radius: 10px !important;
+              flex-shrink: 0 !important;
             }
             .order-item-qty-row {
+              display: flex !important;
               flex-direction: column !important;
               align-items: flex-start !important;
               gap: 4px !important;
@@ -1277,10 +1286,14 @@ export default function OrdersView() {
           box-sizing: border-box;
         }
         @media (max-width: 767px) {
+          .orders-container {
+            padding: 20px 14px 48px !important;
+          }
           .orders-card-top-bar {
             flex-direction: column !important;
             align-items: flex-start !important;
             gap: 10px !important;
+            padding: 14px 14px !important;
           }
           .orders-card-top-bar-badges {
             width: 100%;
@@ -1290,6 +1303,7 @@ export default function OrdersView() {
             flex-direction: column !important;
             align-items: stretch !important;
             gap: 16px !important;
+            padding: 16px 14px !important;
           }
           .orders-card-left {
             width: 100% !important;
@@ -1308,20 +1322,55 @@ export default function OrdersView() {
             padding-top: 12px;
             border-top: 1px dashed #E7E7E2;
           }
+          .orders-header-title-box {
+            margin-bottom: 20px !important;
+          }
+          .orders-page-title {
+            font-size: 26px !important;
+          }
+          .orders-tab-wrapper {
+            margin-bottom: 20px !important;
+          }
+          .orders-tab-selector {
+            width: 100% !important;
+            display: flex !important;
+            box-sizing: border-box !important;
+          }
+          .orders-tab-btn {
+            flex: 1 !important;
+            text-align: center !important;
+            padding: 10px 14px !important;
+          }
+        }
+        @media (max-width: 480px) {
+          .orders-container {
+            padding: 16px 10px 40px !important;
+          }
+          .orders-card-top-bar {
+            padding: 12px 12px !important;
+          }
+          .orders-card-body {
+            padding: 14px 12px !important;
+          }
+          .orders-tab-btn {
+            padding: 8px 10px !important;
+            font-size: 13px !important;
+          }
         }
       `}</style>
 
       {/* Page Title & Subtitle */}
-      <div style={headerTitleBoxStyle}>
-        <h1 style={pageTitleStyle}>My Orders</h1>
+      <div style={headerTitleBoxStyle} className="orders-header-title-box">
+        <h1 style={pageTitleStyle} className="orders-page-title">My Orders</h1>
         <p style={pageSubtitleStyle}>View and track your recent purchases and order history.</p>
       </div>
 
       {/* Two-Option Tab Selector */}
-      <div style={{ display: "flex", justifyContent: "flex-start", marginBottom: "28px" }}>
-        <div style={tabSelectorContainerStyle}>
+      <div style={{ display: "flex", justifyContent: "flex-start", marginBottom: "28px" }} className="orders-tab-wrapper">
+        <div style={tabSelectorContainerStyle} className="orders-tab-selector">
           <button
             onClick={() => setActiveTab("orders")}
+            className="orders-tab-btn"
             style={{
               ...tabButtonStyle,
               ...(activeTab === "orders" ? activeTabStyle : inactiveTabStyle)
@@ -1331,6 +1380,7 @@ export default function OrdersView() {
           </button>
           <button
             onClick={() => setActiveTab("delivered")}
+            className="orders-tab-btn"
             style={{
               ...tabButtonStyle,
               ...(activeTab === "delivered" ? activeTabStyle : inactiveTabStyle)

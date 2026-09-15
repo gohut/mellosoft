@@ -1,14 +1,16 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useAdmin } from "../context/AdminContext";
 import HeroSlideCard from "../../components/HeroSlideCard";
 import PromoBannerCard from "../../components/PromoBannerCard";
 import PromoBannerRenderer from "../../components/PromoBannerRenderer";
+import ShopByCategoryTab from "../components/ShopByCategoryTab";
 import {
   LayoutList, Image as ImageIcon, Plus, Edit2, Trash2,
   CheckCircle2, XCircle, Search, GripVertical,
-  Eye, EyeOff, Check, ChevronRight, ChevronDown, Star, Tag, Zap, Package, Info, AlertTriangle, Award
+  Eye, EyeOff, Check, ChevronRight, ChevronDown, Star, Tag, Zap, Package, Info, AlertTriangle, Award, X
 } from "lucide-react";
 import {
   isProductInCategory,
@@ -33,11 +35,12 @@ const DESTINATION_OPTIONS = [
 
 // ─── Tab definitions ───────────────────────────────────────────────────────────
 const TABS = [
-  { id: "homepage-layout", label: "Homepage Layout",   icon: LayoutList },
-  { id: "hero-slides",     label: "Hero Slides",       icon: Star },
-  { id: "promo-banners",   label: "Promo Banners",     icon: Tag },
-  { id: "new-arrivals",    label: "New Arrivals",      icon: Zap },
-  { id: "best-sellers",    label: "Best Sellers",      icon: Award },
+  { id: "homepage-layout",  label: "Homepage Layout",   icon: LayoutList },
+  { id: "shop-by-category", label: "Shop by Category",  icon: Package },
+  { id: "hero-slides",      label: "Hero Slides",       icon: Star },
+  { id: "promo-banners",    label: "Promo Banners",     icon: Tag },
+  { id: "new-arrivals",     label: "New Arrivals",      icon: Zap },
+  { id: "best-sellers",     label: "Best Sellers",      icon: Award },
 ];
 
 // ─── Section icons for Homepage Layout ────────────────────────────────────────
@@ -94,11 +97,12 @@ export default function ContentView() {
   // Derive dynamic tabs (built-in + custom sections) without infinite loop
   const dynamicTabs = React.useMemo(() => {
     const builtInTabs = [
-      { id: "homepage-layout", label: "Homepage Layout", icon: LayoutList },
-      { id: "hero-slides",     label: "Hero Slides",     icon: Star },
-      { id: "promo-banners",   label: "Promo Banners",   icon: Tag },
-      { id: "new-arrivals",    label: "New Arrivals",    icon: Zap },
-      { id: "best-sellers",    label: "Best Sellers",    icon: Award },
+      { id: "homepage-layout",  label: "Homepage Layout",  icon: LayoutList },
+      { id: "shop-by-category", label: "Shop by Category", icon: Package },
+      { id: "hero-slides",      label: "Hero Slides",      icon: Star },
+      { id: "promo-banners",    label: "Promo Banners",    icon: Tag },
+      { id: "new-arrivals",     label: "New Arrivals",     icon: Zap },
+      { id: "best-sellers",     label: "Best Sellers",     icon: Award },
     ];
 
     const customSections = (homepageConfig?.sections || []).filter((s) => s.isCustom);
@@ -114,13 +118,16 @@ export default function ContentView() {
   }, [homepageConfig]);
 
   const activeTabRef = useRef(null);
+  const tabListRef = useRef(null);
 
   React.useEffect(() => {
-    if (activeTabRef.current) {
-      activeTabRef.current.scrollIntoView({
-        behavior: "smooth",
-        inline: "center",
-        block: "nearest"
+    if (activeTabRef.current && tabListRef.current) {
+      const container = tabListRef.current;
+      const button = activeTabRef.current;
+      const scrollTarget = button.offsetLeft - (container.clientWidth / 2) + (button.clientWidth / 2);
+      container.scrollTo({
+        left: Math.max(0, scrollTarget),
+        behavior: "smooth"
       });
     }
   }, [activeTab]);
@@ -142,7 +149,7 @@ export default function ContentView() {
 
         @media (max-width: 768px) {
           .admin-fade-in, .content-page-container {
-            padding: 12px 12px 40px 12px !important;
+            padding: 0 !important;
             width: 100% !important;
             max-width: 100% !important;
             min-width: 0 !important;
@@ -155,30 +162,38 @@ export default function ContentView() {
             gap: 12px !important;
             margin-bottom: 16px !important;
             width: 100% !important;
+            max-width: 100% !important;
             min-width: 0 !important;
+            box-sizing: border-box !important;
           }
           .content-title-text {
             font-size: 22px !important;
+            word-break: break-word !important;
           }
           .content-subtitle-text {
             font-size: 13px !important;
+            word-break: break-word !important;
           }
           .content-tab-bar {
             width: 100% !important;
+            max-width: 100% !important;
             min-width: 0 !important;
             overflow-x: hidden !important;
+            box-sizing: border-box !important;
           }
           .content-tab-list {
             overflow-x: auto !important;
             -webkit-overflow-scrolling: touch !important;
             width: 100% !important;
+            max-width: 100% !important;
             min-width: 0 !important;
             gap: 8px !important;
             padding-bottom: 6px !important;
+            box-sizing: border-box !important;
           }
           .content-tab-list > button {
             flex: 0 0 auto !important;
-            min-height: 42px !important;
+            min-height: 40px !important;
             padding: 8px 14px !important;
             font-size: 13px !important;
           }
@@ -186,27 +201,42 @@ export default function ContentView() {
             grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
             gap: 10px !important;
             width: 100% !important;
+            max-width: 100% !important;
             min-width: 0 !important;
+            box-sizing: border-box !important;
           }
           .content-stat-card {
-            padding: 14px 12px !important;
+            padding: 12px 10px !important;
             min-width: 0 !important;
+            max-width: 100% !important;
+            overflow: hidden !important;
+            box-sizing: border-box !important;
           }
-          .content-stat-val {
+          .content-stat-card span {
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+            display: block !important;
+            font-size: 11.5px !important;
+          }
+          .content-stat-card strong, .content-stat-val {
             font-size: 20px !important;
+            display: block !important;
           }
           .content-filter-bar {
             flex-direction: column !important;
             align-items: stretch !important;
             gap: 10px !important;
             width: 100% !important;
+            max-width: 100% !important;
             min-width: 0 !important;
+            box-sizing: border-box !important;
           }
           .content-search-wrap, .content-select-filter {
             width: 100% !important;
             max-width: 100% !important;
             min-width: 0 !important;
-            height: 44px !important;
+            height: 42px !important;
             box-sizing: border-box !important;
           }
           .content-create-btn {
@@ -215,6 +245,7 @@ export default function ContentView() {
             min-height: 44px !important;
             padding: 12px !important;
             font-size: 14px !important;
+            box-sizing: border-box !important;
           }
           .content-desktop-table {
             display: none !important;
@@ -224,12 +255,16 @@ export default function ContentView() {
             flex-direction: column !important;
             gap: 12px !important;
             width: 100% !important;
+            max-width: 100% !important;
             min-width: 0 !important;
+            box-sizing: border-box !important;
           }
           .content-mobile-card {
             width: 100% !important;
+            max-width: 100% !important;
             min-width: 0 !important;
             box-sizing: border-box !important;
+            overflow: hidden !important;
           }
           .content-modal-card {
             width: calc(100vw - 24px) !important;
@@ -279,18 +314,58 @@ export default function ContentView() {
             grid-template-columns: 1fr !important;
             gap: 12px !important;
           }
+          .content-banner-modal-grid {
+            grid-template-columns: 1fr !important;
+            gap: 12px !important;
+          }
+        }
+
+        @media (max-width: 768px) {
+          .content-stats-grid {
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            overflow-x: auto !important;
+            overflow-y: hidden !important;
+            -webkit-overflow-scrolling: touch;
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+            gap: 12px !important;
+            padding: 2px 2px 6px 2px !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+            margin-bottom: 16px !important;
+          }
+          .content-stats-grid::-webkit-scrollbar {
+            display: none !important;
+            width: 0 !important;
+            height: 0 !important;
+          }
+          .content-stats-grid > div,
+          .content-stats-grid .content-stat-card {
+            flex: 0 0 170px !important;
+            min-width: 170px !important;
+            max-width: 200px !important;
+            flex-shrink: 0 !important;
+            box-sizing: border-box !important;
+            padding: 14px 16px !important;
+          }
         }
 
         @media (max-width: 480px) {
-          .content-stats-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-            gap: 8px !important;
+          .content-stats-grid > div,
+          .content-stats-grid .content-stat-card {
+            flex: 0 0 160px !important;
+            min-width: 160px !important;
+            max-width: 185px !important;
+            padding: 12px 14px !important;
           }
-          .content-stat-card {
-            padding: 12px 10px !important;
+          .content-stat-card span {
+            font-size: 11px !important;
           }
           .content-stat-val {
-            font-size: 18px !important;
+            font-size: 20px !important;
           }
         }
       `}</style>
@@ -322,6 +397,7 @@ export default function ContentView() {
       {/* Tab Bar with Horizontal Overflow & Plus Button */}
       <div style={tabBarStyle} className="content-tab-bar">
         <div
+          ref={tabListRef}
           style={{
             display: "flex",
             alignItems: "center",
@@ -419,6 +495,15 @@ export default function ContentView() {
             updateHomepageConfig={updateHomepageConfig}
             showToast={showToast}
             canEdit={canEdit}
+            setActiveTab={setActiveTab}
+          />
+        )}
+        {activeTab === "shop-by-category" && (
+          <ShopByCategoryTab
+            showToast={showToast}
+            canEdit={canEdit}
+            canCreate={canCreate}
+            canDelete={canDelete}
           />
         )}
         {activeTab === "hero-slides" && (
@@ -460,7 +545,7 @@ export default function ContentView() {
             showToast={showToast}
             title="Promo Banners"
             description="Manage promotional banners and special offer campaigns displayed on the homepage."
-            createLabel="Create Promo Banner"
+            createLabel="Add Promo Banner"
             emptyMsg="No promotional banners yet. Create your first promo banner to attract customers."
             defaultType="Promotion"
             filterType="Promotion"
@@ -508,7 +593,7 @@ export default function ContentView() {
 // ═══════════════════════════════════════════════════════════════════════════════
 // Homepage Layout Tab — drag-to-reorder sections with visibility toggles
 // ═══════════════════════════════════════════════════════════════════════════════
-function HomepageLayoutTab({ homepageConfig, updateHomepageConfig, showToast }) {
+function HomepageLayoutTab({ homepageConfig, updateHomepageConfig, showToast, setActiveTab }) {
   const sections = homepageConfig?.sections || [];
   const [dragOverId, setDragOverId] = useState(null);
   const [draggingId, setDraggingId] = useState(null);
@@ -577,23 +662,23 @@ function HomepageLayoutTab({ homepageConfig, updateHomepageConfig, showToast }) 
   return (
     <div>
       {/* Stats row */}
-      <div style={statsRowStyle}>
-        <div style={statCardStyle}>
+      <div style={statsRowStyle} className="content-stats-grid admin-sliding-tabs">
+        <div style={statCardStyle} className="content-stat-card">
           <span style={statLabelStyle}>Total Sections</span>
           <strong style={statValStyle}>{sections.length}</strong>
           <span style={statSubStyle}>Homepage sections configured</span>
         </div>
-        <div style={statCardStyle}>
+        <div style={statCardStyle} className="content-stat-card">
           <span style={statLabelStyle}>Visible Sections</span>
           <strong style={{ ...statValStyle, color: "#16A34A" }}>{visibleCount}</strong>
           <span style={statSubStyle}>Shown to customers</span>
         </div>
-        <div style={statCardStyle}>
+        <div style={statCardStyle} className="content-stat-card">
           <span style={statLabelStyle}>Hidden Sections</span>
           <strong style={{ ...statValStyle, color: "#DC2626" }}>{sections.length - visibleCount}</strong>
           <span style={statSubStyle}>Not displayed on homepage</span>
         </div>
-        <div style={statCardStyle}>
+        <div style={statCardStyle} className="content-stat-card">
           <span style={statLabelStyle}>Drag to Reorder</span>
           <strong style={{ ...statValStyle, color: "#1B1F8C" }}>☰</strong>
           <span style={statSubStyle}>Grab handle to change order</span>
@@ -688,6 +773,36 @@ function HomepageLayoutTab({ homepageConfig, updateHomepageConfig, showToast }) 
                 </p>
               </div>
 
+              {/* Quick shortcut to Shop by Category editor */}
+              {section.id === "shop-by-category" && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (setActiveTab) setActiveTab("shop-by-category");
+                  }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "5px",
+                    backgroundColor: "#EEF0FF",
+                    color: "#1B1F8C",
+                    border: "1px solid #C7CAF0",
+                    borderRadius: "8px",
+                    padding: "6px 12px",
+                    fontSize: "12px",
+                    fontWeight: "700",
+                    cursor: "pointer",
+                    marginRight: "8px",
+                    flexShrink: 0
+                  }}
+                  title="Configure Shop by Category tiles"
+                >
+                  <Edit2 size={12} />
+                  <span>Edit Categories</span>
+                </button>
+              )}
+
               {/* Visibility toggle button only */}
               <button
                 type="button"
@@ -750,6 +865,17 @@ function BannerTab({
   const [isManageTypesModalOpen, setIsManageTypesModalOpen] = useState(false);
   const [typeToDelete, setTypeToDelete] = useState(null);
   const [cannotDeleteModal, setCannotDeleteModal] = useState(null);
+
+  useEffect(() => {
+    if (isModalOpen || isAddTypeModalOpen || isManageTypesModalOpen || deleteModalBanner || cannotDeleteModal || typeToDelete) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isModalOpen, isAddTypeModalOpen, isManageTypesModalOpen, deleteModalBanner, cannotDeleteModal, typeToDelete]);
 
   // Drag and drop state
   const [draggingId, setDraggingId] = useState(null);
@@ -1022,7 +1148,7 @@ function BannerTab({
       </div>
 
       {/* Stats */}
-      <div style={statsRowStyle} className="content-stats-grid">
+      <div style={statsRowStyle} className="content-stats-grid admin-sliding-tabs">
         <div style={statCardStyle} className="content-stat-card">
           <span style={statLabelStyle}>Total</span>
           <strong style={statValStyle} className="content-stat-val">{totalInType.length}</strong>
@@ -1277,56 +1403,56 @@ function BannerTab({
             const displayImage = banner.image || (associatedProduct ? (associatedProduct.image || (associatedProduct.images && associatedProduct.images[0])) : "/asset/img2.jpg");
 
             return (
-              <div key={banner.id} style={{ backgroundColor: "#FFFFFF", border: "1px solid #E7E7E2", borderRadius: "14px", padding: "14px", display: "flex", gap: "12px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
-                <img src={displayImage} alt="" style={{ width: "80px", height: "80px", objectFit: "cover", borderRadius: "10px", flexShrink: 0 }} />
-                <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "4px" }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "6px" }}>
-                    <span style={orderBadgeStyle}>#{banner.displayOrder || (index + 1)}</span>
+              <div key={banner.id} style={{ backgroundColor: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: "16px", padding: "14px", display: "flex", gap: "12px", alignItems: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
+                <div style={{ position: "relative", width: "80px", height: "80px", borderRadius: "12px", overflow: "hidden", border: "1px solid #E5E7EB", flexShrink: 0, backgroundColor: "#F9FAFB" }}>
+                  <img src={displayImage} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <span style={{ position: "absolute", top: "4px", left: "4px", backgroundColor: "rgba(27, 31, 140, 0.92)", color: "#FFFFFF", fontSize: "11px", fontWeight: "800", padding: "2px 7px", borderRadius: "6px", lineHeight: 1.2, boxShadow: "0 2px 4px rgba(0,0,0,0.15)" }}>
+                    #{banner.displayOrder || (index + 1)}
+                  </span>
+                </div>
+                <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "3px" }}>
+                  <div>
                     <span style={getTypeBadgeStyle(banner.type)}>{banner.type || defaultType || "Offer"}</span>
                   </div>
-                  <strong style={{ fontSize: "14px", color: "#1B1F8C", overflowWrap: "anywhere", marginTop: "2px" }}>{displayProductName}</strong>
+                  <strong style={{ fontSize: "14.5px", fontWeight: "800", color: "#1B1F8C", overflowWrap: "anywhere", lineHeight: 1.3, marginTop: "2px" }}>{displayProductName}</strong>
                   {associatedProduct && banner.title && banner.title !== displayProductName && (
                     <span style={{ fontSize: "12px", fontWeight: "600", color: "#374151" }}>{banner.title}</span>
                   )}
                   {banner.subtitle && <span style={{ fontSize: "11.5px", color: "#6B6B75" }}>{banner.subtitle}</span>}
-                  {banner.description && (
-                    <p style={{ fontSize: "11px", color: "#9CA3AF", margin: "2px 0 0 0", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                      {banner.description}
-                    </p>
-                  )}
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "10px", paddingTop: "8px", borderTop: "1px solid #F3F4F6" }}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        toggleBannerStatus(banner.id);
-                        showToast(`Slide "${banner.title}" is now ${isActive ? "Inactive" : "Active"}`);
-                      }}
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "4px",
-                        backgroundColor: isActive ? "#DCFCE7" : "#F3F4F6",
-                        color: isActive ? "#15803D" : "#4B5563",
-                        border: `1px solid ${isActive ? "#86EFAC" : "#D1D5DB"}`,
-                        borderRadius: "999px",
-                        padding: "4px 10px",
-                        fontSize: "11.5px",
-                        fontWeight: "700",
-                        cursor: "pointer"
-                      }}
-                    >
-                      {isActive ? <CheckCircle2 size={12} color="#15803D" /> : <XCircle size={12} color="#6B7280" />}
-                      {isActive ? "Active" : "Inactive"}
-                    </button>
-                    <div style={{ display: "flex", gap: "6px" }}>
-                      <button onClick={() => handleOpenEdit(banner)} style={iconBtnStyle} title="Edit">
-                        <Edit2 size={14} color="#1B1F8C" />
-                      </button>
-                      <button onClick={() => setDeleteModalBanner(banner)} style={iconBtnDangerStyle} title="Delete">
-                        <Trash2 size={14} color="#DC2626" />
-                      </button>
-                    </div>
-                  </div>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", justifyContent: "space-between", height: "80px", flexShrink: 0 }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      toggleBannerStatus(banner.id);
+                      showToast(`Slide "${banner.title}" is now ${isActive ? "Inactive" : "Active"}`);
+                    }}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      backgroundColor: isActive ? "#DCFCE7" : "#F3F4F6",
+                      color: isActive ? "#15803D" : "#4B5563",
+                      border: `1px solid ${isActive ? "#86EFAC" : "#D1D5DB"}`,
+                      borderRadius: "999px",
+                      padding: "4px 10px",
+                      fontSize: "11.5px",
+                      fontWeight: "700",
+                      cursor: "pointer"
+                    }}
+                  >
+                    {isActive ? <CheckCircle2 size={12} color="#15803D" /> : <XCircle size={12} color="#6B7280" />}
+                    <span>{isActive ? "Active" : "Inactive"}</span>
+                  </button>
+
+                  <button
+                    onClick={() => setDeleteModalBanner(banner)}
+                    style={{ ...iconBtnDangerStyle, width: "34px", height: "34px", borderRadius: "8px", border: "1px solid #FECACA", backgroundColor: "#FEF2F2" }}
+                    title="Delete"
+                  >
+                    <Trash2 size={14} color="#DC2626" />
+                  </button>
                 </div>
               </div>
             );
@@ -1334,59 +1460,143 @@ function BannerTab({
         )}
       </div>
 
-      {/* CREATE / EDIT MODAL */}
-      {isModalOpen && (
-        <div style={modalBackdropStyle} onClick={() => setIsModalOpen(false)}>
-          <div style={modalCardStyle} className="content-modal-card" onClick={(e) => e.stopPropagation()}>
+      {/* ── CREATE / EDIT BANNER MODAL ── */}
+      {isModalOpen && typeof document !== "undefined" && createPortal(
+        <div style={modalOverlayStyle} className="modal-overlay admin-modal" onClick={() => setIsModalOpen(false)}>
+          <div style={modalDialogStyle} className="modal-dialog admin-modal" onClick={(e) => e.stopPropagation()}>
+            {/* Modal Header */}
             <div style={modalHeaderStyle}>
-              <h2 style={modalTitleStyle}>
-                {editingBanner ? `Edit ${title.replace(/s$/, "")}` : `Create New ${title.replace(/s$/, "")}`}
-              </h2>
-              <button onClick={() => setIsModalOpen(false)} style={modalCloseBtnStyle}>
-                <XCircle size={20} color="#6B6B75" />
+              <div>
+                <h3 style={{ fontSize: "18px", fontWeight: "800", color: "#111827", margin: 0 }}>
+                  {editingBanner ? `Edit ${title.replace(/s$/, "")}` : `Add ${title.replace(/s$/, "")}`}
+                </h3>
+                <span style={{ fontSize: "13px", color: "#6B7280" }}>
+                  {tabId === "hero-slides"
+                    ? "Configure how this hero slide appears on the customer homepage."
+                    : "Configure how this promotional banner appears on the storefront."}
+                </span>
+              </div>
+              <button type="button" onClick={() => setIsModalOpen(false)} style={closeBtnStyle} aria-label="Close">
+                <X size={18} color="#6B7280" />
               </button>
             </div>
 
-            <form onSubmit={handleSave} style={formStyle}>
-              {/* Image Live Preview */}
-              {tabId === "hero-slides" ? (
-                <div style={{ width: "100%", marginBottom: "6px" }}>
-                  <HeroSlideCard slide={formData} preview={true} />
-                </div>
-              ) : tabId === "promo-banners" ? (
-                <div style={{ width: "100%", marginBottom: "6px" }}>
-                  <PromoBannerRenderer banner={formData} preview={true} />
-                </div>
-              ) : (
-                <div style={imagePreviewBoxStyle}>
-                  {formData.image ? (
-                    <div style={{ position: "relative", width: "100%", height: "100%" }}>
-                      <img src={formData.image} alt="Preview" style={previewImgStyle} />
-                      <div style={previewOverlayStyle}>
-                        <span style={getTypeBadgeStyle(formData.type)}>{formData.type}</span>
-                        <h4 style={{ fontSize: "18px", fontWeight: 800, color: "#FFFFFF", margin: 0 }}>
-                          {formData.title || "Banner Title"}
-                        </h4>
-                        <p style={{ fontSize: "12.5px", color: "#E0E7FF", margin: 0 }}>
-                          {formData.subtitle || "Subtitle"}
-                        </p>
-                        {formData.ctaText && (
-                          <span style={previewCtaBtnStyle}>{formData.ctaText}</span>
+            <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+              {/* Live Card Preview Box */}
+              <div style={modalPreviewBoxStyle}>
+                <span style={{ fontSize: "11px", fontWeight: "700", color: "#6B7280", letterSpacing: "0.5px", textTransform: "uppercase", marginBottom: "8px", display: "block" }}>
+                  Live Tile Preview
+                </span>
+                <div style={{ display: "flex", justifyContent: "center", width: "100%" }}>
+                  <div style={{ width: "100%", maxWidth: "480px", borderRadius: "14px", overflow: "hidden", border: "1px solid #E5E7EB", backgroundColor: "#0F1117" }}>
+                    {tabId === "hero-slides" ? (
+                      <HeroSlideCard slide={formData} preview={true} style={{ height: "160px" }} />
+                    ) : tabId === "promo-banners" ? (
+                      <PromoBannerRenderer banner={formData} preview={true} style={{ height: "160px" }} />
+                    ) : (
+                      <div style={{ ...imagePreviewBoxStyle, height: "160px" }}>
+                        {formData.image ? (
+                          <div style={{ position: "relative", width: "100%", height: "100%" }}>
+                            <img src={formData.image} alt="Preview" style={previewImgStyle} />
+                            <div style={previewOverlayStyle}>
+                              <span style={getTypeBadgeStyle(formData.type)}>{formData.type}</span>
+                              <h4 style={{ fontSize: "16px", fontWeight: 800, color: "#FFFFFF", margin: 0 }}>
+                                {formData.title || "Banner Title"}
+                              </h4>
+                              <p style={{ fontSize: "12px", color: "#E0E7FF", margin: 0 }}>
+                                {formData.subtitle || "Subtitle"}
+                              </p>
+                              {formData.ctaText && (
+                                <span style={previewCtaBtnStyle}>{formData.ctaText}</span>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <div style={noPreviewBoxStyle}>
+                            <ImageIcon size={28} color="#9CA3AF" />
+                            <span>Image Preview</span>
+                          </div>
                         )}
                       </div>
-                    </div>
-                  ) : (
-                    <div style={noPreviewBoxStyle}>
-                      <ImageIcon size={32} color="#9CA3AF" />
-                      <span>Image Preview</span>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
-              )}
+              </div>
+
+              {/* Title / Label Input */}
+              <div style={formGroupStyle}>
+                <label style={formLabelStyle}>{title.replace(/s$/, "")} Title *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Summer Sleep Sale"
+                  value={formData.title}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, title: e.target.value }))}
+                  style={inputStyle}
+                />
+              </div>
+
+              {/* Type and Subtitle */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                <div style={formGroupStyle}>
+                  <label style={formLabelStyle}>Type</label>
+                  <select
+                    value={formData.type}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, type: e.target.value }))}
+                    style={selectStyle}
+                  >
+                    {availableTypes.map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                </div>
+                <div style={formGroupStyle}>
+                  <label style={formLabelStyle}>Subtitle / Badge</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Up to 60% Off"
+                    value={formData.subtitle}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, subtitle: e.target.value }))}
+                    style={inputStyle}
+                  />
+                </div>
+              </div>
+
+              {/* Image Selection */}
+              <div style={formGroupStyle}>
+                <label style={formLabelStyle}>
+                  <ImageIcon size={14} style={{ display: "inline", marginRight: "4px" }} />
+                  Image Source *
+                </label>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    style={uploadFileBtnStyle}
+                  >
+                    <ImageIcon size={14} />
+                    Upload File
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    style={{ display: "none" }}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Or enter image URL (e.g. /asset/img2.jpg)"
+                    value={formData.image}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, image: e.target.value }))}
+                    style={{ ...inputStyle, flex: 1 }}
+                  />
+                </div>
+              </div>
 
               {/* Associated Store Product Selection */}
-              <div style={fieldGroupStyle}>
-                <label style={labelStyle}>Associated Store Product (Catalog Reference)</label>
+              <div style={formGroupStyle}>
+                <label style={formLabelStyle}>Associated Store Product (Catalog Reference)</label>
                 <select
                   value={formData.productId || ""}
                   onChange={(e) => {
@@ -1410,89 +1620,9 @@ function BannerTab({
                 </select>
               </div>
 
-              {/* Image Upload */}
-              <div style={fieldGroupStyle}>
-                <label style={labelStyle}>Image Source</label>
-                <div style={{ display: "flex", gap: "8px" }}>
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    style={uploadFileBtnStyle}
-                  >
-                    <ImageIcon size={15} />
-                    Upload File
-                  </button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    style={{ display: "none" }}
-                  />
-                  <input
-                    type="text"
-                    placeholder="Or enter image URL (e.g. /asset/img2.jpg)"
-                    value={formData.image}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, image: e.target.value }))}
-                    style={inputStyle}
-                  />
-                </div>
-              </div>
-
-              {/* Title + Type */}
-              <div style={formGrid2Style}>
-                <div style={fieldGroupStyle}>
-                  <label style={labelStyle}>Title *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Summer Sleep Sale"
-                    value={formData.title}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, title: e.target.value }))}
-                    style={inputStyle}
-                  />
-                </div>
-                <div style={fieldGroupStyle}>
-                  <label style={labelStyle}>Type</label>
-                  <select
-                    value={formData.type}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, type: e.target.value }))}
-                    style={selectStyle}
-                  >
-                    {availableTypes.map((t) => (
-                      <option key={t} value={t}>{t}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Subtitle + Order */}
-              <div style={formGrid2Style}>
-                <div style={fieldGroupStyle}>
-                  <label style={labelStyle}>Subtitle / Badge</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Up to 60% Off"
-                    value={formData.subtitle}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, subtitle: e.target.value }))}
-                    style={inputStyle}
-                  />
-                </div>
-                <div style={fieldGroupStyle}>
-                  <label style={labelStyle}>Display Order</label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={formData.displayOrder}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, displayOrder: parseInt(e.target.value) || 1 }))}
-                    style={inputStyle}
-                  />
-                </div>
-              </div>
-
               {/* Description */}
-              <div style={fieldGroupStyle}>
-                <label style={labelStyle}>Description (Optional)</label>
+              <div style={formGroupStyle}>
+                <label style={formLabelStyle}>Description (Optional)</label>
                 <input
                   type="text"
                   placeholder="e.g. Handcrafted mattresses for deep restorative sleep."
@@ -1502,10 +1632,10 @@ function BannerTab({
                 />
               </div>
 
-              {/* CTA */}
-              <div style={formGrid2Style}>
-                <div style={fieldGroupStyle}>
-                  <label style={labelStyle}>CTA Button Text</label>
+              {/* CTA Button Text & Destination */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: "12px" }}>
+                <div style={formGroupStyle}>
+                  <label style={formLabelStyle}>CTA Button Text</label>
                   <input
                     type="text"
                     placeholder="e.g. Shop Now"
@@ -1514,8 +1644,8 @@ function BannerTab({
                     style={inputStyle}
                   />
                 </div>
-                <div style={fieldGroupStyle}>
-                  <label style={labelStyle}>CTA Destination</label>
+                <div style={formGroupStyle}>
+                  <label style={formLabelStyle}>CTA Destination</label>
                   <select
                     value={formData.ctaLink}
                     onChange={(e) => setFormData((prev) => ({ ...prev, ctaLink: e.target.value }))}
@@ -1528,47 +1658,75 @@ function BannerTab({
                 </div>
               </div>
 
-              {/* Active toggle */}
-              <div style={{ marginTop: "4px" }}>
-                <label style={{ display: "inline-flex", alignItems: "center", gap: "8px", fontSize: "13px", fontWeight: 600, color: "#14151A", cursor: "pointer" }}>
-                  <input
-                    type="checkbox"
-                    checked={formData.isActive}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, isActive: e.target.checked }))}
-                    style={{ width: "16px", height: "16px", accentColor: "#1B1F8C", cursor: "pointer" }}
-                  />
-                  <span>Active &amp; Visible on Storefront</span>
-                </label>
+              {/* Display Order */}
+              <div style={formGroupStyle}>
+                <label style={formLabelStyle}>Display Order</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={formData.displayOrder}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, displayOrder: parseInt(e.target.value) || 1 }))}
+                  style={{ ...inputStyle, maxWidth: "120px" }}
+                />
               </div>
 
-              {/* Footer */}
-              <div style={modalFooterStyle}>
-                <button type="button" onClick={() => setIsModalOpen(false)} style={cancelBtnStyle}>
+              {/* Visibility Toggle */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", backgroundColor: "#F9FAFB", borderRadius: "10px", border: "1px solid #E5E7EB" }}>
+                <div>
+                  <strong style={{ fontSize: "14px", color: "#111827", display: "block" }}>Show on Storefront</strong>
+                  <span style={{ fontSize: "12px", color: "#6B7280" }}>Enable to make this {title.replace(/s$/, "").toLowerCase()} visible to customers.</span>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={formData.isActive}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, isActive: e.target.checked }))}
+                  style={{ width: "20px", height: "20px", accentColor: "#1B1F8C", cursor: "pointer" }}
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "10px" }}>
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  style={secondaryModalBtnStyle}
+                >
                   Cancel
                 </button>
-                <button type="submit" style={saveBtnStyle}>
-                  {editingBanner ? "Update" : "Save & Publish"}
+                <button
+                  type="submit"
+                  style={primaryModalBtnStyle}
+                >
+                  {editingBanner ? "Save Changes" : `Create ${title.replace(/s$/, "")}`}
                 </button>
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {/* ADD HERO SLIDE TYPE MODAL (Simplified: Type Name only) */}
-      {isAddTypeModalOpen && (
-        <div style={modalBackdropStyle} onClick={() => setIsAddTypeModalOpen(false)}>
-          <div style={{ ...modalCardStyle, maxWidth: "440px" }} onClick={(e) => e.stopPropagation()}>
+      {/* ── ADD HERO SLIDE TYPE MODAL ── */}
+      {isAddTypeModalOpen && typeof document !== "undefined" && createPortal(
+        <div style={modalOverlayStyle} className="modal-overlay admin-modal" onClick={() => setIsAddTypeModalOpen(false)}>
+          <div style={{ ...modalDialogStyle, maxWidth: "460px" }} className="modal-dialog admin-modal" onClick={(e) => e.stopPropagation()}>
             <div style={modalHeaderStyle}>
-              <h2 style={modalTitleStyle}>Add Hero Slide Type</h2>
-              <button type="button" onClick={() => setIsAddTypeModalOpen(false)} style={modalCloseBtnStyle}>
-                <XCircle size={20} color="#6B6B75" />
+              <div>
+                <h3 style={{ fontSize: "18px", fontWeight: "800", color: "#111827", margin: 0 }}>
+                  Add {title.replace(/s$/, "")} Type
+                </h3>
+                <span style={{ fontSize: "13px", color: "#6B7280" }}>
+                  Create a new categorization tag for {title.toLowerCase()}.
+                </span>
+              </div>
+              <button type="button" onClick={() => setIsAddTypeModalOpen(false)} style={closeBtnStyle} aria-label="Close">
+                <X size={18} color="#6B7280" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveNewType} style={formStyle}>
-              <div style={fieldGroupStyle}>
-                <label style={labelStyle}>Type Name *</label>
+            <form onSubmit={handleSaveNewType} style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
+              <div style={formGroupStyle}>
+                <label style={formLabelStyle}>Type Name *</label>
                 <input
                   type="text"
                   required
@@ -1580,31 +1738,39 @@ function BannerTab({
                 />
               </div>
 
-              <div style={modalFooterStyle}>
-                <button type="button" onClick={() => setIsAddTypeModalOpen(false)} style={cancelBtnStyle}>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "8px" }}>
+                <button type="button" onClick={() => setIsAddTypeModalOpen(false)} style={secondaryModalBtnStyle}>
                   Cancel
                 </button>
-                <button type="submit" style={saveBtnStyle}>
+                <button type="submit" style={primaryModalBtnStyle}>
                   Save Type
                 </button>
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {/* MANAGE TYPES MODAL */}
-      {isManageTypesModalOpen && (
-        <div style={modalBackdropStyle} onClick={() => setIsManageTypesModalOpen(false)}>
-          <div style={{ ...modalCardStyle, maxWidth: "460px" }} onClick={(e) => e.stopPropagation()}>
+      {/* ── MANAGE TYPES MODAL ── */}
+      {isManageTypesModalOpen && typeof document !== "undefined" && createPortal(
+        <div style={modalOverlayStyle} className="modal-overlay admin-modal" onClick={() => setIsManageTypesModalOpen(false)}>
+          <div style={{ ...modalDialogStyle, maxWidth: "480px" }} className="modal-dialog admin-modal" onClick={(e) => e.stopPropagation()}>
             <div style={modalHeaderStyle}>
-              <h2 style={modalTitleStyle}>{title.replace(/s$/, "")} Types</h2>
-              <button type="button" onClick={() => setIsManageTypesModalOpen(false)} style={modalCloseBtnStyle}>
-                <XCircle size={20} color="#6B6B75" />
+              <div>
+                <h3 style={{ fontSize: "18px", fontWeight: "800", color: "#111827", margin: 0 }}>
+                  {title.replace(/s$/, "")} Types
+                </h3>
+                <span style={{ fontSize: "13px", color: "#6B7280" }}>
+                  Manage active types and tags used across your {title.toLowerCase()}.
+                </span>
+              </div>
+              <button type="button" onClick={() => setIsManageTypesModalOpen(false)} style={closeBtnStyle} aria-label="Close">
+                <X size={18} color="#6B7280" />
               </button>
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "320px", overflowY: "auto", padding: "4px 0" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "300px", overflowY: "auto", padding: "4px 0", scrollbarWidth: "none", msOverflowStyle: "none" }}>
               {availableTypes.map((tName) => (
                 <div
                   key={tName}
@@ -1612,7 +1778,7 @@ function BannerTab({
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
-                    padding: "10px 14px",
+                    padding: "12px 16px",
                     borderRadius: "10px",
                     backgroundColor: "#F9FAFB",
                     border: "1px solid #E5E7EB"
@@ -1628,8 +1794,8 @@ function BannerTab({
                       display: "inline-flex",
                       alignItems: "center",
                       gap: "5px",
-                      padding: "5px 12px",
-                      borderRadius: "6px",
+                      padding: "6px 12px",
+                      borderRadius: "8px",
                       fontSize: "12px",
                       fontWeight: "700",
                       color: "#DC2626",
@@ -1646,37 +1812,42 @@ function BannerTab({
               ))}
             </div>
 
-            <div style={{ ...modalFooterStyle, justifyContent: "space-between", marginTop: "16px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "16px", paddingTop: "14px", borderTop: "1px solid #E5E7EB" }}>
               <button
                 type="button"
                 onClick={() => {
                   setIsManageTypesModalOpen(false);
                   setIsAddTypeModalOpen(true);
                 }}
-                style={{ ...createBtnStyle, padding: "8px 14px", fontSize: "12.5px" }}
+                style={primaryModalBtnStyle}
               >
-                <Plus size={14} /> Add New Type
+                <Plus size={15} /> Add New Type
               </button>
-              <button type="button" onClick={() => setIsManageTypesModalOpen(false)} style={cancelBtnStyle}>
+              <button type="button" onClick={() => setIsManageTypesModalOpen(false)} style={secondaryModalBtnStyle}>
                 Close
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {/* DELETE TYPE CONFIRMATION MODAL WITH IN-USE WARNING */}
-      {typeToDelete && (
-        <div style={modalBackdropStyle} onClick={() => setTypeToDelete(null)}>
-          <div style={{ ...modalCardStyle, maxWidth: "440px", textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
+      {/* ── DELETE TYPE CONFIRMATION MODAL ── */}
+      {typeToDelete && typeof document !== "undefined" && createPortal(
+        <div style={modalOverlayStyle} className="modal-overlay admin-modal" onClick={() => setTypeToDelete(null)}>
+          <div style={{ ...modalDialogStyle, maxWidth: "440px", textAlign: "center" }} className="modal-dialog admin-modal" onClick={(e) => e.stopPropagation()}>
             <div style={{ padding: "12px 0" }}>
               {typeToDelete.count > 0 ? (
-                <AlertTriangle size={42} color="#D97706" style={{ margin: "0 auto 12px", display: "block" }} />
+                <div style={{ ...deleteIconWrapStyle, backgroundColor: "#FEF3C7" }}>
+                  <AlertTriangle size={26} color="#D97706" />
+                </div>
               ) : (
-                <Trash2 size={42} color="#DC2626" style={{ margin: "0 auto 12px", display: "block" }} />
+                <div style={deleteIconWrapStyle}>
+                  <Trash2 size={26} color="#DC2626" />
+                </div>
               )}
               
-              <h3 style={{ fontSize: "18px", fontWeight: 800, color: "#14151A", margin: "0 0 8px" }}>
+              <h3 style={{ fontSize: "18px", fontWeight: 800, color: "#14151A", margin: "10px 0 8px" }}>
                 Delete &quot;{typeToDelete.name}&quot; type?
               </h3>
               
@@ -1688,51 +1859,52 @@ function BannerTab({
                   padding: "10px 14px",
                   borderRadius: "8px",
                   border: "1px solid #FCD34D",
-                  margin: "0 0 14px",
+                  margin: "0 0 16px",
                   lineHeight: "1.45",
                   textAlign: "left"
                 }}>
                   ⚠️ <strong>&quot;{typeToDelete.name}&quot;</strong> is currently used by <strong>{typeToDelete.count}</strong> banner{typeToDelete.count > 1 ? "s" : ""}. Deleting this type will remove it from future type dropdowns. Existing banner data will remain intact.
                 </div>
               ) : (
-                <p style={{ fontSize: "13.5px", color: "#4B5563", margin: "0 0 14px" }}>
+                <p style={{ fontSize: "13.5px", color: "#4B5563", margin: "0 0 16px" }}>
                   This type will no longer be available for new banners.
                 </p>
               )}
             </div>
 
-            <div style={{ ...modalFooterStyle, justifyContent: "center", gap: "10px" }}>
-              <button type="button" onClick={() => setTypeToDelete(null)} style={cancelBtnStyle}>
+            <div style={{ display: "flex", justifyContent: "center", gap: "10px" }}>
+              <button type="button" onClick={() => setTypeToDelete(null)} style={secondaryModalBtnStyle}>
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleConfirmDeleteType}
-                style={{ ...saveBtnStyle, backgroundColor: "#DC2626" }}
+                style={dangerBtnStyle}
               >
                 Delete Type
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {/* DELETE CONFIRM MODAL */}
-      {deleteModalBanner && (
-        <div style={modalBackdropStyle} onClick={() => setDeleteModalBanner(null)}>
-          <div style={{ ...modalCardStyle, maxWidth: "420px" }} onClick={(e) => e.stopPropagation()}>
+      {/* ── DELETE CONFIRM MODAL ── */}
+      {deleteModalBanner && typeof document !== "undefined" && createPortal(
+        <div style={modalOverlayStyle} className="modal-overlay admin-modal" onClick={() => setDeleteModalBanner(null)}>
+          <div style={{ ...modalDialogStyle, maxWidth: "440px", textAlign: "center" }} className="modal-dialog admin-modal" onClick={(e) => e.stopPropagation()}>
             <div style={{ textAlign: "center", padding: "12px 0" }}>
               <div style={deleteIconWrapStyle}>
-                <Trash2 size={24} color="#DC2626" />
+                <Trash2 size={26} color="#DC2626" />
               </div>
               <h3 style={{ fontSize: "18px", fontWeight: 800, color: "#14151A", margin: "12px 0 6px" }}>
-                Delete Item?
+                Delete {title.replace(/s$/, "")}?
               </h3>
               <p style={{ fontSize: "13.5px", color: "#6B6B75", margin: "0 0 20px" }}>
                 Are you sure you want to remove <strong>"{deleteModalBanner.title}"</strong>? It will no longer appear on the storefront.
               </p>
               <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
-                <button onClick={() => setDeleteModalBanner(null)} style={cancelBtnStyle}>
+                <button onClick={() => setDeleteModalBanner(null)} style={secondaryModalBtnStyle}>
                   Cancel
                 </button>
                 <button onClick={handleDeleteConfirm} style={dangerBtnStyle}>
@@ -1741,7 +1913,8 @@ function BannerTab({
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -1777,6 +1950,17 @@ function NewArrivalsTab({ showToast }) {
 
   // Removal confirmation modal state
   const [itemToRemove, setItemToRemove] = useState(null);
+
+  useEffect(() => {
+    if (editingItem || itemToRemove) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [editingItem, itemToRemove]);
 
   // Drag and drop state
   const [draggingId, setDraggingId] = useState(null);
@@ -2007,7 +2191,7 @@ function NewArrivalsTab({ showToast }) {
       </div>
 
       {/* Stats */}
-      <div style={statsRowStyle} className="content-stats-grid">
+      <div style={statsRowStyle} className="content-stats-grid admin-sliding-tabs">
         <div style={statCardStyle} className="content-stat-card">
           <span style={statLabelStyle}>Total New Arrivals</span>
           <strong style={statValStyle} className="content-stat-val">{resolvedArrivals.length}</strong>
@@ -2146,24 +2330,14 @@ function NewArrivalsTab({ showToast }) {
                       </button>
                     </td>
                     <td style={{ ...tdStyle, textAlign: "right", paddingRight: "20px" }}>
-                      <div style={{ display: "inline-flex", gap: "6px" }}>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEditItem(item)}
-                          style={iconBtnStyle}
-                          title="Edit settings"
-                        >
-                          <Edit2 size={14} color="#6B6B75" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setItemToRemove(item)}
-                          style={iconBtnDangerStyle}
-                          title="Remove from New Arrivals"
-                        >
-                          <Trash2 size={14} color="#DC2626" />
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setItemToRemove(item)}
+                        style={iconBtnDangerStyle}
+                        title="Remove from New Arrivals"
+                      >
+                        <Trash2 size={14} color="#DC2626" />
+                      </button>
                     </td>
                   </tr>
                 );
@@ -2186,33 +2360,58 @@ function NewArrivalsTab({ showToast }) {
             const prod = item.product;
             const imgSrc = getProductPrimaryImage(prod);
             return (
-              <div key={item.id} style={{ backgroundColor: "#FFFFFF", border: "1px solid #E7E7E2", borderRadius: "14px", padding: "14px", display: "flex", gap: "12px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
-                <img src={imgSrc} alt="" style={{ width: "80px", height: "80px", objectFit: "cover", borderRadius: "10px", flexShrink: 0 }} />
-                <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "4px" }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "6px" }}>
-                    <span style={orderBadgeStyle}>#{item.displayOrder || (index + 1)}</span>
-                    <span style={{ fontSize: "11px", fontWeight: "700", color: "#4B5563" }}>{getProductCategoryLabel(prod)}</span>
+              <div key={item.id} style={{ backgroundColor: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: "16px", padding: "14px", display: "flex", gap: "12px", alignItems: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }} className="content-mobile-card">
+                <div style={{ position: "relative", width: "80px", height: "80px", flexShrink: 0, borderRadius: "12px", overflow: "hidden", border: "1px solid #E5E7EB", backgroundColor: "#F9FAFB" }}>
+                  <img src={imgSrc} alt={prod.name || prod.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <span style={{ position: "absolute", top: "4px", left: "4px", backgroundColor: "rgba(27, 31, 140, 0.92)", color: "#FFFFFF", fontSize: "11px", fontWeight: "800", padding: "2px 7px", borderRadius: "6px", lineHeight: 1.2, boxShadow: "0 2px 4px rgba(0,0,0,0.15)" }}>
+                    #{item.displayOrder || (index + 1)}
+                  </span>
+                </div>
+                <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "center", gap: "3px" }}>
+                  <span style={{ fontSize: "11px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.5px", color: "#6B7280" }}>
+                    {getProductCategoryLabel(prod)}
+                  </span>
+                  <strong style={{ fontSize: "15px", fontWeight: "800", color: "#14151A", lineHeight: 1.3, overflowWrap: "anywhere" }}>
+                    {prod.name || prod.title}
+                  </strong>
+                  <div style={{ marginTop: "2px" }}>
+                    <span style={{ fontSize: "14.5px", fontWeight: "800", color: "#16A34A" }}>
+                      {formatPrice(getMinimumProductPrice(prod))}
+                    </span>
                   </div>
-                  <strong style={{ fontSize: "14px", color: "#14151A", overflowWrap: "anywhere", marginTop: "2px" }}>{prod.name || prod.title}</strong>
-                  <span style={{ fontSize: "13px", fontWeight: "700", color: "#16A34A" }}>{formatPrice(getMinimumProductPrice(prod))}</span>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "8px", paddingTop: "8px", borderTop: "1px solid #F3F4F6" }}>
-                    <button
-                      type="button"
-                      onClick={() => toggleNewArrivalStatus && toggleNewArrivalStatus(item.id)}
-                      style={item.isActive ? activeStatusBtnStyle : inactiveStatusBtnStyle}
-                    >
-                      {item.isActive ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
-                      {item.isActive ? "Active" : "Inactive"}
-                    </button>
-                    <div style={{ display: "flex", gap: "6px" }}>
-                      <button type="button" onClick={() => handleOpenEditItem(item)} style={iconBtnStyle} title="Edit settings">
-                        <Edit2 size={14} color="#6B6B75" />
-                      </button>
-                      <button type="button" onClick={() => setItemToRemove(item)} style={iconBtnDangerStyle} title="Remove">
-                        <Trash2 size={14} color="#DC2626" />
-                      </button>
-                    </div>
-                  </div>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", justifyContent: "space-between", height: "80px", flexShrink: 0 }}>
+                  <button
+                    type="button"
+                    onClick={() => toggleNewArrivalStatus && toggleNewArrivalStatus(item.id)}
+                    style={{
+                      ...(item.isActive ? activeStatusBtnStyle : inactiveStatusBtnStyle),
+                      padding: "4px 10px",
+                      fontSize: "11.5px",
+                      borderRadius: "999px"
+                    }}
+                    title="Click to toggle storefront visibility"
+                  >
+                    {item.isActive ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
+                    <span>{item.isActive ? "Active" : "Inactive"}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setItemToRemove(item)}
+                    style={{
+                      ...iconBtnDangerStyle,
+                      width: "34px",
+                      height: "34px",
+                      borderRadius: "8px",
+                      border: "1px solid #FECACA",
+                      backgroundColor: "#FEF2F2"
+                    }}
+                    title="Remove"
+                  >
+                    <Trash2 size={14} color="#DC2626" />
+                  </button>
                 </div>
               </div>
             );
@@ -2236,98 +2435,116 @@ function NewArrivalsTab({ showToast }) {
         navigateTo={navigateTo}
       />
 
-      {/* EDIT ITEM MODAL */}
-      {editingItem && (
-        <div style={modalBackdropStyle} onClick={() => setEditingItem(null)}>
-          <div style={{ ...modalCardStyle, maxWidth: "480px" }} onClick={(e) => e.stopPropagation()}>
+      {/* ── EDIT ITEM MODAL ── */}
+      {editingItem && typeof document !== "undefined" && createPortal(
+        <div style={modalOverlayStyle} className="modal-overlay admin-modal" onClick={() => setEditingItem(null)}>
+          <div style={{ ...modalDialogStyle, maxWidth: "520px" }} className="modal-dialog admin-modal" onClick={(e) => e.stopPropagation()}>
             <div style={modalHeaderStyle}>
-              <h2 style={modalTitleStyle}>Edit New Arrival Settings</h2>
-              <button type="button" onClick={() => setEditingItem(null)} style={modalCloseBtnStyle}>
-                <XCircle size={20} color="#6B6B75" />
+              <div>
+                <h3 style={{ fontSize: "18px", fontWeight: "800", color: "#111827", margin: 0 }}>
+                  Edit New Arrival Settings
+                </h3>
+                <span style={{ fontSize: "13px", color: "#6B7280" }}>
+                  Configure display order and storefront visibility for this product.
+                </span>
+              </div>
+              <button type="button" onClick={() => setEditingItem(null)} style={closeBtnStyle} aria-label="Close">
+                <X size={18} color="#6B7280" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveEditItem} style={formStyle}>
-              {/* Product summary card */}
-              <div style={{ display: "flex", gap: "12px", alignItems: "center", backgroundColor: "#F9FAFB", padding: "12px", borderRadius: "10px", border: "1px solid #E5E7EB" }}>
-                <img
-                  src={editingItem.product.image || (editingItem.product.images && editingItem.product.images[0]) || "/asset/img2.jpg"}
-                  alt={editingItem.product.name}
-                  style={{ width: "54px", height: "54px", borderRadius: "8px", objectFit: "cover" }}
-                />
-                <div>
-                  <strong style={{ fontSize: "14px", color: "#111827", display: "block" }}>
-                    {editingItem.product.name || editingItem.product.title}
-                  </strong>
-                  <span style={{ fontSize: "12px", color: "#6B7280" }}>
-                    Category: {editingItem.product.category} • Price: ${(Number(editingItem.product.price) || 0).toFixed(2)}
-                  </span>
+            <form onSubmit={handleSaveEditItem} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+              {/* Product summary preview card */}
+              <div style={modalPreviewBoxStyle}>
+                <span style={{ fontSize: "11px", fontWeight: "700", color: "#6B7280", letterSpacing: "0.5px", textTransform: "uppercase", marginBottom: "8px", display: "block" }}>
+                  Selected Product Preview
+                </span>
+                <div style={{ display: "flex", gap: "14px", alignItems: "center", justifyContent: "center" }}>
+                  <img
+                    src={editingItem.product.image || (editingItem.product.images && editingItem.product.images[0]) || "/asset/img2.jpg"}
+                    alt={editingItem.product.name}
+                    style={{ width: "56px", height: "56px", borderRadius: "10px", objectFit: "cover", border: "1px solid #E5E7EB" }}
+                  />
+                  <div style={{ textAlign: "left" }}>
+                    <strong style={{ fontSize: "14px", color: "#111827", display: "block" }}>
+                      {editingItem.product.name || editingItem.product.title}
+                    </strong>
+                    <span style={{ fontSize: "12px", color: "#6B7280" }}>
+                      Category: {editingItem.product.category} • Price: ${(Number(editingItem.product.price) || 0).toFixed(2)}
+                    </span>
+                  </div>
                 </div>
               </div>
 
-              <div style={fieldGroupStyle}>
-                <label style={labelStyle}>Display Order</label>
+              <div style={formGroupStyle}>
+                <label style={formLabelStyle}>Display Order</label>
                 <input
                   type="number"
                   min={1}
                   value={editFormData.displayOrder}
                   onChange={(e) => setEditFormData((prev) => ({ ...prev, displayOrder: parseInt(e.target.value) || 1 }))}
-                  style={inputStyle}
+                  style={{ ...inputStyle, maxWidth: "120px" }}
                 />
               </div>
 
-              <div>
-                <label style={{ display: "inline-flex", alignItems: "center", gap: "8px", fontSize: "13px", fontWeight: 600, color: "#14151A", cursor: "pointer" }}>
-                  <input
-                    type="checkbox"
-                    checked={editFormData.isActive}
-                    onChange={(e) => setEditFormData((prev) => ({ ...prev, isActive: e.target.checked }))}
-                    style={{ width: "16px", height: "16px", accentColor: "#1B1F8C", cursor: "pointer" }}
-                  />
-                  <span>Active &amp; Visible on Storefront New Arrivals</span>
-                </label>
+              {/* Visibility Toggle Card */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", backgroundColor: "#F9FAFB", borderRadius: "10px", border: "1px solid #E5E7EB" }}>
+                <div>
+                  <strong style={{ fontSize: "14px", color: "#111827", display: "block" }}>Show in New Arrivals</strong>
+                  <span style={{ fontSize: "12px", color: "#6B7280" }}>Enable to make this product visible in the storefront New Arrivals.</span>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={editFormData.isActive}
+                  onChange={(e) => setEditFormData((prev) => ({ ...prev, isActive: e.target.checked }))}
+                  style={{ width: "20px", height: "20px", accentColor: "#1B1F8C", cursor: "pointer" }}
+                />
               </div>
 
-              <div style={modalFooterStyle}>
-                <button type="button" onClick={() => setEditingItem(null)} style={cancelBtnStyle}>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "10px" }}>
+                <button type="button" onClick={() => setEditingItem(null)} style={secondaryModalBtnStyle}>
                   Cancel
                 </button>
-                <button type="submit" style={saveBtnStyle}>
+                <button type="submit" style={primaryModalBtnStyle}>
                   Save Changes
                 </button>
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {/* REMOVE FROM NEW ARRIVALS CONFIRMATION MODAL */}
-      {itemToRemove && (
-        <div style={modalBackdropStyle} onClick={() => setItemToRemove(null)}>
-          <div style={{ ...modalCardStyle, maxWidth: "440px", textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ padding: "12px 0" }}>
-              <Trash2 size={40} color="#DC2626" style={{ margin: "0 auto 12px", display: "block" }} />
-              <h3 style={{ fontSize: "18px", fontWeight: 800, color: "#14151A", margin: "0 0 8px" }}>
-                Remove &quot;{itemToRemove.product.name || itemToRemove.product.title}&quot; from New Arrivals?
+      {/* ── REMOVE FROM NEW ARRIVALS CONFIRMATION MODAL ── */}
+      {itemToRemove && typeof document !== "undefined" && createPortal(
+        <div style={modalOverlayStyle} className="modal-overlay admin-modal" onClick={() => setItemToRemove(null)}>
+          <div style={{ ...modalDialogStyle, maxWidth: "440px", textAlign: "center" }} className="modal-dialog admin-modal" onClick={(e) => e.stopPropagation()}>
+            <div style={{ textAlign: "center", padding: "12px 0" }}>
+              <div style={deleteIconWrapStyle}>
+                <Trash2 size={26} color="#DC2626" />
+              </div>
+              <h3 style={{ fontSize: "18px", fontWeight: 800, color: "#14151A", margin: "12px 0 8px" }}>
+                Remove from New Arrivals?
               </h3>
-              <p style={{ fontSize: "13.5px", color: "#4B5563", margin: "0 0 16px", lineHeight: "1.4" }}>
-                This will remove the product from the New Arrivals section but will not delete the product from the store catalog.
+              <p style={{ fontSize: "13.5px", color: "#6B6B75", margin: "0 0 16px", lineHeight: "1.4" }}>
+                Remove <strong>"{itemToRemove.product.name || itemToRemove.product.title}"</strong> from the New Arrivals section? It will remain in the store catalog.
               </p>
             </div>
-            <div style={{ ...modalFooterStyle, justifyContent: "center", gap: "10px" }}>
-              <button type="button" onClick={() => setItemToRemove(null)} style={cancelBtnStyle}>
+            <div style={{ display: "flex", justifyContent: "center", gap: "10px" }}>
+              <button type="button" onClick={() => setItemToRemove(null)} style={secondaryModalBtnStyle}>
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleConfirmRemove}
-                style={{ ...saveBtnStyle, backgroundColor: "#DC2626" }}
+                style={dangerBtnStyle}
               >
-                Remove
+                Remove Product
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -2560,50 +2777,109 @@ const iconBtnDangerStyle = {
   display: "inline-flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
 };
 
-const modalBackdropStyle = {
+const modalOverlayStyle = {
   position: "fixed",
   top: 0,
   left: 0,
   right: 0,
   bottom: 0,
-  backgroundColor: "transparent",
-  backdropFilter: "none",
-  WebkitBackdropFilter: "none",
-  zIndex: 99999,
+  width: "100vw",
+  height: "100vh",
+  backgroundColor: "rgba(15, 23, 42, 0.45)",
+  backdropFilter: "blur(5px)",
+  WebkitBackdropFilter: "blur(5px)",
+  zIndex: 999999,
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  padding: "16px",
+  padding: "20px",
   boxSizing: "border-box",
+  overflow: "hidden",
+  scrollbarWidth: "none",
+  msOverflowStyle: "none"
 };
 
-const modalCardStyle = {
-  position: "relative",
+const modalBackdropStyle = modalOverlayStyle;
+
+const modalDialogStyle = {
   backgroundColor: "#FFFFFF",
-  borderRadius: "18px",
-  border: "1px solid #E7E7E2",
-  padding: "24px 28px",
-  width: "min(700px, calc(100vw - 32px))",
-  maxWidth: "700px",
-  maxHeight: "calc(100vh - 32px)",
+  borderRadius: "20px",
+  padding: "28px",
+  maxWidth: "560px",
+  width: "100%",
+  maxHeight: "90vh",
   overflowY: "auto",
-  boxShadow: "0 24px 60px rgba(0, 0, 0, 0.25), 0 6px 20px rgba(0, 0, 0, 0.15)",
-  boxSizing: "border-box",
-  zIndex: 100000,
+  overflowX: "hidden",
+  scrollbarWidth: "none",
+  msOverflowStyle: "none",
+  boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+  position: "relative",
+  margin: "auto",
+  boxSizing: "border-box"
 };
 
-const modalOverlayStyle = modalBackdropStyle;
-const modalContentStyle = modalCardStyle;
+const modalCardStyle = modalDialogStyle;
+const modalContentStyle = modalDialogStyle;
 
 const modalHeaderStyle = {
-  display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px",
+  display: "flex",
+  alignItems: "flex-start",
+  justifyContent: "space-between",
+  marginBottom: "20px",
+  paddingBottom: "14px",
+  borderBottom: "1px solid #E5E7EB"
 };
 
-const modalTitleStyle = { fontSize: "18px", fontWeight: 800, color: "#1B1F8C", margin: 0 };
+const modalTitleStyle = { fontSize: "18px", fontWeight: "800", color: "#111827", margin: 0 };
 
-const modalCloseBtnStyle = { border: "none", background: "none", cursor: "pointer", padding: 0 };
+const closeBtnStyle = {
+  background: "none",
+  border: "none",
+  cursor: "pointer",
+  padding: "4px"
+};
 
-const formStyle = { display: "flex", flexDirection: "column", gap: "14px" };
+const modalCloseBtnStyle = closeBtnStyle;
+
+const modalPreviewBoxStyle = {
+  backgroundColor: "#F9FAFB",
+  borderRadius: "12px",
+  padding: "16px",
+  border: "1px solid #E5E7EB",
+  textAlign: "center"
+};
+
+const primaryModalBtnStyle = {
+  display: "flex",
+  alignItems: "center",
+  gap: "8px",
+  backgroundColor: "#1B1F8C",
+  color: "#FFFFFF",
+  border: "1px solid #1B1F8C",
+  borderRadius: "10px",
+  padding: "10px 18px",
+  fontSize: "14px",
+  fontWeight: "700",
+  cursor: "pointer",
+  boxShadow: "0 2px 6px rgba(27, 31, 140, 0.2)",
+  transition: "all 0.15s ease"
+};
+
+const secondaryModalBtnStyle = {
+  display: "flex",
+  alignItems: "center",
+  gap: "6px",
+  backgroundColor: "#FFFFFF",
+  color: "#374151",
+  border: "1px solid #D1D5DB",
+  borderRadius: "10px",
+  padding: "10px 16px",
+  fontSize: "13px",
+  fontWeight: "600",
+  cursor: "pointer"
+};
+
+const formStyle = { display: "flex", flexDirection: "column", gap: "16px" };
 
 const imagePreviewBoxStyle = {
   width: "100%", height: "150px", borderRadius: "14px",
@@ -2654,6 +2930,18 @@ const selectStyle = {
   border: "1px solid #E7E7E2", padding: "0 12px",
   fontSize: "13px", color: "#14151A", outline: "none",
   boxSizing: "border-box", backgroundColor: "#FFFFFF",
+};
+
+const formGroupStyle = {
+  display: "flex",
+  flexDirection: "column",
+  gap: "6px"
+};
+
+const formLabelStyle = {
+  fontSize: "13px",
+  fontWeight: "700",
+  color: "#374151"
 };
 
 const formGrid2Style = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" };
@@ -2717,6 +3005,17 @@ function BestSellersTab({ showToast }) {
 
   // Removal confirmation modal state
   const [itemToRemove, setItemToRemove] = useState(null);
+
+  useEffect(() => {
+    if (editingItem || itemToRemove) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [editingItem, itemToRemove]);
 
   // Drag and drop state
   const [draggingId, setDraggingId] = useState(null);
@@ -2901,7 +3200,7 @@ function BestSellersTab({ showToast }) {
       </div>
 
       {/* Stats */}
-      <div style={statsRowStyle} className="content-stats-grid">
+      <div style={statsRowStyle} className="content-stats-grid admin-sliding-tabs">
         <div style={statCardStyle} className="content-stat-card">
           <span style={statLabelStyle}>Total Best Sellers</span>
           <strong style={statValStyle} className="content-stat-val">{resolvedBestSellers.length}</strong>
@@ -3041,24 +3340,14 @@ function BestSellersTab({ showToast }) {
                       </button>
                     </td>
                     <td style={{ ...tdStyle, textAlign: "right", paddingRight: "20px" }}>
-                      <div style={{ display: "inline-flex", gap: "6px" }}>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEditItem(item)}
-                          style={iconBtnStyle}
-                          title="Edit settings"
-                        >
-                          <Edit2 size={14} color="#6B6B75" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setItemToRemove(item)}
-                          style={iconBtnDangerStyle}
-                          title="Remove from Best Sellers"
-                        >
-                          <Trash2 size={14} color="#DC2626" />
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setItemToRemove(item)}
+                        style={iconBtnDangerStyle}
+                        title="Remove from Best Sellers"
+                      >
+                        <Trash2 size={14} color="#DC2626" />
+                      </button>
                     </td>
                   </tr>
                 );
@@ -3081,43 +3370,58 @@ function BestSellersTab({ showToast }) {
             const prod = item.product;
             const imgSrc = getProductPrimaryImage(prod);
             return (
-              <div key={item.id} style={{ backgroundColor: "#FFFFFF", border: "1px solid #E7E7E2", borderRadius: "14px", padding: "14px", display: "flex", gap: "12px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }} className="content-mobile-card">
-                <img src={imgSrc} alt="" style={{ width: "80px", height: "80px", objectFit: "cover", borderRadius: "10px", flexShrink: 0 }} />
-                <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "4px" }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "6px" }}>
-                    <span style={orderBadgeStyle}>#{item.displayOrder || (index + 1)}</span>
-                    <span style={{ fontSize: "11px", fontWeight: "700", color: "#4B5563" }}>{getProductCategoryLabel(prod)}</span>
+              <div key={item.id} style={{ backgroundColor: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: "16px", padding: "14px", display: "flex", gap: "12px", alignItems: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }} className="content-mobile-card">
+                <div style={{ position: "relative", width: "80px", height: "80px", flexShrink: 0, borderRadius: "12px", overflow: "hidden", border: "1px solid #E5E7EB", backgroundColor: "#F9FAFB" }}>
+                  <img src={imgSrc} alt={prod.name || prod.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <span style={{ position: "absolute", top: "4px", left: "4px", backgroundColor: "rgba(27, 31, 140, 0.92)", color: "#FFFFFF", fontSize: "11px", fontWeight: "800", padding: "2px 7px", borderRadius: "6px", lineHeight: 1.2, boxShadow: "0 2px 4px rgba(0,0,0,0.15)" }}>
+                    #{item.displayOrder || (index + 1)}
+                  </span>
+                </div>
+                <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "center", gap: "3px" }}>
+                  <span style={{ fontSize: "11px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.5px", color: "#6B7280" }}>
+                    {getProductCategoryLabel(prod)}
+                  </span>
+                  <strong style={{ fontSize: "15px", fontWeight: "800", color: "#14151A", lineHeight: 1.3, overflowWrap: "anywhere" }}>
+                    {prod.name || prod.title}
+                  </strong>
+                  <div style={{ marginTop: "2px" }}>
+                    <span style={{ fontSize: "14.5px", fontWeight: "800", color: "#16A34A" }}>
+                      {formatPrice(getMinimumProductPrice(prod))}
+                    </span>
                   </div>
-                  <strong style={{ fontSize: "14px", color: "#14151A", overflowWrap: "anywhere", marginTop: "2px" }}>{prod.name || prod.title}</strong>
-                  <span style={{ fontSize: "13px", fontWeight: "700", color: "#16A34A" }}>{formatPrice(getMinimumProductPrice(prod))}</span>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "8px", paddingTop: "8px", borderTop: "1px solid #F3F4F6", flexWrap: "wrap", gap: "6px" }}>
-                    <button
-                      type="button"
-                      onClick={() => toggleBestSellerStatus && toggleBestSellerStatus(item.id)}
-                      style={item.isActive ? activeStatusBtnStyle : inactiveStatusBtnStyle}
-                    >
-                      {item.isActive ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
-                      {item.isActive ? "Active" : "Inactive"}
-                    </button>
-                    <div style={{ display: "flex", gap: "6px" }}>
-                      <button
-                        type="button"
-                        onClick={() => handleOpenEditItem(item)}
-                        style={iconBtnStyle}
-                        title="Edit settings"
-                      >
-                        <Edit2 size={14} color="#6B6B75" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setItemToRemove(item)}
-                        style={iconBtnDangerStyle}
-                        title="Remove from Best Sellers"
-                      >
-                        <Trash2 size={14} color="#DC2626" />
-                      </button>
-                    </div>
-                  </div>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", justifyContent: "space-between", height: "80px", flexShrink: 0 }}>
+                  <button
+                    type="button"
+                    onClick={() => toggleBestSellerStatus && toggleBestSellerStatus(item.id)}
+                    style={{
+                      ...(item.isActive ? activeStatusBtnStyle : inactiveStatusBtnStyle),
+                      padding: "4px 10px",
+                      fontSize: "11.5px",
+                      borderRadius: "999px"
+                    }}
+                    title="Click to toggle storefront visibility"
+                  >
+                    {item.isActive ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
+                    <span>{item.isActive ? "Active" : "Inactive"}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setItemToRemove(item)}
+                    style={{
+                      ...iconBtnDangerStyle,
+                      width: "34px",
+                      height: "34px",
+                      borderRadius: "8px",
+                      border: "1px solid #FECACA",
+                      backgroundColor: "#FEF2F2"
+                    }}
+                    title="Remove from Best Sellers"
+                  >
+                    <Trash2 size={14} color="#DC2626" />
+                  </button>
                 </div>
               </div>
             );
@@ -3141,98 +3445,116 @@ function BestSellersTab({ showToast }) {
         navigateTo={navigateTo}
       />
 
-      {/* EDIT ITEM MODAL */}
-      {editingItem && (
-        <div style={modalBackdropStyle} onClick={() => setEditingItem(null)}>
-          <div style={{ ...modalCardStyle, maxWidth: "480px" }} onClick={(e) => e.stopPropagation()}>
+      {/* ── EDIT ITEM MODAL ── */}
+      {editingItem && typeof document !== "undefined" && createPortal(
+        <div style={modalOverlayStyle} className="modal-overlay admin-modal" onClick={() => setEditingItem(null)}>
+          <div style={{ ...modalDialogStyle, maxWidth: "520px" }} className="modal-dialog admin-modal" onClick={(e) => e.stopPropagation()}>
             <div style={modalHeaderStyle}>
-              <h2 style={modalTitleStyle}>Edit Best Seller Settings</h2>
-              <button type="button" onClick={() => setEditingItem(null)} style={modalCloseBtnStyle}>
-                <XCircle size={20} color="#6B6B75" />
+              <div>
+                <h3 style={{ fontSize: "18px", fontWeight: "800", color: "#111827", margin: 0 }}>
+                  Edit Best Seller Settings
+                </h3>
+                <span style={{ fontSize: "13px", color: "#6B7280" }}>
+                  Configure display order and storefront visibility for this product.
+                </span>
+              </div>
+              <button type="button" onClick={() => setEditingItem(null)} style={closeBtnStyle} aria-label="Close">
+                <X size={18} color="#6B7280" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveEditItem} style={formStyle}>
-              {/* Product summary card */}
-              <div style={{ display: "flex", gap: "12px", alignItems: "center", backgroundColor: "#F9FAFB", padding: "12px", borderRadius: "10px", border: "1px solid #E5E7EB" }}>
-                <img
-                  src={editingItem.product.image || (editingItem.product.images && editingItem.product.images[0]) || "/asset/img2.jpg"}
-                  alt={editingItem.product.name}
-                  style={{ width: "54px", height: "54px", borderRadius: "8px", objectFit: "cover" }}
-                />
-                <div>
-                  <strong style={{ fontSize: "14px", color: "#111827", display: "block" }}>
-                    {editingItem.product.name || editingItem.product.title}
-                  </strong>
-                  <span style={{ fontSize: "12px", color: "#6B7280" }}>
-                    Category: {editingItem.product.category} • Price: ${(Number(editingItem.product.price) || 0).toFixed(2)}
-                  </span>
+            <form onSubmit={handleSaveEditItem} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+              {/* Product summary preview card */}
+              <div style={modalPreviewBoxStyle}>
+                <span style={{ fontSize: "11px", fontWeight: "700", color: "#6B7280", letterSpacing: "0.5px", textTransform: "uppercase", marginBottom: "8px", display: "block" }}>
+                  Selected Product Preview
+                </span>
+                <div style={{ display: "flex", gap: "14px", alignItems: "center", justifyContent: "center" }}>
+                  <img
+                    src={editingItem.product.image || (editingItem.product.images && editingItem.product.images[0]) || "/asset/img2.jpg"}
+                    alt={editingItem.product.name}
+                    style={{ width: "56px", height: "56px", borderRadius: "10px", objectFit: "cover", border: "1px solid #E5E7EB" }}
+                  />
+                  <div style={{ textAlign: "left" }}>
+                    <strong style={{ fontSize: "14px", color: "#111827", display: "block" }}>
+                      {editingItem.product.name || editingItem.product.title}
+                    </strong>
+                    <span style={{ fontSize: "12px", color: "#6B7280" }}>
+                      Category: {editingItem.product.category} • Price: ${(Number(editingItem.product.price) || 0).toFixed(2)}
+                    </span>
+                  </div>
                 </div>
               </div>
 
-              <div style={fieldGroupStyle}>
-                <label style={labelStyle}>Display Order</label>
+              <div style={formGroupStyle}>
+                <label style={formLabelStyle}>Display Order</label>
                 <input
                   type="number"
                   min={1}
                   value={editFormData.displayOrder}
                   onChange={(e) => setEditFormData((prev) => ({ ...prev, displayOrder: parseInt(e.target.value) || 1 }))}
-                  style={inputStyle}
+                  style={{ ...inputStyle, maxWidth: "120px" }}
                 />
               </div>
 
-              <div>
-                <label style={{ display: "inline-flex", alignItems: "center", gap: "8px", fontSize: "13px", fontWeight: 600, color: "#14151A", cursor: "pointer" }}>
-                  <input
-                    type="checkbox"
-                    checked={editFormData.isActive}
-                    onChange={(e) => setEditFormData((prev) => ({ ...prev, isActive: e.target.checked }))}
-                    style={{ width: "16px", height: "16px", accentColor: "#1B1F8C", cursor: "pointer" }}
-                  />
-                  <span>Active &amp; Visible on Storefront Best Sellers</span>
-                </label>
+              {/* Visibility Toggle Card */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", backgroundColor: "#F9FAFB", borderRadius: "10px", border: "1px solid #E5E7EB" }}>
+                <div>
+                  <strong style={{ fontSize: "14px", color: "#111827", display: "block" }}>Show in Best Sellers</strong>
+                  <span style={{ fontSize: "12px", color: "#6B7280" }}>Enable to make this product visible in the storefront Best Sellers.</span>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={editFormData.isActive}
+                  onChange={(e) => setEditFormData((prev) => ({ ...prev, isActive: e.target.checked }))}
+                  style={{ width: "20px", height: "20px", accentColor: "#1B1F8C", cursor: "pointer" }}
+                />
               </div>
 
-              <div style={modalFooterStyle}>
-                <button type="button" onClick={() => setEditingItem(null)} style={cancelBtnStyle}>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "10px" }}>
+                <button type="button" onClick={() => setEditingItem(null)} style={secondaryModalBtnStyle}>
                   Cancel
                 </button>
-                <button type="submit" style={saveBtnStyle}>
+                <button type="submit" style={primaryModalBtnStyle}>
                   Save Changes
                 </button>
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {/* REMOVE FROM BEST SELLERS CONFIRMATION MODAL */}
-      {itemToRemove && (
-        <div style={modalBackdropStyle} onClick={() => setItemToRemove(null)}>
-          <div style={{ ...modalCardStyle, maxWidth: "440px", textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ padding: "12px 0" }}>
-              <Trash2 size={40} color="#DC2626" style={{ margin: "0 auto 12px", display: "block" }} />
-              <h3 style={{ fontSize: "18px", fontWeight: 800, color: "#14151A", margin: "0 0 8px" }}>
-                Remove &quot;{itemToRemove.product ? (itemToRemove.product.name || itemToRemove.product.title) : "Product"}&quot;?
+      {/* ── REMOVE FROM BEST SELLERS CONFIRMATION MODAL ── */}
+      {itemToRemove && typeof document !== "undefined" && createPortal(
+        <div style={modalOverlayStyle} className="modal-overlay admin-modal" onClick={() => setItemToRemove(null)}>
+          <div style={{ ...modalDialogStyle, maxWidth: "440px", textAlign: "center" }} className="modal-dialog admin-modal" onClick={(e) => e.stopPropagation()}>
+            <div style={{ textAlign: "center", padding: "12px 0" }}>
+              <div style={deleteIconWrapStyle}>
+                <Trash2 size={26} color="#DC2626" />
+              </div>
+              <h3 style={{ fontSize: "18px", fontWeight: 800, color: "#14151A", margin: "12px 0 8px" }}>
+                Remove from Best Sellers?
               </h3>
-              <p style={{ fontSize: "13.5px", color: "#4B5563", margin: "0 0 16px", lineHeight: "1.4" }}>
-                This will remove the product from this section, but will not delete it from the store catalog.
+              <p style={{ fontSize: "13.5px", color: "#6B6B75", margin: "0 0 16px", lineHeight: "1.4" }}>
+                Remove <strong>"{itemToRemove.product ? (itemToRemove.product.name || itemToRemove.product.title) : "Product"}"</strong> from this section? It will remain in the store catalog.
               </p>
             </div>
-            <div style={{ ...modalFooterStyle, justifyContent: "center", gap: "10px" }}>
-              <button type="button" onClick={() => setItemToRemove(null)} style={cancelBtnStyle}>
+            <div style={{ display: "flex", justifyContent: "center", gap: "10px" }}>
+              <button type="button" onClick={() => setItemToRemove(null)} style={secondaryModalBtnStyle}>
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleConfirmRemove}
-                style={{ ...saveBtnStyle, backgroundColor: "#DC2626" }}
+                style={dangerBtnStyle}
               >
-                Remove
+                Remove Product
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -3493,10 +3815,16 @@ function ProductSelectionModal({
 
   React.useEffect(() => {
     if (isOpen) {
+      document.body.style.overflow = "hidden";
       setSelectedProductIds([]);
       setModalSearch("");
       setModalCategory("All");
+    } else {
+      document.body.style.overflow = "";
     }
+    return () => {
+      document.body.style.overflow = "";
+    };
   }, [isOpen]);
 
   // Active storefront products
@@ -3524,7 +3852,7 @@ function ProductSelectionModal({
     });
   }, [activeStoreProducts, modalSearch, modalCategory, categories]);
 
-  if (!isOpen) return null;
+  if (!isOpen || typeof document === "undefined") return null;
 
   const handleToggleProductSelection = (pid, e) => {
     if (e) {
@@ -3542,45 +3870,30 @@ function ProductSelectionModal({
     onClose();
   };
 
-  return (
-    <div style={modalBackdropStyle} onClick={onClose} className="content-modal-backdrop">
-      <div style={modalCardStyle} className="content-modal-card" onClick={(e) => e.stopPropagation()}>
+  return createPortal(
+    <div style={modalOverlayStyle} className="modal-overlay admin-modal" onClick={onClose}>
+      <div
+        style={{
+          ...modalDialogStyle,
+          maxWidth: "680px",
+          display: "flex",
+          flexDirection: "column",
+          boxSizing: "border-box",
+        }}
+        className="modal-dialog admin-modal"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div style={modalHeaderStyle} className="content-modal-header">
-          <div style={{ flex: 1, minWidth: 0, paddingRight: "8px" }}>
-            <h2 style={modalTitleStyle} className="content-modal-title">{title}</h2>
-            <span style={{ fontSize: "12.5px", color: "#6B6B75", display: "block", marginTop: "2px" }}>
-              Choose existing products from store catalog or create a new product
+        <div style={modalHeaderStyle}>
+          <div>
+            <h3 style={{ fontSize: "18px", fontWeight: "800", color: "#111827", margin: 0 }}>
+              {title}
+            </h3>
+            <span style={{ fontSize: "13px", color: "#6B7280" }}>
+              Choose products from the store catalog or create a new product.
             </span>
           </div>
-          <button type="button" onClick={onClose} style={modalCloseBtnStyle}>
-            <XCircle size={22} color="#6B6B75" />
-          </button>
-        </div>
-
-        {/* Scrollable Body */}
-        <div style={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden", display: "flex", flexDirection: "column", gap: "12px", padding: "4px 0" }} className="content-modal-body">
-          {/* Modal top action bar */}
-          <div style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            backgroundColor: "#F9FAFB",
-            padding: "12px 14px",
-            borderRadius: "10px",
-            border: "1px solid #E5E7EB",
-            gap: "10px",
-            boxSizing: "border-box",
-            width: "100%"
-          }} className="content-modal-action-box">
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ fontSize: "13px", fontWeight: 700, color: "#111827", display: "block" }}>
-                Need a product not in your store catalog?
-              </span>
-              <span style={{ fontSize: "12px", color: "#6B7280", display: "block", marginTop: "2px" }}>
-                Open full Add Product page to create &amp; publish a new product.
-              </span>
-            </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <button
               type="button"
               onClick={() => {
@@ -3590,139 +3903,147 @@ function ProductSelectionModal({
               style={{
                 display: "inline-flex",
                 alignItems: "center",
-                gap: "6px",
-                padding: "8px 16px",
+                gap: "5px",
+                padding: "7px 13px",
                 borderRadius: "8px",
-                fontSize: "13px",
+                fontSize: "12px",
                 fontWeight: 700,
                 border: "none",
                 backgroundColor: "#16A34A",
                 color: "#FFFFFF",
                 cursor: "pointer",
-                whiteSpace: "nowrap",
-                flexShrink: 0
+                whiteSpace: "nowrap"
               }}
               className="content-create-product-btn"
             >
-              <Plus size={15} />
+              <Plus size={14} />
               Create New Product
             </button>
+            <button type="button" onClick={onClose} style={closeBtnStyle} aria-label="Close">
+              <X size={18} color="#6B7280" />
+            </button>
           </div>
+        </div>
 
-          {/* Search & Custom Category filter */}
-          <div style={{ display: "flex", gap: "10px", width: "100%", boxSizing: "border-box" }} className="content-modal-filters">
-            <div style={{ ...searchWrapStyle, height: "42px", flex: 1, minWidth: 0, maxWidth: "none" }} className="content-modal-search">
-              <Search size={15} color="#6B6B75" />
-              <input
-                type="text"
-                placeholder="Search store products..."
-                value={modalSearch}
-                onChange={(e) => setModalSearch(e.target.value)}
-                style={searchInputStyle}
-              />
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }} className="content-modal-category-wrap">
-              <CategoryCustomDropdown
-                value={modalCategory}
-                onChange={setModalCategory}
-                categoryTree={categoryTree}
-                totalCount={totalCount}
-              />
-            </div>
+        {/* Search & Custom Category filter */}
+        <div style={{ display: "flex", gap: "10px", width: "100%", boxSizing: "border-box", marginBottom: "12px", flexShrink: 0 }} className="content-modal-filters">
+          <div style={{ ...searchWrapStyle, height: "38px", flex: 1, minWidth: 0, maxWidth: "none" }} className="content-modal-search">
+            <Search size={15} color="#6B6B75" />
+            <input
+              type="text"
+              placeholder="Search store products..."
+              value={modalSearch}
+              onChange={(e) => setModalSearch(e.target.value)}
+              style={{ ...searchInputStyle, height: "36px", fontSize: "12.5px" }}
+            />
           </div>
+          <div style={{ flex: 1, minWidth: 0 }} className="content-modal-category-wrap">
+            <CategoryCustomDropdown
+              value={modalCategory}
+              onChange={setModalCategory}
+              categoryTree={categoryTree}
+              totalCount={totalCount}
+            />
+          </div>
+        </div>
 
-          {/* Catalog Product Selection List */}
-          <div style={{
-            maxHeight: "300px",
+        {/* Catalog Product Selection List */}
+        <div
+          style={{
+            height: "260px",
+            maxHeight: "260px",
             overflowY: "auto",
             overflowX: "hidden",
             border: "1px solid #E5E7EB",
             borderRadius: "10px",
             padding: "6px",
             boxSizing: "border-box",
-            width: "100%"
-          }}>
-            {modalCatalogProducts.length === 0 ? (
-              <div style={{ padding: "32px 16px", textAlign: "center", color: "#6B6B75", fontSize: "13px" }}>
-                No matching products found in store catalog.
-              </div>
-            ) : (
-              modalCatalogProducts.map((p) => {
-                const isAlreadyAdded =
-                  existingProductIds.has(p.id) ||
-                  existingProductIds.has(p.Product_Id) ||
-                  existingProductIds.has(p.slug);
-                const isSelected = selectedProductIds.includes(p.id);
-                const imgSrc = getProductPrimaryImage(p);
-                const catLabel = getProductCategoryLabel(p);
-                const minPrice = getMinimumProductPrice(p);
-                const formattedPrice = formatPrice(minPrice);
+            width: "100%",
+            scrollbarWidth: "none",
+            msOverflowStyle: "none",
+          }}
+          className="modal-dialog admin-modal"
+        >
+          {modalCatalogProducts.length === 0 ? (
+            <div style={{ padding: "32px 16px", textAlign: "center", color: "#6B6B75", fontSize: "13px" }}>
+              No matching products found in store catalog.
+            </div>
+          ) : (
+            modalCatalogProducts.map((p) => {
+              const isAlreadyAdded =
+                existingProductIds.has(p.id) ||
+                existingProductIds.has(p.Product_Id) ||
+                existingProductIds.has(p.slug);
+              const isSelected = selectedProductIds.includes(p.id);
+              const imgSrc = getProductPrimaryImage(p);
+              const catLabel = getProductCategoryLabel(p);
+              const minPrice = getMinimumProductPrice(p);
+              const formattedPrice = formatPrice(minPrice);
 
-                return (
-                  <div
-                    key={p.id}
-                    onClick={(e) => handleToggleProductSelection(p.id, e)}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "10px",
-                      padding: "10px 12px",
-                      borderRadius: "8px",
-                      marginBottom: "4px",
-                      backgroundColor: isAlreadyAdded
-                        ? "#F3F4F6"
-                        : isSelected
-                        ? "#EEF0FF"
-                        : "#FFFFFF",
-                      border: `1px solid ${isSelected ? "#1B1F8C" : "#E5E7EB"}`,
-                      cursor: isAlreadyAdded ? "not-allowed" : "pointer",
-                      opacity: isAlreadyAdded ? 0.7 : 1,
-                      userSelect: "none",
-                      boxSizing: "border-box",
-                      width: "100%",
-                      minWidth: 0
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      disabled={isAlreadyAdded}
-                      checked={isSelected || isAlreadyAdded}
-                      onChange={(e) => handleToggleProductSelection(p.id, e)}
-                      onClick={(e) => e.stopPropagation()}
-                      style={{ width: "18px", height: "18px", accentColor: "#1B1F8C", cursor: isAlreadyAdded ? "not-allowed" : "pointer", flexShrink: 0 }}
-                    />
-                    <div style={{ width: "44px", height: "44px", borderRadius: "6px", overflow: "hidden", backgroundColor: "#F3F4F6", flexShrink: 0 }}>
-                      <img src={imgSrc} alt={p.name || p.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <strong style={{ fontSize: "13.5px", color: "#111827", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {p.name || p.title}
-                      </strong>
-                      <div style={{ fontSize: "12px", color: "#6B7280", display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginTop: "2px" }}>
-                        <span>{catLabel}</span>
-                        <span>•</span>
-                        <strong style={{ color: "#16A34A" }}>{formattedPrice}</strong>
-                      </div>
-                    </div>
-                    {isAlreadyAdded ? (
-                      <span style={{ fontSize: "11px", fontWeight: 700, color: "#16A34A", backgroundColor: "#DCFCE7", padding: "3px 8px", borderRadius: "999px", flexShrink: 0, whiteSpace: "nowrap" }}>
-                        ✓ Already Added
-                      </span>
-                    ) : isSelected ? (
-                      <span style={{ fontSize: "11px", fontWeight: 700, color: "#1B1F8C", backgroundColor: "#EEF0FF", padding: "3px 8px", borderRadius: "999px", flexShrink: 0, whiteSpace: "nowrap" }}>
-                        Selected
-                      </span>
-                    ) : null}
+              return (
+                <div
+                  key={p.id}
+                  onClick={(e) => handleToggleProductSelection(p.id, e)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    padding: "9px 12px",
+                    borderRadius: "8px",
+                    marginBottom: "4px",
+                    backgroundColor: isAlreadyAdded
+                      ? "#F3F4F6"
+                      : isSelected
+                      ? "#EEF0FF"
+                      : "#FFFFFF",
+                    border: `1px solid ${isSelected ? "#1B1F8C" : "#E5E7EB"}`,
+                    cursor: isAlreadyAdded ? "not-allowed" : "pointer",
+                    opacity: isAlreadyAdded ? 0.7 : 1,
+                    userSelect: "none",
+                    boxSizing: "border-box",
+                    width: "100%",
+                    minWidth: 0
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    disabled={isAlreadyAdded}
+                    checked={isSelected || isAlreadyAdded}
+                    onChange={(e) => handleToggleProductSelection(p.id, e)}
+                    onClick={(e) => e.stopPropagation()}
+                    style={{ width: "18px", height: "18px", accentColor: "#1B1F8C", cursor: isAlreadyAdded ? "not-allowed" : "pointer", flexShrink: 0 }}
+                  />
+                  <div style={{ width: "40px", height: "40px", borderRadius: "6px", overflow: "hidden", backgroundColor: "#F3F4F6", flexShrink: 0 }}>
+                    <img src={imgSrc} alt={p.name || p.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                   </div>
-                );
-              })
-            )}
-          </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <strong style={{ fontSize: "13px", color: "#111827", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {p.name || p.title}
+                    </strong>
+                    <div style={{ fontSize: "11.5px", color: "#6B7280", display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginTop: "1px" }}>
+                      <span>{catLabel}</span>
+                      <span>•</span>
+                      <strong style={{ color: "#16A34A" }}>{formattedPrice}</strong>
+                    </div>
+                  </div>
+                  {isAlreadyAdded ? (
+                    <span style={{ fontSize: "11px", fontWeight: 700, color: "#16A34A", backgroundColor: "#DCFCE7", padding: "2px 8px", borderRadius: "999px", flexShrink: 0, whiteSpace: "nowrap" }}>
+                      ✓ Added
+                    </span>
+                  ) : isSelected ? (
+                    <span style={{ fontSize: "11px", fontWeight: 700, color: "#1B1F8C", backgroundColor: "#EEF0FF", padding: "2px 8px", borderRadius: "999px", flexShrink: 0, whiteSpace: "nowrap" }}>
+                      Selected
+                    </span>
+                  ) : null}
+                </div>
+              );
+            })
+          )}
         </div>
 
         {/* Footer */}
-        <div style={{ ...modalFooterStyle, marginTop: "12px", paddingTop: "12px", borderTop: "1px solid #E5E7EB" }} className="content-modal-footer">
-          <button type="button" onClick={onClose} style={cancelBtnStyle} className="content-modal-btn">
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "14px", paddingTop: "14px", borderTop: "1px solid #E5E7EB", flexShrink: 0 }}>
+          <button type="button" onClick={onClose} style={secondaryModalBtnStyle}>
             Cancel
           </button>
           <button
@@ -3730,17 +4051,18 @@ function ProductSelectionModal({
             onClick={handleAddSelected}
             disabled={selectedProductIds.length === 0}
             style={{
-              ...saveBtnStyle,
+              ...primaryModalBtnStyle,
               backgroundColor: selectedProductIds.length > 0 ? "#1B1F8C" : "#9CA3AF",
+              borderColor: selectedProductIds.length > 0 ? "#1B1F8C" : "#9CA3AF",
               cursor: selectedProductIds.length > 0 ? "pointer" : "not-allowed"
             }}
-            className="content-modal-btn"
           >
             Add Selected ({selectedProductIds.length})
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -3791,7 +4113,18 @@ function CreateSectionModal({ isOpen, onClose, homepageConfig, updateHomepageCon
     });
   }, [activeStoreProducts, search, category, categories]);
 
-  if (!isOpen) return null;
+  React.useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isOpen]);
+
+  if (!isOpen || typeof document === "undefined") return null;
 
   const handleToggleSelect = (pid) => {
     setSelectedProductIds((prev) =>
@@ -3845,24 +4178,61 @@ function CreateSectionModal({ isOpen, onClose, homepageConfig, updateHomepageCon
     setActiveTab(newId);
   };
 
-  return (
-    <div style={modalOverlayStyle} onClick={onClose} className="content-modal-backdrop">
-      <div style={modalContentStyle} className="content-modal-card" onClick={(e) => e.stopPropagation()}>
-        <div style={modalHeaderStyle} className="content-modal-header">
-          <div style={{ flex: 1, minWidth: 0, paddingRight: "8px" }}>
-            <h2 style={modalTitleStyle} className="content-modal-title">Create Homepage Product Section</h2>
-            <p style={{ fontSize: "12.5px", color: "#6B6B75", margin: "4px 0 0 0" }}>
-              Create a custom section that will appear as a new tab in Content and on the customer homepage.
-            </p>
+  return createPortal(
+    <div style={modalOverlayStyle} className="modal-overlay admin-modal" onClick={onClose}>
+      <div
+        style={{
+          ...modalDialogStyle,
+          maxWidth: "620px",
+          display: "flex",
+          flexDirection: "column",
+          boxSizing: "border-box"
+        }}
+        className="modal-dialog admin-modal"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div style={modalHeaderStyle}>
+          <div>
+            <h3 style={{ fontSize: "18px", fontWeight: "800", color: "#111827", margin: 0 }}>
+              Create Homepage Section
+            </h3>
+            <span style={{ fontSize: "13px", color: "#6B7280" }}>
+              Add a new customizable product showcase section to your customer homepage.
+            </span>
           </div>
-          <button type="button" onClick={onClose} style={modalCloseBtnStyle}>
-            <XCircle size={22} color="#6B6B75" />
+          <button type="button" onClick={onClose} style={closeBtnStyle} aria-label="Close">
+            <X size={18} color="#6B7280" />
           </button>
         </div>
 
-        <form onSubmit={handleCreate} style={{ display: "flex", flexDirection: "column", gap: "14px", flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden" }}>
-          <div>
-            <label style={labelStyle}>Section Name *</label>
+        <form onSubmit={handleCreate} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          {/* Live Section Preview Box */}
+          <div style={modalPreviewBoxStyle}>
+            <span style={{ fontSize: "11px", fontWeight: "700", color: "#6B7280", letterSpacing: "0.5px", textTransform: "uppercase", marginBottom: "8px", display: "block" }}>
+              Live Section Preview
+            </span>
+            <div
+              style={{
+                padding: "16px 20px",
+                borderRadius: "12px",
+                backgroundColor: isValidHex(backgroundColor) ? backgroundColor : "#FFFFFF",
+                border: "1px solid #E5E7EB",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
+                textAlign: "center",
+                transition: "background-color 0.2s ease"
+              }}
+            >
+              <div style={{ fontSize: "16px", fontWeight: "800", color: isDarkHex(backgroundColor) ? "#FFFFFF" : "#1B1F8C" }}>
+                {name || "Section Name Preview"}
+              </div>
+              <div style={{ fontSize: "12px", color: isDarkHex(backgroundColor) ? "#CBD5E1" : "#6B7280", marginTop: "2px" }}>
+                {description || "Section subtitle preview text..."}
+              </div>
+            </div>
+          </div>
+
+          <div style={formGroupStyle}>
+            <label style={formLabelStyle}>Section Name *</label>
             <input
               type="text"
               value={name}
@@ -3873,8 +4243,8 @@ function CreateSectionModal({ isOpen, onClose, homepageConfig, updateHomepageCon
             />
           </div>
 
-          <div>
-            <label style={labelStyle}>Short Description / Subtitle *</label>
+          <div style={formGroupStyle}>
+            <label style={formLabelStyle}>Short Description / Subtitle *</label>
             <input
               type="text"
               value={description}
@@ -3885,19 +4255,19 @@ function CreateSectionModal({ isOpen, onClose, homepageConfig, updateHomepageCon
             />
           </div>
 
-          {/* Background Color Field & Live Preview */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-            <label style={labelStyle}>Background Color *</label>
+          {/* Background Color Field */}
+          <div style={formGroupStyle}>
+            <label style={formLabelStyle}>Background Color *</label>
             <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
               <input
                 type="color"
                 value={isValidHex(backgroundColor) ? backgroundColor : "#FFFFFF"}
                 onChange={(e) => setBackgroundColor(e.target.value.toUpperCase())}
                 style={{
-                  width: "44px",
+                  width: "40px",
                   height: "38px",
                   padding: "2px",
-                  border: "1px solid #E7E7E2",
+                  border: "1px solid #D1D5DB",
                   borderRadius: "8px",
                   cursor: "pointer",
                   backgroundColor: "#FFFFFF",
@@ -3913,7 +4283,7 @@ function CreateSectionModal({ isOpen, onClose, homepageConfig, updateHomepageCon
                   setBackgroundColor(val);
                 }}
                 placeholder="#FFFFFF"
-                style={{ ...inputStyle, width: "130px", textTransform: "uppercase", fontFamily: "monospace", fontWeight: "700" }}
+                style={{ ...inputStyle, width: "120px", textTransform: "uppercase", fontFamily: "monospace", fontWeight: "700" }}
               />
               <button
                 type="button"
@@ -3933,58 +4303,37 @@ function CreateSectionModal({ isOpen, onClose, homepageConfig, updateHomepageCon
                 Reset to Default
               </button>
             </div>
-
-            {/* Live Section Color Preview */}
-            <div
-              style={{
-                marginTop: "10px",
-                padding: "14px 18px",
-                borderRadius: "12px",
-                backgroundColor: isValidHex(backgroundColor) ? backgroundColor : "#FFFFFF",
-                border: "1px solid #E7E7E2",
-                transition: "background-color 0.2s ease"
-              }}
-            >
-              <div style={{ fontSize: "11px", fontWeight: "800", textTransform: "uppercase", letterSpacing: "0.05em", color: isDarkHex(backgroundColor) ? "#94A3B8" : "#6B6B75", marginBottom: "4px" }}>
-                Live Section Background Preview
-              </div>
-              <div style={{ fontSize: "15px", fontWeight: "800", color: isDarkHex(backgroundColor) ? "#FFFFFF" : "#1B1F8C" }}>
-                {name || "Section Name Preview"}
-              </div>
-              <div style={{ fontSize: "12px", color: isDarkHex(backgroundColor) ? "#CBD5E1" : "#6B6B75" }}>
-                {description || "Section subtitle preview text..."}
-              </div>
-            </div>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          {/* Visibility Toggle Card */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", backgroundColor: "#F9FAFB", borderRadius: "10px", border: "1px solid #E5E7EB" }}>
+            <div>
+              <strong style={{ fontSize: "14px", color: "#111827", display: "block" }}>Show on Customer Homepage</strong>
+              <span style={{ fontSize: "12px", color: "#6B7280" }}>Enable to display this section on the live storefront.</span>
+            </div>
             <input
               type="checkbox"
               id="visible-check-create"
               checked={visible}
               onChange={(e) => setVisible(e.target.checked)}
-              style={{ width: "18px", height: "18px", accentColor: "#1B1F8C" }}
+              style={{ width: "20px", height: "20px", accentColor: "#1B1F8C", cursor: "pointer" }}
             />
-            <label htmlFor="visible-check-create" style={{ fontSize: "13.5px", fontWeight: "600", color: "#14151A", cursor: "pointer" }}>
-              Visible on Customer Homepage
-            </label>
           </div>
 
-          <div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
-              <label style={labelStyle}>Select Products * ({selectedProductIds.length} selected)</label>
-            </div>
+          {/* Product Checklist */}
+          <div style={formGroupStyle}>
+            <label style={formLabelStyle}>Select Products * ({selectedProductIds.length} selected)</label>
 
             {/* Filter controls */}
-            <div style={{ display: "flex", gap: "10px", marginBottom: "12px", width: "100%", boxSizing: "border-box" }} className="content-modal-filters">
+            <div style={{ display: "flex", gap: "10px", marginBottom: "10px", width: "100%", boxSizing: "border-box" }} className="content-modal-filters">
               <div style={{ flex: 1, position: "relative", minWidth: 0 }} className="content-modal-search">
-                <Search size={14} color="#9CA3AF" style={{ position: "absolute", left: "10px", top: "14px" }} />
+                <Search size={14} color="#9CA3AF" style={{ position: "absolute", left: "10px", top: "12px" }} />
                 <input
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search catalogue products..."
-                  style={{ ...inputStyle, paddingLeft: "32px", fontSize: "13px", height: "42px" }}
+                  style={{ ...inputStyle, paddingLeft: "32px", fontSize: "12.5px" }}
                 />
               </div>
               <div style={{ flex: 1, minWidth: 0 }} className="content-modal-category-wrap">
@@ -3998,7 +4347,21 @@ function CreateSectionModal({ isOpen, onClose, homepageConfig, updateHomepageCon
             </div>
 
             {/* Product list checklist */}
-            <div style={{ border: "1px solid #E7E7E2", borderRadius: "10px", maxHeight: "220px", overflowY: "auto", overflowX: "hidden", padding: "6px", boxSizing: "border-box", width: "100%" }}>
+            <div
+              style={{
+                border: "1px solid #E5E7EB",
+                borderRadius: "10px",
+                maxHeight: "220px",
+                overflowY: "auto",
+                overflowX: "hidden",
+                padding: "6px",
+                boxSizing: "border-box",
+                width: "100%",
+                scrollbarWidth: "none",
+                msOverflowStyle: "none"
+              }}
+              className="modal-dialog admin-modal"
+            >
               {filteredProducts.length === 0 ? (
                 <p style={{ textAlign: "center", color: "#6B6B75", padding: "24px 16px", fontSize: "13px" }}>No products match filters.</p>
               ) : (
@@ -4048,13 +4411,14 @@ function CreateSectionModal({ isOpen, onClose, homepageConfig, updateHomepageCon
             </div>
           </div>
 
-          <div style={{ ...modalFooterStyle, marginTop: "12px", paddingTop: "12px", borderTop: "1px solid #E5E7EB" }} className="content-modal-footer">
-            <button type="button" onClick={onClose} style={cancelBtnStyle} className="content-modal-btn">Cancel</button>
-            <button type="submit" style={saveBtnStyle} className="content-modal-btn">Create Section</button>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "10px" }}>
+            <button type="button" onClick={onClose} style={secondaryModalBtnStyle}>Cancel</button>
+            <button type="submit" style={primaryModalBtnStyle}>Create Section</button>
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -4073,6 +4437,17 @@ function CustomSectionTab({ sectionId, homepageConfig, updateHomepageConfig, sho
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+
+  React.useEffect(() => {
+    if (isDeleteModalOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isDeleteModalOpen]);
 
   React.useEffect(() => {
     if (section) {
@@ -4388,26 +4763,31 @@ function CustomSectionTab({ sectionId, homepageConfig, updateHomepageConfig, sho
       )}
 
       {/* Delete Confirmation Modal */}
-      {isDeleteModalOpen && (
-        <div style={modalOverlayStyle}>
-          <div style={{ ...modalContentStyle, maxWidth: "440px", padding: "24px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px", color: "#DC2626" }}>
-              <AlertTriangle size={24} />
-              <h3 style={{ fontSize: "18px", fontWeight: "800", margin: 0, color: "#14151A" }}>Delete Homepage Section?</h3>
+      {isDeleteModalOpen && typeof document !== "undefined" && createPortal(
+        <div style={modalOverlayStyle} className="modal-overlay admin-modal" onClick={() => setIsDeleteModalOpen(false)}>
+          <div style={{ ...modalDialogStyle, maxWidth: "440px", textAlign: "center" }} className="modal-dialog admin-modal" onClick={(e) => e.stopPropagation()}>
+            <div style={{ textAlign: "center", padding: "12px 0" }}>
+              <div style={deleteIconWrapStyle}>
+                <Trash2 size={26} color="#DC2626" />
+              </div>
+              <h3 style={{ fontSize: "18px", fontWeight: "800", color: "#14151A", margin: "12px 0 8px" }}>
+                Delete Homepage Section?
+              </h3>
+              <p style={{ fontSize: "13.5px", color: "#6B6B75", margin: "0 0 20px 0", lineHeight: "1.45" }}>
+                Are you sure you want to delete the <strong>"{name}"</strong> homepage section? This will remove the section from Content tabs, Homepage Layout, and the customer homepage. Products in your catalogue will NOT be deleted.
+              </p>
             </div>
-            <p style={{ fontSize: "14px", color: "#6B6B75", margin: "0 0 20px 0" }}>
-              Are you sure you want to delete the <strong>"{name}"</strong> homepage section? This will remove the section from Content tabs, Homepage Layout, and the customer homepage. Products in your catalogue will NOT be deleted.
-            </p>
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px" }}>
-              <button type="button" onClick={() => setIsDeleteModalOpen(false)} style={cancelBtnStyle}>
+            <div style={{ display: "flex", justifyContent: "center", gap: "10px" }}>
+              <button type="button" onClick={() => setIsDeleteModalOpen(false)} style={secondaryModalBtnStyle}>
                 Cancel
               </button>
-              <button type="button" onClick={handleDeleteSection} style={{ ...saveBtnStyle, backgroundColor: "#DC2626" }}>
+              <button type="button" onClick={handleDeleteSection} style={dangerBtnStyle}>
                 Yes, Delete Section
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

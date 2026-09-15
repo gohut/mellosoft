@@ -352,20 +352,242 @@ export default function CheckoutView() {
             padding: 14px 10px !important;
           }
         }
+        .checkout-top-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 28px;
+          gap: 16px;
+          flex-wrap: wrap;
+        }
+        .checkout-back-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 16px;
+          background-color: #FFFFFF;
+          border: 1px solid #E7E7E2;
+          border-radius: 999px;
+          font-size: 13.5px;
+          font-weight: 600;
+          color: #14151A;
+          cursor: pointer;
+          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+          font-family: inherit;
+        }
+        .checkout-back-pill:hover {
+          background-color: #FAFAF7;
+          border-color: #1B1F8C;
+          color: #1B1F8C;
+          transform: translateX(-2px);
+        }
+        .checkout-stepper-flow {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          background-color: #FAFAF7;
+          padding: 6px 18px;
+          border-radius: 999px;
+          border: 1px solid #E7E7E2;
+        }
+        .checkout-step-item {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .checkout-step-item .step-circle {
+          width: 22px;
+          height: 22px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 11px;
+          font-weight: 700;
+        }
+        .checkout-step-item.active .step-circle {
+          background-color: #1B1F8C;
+          color: #FFFFFF;
+        }
+        .checkout-step-item.active .step-text {
+          font-size: 13.5px;
+          font-weight: 700;
+          color: #1B1F8C;
+        }
+        .checkout-step-item.completed .step-circle {
+          background-color: #16A34A;
+          color: #FFFFFF;
+        }
+        .checkout-step-item.completed .step-text {
+          font-size: 13.5px;
+          font-weight: 600;
+          color: #16A34A;
+        }
+        .checkout-step-item.pending .step-circle {
+          background-color: #E7E7E2;
+          color: #8C8C94;
+        }
+        .checkout-step-item.pending .step-text {
+          font-size: 13.5px;
+          font-weight: 500;
+          color: #8C8C94;
+        }
+        .step-line {
+          width: 24px;
+          height: 2px;
+          background-color: #E7E7E2;
+          border-radius: 2px;
+        }
+        .checkout-mobile-progress {
+          display: none;
+        }
+
+        @media (max-width: 680px) {
+          .checkout-stepper-flow {
+            display: none !important;
+          }
+          .checkout-mobile-progress {
+            display: flex !important;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
+          }
+          .mobile-progress-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+          }
+          .mobile-progress-step {
+            font-size: 11px;
+            font-weight: 700;
+            color: #1B1F8C;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+          }
+          .mobile-progress-label {
+            font-size: 12.5px;
+            font-weight: 800;
+            color: #14151A;
+          }
+          .mobile-progress-bars {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            width: 80px;
+          }
+          .mobile-progress-bars .p-bar {
+            flex: 1;
+            height: 3.5px;
+            border-radius: 999px;
+            background-color: #E7E7E2;
+          }
+          .mobile-progress-bars .p-bar.active {
+            background-color: #1B1F8C;
+          }
+          .mobile-progress-bars .p-bar.completed {
+            background-color: #16A34A;
+          }
+          .checkout-top-header {
+            margin-bottom: 18px !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+          }
+        }
+
+        .checkout-addr-header-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 20px;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+        .checkout-addr-title {
+          font-size: 20px;
+          font-weight: 800;
+          color: #1B1F8C;
+          margin: 0 !important;
+          letter-spacing: -0.01em;
+        }
+        .checkout-addr-change-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 7px 14px;
+          background-color: #FAFAF7;
+          border: 1px solid #E7E7E2;
+          border-radius: 999px;
+          color: #1B1F8C;
+          font-size: 13px;
+          font-weight: 700;
+          cursor: pointer;
+          white-space: nowrap;
+          transition: all 0.2s ease;
+          font-family: inherit;
+        }
+        .checkout-addr-change-btn:hover {
+          background-color: #E8E9F8;
+          border-color: #1B1F8C;
+          color: #1B1F8C;
+        }
+        @media (max-width: 540px) {
+          .checkout-addr-header-row {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 12px !important;
+            margin-bottom: 16px !important;
+          }
+          .checkout-addr-change-btn {
+            width: 100% !important;
+            justify-content: center !important;
+            padding: 9px 14px !important;
+            box-sizing: border-box !important;
+          }
+        }
       `}</style>
 
-      {/* Breadcrumb Header */}
-      <div style={headerNavStyle} className="checkout-header-nav">
-        <button onClick={() => navigateTo("cart")} style={backBtnStyle} className="checkout-back-btn">
-          <ArrowLeft size={18} />
+      {/* Modern Checkout Top Header */}
+      <div className="checkout-top-header">
+        <button
+          onClick={() => navigateTo("cart")}
+          className="checkout-back-pill hover-lift"
+          type="button"
+          aria-label="Back to Cart"
+        >
+          <ArrowLeft size={16} />
           <span>Back to Cart</span>
         </button>
-        <div style={stepperStyle} className="checkout-stepper">
-          <span style={activeStepStyle}>1. Delivery Address</span>
-          <span style={stepDividerStyle}>&rarr;</span>
-          <span style={inactiveStepStyle}>2. Payment</span>
-          <span style={stepDividerStyle}>&rarr;</span>
-          <span style={inactiveStepStyle}>3. Confirmation</span>
+
+        {/* Desktop Stepper */}
+        <div className="checkout-stepper-flow">
+          <div className="checkout-step-item active">
+            <span className="step-circle">1</span>
+            <span className="step-text">Delivery Address</span>
+          </div>
+          <span className="step-line" />
+          <div className="checkout-step-item pending">
+            <span className="step-circle">2</span>
+            <span className="step-text">Payment</span>
+          </div>
+          <span className="step-line" />
+          <div className="checkout-step-item pending">
+            <span className="step-circle">3</span>
+            <span className="step-text">Confirmation</span>
+          </div>
+        </div>
+
+        {/* Mobile Simplified Progress */}
+        <div className="checkout-mobile-progress">
+          <div className="mobile-progress-badge">
+            <span className="mobile-progress-step">Step 1 of 3</span>
+            <span className="mobile-progress-label">Address</span>
+          </div>
+          <div className="mobile-progress-bars">
+            <span className="p-bar active" />
+            <span className="p-bar" />
+            <span className="p-bar" />
+          </div>
         </div>
       </div>
 
@@ -376,7 +598,7 @@ export default function CheckoutView() {
           {/* SECTION 1: ORDER ITEMS */}
           <div style={cardSectionStyle} className="checkout-card-section">
             <h2 style={sectionTitleStyle}>
-              <span>1. Order Items</span>
+              <span>Order Summary</span>
               <span style={countBadgeStyle}>{items.length} {items.length === 1 ? "Item" : "Items"}</span>
             </h2>
             <div style={itemsListStyle} className="checkout-items-list">
@@ -402,11 +624,15 @@ export default function CheckoutView() {
 
           {/* SECTION 2: DELIVERY ADDRESS */}
           <div style={cardSectionStyle} className="checkout-card-section">
-            <div style={sectionHeaderFlexStyle}>
-              <h2 style={sectionTitleStyle}>2. Delivery Address</h2>
+            <div className="checkout-addr-header-row">
+              <h2 style={{ ...sectionTitleStyle, margin: 0 }} className="checkout-addr-title">Delivery Address</h2>
               {!editingAddress && (
-                <button onClick={() => { setEditingAddress(true); setAddressError(""); }} style={secondaryIconBtnStyle}>
-                  <Plus size={14} />
+                <button
+                  type="button"
+                  onClick={() => { setEditingAddress(true); setAddressError(""); }}
+                  className="checkout-addr-change-btn hover-lift"
+                >
+                  <Plus size={15} />
                   <span>Use a Different Address</span>
                 </button>
               )}

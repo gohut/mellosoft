@@ -49,7 +49,7 @@ export default function PromoBannerCard({
   const cardStyle = {
     position: "relative",
     width: "100%",
-    height: preview ? "220px" : style.height || "240px",
+    height: style.height || (preview ? "220px" : "240px"),
     minHeight: "0px",
     borderRadius: preview ? "14px" : "12px",
     overflow: "hidden",
@@ -128,17 +128,19 @@ export default function PromoBannerCard({
           box-shadow: 0 6px 18px rgba(22, 163, 74, 0.4) !important;
         }
         @media (max-width: 1024px) {
-          .promo-banner-card {
+          .promo-banner-card:not(.admin-promo-preview) {
             height: 210px !important;
           }
           .banner-content-overlay {
-            padding-left: 46px !important;
+            padding-left: 36px !important;
+            padding-bottom: 20px !important;
+            justify-content: flex-end !important;
           }
           .banner-category-label {
-            font-size: 13px !important;
+            font-size: 12.5px !important;
           }
           .banner-title-heading {
-            font-size: 26px !important;
+            font-size: 24px !important;
           }
         }
         @media (max-width: 767px) {
@@ -147,21 +149,24 @@ export default function PromoBannerCard({
             border-radius: 10px !important;
           }
           .banner-content-overlay {
-            padding-left: 28px !important;
+            padding-left: 20px !important;
             padding-right: 18px !important;
-            gap: 5px !important;
+            padding-bottom: 14px !important;
+            justify-content: flex-end !important;
+            gap: 4px !important;
           }
           .banner-category-label {
-            font-size: 11.5px !important;
+            font-size: 11px !important;
           }
           .banner-title-heading {
-            font-size: 20px !important;
+            font-size: 18px !important;
           }
           .banner-desc-text {
-            font-size: 11.5px !important;
+            font-size: 11px !important;
             line-height: 1.25 !important;
             display: -webkit-box !important;
             -webkit-line-clamp: 2 !important;
+            line-clamp: 2 !important;
             -webkit-box-orient: vertical !important;
             overflow: hidden !important;
           }
@@ -190,7 +195,7 @@ const bannerImgStyle = {
 const overlayStyle = {
   position: "absolute",
   inset: 0,
-  background: "linear-gradient(90deg, rgba(20, 21, 26, 0.78) 0%, rgba(20, 21, 26, 0.48) 50%, rgba(20, 21, 26, 0.08) 100%)"
+  background: "linear-gradient(180deg, rgba(20, 21, 26, 0.02) 15%, rgba(20, 21, 26, 0.55) 60%, rgba(20, 21, 26, 0.90) 100%), linear-gradient(90deg, rgba(20, 21, 26, 0.75) 0%, rgba(20, 21, 26, 0.45) 50%, rgba(20, 21, 26, 0.06) 100%)"
 };
 
 const contentOverlayStyle = {
@@ -199,11 +204,12 @@ const contentOverlayStyle = {
   height: "100%",
   paddingLeft: "50px",
   paddingRight: "32px",
+  paddingBottom: "24px",
   display: "flex",
   flexDirection: "column",
   alignItems: "flex-start",
-  justifyContent: "center",
-  gap: "7px",
+  justifyContent: "flex-end",
+  gap: "6px",
   maxWidth: "1000px",
   boxSizing: "border-box"
 };

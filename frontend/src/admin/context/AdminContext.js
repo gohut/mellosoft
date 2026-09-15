@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { MOCK_PRODUCTS } from "../../data/products";
 import { MOCK_CATEGORIES, MOCK_ORDERS, MOCK_CUSTOMERS, MOCK_WISHLISTS, MOCK_CARTS, MOCK_REVIEWS, MOCK_BANNERS } from "../data/adminMockData";
 import { DEFAULT_ROLES } from "../../data/rolesData";
@@ -12,6 +13,11 @@ import { getProductPrimaryImage, getDeletedProductIds, saveDeletedProductId, isP
 import { migrateProductsBase64, migrateReviewsBase64 } from "../../utils/imageStorage";
 import { getSavedSettings, saveSettingsToStorage, normalizeSettings, SETTINGS_UPDATED_EVENT } from "../../utils/settingsHelpers";
 import { normalizeCustomerId } from "../../utils/customerHelpers";
+import {
+  DEFAULT_HOMEPAGE_CATEGORIES,
+  HOMEPAGE_CATEGORIES_STORAGE_KEY,
+  HOMEPAGE_CATEGORIES_UPDATED_EVENT
+} from "../../data/homepageCategoriesData";
 
 const AdminContext = createContext();
 
@@ -26,6 +32,39 @@ export function getFirstAllowedAdminView(role) {
   if (checkPermission(role, "users", "view") || checkPermission(role, "roles", "view")) return "users-roles";
   if (checkPermission(role, "settings", "view")) return "settings";
   return "dashboard";
+}
+
+export function isViewAllowed(role, view) {
+  if (!role) return false;
+  switch (view) {
+    case "dashboard":
+      return checkPermission(role, "dashboard", "view");
+    case "products":
+    case "categories":
+    case "inventory":
+    case "product-details":
+      return checkPermission(role, "products", "view");
+    case "add-product":
+      return checkPermission(role, "products", "create");
+    case "edit-product":
+      return checkPermission(role, "products", "edit");
+    case "orders":
+      return checkPermission(role, "orders", "view");
+    case "customers":
+      return checkPermission(role, "customers", "view");
+    case "reviews":
+      return checkPermission(role, "reviews", "view");
+    case "content":
+      return checkPermission(role, "content", "view");
+    case "users-roles":
+    case "users":
+    case "roles":
+      return checkPermission(role, "users", "view") || checkPermission(role, "roles", "view");
+    case "settings":
+      return checkPermission(role, "settings", "view");
+    default:
+      return true;
+  }
 }
 
 const PRODUCTS_STORAGE_KEY = "mellosoft_products";
@@ -45,6 +84,7 @@ const ORDERS_RESET_KEY = "mellosoft_orders_reset_v1";
 const CUSTOMER_CLEANUP_KEY = "mellosoft_customer_cleanup_v1";
 const REVIEW_CLEANUP_KEY = "mellosoft_review_cleanup_v1";
 const HOME_LAYOUT_CLEANUP_KEY = "mellosoft_home_layout_cleanup_v1";
+const HOME_LAYOUT_V2_KEY = "mellosoft_home_layout_v2";
 
 // One-time safe reset and cleanup migrations
 if (typeof window !== "undefined") {
@@ -109,17 +149,42 @@ if (typeof window !== "undefined") {
       localStorage.setItem(REVIEW_CLEANUP_KEY, "completed");
     }
 
-    // Home layout cleanup migration (removes about-us from saved layout)
+    // Home layout cleanup migration (removes about-us from saved layout and ensures default interleaved layout)
     if (localStorage.getItem(HOME_LAYOUT_CLEANUP_KEY) !== "completed") {
       const savedConfig = localStorage.getItem(HOMEPAGE_CONFIG_KEY);
       if (savedConfig) {
         const parsed = JSON.parse(savedConfig);
         if (parsed && Array.isArray(parsed.sections)) {
           parsed.sections = parsed.sections.filter((s) => s.id !== "about-us" && s.id !== "about-section");
+          // If promo-002 is before new-arrivals, update to the default interleaved layout
+          const p2Idx = parsed.sections.findIndex((s) => s.id === "promo-002" || s.bannerId === "promo-002");
+          const naIdx = parsed.sections.findIndex((s) => s.id === "new-arrivals");
+          if (p2Idx !== -1 && naIdx !== -1 && p2Idx < naIdx) {
+            parsed.sections = DEFAULT_HOMEPAGE_SECTIONS;
+          }
           localStorage.setItem(HOMEPAGE_CONFIG_KEY, JSON.stringify(parsed));
         }
       }
       localStorage.setItem(HOME_LAYOUT_CLEANUP_KEY, "completed");
+    }
+
+    // Ensure interleaved homepage layout for existing browsers
+    if (localStorage.getItem(HOME_LAYOUT_V2_KEY) !== "completed") {
+      const savedConfig = localStorage.getItem(HOMEPAGE_CONFIG_KEY);
+      if (savedConfig) {
+        try {
+          const parsed = JSON.parse(savedConfig);
+          if (parsed && Array.isArray(parsed.sections)) {
+            const p2Idx = parsed.sections.findIndex((s) => s.id === "promo-002" || s.bannerId === "promo-002");
+            const naIdx = parsed.sections.findIndex((s) => s.id === "new-arrivals");
+            if (p2Idx !== -1 && naIdx !== -1 && p2Idx < naIdx) {
+              parsed.sections = DEFAULT_HOMEPAGE_SECTIONS;
+              localStorage.setItem(HOMEPAGE_CONFIG_KEY, JSON.stringify(parsed));
+            }
+          }
+        } catch {}
+      }
+      localStorage.setItem(HOME_LAYOUT_V2_KEY, "completed");
     }
   } catch (e) {
     console.error("Cleanup migration error in AdminContext:", e);
@@ -137,10 +202,10 @@ const DEFAULT_HOMEPAGE_SECTIONS = [
   { id: "hero-slider",      label: "Hero Slides",       description: "Main hero banner slideshow at the top of the page",   visible: true, type: "global" },
   { id: "shop-by-category", label: "Shop by Category",  description: "Category grid letting customers browse by product type", visible: true, type: "global" },
   { id: "promo-001",        label: "Classic Comfort",   description: "Promotional Banner • Promotion",                       visible: true, type: "promo-banner", bannerId: "promo-001" },
-  { id: "promo-002",        label: "Get 30% off essentials", description: "Promotional Banner • Promotion",               visible: true, type: "promo-banner", bannerId: "promo-002" },
-  { id: "promo-003",        label: "Free assembly included", description: "Promotional Banner • Promotion",               visible: true, type: "promo-banner", bannerId: "promo-003" },
   { id: "new-arrivals",     label: "New Arrivals",      description: "Showcase of the latest products added to the store",   visible: true, type: "global" },
+  { id: "promo-002",        label: "Get 30% off essentials", description: "Promotional Banner • Promotion",               visible: true, type: "promo-banner", bannerId: "promo-002" },
   { id: "best-sellers",     label: "Best Sellers",      description: "Top-selling products ranked by purchase frequency",    visible: true, type: "global" },
+  { id: "promo-003",        label: "Free assembly included", description: "Promotional Banner • Promotion",               visible: true, type: "promo-banner", bannerId: "promo-003" },
   { id: "customer-reviews", label: "Customer Reviews",  description: "Customer reviews and feedback carousel section",        visible: true, type: "global" },
 ];
 
@@ -220,8 +285,62 @@ const sanitizeHomepageConfig = (configSections, currentBanners) => {
 
 export const MELLOSOFT_CATALOGUE_VERSION = "v6-bed-frames";
 
+export function getAdminViewFromPathname(pathname) {
+  if (!pathname || pathname === "/admin" || pathname === "/admin/dashboard") return "dashboard";
+  if (pathname.startsWith("/admin/products/add")) return "add-product";
+  if (pathname.match(/^\/admin\/products\/[^/]+\/edit/)) return "edit-product";
+  if (pathname.match(/^\/admin\/products\/[^/]+/)) return "product-details";
+  if (pathname.startsWith("/admin/products")) return "products";
+  if (pathname.startsWith("/admin/categories")) return "categories";
+  if (pathname.startsWith("/admin/inventory")) return "inventory";
+  if (pathname.startsWith("/admin/orders")) return "orders";
+  if (pathname.startsWith("/admin/customers")) return "customers";
+  if (pathname.startsWith("/admin/reviews")) return "reviews";
+  if (pathname.startsWith("/admin/content")) return "content";
+  if (pathname.startsWith("/admin/users-roles")) return "users-roles";
+  if (pathname.startsWith("/admin/settings")) return "settings";
+  return "dashboard";
+}
+
+export function getRouteFromAdminView(view, itemId) {
+  switch (view) {
+    case "dashboard":
+      return "/admin/dashboard";
+    case "products":
+      return "/admin/products";
+    case "add-product":
+      return "/admin/products/add";
+    case "product-details":
+      return itemId ? `/admin/products/${itemId}` : "/admin/products";
+    case "edit-product":
+      return itemId ? `/admin/products/${itemId}/edit` : "/admin/products";
+    case "categories":
+      return "/admin/categories";
+    case "inventory":
+      return "/admin/inventory";
+    case "orders":
+      return "/admin/orders";
+    case "customers":
+      return "/admin/customers";
+    case "reviews":
+      return "/admin/reviews";
+    case "banners":
+    case "content":
+      return "/admin/content";
+    case "users-roles":
+      return "/admin/users-roles";
+    case "settings":
+      return "/admin/settings";
+    default:
+      return "/admin/dashboard";
+  }
+}
+
 export function AdminProvider({ children }) {
-  const [adminView, setAdminView] = useState("dashboard");
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const [adminView, setAdminView] = useState(() => getAdminViewFromPathname(pathname));
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState(null);
@@ -229,6 +348,22 @@ export function AdminProvider({ children }) {
   const [selectedRoleId, setSelectedRoleId] = useState(null);
   const [returnToNewArrivals, setReturnToNewArrivals] = useState(false);
   const [contentActiveTab, setContentActiveTab] = useState("homepage-layout");
+
+  // Sync adminView and selected IDs from pathname on route changes or browser navigation
+  useEffect(() => {
+    if (pathname && pathname.startsWith("/admin")) {
+      const derived = getAdminViewFromPathname(pathname);
+      setAdminView(derived);
+
+      const editMatch = pathname.match(/^\/admin\/products\/([^/]+)\/edit/);
+      const detailMatch = pathname.match(/^\/admin\/products\/([^/]+)/);
+      if (editMatch && editMatch[1] && editMatch[1] !== "add") {
+        setSelectedProductId(editMatch[1]);
+      } else if (detailMatch && detailMatch[1] && detailMatch[1] !== "add") {
+        setSelectedProductId(detailMatch[1]);
+      }
+    }
+  }, [pathname]);
 
   // Global Store Settings synchronized with localStorage ("mellosoft_settings")
   const [settings, setSettings] = useState(() => getSavedSettings());
@@ -368,8 +503,8 @@ export function AdminProvider({ children }) {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed) && parsed.length > 0) {
             const systemRoles = DEFAULT_ROLES.map((dr) => {
-              const found = parsed.find((r) => r.id === dr.id);
-              return found ? { ...dr, ...found, permissions: found.permissions || dr.permissions } : dr;
+              const found = parsed.find((r) => r.id === dr.id || (dr.id === "role-manager" && r.id === "role-order-manager"));
+              return found ? { ...dr, permissions: dr.permissions } : dr;
             });
             const customRoles = parsed.filter((r) => !r.isSystemRole && !DEFAULT_ROLES.some((dr) => dr.id === r.id));
             return [...systemRoles, ...customRoles];
@@ -390,7 +525,15 @@ export function AdminProvider({ children }) {
         if (saved) {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed;
+            return parsed.map((u) => {
+              if (u.id === "user-003" && (u.roleId === "role-order-manager" || u.roleId === "role-user" || !u.roleId)) {
+                return { ...u, roleId: "role-manager" };
+              }
+              if (u.id === "user-004" && (u.roleId === "role-content-manager" || !u.roleId)) {
+                return { ...u, roleId: "role-staff" };
+              }
+              return u;
+            });
           }
         }
       } catch (e) {
@@ -622,14 +765,32 @@ export function AdminProvider({ children }) {
       }
     }
     return [
-      { id: "bs-1", productId: "foamcloud",  displayOrder: 1, isActive: true },
-      { id: "bs-2", productId: "orthocare",   displayOrder: 2, isActive: true },
-      { id: "bs-3", productId: "springease",  displayOrder: 3, isActive: true },
-      { id: "bs-4", productId: "latexpure",   displayOrder: 4, isActive: true },
+      { id: "bs-1", productId: "foamcloud",   displayOrder: 1, isActive: true },
+      { id: "bs-2", productId: "orthocare",    displayOrder: 2, isActive: true },
+      { id: "bs-3", productId: "springease",   displayOrder: 3, isActive: true },
+      { id: "bs-4", productId: "latexpure",    displayOrder: 4, isActive: true },
+      { id: "bs-5", productId: "comfortnest",  displayOrder: 5, isActive: true },
     ];
   });
 
   const [returnToBestSellers, setReturnToBestSellers] = useState(false);
+
+  // Hydrate Homepage Categories from localStorage
+  const isFirstHPCatsRef = useRef(true);
+  const [homepageCategories, setHomepageCategories] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem(HOMEPAGE_CATEGORIES_STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch (e) {
+        console.error("Failed to load homepage categories from localStorage:", e);
+      }
+    }
+    return DEFAULT_HOMEPAGE_CATEGORIES;
+  });
 
   // Hydrate notifications from localStorage
   const [notifications, setNotifications] = useState(() => {
@@ -735,6 +896,23 @@ export function AdminProvider({ children }) {
     }
   }, [homepageConfig]);
 
+  // Persist homepage categories to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(HOMEPAGE_CATEGORIES_STORAGE_KEY, JSON.stringify(homepageCategories));
+      if (isFirstHPCatsRef.current) {
+        isFirstHPCatsRef.current = false;
+        return;
+      }
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("storage"));
+        window.dispatchEvent(new CustomEvent(HOMEPAGE_CATEGORIES_UPDATED_EVENT));
+      }
+    } catch (e) {
+      console.error("Failed to save homepage categories to localStorage:", e);
+    }
+  }, [homepageCategories]);
+
   // One-time automatic migration of any legacy base64 images in localStorage products & reviews to IndexedDB
   useEffect(() => {
     let isMounted = true;
@@ -764,7 +942,14 @@ export function AdminProvider({ children }) {
   }, []);
 
   const auth = useAdminAuth();
-  const currentUserId = auth?.currentUserId || (typeof window !== "undefined" ? localStorage.getItem("mellosoft_current_user_id") : null) || "user-001";
+  const [activeUserId, setActiveUserId] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("mellosoft_current_user_id") || "user-001";
+    }
+    return "user-001";
+  });
+
+  const currentUserId = auth?.currentUserId || activeUserId || "user-001";
   const currentUser = users.find((u) => u.id === currentUserId) || users[0];
   const currentUserRole = roles.find((r) => r.id === currentUser?.roleId) || roles[0];
 
@@ -1230,7 +1415,13 @@ export function AdminProvider({ children }) {
     }
     setSidebarMobileOpen(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
-  }, []);
+
+    // Route navigation
+    const targetRoute = getRouteFromAdminView(view, itemId);
+    if (targetRoute && pathname !== targetRoute) {
+      router.push(targetRoute);
+    }
+  }, [pathname, router]);
 
   const toggleSidebar = useCallback(() => {
     setSidebarCollapsed((prev) => !prev);
@@ -1239,6 +1430,29 @@ export function AdminProvider({ children }) {
   const toggleMobileSidebar = useCallback(() => {
     setSidebarMobileOpen((prev) => !prev);
   }, []);
+
+  const switchUser = useCallback((userId) => {
+    const targetUser = users.find((u) => u.id === userId);
+    if (!targetUser) return { success: false, error: "User not found" };
+
+    setActiveUserId(userId);
+    if (auth?.setCurrentUserId) {
+      auth.setCurrentUserId(userId);
+    }
+    try {
+      localStorage.setItem("mellosoft_current_user_id", userId);
+    } catch (e) {
+      console.error("Failed to save current user ID:", e);
+    }
+
+    const targetRole = roles.find((r) => r.id === targetUser.roleId) || roles[0];
+    if (!isViewAllowed(targetRole, adminView)) {
+      const firstAllowed = getFirstAllowedAdminView(targetRole);
+      navigateTo(firstAllowed || "dashboard");
+    }
+
+    return { success: true, user: targetUser, role: targetRole };
+  }, [users, roles, auth, adminView, navigateTo]);
 
   /** Helper to persist products and notify storefront */
   const persistAndDispatchProducts = async (nextProducts) => {
@@ -1890,6 +2104,74 @@ export function AdminProvider({ children }) {
     return { success: true };
   }, []);
 
+  // ─── Homepage Categories Management ──────────────────────────────────────────
+  const addHomepageCategory = useCallback((catData) => {
+    const newCat = {
+      id: catData.id || `cat-${Date.now()}`,
+      label: catData.label?.trim() || "New Category",
+      category: catData.category || "mattress",
+      subcategory: catData.subcategory || null,
+      href: catData.href || "",
+      firmness: catData.firmness || "",
+      image: catData.image || "/assets/categories/memory-foam.jpg",
+      color: catData.color || "#E0EFFE",
+      gradient: catData.gradient || "linear-gradient(135deg, #E8F3FE 0%, #D4E8FC 50%, #C3DEFA 100%)",
+      accentGlow: catData.accentGlow || "rgba(147, 197, 253, 0.5)",
+      ringColor: catData.ringColor || "rgba(59, 130, 246, 0.16)",
+      scale: catData.scale ? Number(catData.scale) : 1.18,
+      isActive: catData.isActive !== false
+    };
+
+    setHomepageCategories((prev) => {
+      const updated = [...prev, newCat].map((item, idx) => ({ ...item, displayOrder: idx + 1 }));
+      return updated;
+    });
+    return { success: true, category: newCat };
+  }, []);
+
+  const updateHomepageCategory = useCallback((id, updatedData) => {
+    setHomepageCategories((prev) => {
+      return prev.map((cat) => {
+        if (cat.id === id) {
+          return {
+            ...cat,
+            ...updatedData,
+            label: updatedData.label !== undefined ? updatedData.label.trim() : cat.label,
+            scale: updatedData.scale !== undefined ? Number(updatedData.scale) : cat.scale,
+          };
+        }
+        return cat;
+      });
+    });
+    return { success: true };
+  }, []);
+
+  const deleteHomepageCategory = useCallback((id) => {
+    setHomepageCategories((prev) => {
+      const filtered = prev.filter((c) => c.id !== id);
+      return filtered.map((item, idx) => ({ ...item, displayOrder: idx + 1 }));
+    });
+    return { success: true };
+  }, []);
+
+  const toggleHomepageCategoryStatus = useCallback((id) => {
+    setHomepageCategories((prev) => {
+      return prev.map((cat) => (cat.id === id ? { ...cat, isActive: !cat.isActive } : cat));
+    });
+    return { success: true };
+  }, []);
+
+  const reorderHomepageCategories = useCallback((reorderedList) => {
+    const updated = reorderedList.map((item, idx) => ({ ...item, displayOrder: idx + 1 }));
+    setHomepageCategories(updated);
+    return { success: true };
+  }, []);
+
+  const resetHomepageCategoriesToDefault = useCallback(() => {
+    setHomepageCategories(DEFAULT_HOMEPAGE_CATEGORIES);
+    return { success: true };
+  }, []);
+
   const addCategory = useCallback((newCatData) => {
     const newMainCat = {
       id: newCatData.id || `CAT-${(newCatData.name || "NEW").toUpperCase().replace(/[^A-Z0-9]/g, "")}`,
@@ -2101,8 +2383,11 @@ export function AdminProvider({ children }) {
         selectedOrderId,
         setSelectedOrderId,
         selectedProductId,
+        setSelectedProductId,
         selectedUserId,
+        setSelectedUserId,
         selectedRoleId,
+        setSelectedRoleId,
         products,
         addProduct,
         updateProduct,
@@ -2143,6 +2428,13 @@ export function AdminProvider({ children }) {
         setContentActiveTab,
         homepageConfig,
         updateHomepageConfig,
+        homepageCategories,
+        addHomepageCategory,
+        updateHomepageCategory,
+        deleteHomepageCategory,
+        toggleHomepageCategoryStatus,
+        reorderHomepageCategories,
+        resetHomepageCategoriesToDefault,
         users,
         addUser,
         updateUser,
@@ -2168,6 +2460,8 @@ export function AdminProvider({ children }) {
         currentUserRole,
         hasPermission,
         getFirstAllowedAdminView: () => getFirstAllowedAdminView(currentUserRole),
+        switchUser,
+        isViewAllowed: (view) => isViewAllowed(currentUserRole, view),
         settings,
         updateSettings,
         saveSettings: updateSettings,

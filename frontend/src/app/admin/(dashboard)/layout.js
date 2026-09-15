@@ -2,6 +2,7 @@ import "../admin-globals.css";
 import { AdminProvider } from "../../../admin/context/AdminContext";
 import { AdminAuthProvider } from "../../../context/AdminAuthContext";
 import ProtectedRoute from "../../../components/admin/ProtectedRoute";
+import AdminLayoutClient from "./AdminLayoutClient";
 
 export const metadata = {
   title: "Mellosoft Admin | Dashboard",
@@ -13,7 +14,9 @@ export default function AdminDashboardLayout({ children }) {
     <AdminAuthProvider>
       <ProtectedRoute>
         <AdminProvider>
-          {children}
+          <AdminLayoutClient>
+            {children}
+          </AdminLayoutClient>
         </AdminProvider>
       </ProtectedRoute>
     </AdminAuthProvider>
