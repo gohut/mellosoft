@@ -101,10 +101,11 @@ export function StoreProvider({ children }) {
 
   // Best Sellers Config State synchronized with localStorage ("mellosoft_best_sellers_config")
   const [bestSellerItems, setBestSellerItems] = useState([
-    { id: "bs-1", productId: "foamcloud",  displayOrder: 1, isActive: true },
-    { id: "bs-2", productId: "orthocare",   displayOrder: 2, isActive: true },
-    { id: "bs-3", productId: "springease",  displayOrder: 3, isActive: true },
-    { id: "bs-4", productId: "latexpure",   displayOrder: 4, isActive: true },
+    { id: "bs-1", productId: "foamcloud",   displayOrder: 1, isActive: true },
+    { id: "bs-2", productId: "orthocare",    displayOrder: 2, isActive: true },
+    { id: "bs-3", productId: "springease",   displayOrder: 3, isActive: true },
+    { id: "bs-4", productId: "latexpure",    displayOrder: 4, isActive: true },
+    { id: "bs-5", productId: "comfortnest",  displayOrder: 5, isActive: true },
   ]);
 
   // Homepage Categories State synchronized with localStorage ("mellosoft_homepage_categories")
@@ -116,10 +117,10 @@ export function StoreProvider({ children }) {
       { id: "hero-slider", visible: true, type: "global" },
       { id: "shop-by-category", visible: true, type: "global" },
       { id: "promo-001", visible: true, type: "promo-banner", bannerId: "promo-001" },
-      { id: "promo-002", visible: true, type: "promo-banner", bannerId: "promo-002" },
-      { id: "promo-003", visible: true, type: "promo-banner", bannerId: "promo-003" },
       { id: "new-arrivals", visible: true, type: "global" },
+      { id: "promo-002", visible: true, type: "promo-banner", bannerId: "promo-002" },
       { id: "best-sellers", visible: true, type: "global" },
+      { id: "promo-003", visible: true, type: "promo-banner", bannerId: "promo-003" },
       { id: "customer-reviews", visible: true, type: "global" }
     ]
   });
@@ -235,6 +236,21 @@ export function StoreProvider({ children }) {
         if (savedConfig) {
           const parsed = JSON.parse(savedConfig);
           if (parsed && Array.isArray(parsed.sections) && parsed.sections.length > 0) {
+            const p2Idx = parsed.sections.findIndex((s) => s.id === "promo-002" || s.bannerId === "promo-002");
+            const naIdx = parsed.sections.findIndex((s) => s.id === "new-arrivals");
+            if (p2Idx !== -1 && naIdx !== -1 && p2Idx < naIdx) {
+              parsed.sections = [
+                { id: "hero-slider", visible: true, type: "global" },
+                { id: "shop-by-category", visible: true, type: "global" },
+                { id: "promo-001", visible: true, type: "promo-banner", bannerId: "promo-001" },
+                { id: "new-arrivals", visible: true, type: "global" },
+                { id: "promo-002", visible: true, type: "promo-banner", bannerId: "promo-002" },
+                { id: "best-sellers", visible: true, type: "global" },
+                { id: "promo-003", visible: true, type: "promo-banner", bannerId: "promo-003" },
+                { id: "customer-reviews", visible: true, type: "global" }
+              ];
+              localStorage.setItem("mellosoft_homepage_config", JSON.stringify(parsed));
+            }
             setHomepageConfig((prev) => (JSON.stringify(prev) === JSON.stringify(parsed) ? prev : parsed));
           }
         }

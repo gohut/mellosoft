@@ -13,12 +13,12 @@ import { formatPrice } from "../utils/currency";
 import { HomepageSkeleton } from "../components/skeleton";
 
 export const CATEGORY_IMAGES = {
-  "memory-foam": "/assets/categories/memory-foam.jpg",
-  "hybrid": "/assets/categories/hybrid.jpg",
-  "firm": "/assets/categories/firm.jpg",
-  "pillows": "/assets/categories/pillows.jpg",
-  "bed-frames": "/assets/categories/bed-frames.jpg",
-  "protectors": "/assets/categories/protectors.jpg",
+  "memory-foam": "/assets/categories/memory-foam.png",
+  "hybrid": "/assets/categories/hybrid.png",
+  "firm": "/assets/categories/firm.png",
+  "pillows": "/assets/categories/pillows.png",
+  "bed-frames": "/assets/categories/bed-frames.png",
+  "protectors": "/assets/categories/protectors.png",
 };
 
 // route: 'mattress' = filter in mattress catalog; others are explicit Next.js href paths
@@ -167,12 +167,14 @@ export default function HomeView() {
   }, [newArrivalItems, products]);
 
   const defaultSections = [
-    { id: "hero-slider", visible: true },
-    { id: "shop-by-category", visible: true },
-    { id: "promo-banner", visible: true },
-    { id: "new-arrivals", visible: true },
-    { id: "best-sellers", visible: true },
-    { id: "customer-reviews", visible: true },
+    { id: "hero-slider", visible: true, type: "global" },
+    { id: "shop-by-category", visible: true, type: "global" },
+    { id: "promo-001", visible: true, type: "promo-banner", bannerId: "promo-001" },
+    { id: "new-arrivals", visible: true, type: "global" },
+    { id: "promo-002", visible: true, type: "promo-banner", bannerId: "promo-002" },
+    { id: "best-sellers", visible: true, type: "global" },
+    { id: "promo-003", visible: true, type: "promo-banner", bannerId: "promo-003" },
+    { id: "customer-reviews", visible: true, type: "global" },
   ];
 
   const sectionsToRender = (homepageConfig && Array.isArray(homepageConfig.sections) && homepageConfig.sections.length > 0)
@@ -590,19 +592,22 @@ export default function HomeView() {
           -ms-overflow-style: none;
         }
         .peek-slider {
-          padding-left: 24px !important;
-          scroll-padding-left: 24px !important;
+          padding-left: 8px !important;
+          padding-right: 8px !important;
+          scroll-padding-left: 8px !important;
         }
         @media (min-width: 640px) {
           .peek-slider {
-            padding-left: 40px !important;
-            scroll-padding-left: 40px !important;
+            padding-left: 8px !important;
+            padding-right: 8px !important;
+            scroll-padding-left: 8px !important;
           }
         }
         @media (min-width: 1024px) {
           .peek-slider {
-            padding-left: 72px !important;
-            scroll-padding-left: 72px !important;
+            padding-left: 8px !important;
+            padding-right: 8px !important;
+            scroll-padding-left: 8px !important;
           }
         }
 
@@ -1064,9 +1069,9 @@ const peekSliderTrackStyle = {
   scrollSnapType: "x mandatory",
   WebkitOverflowScrolling: "touch",
   paddingTop: "14px",
-  paddingRight: "24px",
+  paddingRight: "8px",
   paddingBottom: "14px",
-  paddingLeft: "24px",
+  paddingLeft: "8px",
   scrollbarWidth: "none"
 };
 

@@ -84,6 +84,7 @@ const ORDERS_RESET_KEY = "mellosoft_orders_reset_v1";
 const CUSTOMER_CLEANUP_KEY = "mellosoft_customer_cleanup_v1";
 const REVIEW_CLEANUP_KEY = "mellosoft_review_cleanup_v1";
 const HOME_LAYOUT_CLEANUP_KEY = "mellosoft_home_layout_cleanup_v1";
+const HOME_LAYOUT_V2_KEY = "mellosoft_home_layout_v2";
 
 // One-time safe reset and cleanup migrations
 if (typeof window !== "undefined") {
@@ -148,17 +149,42 @@ if (typeof window !== "undefined") {
       localStorage.setItem(REVIEW_CLEANUP_KEY, "completed");
     }
 
-    // Home layout cleanup migration (removes about-us from saved layout)
+    // Home layout cleanup migration (removes about-us from saved layout and ensures default interleaved layout)
     if (localStorage.getItem(HOME_LAYOUT_CLEANUP_KEY) !== "completed") {
       const savedConfig = localStorage.getItem(HOMEPAGE_CONFIG_KEY);
       if (savedConfig) {
         const parsed = JSON.parse(savedConfig);
         if (parsed && Array.isArray(parsed.sections)) {
           parsed.sections = parsed.sections.filter((s) => s.id !== "about-us" && s.id !== "about-section");
+          // If promo-002 is before new-arrivals, update to the default interleaved layout
+          const p2Idx = parsed.sections.findIndex((s) => s.id === "promo-002" || s.bannerId === "promo-002");
+          const naIdx = parsed.sections.findIndex((s) => s.id === "new-arrivals");
+          if (p2Idx !== -1 && naIdx !== -1 && p2Idx < naIdx) {
+            parsed.sections = DEFAULT_HOMEPAGE_SECTIONS;
+          }
           localStorage.setItem(HOMEPAGE_CONFIG_KEY, JSON.stringify(parsed));
         }
       }
       localStorage.setItem(HOME_LAYOUT_CLEANUP_KEY, "completed");
+    }
+
+    // Ensure interleaved homepage layout for existing browsers
+    if (localStorage.getItem(HOME_LAYOUT_V2_KEY) !== "completed") {
+      const savedConfig = localStorage.getItem(HOMEPAGE_CONFIG_KEY);
+      if (savedConfig) {
+        try {
+          const parsed = JSON.parse(savedConfig);
+          if (parsed && Array.isArray(parsed.sections)) {
+            const p2Idx = parsed.sections.findIndex((s) => s.id === "promo-002" || s.bannerId === "promo-002");
+            const naIdx = parsed.sections.findIndex((s) => s.id === "new-arrivals");
+            if (p2Idx !== -1 && naIdx !== -1 && p2Idx < naIdx) {
+              parsed.sections = DEFAULT_HOMEPAGE_SECTIONS;
+              localStorage.setItem(HOMEPAGE_CONFIG_KEY, JSON.stringify(parsed));
+            }
+          }
+        } catch {}
+      }
+      localStorage.setItem(HOME_LAYOUT_V2_KEY, "completed");
     }
   } catch (e) {
     console.error("Cleanup migration error in AdminContext:", e);
@@ -176,10 +202,10 @@ const DEFAULT_HOMEPAGE_SECTIONS = [
   { id: "hero-slider",      label: "Hero Slides",       description: "Main hero banner slideshow at the top of the page",   visible: true, type: "global" },
   { id: "shop-by-category", label: "Shop by Category",  description: "Category grid letting customers browse by product type", visible: true, type: "global" },
   { id: "promo-001",        label: "Classic Comfort",   description: "Promotional Banner • Promotion",                       visible: true, type: "promo-banner", bannerId: "promo-001" },
-  { id: "promo-002",        label: "Get 30% off essentials", description: "Promotional Banner • Promotion",               visible: true, type: "promo-banner", bannerId: "promo-002" },
-  { id: "promo-003",        label: "Free assembly included", description: "Promotional Banner • Promotion",               visible: true, type: "promo-banner", bannerId: "promo-003" },
   { id: "new-arrivals",     label: "New Arrivals",      description: "Showcase of the latest products added to the store",   visible: true, type: "global" },
+  { id: "promo-002",        label: "Get 30% off essentials", description: "Promotional Banner • Promotion",               visible: true, type: "promo-banner", bannerId: "promo-002" },
   { id: "best-sellers",     label: "Best Sellers",      description: "Top-selling products ranked by purchase frequency",    visible: true, type: "global" },
+  { id: "promo-003",        label: "Free assembly included", description: "Promotional Banner • Promotion",               visible: true, type: "promo-banner", bannerId: "promo-003" },
   { id: "customer-reviews", label: "Customer Reviews",  description: "Customer reviews and feedback carousel section",        visible: true, type: "global" },
 ];
 
@@ -739,10 +765,11 @@ export function AdminProvider({ children }) {
       }
     }
     return [
-      { id: "bs-1", productId: "foamcloud",  displayOrder: 1, isActive: true },
-      { id: "bs-2", productId: "orthocare",   displayOrder: 2, isActive: true },
-      { id: "bs-3", productId: "springease",  displayOrder: 3, isActive: true },
-      { id: "bs-4", productId: "latexpure",   displayOrder: 4, isActive: true },
+      { id: "bs-1", productId: "foamcloud",   displayOrder: 1, isActive: true },
+      { id: "bs-2", productId: "orthocare",    displayOrder: 2, isActive: true },
+      { id: "bs-3", productId: "springease",   displayOrder: 3, isActive: true },
+      { id: "bs-4", productId: "latexpure",    displayOrder: 4, isActive: true },
+      { id: "bs-5", productId: "comfortnest",  displayOrder: 5, isActive: true },
     ];
   });
 
