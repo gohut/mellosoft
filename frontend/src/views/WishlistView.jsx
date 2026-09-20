@@ -87,13 +87,13 @@ export default function WishlistView() {
     <div style={containerStyle} className="wishlist-page-container">
       
       {/* Header bar with bulk actions */}
-      <div style={headerStyle}>
+      <div style={headerStyle} className="wishlist-header-bar">
         <div>
           <h2 style={titleStyle}>Saved Products</h2>
           <p style={subtitleStyle}>You have {savedProducts.length} items in your wishlist.</p>
         </div>
         
-        <div style={actionsContainerStyle}>
+        <div style={actionsContainerStyle} className="wishlist-header-actions">
           <button onClick={handleClearAll} style={clearAllBtnStyle}>
             Clear Wishlist
           </button>
@@ -104,44 +104,65 @@ export default function WishlistView() {
       </div>
 
       {/* Grid of Saved Cards */}
-      <div style={gridStyle} className="wishlist-grid">
+      <div style={gridStyle} className="wishlist-grid products-responsive-grid">
         {savedProducts.map((product) => (
-          <div key={product.id} style={{ position: "relative", height: "100%" }}>
-            <ProductCard product={product} />
-            
-            {/* Overlay a explicit Remove & Move to Cart panel below or around if needed */}
-            <div style={wishlistCardOverlayStyle}>
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  moveToCart(product.id, "Medium", "Queen");
-                }} 
-                style={cardMoveCartBtnStyle}
-                className="hover-lift"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginRight: "4px" }}>
-                  <circle cx="9" cy="21" r="1" />
-                  <circle cx="20" cy="21" r="1" />
-                  <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-                </svg>
-                Move to Cart
-              </button>
-              
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleWishlist(product.id);
-                }} 
-                style={cardRemoveBtnStyle}
-                aria-label="Remove item"
-              >
-                Remove
-              </button>
-            </div>
+          <div key={product.id} style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+            <ProductCard
+              product={product}
+              footerAction={
+                <div className="wishlist-card-actions">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      moveToCart(product.id, "Medium", "Queen");
+                    }}
+                    className="wishlist-btn-move hover-lift"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                      <circle cx="9" cy="21" r="1" />
+                      <circle cx="20" cy="21" r="1" />
+                      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+                    </svg>
+                    <span>Move to Cart</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      toggleWishlist(product.id);
+                    }}
+                    className="wishlist-btn-remove"
+                    aria-label={`Remove ${product.name} from wishlist`}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    </svg>
+                    <span>Remove</span>
+                  </button>
+                </div>
+              }
+            />
           </div>
         ))}
       </div>
+
       <style>{`
+        @media (max-width: 1200px) {
+          .wishlist-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+          }
+        }
+        @media (max-width: 840px) {
+          .wishlist-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 14px !important;
+          }
+        }
         @media (max-width: 767px) {
           .wishlist-page-container {
             padding: 16px 14px 60px 14px !important;
@@ -149,6 +170,19 @@ export default function WishlistView() {
           .wishlist-grid {
             display: grid !important;
             grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            grid-auto-flow: row !important;
+            gap: 10px !important;
+            overflow-x: visible !important;
+          }
+          .wishlist-header-bar {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 12px !important;
+            margin-bottom: 20px !important;
+          }
+          .wishlist-header-actions {
+            width: 100% !important;
+            justify-content: flex-start !important;
             gap: 10px !important;
           }
         }
@@ -226,8 +260,10 @@ const moveAllBtnStyle = {
 
 const gridStyle = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-  gap: "40px"
+  gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+  gap: "24px",
+  width: "100%",
+  boxSizing: "border-box"
 };
 
 const emptyWrapperStyle = {
@@ -239,39 +275,4 @@ const emptyWrapperStyle = {
   boxSizing: "border-box",
   backgroundColor: "#FFFFFF",
   minHeight: "calc(100vh - 160px)",
-};
-
-// Wishlist Specific Card Footer Overlay
-const wishlistCardOverlayStyle = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  backgroundColor: "#FFFFFF",
-  padding: "10px 16px",
-  borderRadius: 0,
-  marginTop: "10px",
-  border: "1px solid #E2E8F0"
-};
-
-const cardMoveCartBtnStyle = {
-  backgroundColor: "#16A34A",
-  color: "#FFFFFF",
-  border: "none",
-  borderRadius: "14px",
-  padding: "6px 12px",
-  fontSize: "12px",
-  fontWeight: "700",
-  cursor: "pointer",
-  display: "flex",
-  alignItems: "center",
-};
-
-const cardRemoveBtnStyle = {
-  backgroundColor: "transparent",
-  color: "#6B6B75",
-  border: "none",
-  fontSize: "12px",
-  fontWeight: "600",
-  cursor: "pointer",
-  textDecoration: "underline"
 };

@@ -9,8 +9,9 @@ import CustomerReviewsSection from "../components/CustomerReviewsSection";
 import PromotionalBannerSlider from "../components/PromotionalBannerSlider";
 import PromoBannerCard from "../components/PromoBannerCard";
 import HeroSlideCard from "../components/HeroSlideCard";
-import { formatPrice } from "../utils/currency";
 import { HomepageSkeleton } from "../components/skeleton";
+import CategoryTileImage from "../components/CategoryTileImage";
+import { resolveCategoryTileImage } from "../data/homepageCategoriesData";
 
 export const CATEGORY_IMAGES = {
   "memory-foam": "/assets/categories/memory-foam.png",
@@ -391,8 +392,8 @@ export default function HomeView() {
 
                         <span style={categoryLabelStyle} className="category-tile-label">{item.label}</span>
                         <div style={categoryImageWrapperStyle} className="category-img-wrapper">
-                          <img
-                            src={item.image}
+                          <CategoryTileImage
+                            src={resolveCategoryTileImage(item)}
                             alt={item.label}
                             style={{
                               ...categoryImageStyle,
@@ -562,7 +563,7 @@ export default function HomeView() {
           box-shadow: none !important;
           outline: none !important;
           object-fit: contain !important;
-          mix-blend-mode: multiply !important;
+          mix-blend-mode: normal !important;
           transition: transform 0.22s ease !important;
         }
         .view-more-btn:hover {
@@ -614,12 +615,12 @@ export default function HomeView() {
         /* Category Section Layout */
         .category-header-wrap {
           width: 100%;
-          padding: 0 48px;
+          padding: 0 16px;
           box-sizing: border-box;
         }
         .category-carousel-wrap {
           width: 100%;
-          padding: 0 48px;
+          padding: 0 16px;
           box-sizing: border-box;
           overflow-x: auto !important;
           overflow-y: hidden !important;
@@ -686,16 +687,16 @@ export default function HomeView() {
           object-fit: contain !important;
           background: transparent !important;
           flex-shrink: 0 !important;
-          mix-blend-mode: multiply !important;
+          mix-blend-mode: normal !important;
         }
         
         @media (max-width: 1199px) {
           .category-header-wrap {
-            padding: 0 24px !important;
+            padding: 0 16px !important;
           }
           .category-carousel-wrap {
-            padding-left: 24px !important;
-            padding-right: 0 !important;
+            padding-left: 16px !important;
+            padding-right: 16px !important;
           }
           .category-row {
             gap: 12px !important;
@@ -787,7 +788,7 @@ export default function HomeView() {
             object-fit: contain !important;
             background: transparent !important;
             flex-shrink: 0 !important;
-            mix-blend-mode: multiply !important;
+            mix-blend-mode: normal !important;
           }
 
           .peek-slider {
@@ -844,10 +845,10 @@ export default function HomeView() {
             grid-auto-columns: minmax(220px, 68vw) !important;
             grid-template-columns: none !important;
             gap: 12px !important;
-            padding: 2px 24px 8px !important;
-            margin: 0 -16px !important;
+            padding: 2px 0 8px !important;
+            margin: 0 !important;
             scroll-snap-type: x mandatory;
-            scroll-padding-left: 24px !important;
+            scroll-padding-left: 0 !important;
             align-items: stretch !important;
           }
           .product-row > * {
@@ -875,21 +876,7 @@ export default function HomeView() {
           position: relative;
         }
         .row-fade {
-          position: absolute;
-          top: 0;
-          bottom: 10px;
-          width: 64px;
-          pointer-events: none;
-          z-index: 2;
-          display: none;
-        }
-        .row-fade-left {
-          left: 0;
-          background: linear-gradient(90deg, var(--row-fade-color, #FFFFFF), rgba(255, 255, 255, 0));
-        }
-        .row-fade-right {
-          right: 0;
-          background: linear-gradient(270deg, var(--row-fade-color, #FFFFFF), rgba(255, 255, 255, 0));
+          display: none !important;
         }
         @media (min-width: 768px) {
           .product-row-scroll {
@@ -898,10 +885,10 @@ export default function HomeView() {
             overflow-x: auto;
             scroll-snap-type: x mandatory;
             padding-bottom: 10px;
-            padding-left: 64px;
-            padding-right: 64px;
-            scroll-padding-left: 64px;
-            scroll-padding-right: 64px;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+            scroll-padding-left: 0 !important;
+            scroll-padding-right: 0 !important;
             align-items: stretch !important;
           }
           .product-row-scroll .product-item-scroll {
@@ -913,7 +900,7 @@ export default function HomeView() {
             height: auto !important;
           }
           .row-fade {
-            display: block;
+            display: none !important;
           }
         }
         @media (max-width: 1024px) {
@@ -1037,7 +1024,7 @@ const diamondPatternLayerStyle = {
 
 const containerStyle = {
   width: "100%",
-  padding: "0 48px",
+  padding: "0 16px",
   boxSizing: "border-box"
 };
 
@@ -1257,8 +1244,8 @@ const categoryImageStyle = {
   backgroundColor: "transparent",
   border: "none",
   boxShadow: "none",
-  mixBlendMode: "multiply",
-  filter: "contrast(1.04) brightness(1.01)",
+  mixBlendMode: "normal",
+  transition: "transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)",
   transformOrigin: "center center"
 };
 

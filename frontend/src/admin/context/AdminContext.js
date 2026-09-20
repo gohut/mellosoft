@@ -10,7 +10,7 @@ import { hashPassword, checkPermission } from "../../utils/security";
 import { useAdminAuth } from "../../context/AdminAuthContext";
 import { buildInitialTrackingHistory } from "../../utils/trackingHelpers";
 import { getProductPrimaryImage, getDeletedProductIds, saveDeletedProductId, isProductDeleted, isSameProduct, ensureRequiredCategories, getMainCategoryProductCount, getSubcategoryProductCount } from "../../utils/productHelpers";
-import { migrateProductsBase64, migrateReviewsBase64 } from "../../utils/imageStorage";
+import { migrateProductsBase64, migrateReviewsBase64, migrateHomepageCategoriesBase64, saveImageBlob } from "../../utils/imageStorage";
 import { getSavedSettings, saveSettingsToStorage, normalizeSettings, SETTINGS_UPDATED_EVENT } from "../../utils/settingsHelpers";
 import { normalizeCustomerId } from "../../utils/customerHelpers";
 import {
@@ -783,7 +783,14 @@ export function AdminProvider({ children }) {
         const saved = localStorage.getItem(HOMEPAGE_CATEGORIES_STORAGE_KEY);
         if (saved) {
           const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed.map((cat) => {
+              if (cat && typeof cat.image === "string" && cat.image.startsWith("/assets/categories/") && cat.image.toLowerCase().endsWith(".jpg")) {
+                return { ...cat, image: cat.image.replace(/\.jpg$/i, ".png") };
+              }
+              return cat;
+            });
+          }
         }
       } catch (e) {
         console.error("Failed to load homepage categories from localStorage:", e);
@@ -896,24 +903,61 @@ export function AdminProvider({ children }) {
     }
   }, [homepageConfig]);
 
-  // Persist homepage categories to localStorage
+  // Persist homepage categories to localStorage (safeguarded against QuotaExceededError with IndexedDB offloading)
   useEffect(() => {
-    try {
-      localStorage.setItem(HOMEPAGE_CATEGORIES_STORAGE_KEY, JSON.stringify(homepageCategories));
-      if (isFirstHPCatsRef.current) {
-        isFirstHPCatsRef.current = false;
-        return;
+    let isCancelled = false;
+
+    async function persistCategories() {
+      // 1. Check if any category contains base64 images and offload to IndexedDB
+      const hasBase64 = homepageCategories.some(
+        (c) => c && typeof c.image === "string" && c.image.startsWith("data:")
+      );
+
+      if (hasBase64) {
+        try {
+          const { migratedCategories, hasChanges } = await migrateHomepageCategoriesBase64(homepageCategories);
+          if (hasChanges && !isCancelled) {
+            setHomepageCategories(migratedCategories);
+            return;
+          }
+        } catch (err) {
+          console.warn("Could not migrate homepage category base64 image to IndexedDB:", err);
+        }
       }
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new Event("storage"));
-        window.dispatchEvent(new CustomEvent(HOMEPAGE_CATEGORIES_UPDATED_EVENT));
+
+      // 2. Persist lightweight sanitized categories (ensure no raw base64 data leaks into localStorage)
+      try {
+        const safeCategories = homepageCategories.map((cat) => {
+          if (cat && typeof cat.image === "string") {
+            if (cat.image.startsWith("data:")) {
+              return { ...cat, image: "/assets/categories/memory-foam.png" };
+            }
+            if (cat.image.startsWith("/assets/categories/") && cat.image.toLowerCase().endsWith(".jpg")) {
+              return { ...cat, image: cat.image.replace(/\.jpg$/i, ".png") };
+            }
+          }
+          return cat;
+        });
+
+        localStorage.setItem(HOMEPAGE_CATEGORIES_STORAGE_KEY, JSON.stringify(safeCategories));
+        if (isFirstHPCatsRef.current) {
+          isFirstHPCatsRef.current = false;
+          return;
+        }
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("storage"));
+          window.dispatchEvent(new CustomEvent(HOMEPAGE_CATEGORIES_UPDATED_EVENT));
+        }
+      } catch (e) {
+        console.warn("Notice: Storage quota limit reached when saving homepage categories:", e?.message || e);
       }
-    } catch (e) {
-      console.error("Failed to save homepage categories to localStorage:", e);
     }
+
+    persistCategories();
+    return () => { isCancelled = true; };
   }, [homepageCategories]);
 
-  // One-time automatic migration of any legacy base64 images in localStorage products & reviews to IndexedDB
+  // One-time automatic migration of any legacy base64 images in localStorage products, reviews & categories to IndexedDB
   useEffect(() => {
     let isMounted = true;
     async function runStorageMigration() {
@@ -929,12 +973,31 @@ export function AdminProvider({ children }) {
           const parsedReviews = JSON.parse(savedReviewsStr);
           const { migratedReviews, hasChanges: revChanges } = await migrateReviewsBase64(parsedReviews);
           if (isMounted && revChanges) {
-            localStorage.setItem(REVIEWS_STORAGE_KEY, JSON.stringify(migratedReviews));
-            window.dispatchEvent(new Event("storage"));
+            try {
+              localStorage.setItem(REVIEWS_STORAGE_KEY, JSON.stringify(migratedReviews));
+              window.dispatchEvent(new Event("storage"));
+            } catch (e) {
+              console.warn("Failed to update reviews in localStorage after migration:", e);
+            }
+          }
+        }
+
+        const savedHPCatsStr = typeof window !== "undefined" ? localStorage.getItem(HOMEPAGE_CATEGORIES_STORAGE_KEY) : null;
+        if (savedHPCatsStr) {
+          const parsedHPCats = JSON.parse(savedHPCatsStr);
+          const { migratedCategories, hasChanges: hpChanges } = await migrateHomepageCategoriesBase64(parsedHPCats);
+          if (isMounted && hpChanges) {
+            setHomepageCategories(migratedCategories);
+            try {
+              localStorage.setItem(HOMEPAGE_CATEGORIES_STORAGE_KEY, JSON.stringify(migratedCategories));
+              window.dispatchEvent(new Event("storage"));
+            } catch (e) {
+              console.warn("Failed to update homepage categories in localStorage after migration:", e);
+            }
           }
         }
       } catch (err) {
-        console.error("Storage migration error:", err);
+        console.warn("Storage migration warning:", err);
       }
     }
     runStorageMigration();
@@ -1327,6 +1390,7 @@ export function AdminProvider({ children }) {
                   "Shipped": "Package handed over to courier. In transit.",
                   "Out for Delivery": "Out for delivery with local courier agent.",
                   "Delivered": "Package delivered to destination address.",
+                  "Cancellation Requested": "Customer requested cancellation. Awaiting admin approval.",
                   "Cancelled": "Order has been cancelled."
                 };
                 history.push({
@@ -2106,14 +2170,19 @@ export function AdminProvider({ children }) {
 
   // ─── Homepage Categories Management ──────────────────────────────────────────
   const addHomepageCategory = useCallback((catData) => {
+    const rawImage = catData.image;
+    const cleanImage = typeof rawImage === "string"
+      ? rawImage.trim()
+      : (rawImage?.url || rawImage?.src || rawImage?.secure_url || "/assets/categories/memory-foam.png");
+
     const newCat = {
       id: catData.id || `cat-${Date.now()}`,
-      label: catData.label?.trim() || "New Category",
+      label: typeof catData.label === "string" ? catData.label.trim() : (catData.label || "New Category"),
       category: catData.category || "mattress",
       subcategory: catData.subcategory || null,
-      href: catData.href || "",
+      href: typeof catData.href === "string" ? catData.href.trim() : (catData.href || ""),
       firmness: catData.firmness || "",
-      image: catData.image || "/assets/categories/memory-foam.jpg",
+      image: cleanImage || "/assets/categories/memory-foam.png",
       color: catData.color || "#E0EFFE",
       gradient: catData.gradient || "linear-gradient(135deg, #E8F3FE 0%, #D4E8FC 50%, #C3DEFA 100%)",
       accentGlow: catData.accentGlow || "rgba(147, 197, 253, 0.5)",
@@ -2133,10 +2202,16 @@ export function AdminProvider({ children }) {
     setHomepageCategories((prev) => {
       return prev.map((cat) => {
         if (cat.id === id) {
+          const rawImage = updatedData.image;
+          const cleanImage = rawImage !== undefined
+            ? (typeof rawImage === "string" ? rawImage.trim() : (rawImage?.url || rawImage?.src || rawImage?.secure_url || cat.image))
+            : cat.image;
+
           return {
             ...cat,
             ...updatedData,
-            label: updatedData.label !== undefined ? updatedData.label.trim() : cat.label,
+            image: cleanImage || cat.image || "/assets/categories/memory-foam.png",
+            label: updatedData.label !== undefined ? (typeof updatedData.label === "string" ? updatedData.label.trim() : String(updatedData.label).trim()) : cat.label,
             scale: updatedData.scale !== undefined ? Number(updatedData.scale) : cat.scale,
           };
         }
@@ -2177,7 +2252,7 @@ export function AdminProvider({ children }) {
       id: newCatData.id || `CAT-${(newCatData.name || "NEW").toUpperCase().replace(/[^A-Z0-9]/g, "")}`,
       name: newCatData.name.trim(),
       slug: newCatData.slug || newCatData.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-      image: newCatData.image || "/assets/categories/memory-foam.jpg",
+      image: newCatData.image || "/assets/categories/memory-foam.png",
       description: newCatData.description || "",
       type: "main",
       active: newCatData.active !== false && newCatData.status !== "Inactive",

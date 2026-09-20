@@ -6,6 +6,68 @@
 export const HOMEPAGE_CATEGORIES_STORAGE_KEY = "mellosoft_homepage_categories";
 export const HOMEPAGE_CATEGORIES_UPDATED_EVENT = "mellosoft_homepage_categories_updated";
 
+/**
+ * Robustly resolves category tile images to avoid falling back to generic memory-foam placeholder
+ * when distinct category presets or custom uploads exist.
+ */
+export function resolveCategoryTileImage(item) {
+  if (!item) return "/assets/categories/memory-foam.png";
+
+  let raw = "";
+  if (typeof item === "string") {
+    raw = item.trim();
+  } else if (item && typeof item === "object") {
+    if (typeof item.image === "string") {
+      raw = item.image.trim();
+    } else if (item.image && typeof item.image === "object") {
+      raw = (item.image.url || item.image.src || item.image.secure_url || item.image.path || "").trim();
+    }
+  }
+
+  // 1. If static category asset has .jpg extension, rewrite to transparent .png
+  if (raw && raw.startsWith("/assets/categories/")) {
+    return raw.replace(/\.jpg$/i, ".png");
+  }
+
+  // 2. Valid custom/dynamic image: idb: IndexedDB key, data: base64, blob:, or full http URL
+  if (raw && (raw.startsWith("idb:") || raw.startsWith("data:") || raw.startsWith("blob:") || raw.startsWith("http://") || raw.startsWith("https://"))) {
+    return raw;
+  }
+
+  // 3. Specific valid static category asset
+  if (raw && (raw.startsWith("/assets/categories/") || raw.startsWith("/asset/"))) {
+    return raw.replace(/\.jpg$/i, ".png");
+  }
+
+  // 4. Fallback based on category/subcategory/firmness/label/href identity
+  const label = (item.label || item.name || "").toLowerCase().trim();
+  const id = (item.id || "").toLowerCase().trim();
+  const href = (item.href || "").toLowerCase().trim();
+  const firmness = (item.firmness || "").toLowerCase().trim();
+  const subcat = (item.subcategory || "").toLowerCase().trim();
+
+  if (firmness === "hybrid" || id.includes("hybrid") || label.includes("hybrid")) {
+    return "/assets/categories/hybrid.png";
+  }
+  if (firmness === "firm" || id.includes("firm") || label.includes("firm")) {
+    return "/assets/categories/firm.png";
+  }
+  if (href.includes("pillow") || id.includes("pillow") || label.includes("pillow")) {
+    return "/assets/categories/pillows.png";
+  }
+  if (href.includes("bed-frame") || id.includes("bed-frame") || label.includes("bed frame") || label.includes("bedframe")) {
+    return "/assets/categories/bed-frames.png";
+  }
+  if (href.includes("protector") || id.includes("protector") || label.includes("protector")) {
+    return "/assets/categories/protectors.png";
+  }
+  if (subcat === "memory-foam" || id.includes("memory-foam") || label.includes("memory foam")) {
+    return "/assets/categories/memory-foam.png";
+  }
+
+  return raw ? raw.replace(/\.jpg$/i, ".png") : "/assets/categories/memory-foam.png";
+}
+
 export const CATEGORY_THEME_PRESETS = [
   {
     id: "blue-ice",

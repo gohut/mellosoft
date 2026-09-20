@@ -270,3 +270,228 @@ export async function migrateReviewsBase64(reviews = []) {
 
   return { migratedReviews: migrated, hasChanges };
 }
+
+/**
+ * Migrate homepage categories array: move any base64 dataURL images into IndexedDB keys ("idb:...")
+ */
+export async function migrateHomepageCategoriesBase64(categories = []) {
+  let hasChanges = false;
+  if (!Array.isArray(categories) || categories.length === 0) {
+    return { migratedCategories: categories, hasChanges: false };
+  }
+
+  const migrated = await Promise.all(
+    categories.map(async (c) => {
+      if (!c) return c;
+      let cCopy = { ...c };
+      if (typeof cCopy.image === "string" && cCopy.image.startsWith("data:")) {
+        const idbKey = `idb:cat-${cCopy.id || Math.random().toString(36).substring(2, 7)}`;
+        await saveImageBlob(idbKey, cCopy.image);
+        cCopy.image = idbKey;
+        hasChanges = true;
+      }
+      return cCopy;
+    })
+  );
+
+  return { migratedCategories: migrated, hasChanges };
+}
+
+// In-memory cache for processed transparent images
+const transparentBgCache = new Map();
+
+/**
+ * Automatically detects and removes solid white/off-white background from an image.
+ * Uses an edge-seeded boundary flood-fill algorithm starting strictly from outer edges,
+ * preserving white elements inside the product (e.g. white pillows, white bed sheets, white mattress fabric).
+ * Returns a transparent PNG dataURL.
+ *
+ * @param {string|File|Blob} srcOrFile - Image source (dataURL, file path, or File/Blob)
+ * @param {number} tolerance - Color tolerance for white detection (default: 25)
+ * @returns {Promise<string>} - Transparent PNG dataURL or original source if already transparent/error
+ */
+export function removeWhiteBackgroundFromImage(srcOrFile, tolerance = 25) {
+  return new Promise((resolve) => {
+    if (typeof window === "undefined" || !srcOrFile) {
+      resolve(srcOrFile);
+      return;
+    }
+
+    if (typeof srcOrFile === "string" && transparentBgCache.has(srcOrFile)) {
+      resolve(transparentBgCache.get(srcOrFile));
+      return;
+    }
+
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+
+    const processCanvas = () => {
+      try {
+        const w = img.naturalWidth || img.width;
+        const h = img.naturalHeight || img.height;
+        if (!w || !h) {
+          resolve(srcOrFile);
+          return;
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        if (!ctx) {
+          resolve(srcOrFile);
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0);
+        const imgData = ctx.getImageData(0, 0, w, h);
+        const data = imgData.data;
+
+        // Check if a pixel is white/near-white
+        const isWhitePixel = (i) => {
+          const a = data[i + 3];
+          if (a < 50) return false; // Already transparent
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+          // Near white: bright and low color cast
+          return r >= 232 && g >= 232 && b >= 232 && Math.abs(r - g) <= tolerance && Math.abs(g - b) <= tolerance;
+        };
+
+        // Check 4 corners
+        const corners = [
+          0,
+          (w - 1) * 4,
+          ((h - 1) * w) * 4,
+          ((h - 1) * w + (w - 1)) * 4
+        ];
+        const hasWhiteCorner = corners.some(isWhitePixel);
+
+        // Check perimeter sample points
+        let edgeWhiteCount = 0;
+        const samples = 20;
+        for (let s = 0; s < samples; s++) {
+          const x = Math.floor((s / samples) * w);
+          const y = Math.floor((s / samples) * h);
+          if (
+            isWhitePixel(x * 4) ||
+            isWhitePixel(((h - 1) * w + x) * 4) ||
+            isWhitePixel((y * w) * 4) ||
+            isWhitePixel((y * w + (w - 1)) * 4)
+          ) {
+            edgeWhiteCount++;
+          }
+        }
+
+        // If corners & edges are not white, image is already transparent or colored background
+        if (!hasWhiteCorner && edgeWhiteCount < 2) {
+          if (typeof srcOrFile === "string") transparentBgCache.set(srcOrFile, srcOrFile);
+          resolve(srcOrFile);
+          return;
+        }
+
+        // BFS flood fill starting strictly from outer boundary pixels
+        const visited = new Uint8Array(w * h);
+        const queue = [];
+
+        // Seed top and bottom edges
+        for (let x = 0; x < w; x++) {
+          const topPos = x;
+          const topIdx = topPos * 4;
+          if (isWhitePixel(topIdx)) {
+            visited[topPos] = 1;
+            queue.push(x, 0);
+          }
+          const btmPos = (h - 1) * w + x;
+          const btmIdx = btmPos * 4;
+          if (isWhitePixel(btmIdx)) {
+            visited[btmPos] = 1;
+            queue.push(x, h - 1);
+          }
+        }
+
+        // Seed left and right edges
+        for (let y = 0; y < h; y++) {
+          const leftPos = y * w;
+          const leftIdx = leftPos * 4;
+          if (!visited[leftPos] && isWhitePixel(leftIdx)) {
+            visited[leftPos] = 1;
+            queue.push(0, y);
+          }
+          const rightPos = y * w + (w - 1);
+          const rightIdx = rightPos * 4;
+          if (!visited[rightPos] && isWhitePixel(rightIdx)) {
+            visited[rightPos] = 1;
+            queue.push(w - 1, y);
+          }
+        }
+
+        let head = 0;
+        while (head < queue.length) {
+          const cx = queue[head++];
+          const cy = queue[head++];
+          const p = cy * w + cx;
+          const idx = p * 4;
+
+          data[idx + 3] = 0; // Make background transparent
+
+          const neighbors = [
+            [cx + 1, cy],
+            [cx - 1, cy],
+            [cx, cy + 1],
+            [cx, cy - 1]
+          ];
+
+          for (let n = 0; n < 4; n++) {
+            const nx = neighbors[n][0];
+            const ny = neighbors[n][1];
+            if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+              const np = ny * w + nx;
+              if (!visited[np]) {
+                const nidx = np * 4;
+                if (isWhitePixel(nidx)) {
+                  visited[np] = 1;
+                  queue.push(nx, ny);
+                } else {
+                  // Feather boundary pixels for clean anti-aliasing without white halo
+                  const r = data[nidx], g = data[nidx + 1], b = data[nidx + 2];
+                  if (r > 220 && g > 220 && b > 220 && data[nidx + 3] > 0) {
+                    const bright = (r + g + b) / 3;
+                    if (bright > 228) {
+                      data[nidx + 3] = Math.round(data[nidx + 3] * Math.max(0, (255 - bright) / 27));
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        ctx.putImageData(imgData, 0, 0);
+        const resultPng = canvas.toDataURL("image/png");
+        if (typeof srcOrFile === "string") {
+          transparentBgCache.set(srcOrFile, resultPng);
+        }
+        resolve(resultPng);
+      } catch (err) {
+        console.warn("Could not remove white background:", err);
+        resolve(srcOrFile);
+      }
+    };
+
+    img.onload = processCanvas;
+    img.onerror = () => resolve(srcOrFile);
+
+    if (typeof srcOrFile === "string") {
+      img.src = srcOrFile;
+    } else if (srcOrFile instanceof Blob || srcOrFile instanceof File) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(srcOrFile);
+    } else {
+      resolve(srcOrFile);
+    }
+  });
+}

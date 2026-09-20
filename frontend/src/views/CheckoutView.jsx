@@ -55,6 +55,8 @@ export default function CheckoutView() {
   // Which profile address is currently selected in checkout
   const defaultAddr = profileAddresses.find((a) => a.isDefault) || profileAddresses[0] || null;
   const [selectedProfileAddrId, setSelectedProfileAddrId] = useState(null);
+  const [isChangingAddress, setIsChangingAddress] = useState(false);
+  const activeSelectedAddr = profileAddresses.find((a) => a.id === selectedProfileAddrId) || defaultAddr || profileAddresses[0];
 
   // State for manual address form (new address or override)
   const [editingAddress, setEditingAddress] = useState(false);
@@ -135,6 +137,7 @@ export default function CheckoutView() {
     setSelectedAddress(mapped);
     saveUserAddress(userId, mapped);
     setEditingAddress(false);
+    setIsChangingAddress(false);
     setAddressError("");
   };
 
@@ -538,6 +541,11 @@ export default function CheckoutView() {
             gap: 12px !important;
             margin-bottom: 16px !important;
           }
+          .checkout-addr-btn-group {
+            width: 100% !important;
+            flex-direction: column !important;
+            gap: 8px !important;
+          }
           .checkout-addr-change-btn {
             width: 100% !important;
             justify-content: center !important;
@@ -627,14 +635,36 @@ export default function CheckoutView() {
             <div className="checkout-addr-header-row">
               <h2 style={{ ...sectionTitleStyle, margin: 0 }} className="checkout-addr-title">Delivery Address</h2>
               {!editingAddress && (
-                <button
-                  type="button"
-                  onClick={() => { setEditingAddress(true); setAddressError(""); }}
-                  className="checkout-addr-change-btn hover-lift"
-                >
-                  <Plus size={15} />
-                  <span>Use a Different Address</span>
-                </button>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }} className="checkout-addr-btn-group">
+                  {profileAddresses.length > 1 && !isChangingAddress && (
+                    <button
+                      type="button"
+                      onClick={() => { setIsChangingAddress(true); setAddressError(""); }}
+                      className="checkout-addr-change-btn hover-lift"
+                    >
+                      <Edit2 size={13} />
+                      <span>Change Address</span>
+                    </button>
+                  )}
+                  {isChangingAddress && (
+                    <button
+                      type="button"
+                      onClick={() => setIsChangingAddress(false)}
+                      className="checkout-addr-change-btn hover-lift"
+                      style={{ color: "#6B6B75" }}
+                    >
+                      <span>Close</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => { setEditingAddress(true); setIsChangingAddress(false); setAddressError(""); }}
+                    className="checkout-addr-change-btn hover-lift"
+                  >
+                    <Plus size={15} />
+                    <span>Use a Different Address</span>
+                  </button>
+                </div>
               )}
             </div>
 
@@ -644,11 +674,76 @@ export default function CheckoutView() {
               </div>
             )}
 
-            {/* Saved profile addresses as selectable cards */}
-            {!editingAddress && profileAddresses.length > 0 && (
+            {/* 1. SINGLE ADDRESS VIEW (Default): Only show one address */}
+            {!editingAddress && !isChangingAddress && profileAddresses.length > 0 && activeSelectedAddr && (
+              <div
+                style={{
+                  border: "2px solid #1B1F8C",
+                  borderRadius: "12px",
+                  padding: "18px",
+                  backgroundColor: "rgba(27,31,140,0.04)",
+                  marginBottom: "16px",
+                  position: "relative"
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px", marginBottom: "10px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <CheckCircle2 size={16} color="#1B1F8C" />
+                    <span style={{ fontSize: "11px", fontWeight: "800", letterSpacing: "0.08em", color: "#1B1F8C", textTransform: "uppercase" }}>
+                      {activeSelectedAddr.label || "Home"}
+                    </span>
+                    {activeSelectedAddr.isDefault && (
+                      <span style={{ fontSize: "10px", fontWeight: "700", color: "#16A34A", backgroundColor: "rgba(22,163,74,0.1)", padding: "2px 8px", borderRadius: "8px" }}>Default</span>
+                    )}
+                  </div>
+                  {profileAddresses.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => { setIsChangingAddress(true); setAddressError(""); }}
+                      style={{
+                        background: "#FFFFFF",
+                        border: "1.5px solid #1B1F8C",
+                        color: "#1B1F8C",
+                        padding: "4px 14px",
+                        borderRadius: "999px",
+                        fontSize: "12px",
+                        fontWeight: "700",
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "5px"
+                      }}
+                      className="hover-lift"
+                    >
+                      <Edit2 size={12} />
+                      <span>Change</span>
+                    </button>
+                  )}
+                </div>
+                <p style={{ fontSize: "13.5px", color: "#14151A", lineHeight: "1.6", margin: 0, overflowWrap: "anywhere" }} className="checkout-address-text">
+                  <strong>{activeSelectedAddr.fullName}</strong><br />
+                  {activeSelectedAddr.addressLine1}{activeSelectedAddr.addressLine2 ? `, ${activeSelectedAddr.addressLine2}` : ""}{activeSelectedAddr.landmark ? ` - ${activeSelectedAddr.landmark}` : ""}<br />
+                  {activeSelectedAddr.city}, {activeSelectedAddr.state} - {activeSelectedAddr.postalCode || activeSelectedAddr.pincode}<br />
+                  Phone: {activeSelectedAddr.phone}
+                </p>
+              </div>
+            )}
+
+            {/* 2. CHANGE ADDRESS VIEW: Show all saved profile addresses so user can pick one */}
+            {!editingAddress && isChangingAddress && profileAddresses.length > 0 && (
               <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "16px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                  <span style={{ fontSize: "13px", color: "#6B6B75", fontWeight: "600" }}>Select a delivery address:</span>
+                  <button
+                    type="button"
+                    onClick={() => setIsChangingAddress(false)}
+                    style={{ background: "none", border: "none", color: "#1B1F8C", fontSize: "12px", fontWeight: "700", cursor: "pointer" }}
+                  >
+                    Done
+                  </button>
+                </div>
                 {profileAddresses.map((addr) => {
-                  const isSelected = selectedProfileAddrId === addr.id;
+                  const isSelected = (selectedProfileAddrId || defaultAddr?.id) === addr.id;
                   return (
                     <div
                       key={addr.id}
@@ -661,6 +756,7 @@ export default function CheckoutView() {
                         backgroundColor: isSelected ? "rgba(27,31,140,0.04)" : "#FAFAF7",
                         transition: "all 0.2s ease"
                       }}
+                      className="hover-lift"
                     >
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "6px", marginBottom: "8px" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -672,6 +768,11 @@ export default function CheckoutView() {
                             <span style={{ fontSize: "10px", fontWeight: "700", color: "#16A34A", backgroundColor: "rgba(22,163,74,0.1)", padding: "2px 8px", borderRadius: "8px" }}>Default</span>
                           )}
                         </div>
+                        {isSelected ? (
+                          <span style={{ fontSize: "12px", fontWeight: "700", color: "#1B1F8C" }}>Delivering here</span>
+                        ) : (
+                          <span style={{ fontSize: "12px", fontWeight: "600", color: "#6B6B75" }}>Select</span>
+                        )}
                       </div>
                       <p style={{ fontSize: "13.5px", color: "#14151A", lineHeight: "1.6", margin: 0, overflowWrap: "anywhere" }} className="checkout-address-text">
                         <strong>{addr.fullName}</strong><br />

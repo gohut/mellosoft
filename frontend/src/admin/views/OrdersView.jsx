@@ -9,9 +9,9 @@ import { X, Package, User, Calendar, Hash, Search, CreditCard } from "lucide-rea
 import { formatPrice } from "../../utils/currency";
 import { matchCustomer } from "../../utils/customerHelpers";
 
-const filterTabs = ["All", "Pending", "Processing", "Confirmed", "Shipped", "Out for Delivery", "Delivered", "Cancelled"];
-const PAYMENT_OPTIONS = ["Pending", "Paid", "Failed", "Refunded"];
-const ORDER_STATUS_OPTIONS = ["Pending", "Processing", "Confirmed", "Shipped", "Out for Delivery", "Delivered", "Cancelled"];
+const filterTabs = ["All", "Pending", "Processing", "Cancellation Requested", "Confirmed", "Shipped", "Out for Delivery", "Delivered", "Cancelled"];
+const PAYMENT_OPTIONS = ["Pending", "Paid", "Refund Pending", "Refunded", "Failed"];
+const ORDER_STATUS_OPTIONS = ["Pending", "Processing", "Cancellation Requested", "Confirmed", "Shipped", "Out for Delivery", "Delivered", "Cancelled"];
 
 export default function OrdersView() {
   const {
@@ -48,7 +48,14 @@ export default function OrdersView() {
 
     // 1. Status tab filter
     if (activeFilter !== "All") {
-      result = result.filter((o) => (o.orderStatus || "").toLowerCase() === activeFilter.toLowerCase());
+      result = result.filter((o) => {
+        const s = (o.orderStatus || "").toLowerCase();
+        const af = activeFilter.toLowerCase();
+        if (af === "cancellation requested") {
+          return s.includes("cancellation") || !!o.cancellationRequested;
+        }
+        return s === af;
+      });
     }
 
     // 2. Search query filter across Order ID, Customer Name/Email/Phone, Products, Payment, Status
@@ -126,12 +133,19 @@ export default function OrdersView() {
   ];
 
   const handleSaveOrder = (orderId, newPaymentStatus, newOrderStatus) => {
+    const isNowCancelled = newOrderStatus === "Cancelled";
     const res = updateOrder(orderId, {
       paymentStatus: newPaymentStatus,
       orderStatus: newOrderStatus,
+      cancellationRequested: isNowCancelled ? false : (newOrderStatus === "Cancellation Requested"),
+      cancellationStatus: isNowCancelled ? "Approved" : (newOrderStatus === "Cancellation Requested" ? "Pending Approval" : "Resolved")
     });
     if (res?.success) {
-      showToast(`Order #${orderId} updated successfully.`);
+      if (isNowCancelled) {
+        showToast(`Order #${orderId} cancelled successfully.`);
+      } else {
+        showToast(`Order #${orderId} updated successfully.`);
+      }
       setSelectedOrderId(null);
       if (setAdminSelectedOrderId) setAdminSelectedOrderId(null);
     }
@@ -360,6 +374,165 @@ function OrderDetailsModal({ orderId, canEdit, onClose, onSave }) {
         {/* Content */}
         <div style={{ padding: "20px", overflowY: "auto", maxHeight: "calc(85vh - 130px)", display: "flex", flexDirection: "column", gap: "20px" }}>
           
+          {/* Cancellation Request Alert Banner */}
+          {(order.orderStatus === "Cancellation Requested" || order.cancellationRequested) && (
+            <div style={{
+              backgroundColor: "#FFFBEB",
+              border: "1px solid #FCD34D",
+              borderRadius: "12px",
+              padding: "16px",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: "12px"
+            }}>
+              <div>
+                <strong style={{ color: "#92400E", fontSize: "14px", display: "flex", alignItems: "center", gap: "6px" }}>
+                  ⚠️ Customer Cancellation Request
+                </strong>
+                <p style={{ color: "#B45309", fontSize: "13px", margin: "4px 0 0" }}>
+                  The customer has requested to cancel this order. Click approve to cancel the order.
+                </p>
+                {order.cancellationReason && (
+                  <div style={{ fontSize: "12px", color: "#78350F", marginTop: "4px", fontStyle: "italic" }}>
+                    Reason: "{order.cancellationReason}"
+                  </div>
+                )}
+              </div>
+
+              {canEdit && (
+                <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newPayStatus = (order.paymentStatus || "").toLowerCase() === "paid" ? "Refund Pending" : order.paymentStatus;
+                      onSave(order.id, newPayStatus, "Cancelled");
+                      setOrderStatus("Cancelled");
+                      if (newPayStatus !== order.paymentStatus) setPaymentStatus(newPayStatus);
+                    }}
+                    style={{
+                      backgroundColor: "#DC2626",
+                      color: "#FFFFFF",
+                      border: "none",
+                      borderRadius: "8px",
+                      padding: "8px 16px",
+                      fontSize: "13px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      boxShadow: "0 2px 6px rgba(220, 38, 38, 0.25)"
+                    }}
+                  >
+                    Approve Cancellation
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onSave(order.id, paymentStatus, "Processing");
+                      setOrderStatus("Processing");
+                    }}
+                    style={{
+                      backgroundColor: "#FFFFFF",
+                      color: "#4B5563",
+                      border: "1px solid #D1D5DB",
+                      borderRadius: "8px",
+                      padding: "8px 14px",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      cursor: "pointer"
+                    }}
+                  >
+                    Reject Request
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Refund Management Card for Cancelled Orders */}
+          {(orderStatus === "Cancelled" || order.orderStatus === "Cancelled") && (
+            <div style={{
+              backgroundColor: (paymentStatus || order.paymentStatus) === "Refund Pending" ? "#FFFBEB" : "#F0FDF4",
+              border: `1px solid ${(paymentStatus || order.paymentStatus) === "Refund Pending" ? "#FCD34D" : "#BBF7D0"}`,
+              borderRadius: "12px",
+              padding: "16px",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: "12px"
+            }}>
+              <div>
+                <strong style={{
+                  color: (paymentStatus || order.paymentStatus) === "Refund Pending" ? "#92400E" : "#15803D",
+                  fontSize: "14px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px"
+                }}>
+                  {(paymentStatus || order.paymentStatus) === "Refund Pending" ? "⏳ Refund Pending (24 Hours)" : "✓ Payment Refunded"}
+                </strong>
+                <p style={{
+                  color: (paymentStatus || order.paymentStatus) === "Refund Pending" ? "#B45309" : "#166534",
+                  fontSize: "13px",
+                  margin: "4px 0 0"
+                }}>
+                  {(paymentStatus || order.paymentStatus) === "Refund Pending"
+                    ? "Customer is informed: payment is refunded in 24 hours. When you complete the refund, click Mark as Refunded."
+                    : "The refund has been completed. The customer sees this order marked as Refunded."}
+                </p>
+              </div>
+
+              {canEdit && (
+                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                  {(paymentStatus || order.paymentStatus) === "Refund Pending" ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onSave(order.id, "Refunded", orderStatus);
+                        setPaymentStatus("Refunded");
+                      }}
+                      style={{
+                        backgroundColor: "#16A34A",
+                        color: "#FFFFFF",
+                        border: "none",
+                        borderRadius: "8px",
+                        padding: "8px 16px",
+                        fontSize: "13px",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        boxShadow: "0 2px 6px rgba(22, 163, 74, 0.25)"
+                      }}
+                    >
+                      Mark as Refunded
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onSave(order.id, "Refund Pending", orderStatus);
+                        setPaymentStatus("Refund Pending");
+                      }}
+                      style={{
+                        backgroundColor: "#FFFFFF",
+                        color: "#92400E",
+                        border: "1px solid #FCD34D",
+                        borderRadius: "8px",
+                        padding: "6px 12px",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        cursor: "pointer"
+                      }}
+                    >
+                      Revert to Refund Pending
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Summary */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "12px", backgroundColor: "#FAFAF7", padding: "16px", borderRadius: "12px", border: "1px solid #E7E7E2" }}>
             <div>

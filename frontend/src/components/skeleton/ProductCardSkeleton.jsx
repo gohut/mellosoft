@@ -57,19 +57,19 @@ export default function ProductCardSkeleton() {
         {/* Rating row — 42% */}
         <Skeleton width="42%" height={13} borderRadius={4} style={{ marginTop: 2 }} />
 
-        {/* Price section — label + price */}
+        {/* Price section — single line price layout */}
         <div
           style={{
             marginTop: "auto",
             paddingTop: "8px",
             borderTop: "1px solid #F1F5F9",
             display: "flex",
-            flexDirection: "column",
-            gap: "4px"
+            alignItems: "center",
+            gap: "6px"
           }}
         >
-          <Skeleton width="24%" height={10} borderRadius={3} />
-          <Skeleton width="34%" height={16} borderRadius={4} />
+          <Skeleton width="45%" height={16} borderRadius={4} />
+          <Skeleton width="25%" height={12} borderRadius={3} />
         </div>
       </div>
       <style>{`

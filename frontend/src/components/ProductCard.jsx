@@ -74,7 +74,8 @@ export default function ProductCard({
   product: rawProduct,
   showContactForPrice = true,
   hideUnpricedLabel = false,
-  onClick
+  onClick,
+  footerAction
 }) {
   const router = useRouter();
   const { isAuthenticated, setIntendedView } = useCustomerAuth();
@@ -318,23 +319,29 @@ export default function ProductCard({
 
         {/* Price Row */}
         <div style={metaRowStyle} className="pc-price-wrap">
-          <div style={{ display: "flex", alignItems: "center", gap: "5px", flexWrap: "wrap" }}>
-            <span style={priceLabelStyle} className="pc-price-label">PRICE</span>
-            {hasDiscount && (
-              <span style={discountBadgeStyle} className="pc-discount-badge">{discountPct}% OFF</span>
-            )}
-          </div>
           {hasDiscount ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+              <span style={priceValueStyle} className="pc-price">{formatPrice(discountedMinPrice)}</span>
               <span style={originalPriceStyle} className="pc-orig-price">{formatPrice(minPrice)}</span>
-              <div style={priceValueStyle} className="pc-price">{formatPrice(discountedMinPrice)}</div>
+              <span style={discountBadgeStyle} className="pc-discount-badge">{discountPct}% OFF</span>
             </div>
           ) : (
-            <div style={priceValueStyle} className="pc-price">
+            <span style={priceValueStyle} className="pc-price">
               {formatPrice(minPrice)}
-            </div>
+            </span>
           )}
         </div>
+
+        {/* Optional Footer Action (e.g. Wishlist Move to Cart / Remove) */}
+        {footerAction && (
+          <div
+            className="pc-footer-action"
+            style={{ marginTop: "auto", width: "100%", paddingTop: "8px" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {footerAction}
+          </div>
+        )}
       </div>
     </article>
   );
@@ -479,9 +486,7 @@ const reviewCountStyle = {
 
 const metaRowStyle = {
   display: "flex",
-  flexDirection: "column",
-  alignItems: "flex-start",
-  gap: "2px",
+  alignItems: "center",
   marginTop: "auto",
   paddingTop: "8px",
   borderTop: "1px solid #F1F5F9"
