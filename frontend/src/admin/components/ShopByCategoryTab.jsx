@@ -11,8 +11,11 @@ import {
 import {
   CATEGORY_THEME_PRESETS,
   PRESET_IMAGE_OPTIONS,
-  DEFAULT_HOMEPAGE_CATEGORIES
+  DEFAULT_HOMEPAGE_CATEGORIES,
+  resolveCategoryTileImage
 } from "../../data/homepageCategoriesData";
+import CategoryTileImage from "../../components/CategoryTileImage";
+import { saveImageBlob, getResolvedImageUrlSync } from "../../utils/imageStorage";
 
 function hexToRgb(hex) {
   let c = (hex || "#3B82F6").replace("#", "").trim();
@@ -48,6 +51,22 @@ function generateThemeFromColor(hex) {
     accentGlow: `rgba(${r}, ${g}, ${b}, 0.45)`,
     ringColor: `rgba(${r}, ${g}, ${b}, 0.2)`
   };
+}
+
+export function getImageSrc(img) {
+  if (!img) return "";
+  if (typeof img === "string") return img.trim();
+  if (Array.isArray(img) && img.length > 0) return getImageSrc(img[0]);
+  if (typeof img === "object") {
+    return (
+      (typeof img.url === "string" && img.url.trim()) ||
+      (typeof img.src === "string" && img.src.trim()) ||
+      (typeof img.secure_url === "string" && img.secure_url.trim()) ||
+      (typeof img.path === "string" && img.path.trim()) ||
+      ""
+    );
+  }
+  return String(img).trim();
 }
 
 export default function ShopByCategoryTab({ showToast, canEdit, canCreate, canDelete }) {
@@ -198,6 +217,12 @@ export default function ShopByCategoryTab({ showToast, canEdit, canCreate, canDe
         .admin-scrollable-table::-webkit-scrollbar-thumb:hover {
           background: #94A3B8;
         }
+        .shop-by-category-desktop-table {
+          display: block;
+        }
+        .shop-by-category-mobile-cards {
+          display: none;
+        }
         .admin-scrollable-hint {
           display: none;
           align-items: center;
@@ -209,9 +234,18 @@ export default function ShopByCategoryTab({ showToast, canEdit, canCreate, canDe
           background-color: #F8FAFC;
           border-bottom: 1px solid #E2E8F0;
         }
-        @media (max-width: 900px) {
-          .admin-scrollable-hint {
+        @media (max-width: 820px) {
+          .shop-by-category-desktop-table {
+            display: none !important;
+          }
+          .shop-by-category-mobile-cards {
             display: flex !important;
+            flex-direction: column !important;
+            gap: 12px !important;
+            padding: 12px !important;
+          }
+          .admin-scrollable-hint {
+            display: none !important;
           }
           .content-stats-grid {
             display: flex !important;
@@ -339,8 +373,8 @@ export default function ShopByCategoryTab({ showToast, canEdit, canCreate, canDe
 
                   <span style={previewTileLabelStyle}>{item.label}</span>
                   <div style={previewTileImgWrapStyle}>
-                    <img
-                      src={item.image || "/assets/categories/memory-foam.jpg"}
+                    <CategoryTileImage
+                      src={resolveCategoryTileImage(item)}
                       alt={item.label}
                       style={{
                         width: "100%",
@@ -348,9 +382,6 @@ export default function ShopByCategoryTab({ showToast, canEdit, canCreate, canDe
                         objectFit: "contain",
                         transform: `scale(${item.scale || 1.18})`,
                         transition: "transform 0.2s ease"
-                      }}
-                      onError={(e) => {
-                        e.target.src = "/assets/categories/memory-foam.jpg";
                       }}
                     />
                   </div>
@@ -397,7 +428,8 @@ export default function ShopByCategoryTab({ showToast, canEdit, canCreate, canDe
           <span>Swipe or scroll horizontally to view all columns (Status, Actions)</span>
         </div>
 
-        <div style={{ overflowX: "auto", width: "100%", WebkitOverflowScrolling: "touch" }} className="admin-scrollable-table">
+        {/* ── Desktop Table View (screens > 820px) ── */}
+        <div className="shop-by-category-desktop-table" style={{ overflowX: "auto", width: "100%", WebkitOverflowScrolling: "touch" }}>
           <div style={{ minWidth: "880px" }}>
             <div style={tableHeaderRowStyle}>
               <div style={{ width: "40px", flexShrink: 0 }}></div>
@@ -416,7 +448,6 @@ export default function ShopByCategoryTab({ showToast, canEdit, canCreate, canDe
                 const isDragOver = dragOverId === item.id;
                 const isActive = item.isActive !== false && item.active !== false;
 
-                // Resolve route description
                 let routeDesc = "Mattress Catalog";
                 if (item.href) {
                   routeDesc = `Direct Link: ${item.href}`;
@@ -469,8 +500,8 @@ export default function ShopByCategoryTab({ showToast, canEdit, canCreate, canDe
                           paddingRight: "4px"
                         }}
                       >
-                        <img
-                          src={item.image || "/assets/categories/memory-foam.jpg"}
+                        <CategoryTileImage
+                          src={resolveCategoryTileImage(item)}
                           alt={item.label}
                           style={{
                             width: "36px",
@@ -478,22 +509,21 @@ export default function ShopByCategoryTab({ showToast, canEdit, canCreate, canDe
                             objectFit: "contain",
                             transform: `scale(${item.scale || 1.18})`
                           }}
-                          onError={(e) => { e.target.src = "/assets/categories/memory-foam.jpg"; }}
                         />
                       </div>
                     </div>
 
                     {/* Category Name */}
-                    <div style={{ flex: 2, minWidth: "140px", display: "flex", flexDirection: "column" }}>
-                      <strong style={{ fontSize: "14px", color: isActive ? "#111827" : "#6B7280" }}>
+                    <div style={{ flex: 2, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                      <strong style={{ fontSize: "14px", color: isActive ? "#111827" : "#6B7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {item.label}
                       </strong>
                       <span style={{ fontSize: "11px", color: "#9CA3AF" }}>ID: {item.id}</span>
                     </div>
 
                     {/* Destination Route */}
-                    <div style={{ flex: 2, minWidth: "170px", display: "flex", alignItems: "center", gap: "6px" }}>
-                      <span style={routeBadgeStyle}>
+                    <div style={{ flex: 2, minWidth: 0, display: "flex", alignItems: "center", overflow: "hidden" }}>
+                      <span style={{ ...routeBadgeStyle, maxWidth: "100%", overflow: "hidden" }}>
                         <Compass size={12} color="#1B1F8C" style={{ flexShrink: 0 }} />
                         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {routeDesc}
@@ -502,7 +532,7 @@ export default function ShopByCategoryTab({ showToast, canEdit, canCreate, canDe
                     </div>
 
                     {/* Theme Preview */}
-                    <div style={{ flex: 1.5, minWidth: "130px", display: "flex", alignItems: "center", gap: "8px" }}>
+                    <div style={{ flex: 1.5, minWidth: 0, display: "flex", alignItems: "center", gap: "8px", overflow: "hidden" }}>
                       <div
                         style={{
                           width: "20px",
@@ -513,7 +543,7 @@ export default function ShopByCategoryTab({ showToast, canEdit, canCreate, canDe
                           flexShrink: 0
                         }}
                       />
-                      <span style={{ fontSize: "12px", color: "#4B5563", textTransform: "capitalize", whiteSpace: "nowrap" }}>
+                      <span style={{ fontSize: "12px", color: "#4B5563", textTransform: "capitalize", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                         {CATEGORY_THEME_PRESETS.find((p) => p.color === item.color)?.name || "Custom"}
                       </span>
                     </div>
@@ -588,6 +618,207 @@ export default function ShopByCategoryTab({ showToast, canEdit, canCreate, canDe
             </div>
           </div>
         </div>
+
+        {/* ── Mobile Card View (screens <= 820px) ── */}
+        <div className="shop-by-category-mobile-cards">
+          {homepageCategories.map((item, index) => {
+            const isActive = item.isActive !== false && item.active !== false;
+
+            let routeDesc = "Mattress Catalog";
+            if (item.href) {
+              routeDesc = `Direct Link: ${item.href}`;
+            } else if (item.subcategory) {
+              routeDesc = `Subcategory: ${item.subcategory}`;
+            } else if (item.firmness) {
+              routeDesc = `Firmness: ${item.firmness}`;
+            }
+
+            return (
+              <div
+                key={item.id || index}
+                style={{
+                  ...mobileCardStyle,
+                  backgroundColor: isActive ? "#FFFFFF" : "#F9FAFB",
+                  borderColor: isActive ? "#E5E7EB" : "#F3F4F6"
+                }}
+              >
+                {/* Top Row: Index + Preview + Name + Status */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
+                    <span style={numberBadgeStyle}>#{index + 1}</span>
+                    <div
+                      style={{
+                        width: "56px",
+                        height: "36px",
+                        borderRadius: "8px",
+                        background: item.gradient || item.color || "#E0EFFE",
+                        border: `1px solid ${item.ringColor || "#CBD5E1"}`,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "flex-end",
+                        paddingRight: "3px",
+                        flexShrink: 0
+                      }}
+                    >
+                      <CategoryTileImage
+                        src={resolveCategoryTileImage(item)}
+                        alt={item.label}
+                        style={{
+                          width: "30px",
+                          height: "30px",
+                          objectFit: "contain",
+                          transform: `scale(${item.scale || 1.18})`
+                        }}
+                      />
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+                      <strong style={{ fontSize: "14px", color: isActive ? "#111827" : "#6B7280", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {item.label}
+                      </strong>
+                      <span style={{ fontSize: "11px", color: "#9CA3AF" }}>ID: {item.id}</span>
+                    </div>
+                  </div>
+
+                  {/* Status Toggle */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      toggleHomepageCategoryStatus(item.id);
+                      showToast(`"${item.label}" ${isActive ? "hidden" : "visible"} on homepage`);
+                    }}
+                    style={{
+                      ...statusBtnStyle,
+                      backgroundColor: isActive ? "#DEF7EC" : "#F3F4F6",
+                      color: isActive ? "#03543F" : "#6B7280",
+                      borderColor: isActive ? "#BCF0DA" : "#E5E7EB",
+                      flexShrink: 0
+                    }}
+                  >
+                    {isActive ? <Eye size={13} /> : <EyeOff size={13} />}
+                    <span>{isActive ? "Visible" : "Hidden"}</span>
+                  </button>
+                </div>
+
+                {/* Middle Row: Route Badge & Theme Pill */}
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                  <span style={{ ...routeBadgeStyle, maxWidth: "100%", fontSize: "11.5px" }}>
+                    <Compass size={12} color="#1B1F8C" style={{ flexShrink: 0 }} />
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {routeDesc}
+                    </span>
+                  </span>
+
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", backgroundColor: "#F9FAFB", border: "1px solid #E5E7EB", padding: "3px 8px", borderRadius: "8px" }}>
+                    <div
+                      style={{
+                        width: "14px",
+                        height: "14px",
+                        borderRadius: "4px",
+                        background: item.gradient || item.color || "#E0EFFE",
+                        border: "1px solid #D1D5DB",
+                        flexShrink: 0
+                      }}
+                    />
+                    <span style={{ fontSize: "11.5px", color: "#4B5563", textTransform: "capitalize", whiteSpace: "nowrap" }}>
+                      {CATEGORY_THEME_PRESETS.find((p) => p.color === item.color)?.name || "Custom"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Bottom Actions Row: Move Up/Down + Edit + Delete */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: "8px", borderTop: "1px solid #F3F4F6" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <button
+                      type="button"
+                      onClick={() => moveUp(index)}
+                      disabled={index === 0}
+                      style={{
+                        ...actionIconBtnStyle,
+                        opacity: index === 0 ? 0.3 : 1,
+                        padding: "6px 10px",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "4px",
+                        fontSize: "12px",
+                        width: "auto"
+                      }}
+                      title="Move up"
+                    >
+                      <ArrowUp size={13} />
+                      <span>Up</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => moveDown(index)}
+                      disabled={index === homepageCategories.length - 1}
+                      style={{
+                        ...actionIconBtnStyle,
+                        opacity: index === homepageCategories.length - 1 ? 0.3 : 1,
+                        padding: "6px 10px",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "4px",
+                        fontSize: "12px",
+                        width: "auto"
+                      }}
+                      title="Move down"
+                    >
+                      <ArrowDown size={13} />
+                      <span>Down</span>
+                    </button>
+                  </div>
+
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    {canEdit !== false && (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEdit(item)}
+                        style={{
+                          ...actionIconBtnStyle,
+                          color: "#1B1F8C",
+                          backgroundColor: "#EEF0FF",
+                          borderColor: "#C7D2FE",
+                          padding: "6px 12px",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "5px",
+                          fontSize: "12px",
+                          width: "auto"
+                        }}
+                      >
+                        <Edit2 size={13} />
+                        <span>Edit</span>
+                      </button>
+                    )}
+
+                    {canDelete !== false && (
+                      <button
+                        type="button"
+                        onClick={() => setCategoryToDelete(item)}
+                        style={{
+                          ...actionIconBtnStyle,
+                          color: "#DC2626",
+                          backgroundColor: "#FEF2F2",
+                          borderColor: "#FECACA",
+                          padding: "6px 10px",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px",
+                          fontSize: "12px",
+                          width: "auto"
+                        }}
+                        title="Delete Category Card"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* ── Add / Edit Category Tile Modal ── */}
@@ -654,7 +885,7 @@ function CategoryTileModal({ isOpen, onClose, onSave, initialData, existingCateg
   const [subcategory, setSubcategory] = useState(initialData?.subcategory || "memory-foam");
   const [firmness, setFirmness] = useState(initialData?.firmness || "Hybrid");
   const [href, setHref] = useState(initialData?.href || "");
-  const [image, setImage] = useState(initialData?.image || "/assets/categories/memory-foam.jpg");
+  const [image, setImage] = useState(() => resolveCategoryTileImage(initialData));
   const [selectedThemeId, setSelectedThemeId] = useState(() => {
     if (!initialData) return "blue-ice";
     const found = CATEGORY_THEME_PRESETS.find((p) => p.color === initialData.color);
@@ -687,31 +918,50 @@ function CategoryTileModal({ isOpen, onClose, onSave, initialData, existingCateg
     setRingColor(generated.ringColor);
   };
 
-  const handleImageFile = (e) => {
+  const handleImageFile = async (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImage(reader.result);
-      };
-      reader.readAsDataURL(file);
+      try {
+        const idbKey = `idb:cat-img-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+        await saveImageBlob(idbKey, file);
+        setImage(idbKey);
+      } catch (err) {
+        console.warn("Category image upload error:", err);
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          if (typeof reader.result === "string") {
+            const idbKey = `idb:cat-img-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+            await saveImageBlob(idbKey, reader.result);
+            setImage(idbKey);
+          }
+        };
+        reader.readAsDataURL(file);
+      }
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!label.trim()) {
+    const cleanLabel = typeof label === "string" ? label.trim() : String(label || "").trim();
+    if (!cleanLabel) {
       setErrorMsg("Category Title / Label is required");
       return;
     }
 
+    let safeImage = getImageSrc(image) || resolveCategoryTileImage({ label: cleanLabel, firmness, href, subcategory });
+    if (safeImage.startsWith("data:")) {
+      const idbKey = `idb:cat-img-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+      await saveImageBlob(idbKey, safeImage);
+      safeImage = idbKey;
+    }
+
     const payload = {
-      label: label.trim(),
+      label: cleanLabel,
       category: destType === "href" ? "" : "mattress",
       subcategory: destType === "subcategory" ? subcategory : null,
       firmness: destType === "firmness" ? firmness : "",
-      href: destType === "href" ? href.trim() : "",
-      image: image.trim() || "/assets/categories/memory-foam.jpg",
+      href: destType === "href" ? (typeof href === "string" ? href.trim() : String(href || "").trim()) : "",
+      image: safeImage,
       color,
       gradient,
       accentGlow,
@@ -805,8 +1055,8 @@ function CategoryTileModal({ isOpen, onClose, onSave, initialData, existingCateg
                 />
                 <span style={previewTileLabelStyle}>{label || "Category Name"}</span>
                 <div style={previewTileImgWrapStyle}>
-                  <img
-                    src={image || "/assets/categories/memory-foam.jpg"}
+                  <CategoryTileImage
+                    src={getImageSrc(image) || resolveCategoryTileImage({ label, firmness, href, subcategory })}
                     alt="Preview"
                     style={{
                       width: "100%",
@@ -814,7 +1064,6 @@ function CategoryTileModal({ isOpen, onClose, onSave, initialData, existingCateg
                       objectFit: "contain",
                       transform: `scale(${scale})`
                     }}
-                    onError={(e) => { e.target.src = "/assets/categories/memory-foam.jpg"; }}
                   />
                 </div>
               </div>
@@ -1088,7 +1337,7 @@ function CategoryTileModal({ isOpen, onClose, onSave, initialData, existingCateg
             </label>
             <input
               type="text"
-              value={image}
+              value={typeof image === "string" ? image : getImageSrc(image)}
               onChange={(e) => setImage(e.target.value)}
               placeholder="Image URL path or upload file"
               style={inputStyle}
@@ -1096,21 +1345,24 @@ function CategoryTileModal({ isOpen, onClose, onSave, initialData, existingCateg
 
             {/* Quick preset images */}
             <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "6px" }}>
-              {PRESET_IMAGE_OPTIONS.map((opt) => (
-                <button
-                  key={opt.url}
-                  type="button"
-                  onClick={() => setImage(opt.url)}
-                  style={{
-                    ...presetChipStyle,
-                    backgroundColor: image === opt.url ? "#EEF0FF" : "#F3F4F6",
-                    borderColor: image === opt.url ? "#1B1F8C" : "#E5E7EB",
-                    color: image === opt.url ? "#1B1F8C" : "#4B5563"
-                  }}
-                >
-                  {opt.label}
-                </button>
-              ))}
+              {PRESET_IMAGE_OPTIONS.map((opt) => {
+                const currentVal = typeof image === "string" ? image : getImageSrc(image);
+                return (
+                  <button
+                    key={opt.url}
+                    type="button"
+                    onClick={() => setImage(opt.url)}
+                    style={{
+                      ...presetChipStyle,
+                      backgroundColor: currentVal === opt.url ? "#EEF0FF" : "#F3F4F6",
+                      borderColor: currentVal === opt.url ? "#1B1F8C" : "#E5E7EB",
+                      color: currentVal === opt.url ? "#1B1F8C" : "#4B5563"
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
             </div>
 
             {/* File Upload Alternative */}
@@ -1371,6 +1623,19 @@ const tableHeaderRowStyle = {
   backgroundColor: "#F9FAFB",
   borderBottom: "1px solid #E5E7EB",
   gap: "12px"
+};
+
+const mobileCardStyle = {
+  backgroundColor: "#FFFFFF",
+  border: "1px solid #E5E7EB",
+  borderRadius: "14px",
+  padding: "14px",
+  display: "flex",
+  flexDirection: "column",
+  gap: "10px",
+  boxShadow: "0 2px 6px rgba(0,0,0,0.03)",
+  boxSizing: "border-box",
+  transition: "border-color 0.15s ease"
 };
 
 const rowCardStyle = {

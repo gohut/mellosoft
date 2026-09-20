@@ -55,7 +55,7 @@ export default function Footer() {
 
   return (
     <footer style={footerWrapperStyle} className="storefront-footer">
-      <div style={footerInnerContainerStyle}>
+      <div style={footerInnerContainerStyle} className="footer-inner-container">
         {/* FOUR COLUMN GRID */}
         <div style={footerGridStyle} className="footer-columns-grid">
           
@@ -109,20 +109,6 @@ export default function Footer() {
                 </svg>
               </a>
 
-              {/* Twitter / X */}
-              <a
-                href="https://twitter.com"
-                target="_blank"
-                rel="noreferrer"
-                style={socialIconLinkStyle}
-                className="social-icon-btn"
-                aria-label="Twitter / X"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z" />
-                </svg>
-              </a>
-
               {/* YouTube */}
               <a
                 href="https://youtube.com"
@@ -138,19 +124,17 @@ export default function Footer() {
                 </svg>
               </a>
 
-              {/* LinkedIn */}
+              {/* WhatsApp */}
               <a
-                href="https://linkedin.com"
+                href={settings?.store?.phone ? `https://wa.me/${settings.store.phone.replace(/[^0-9]/g, "")}` : "https://wa.me/919876543210"}
                 target="_blank"
                 rel="noreferrer"
                 style={socialIconLinkStyle}
                 className="social-icon-btn"
-                aria-label="LinkedIn"
+                aria-label="WhatsApp"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
-                  <rect x="2" y="9" width="4" height="12" />
-                  <circle cx="4" cy="4" r="2" />
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2m.01 1.67c2.2 0 4.26.86 5.82 2.42a8.225 8.225 0 0 1 2.41 5.83c0 4.54-3.7 8.24-8.24 8.24-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.196 8.196 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.24-8.24m4.52 10.23c-.25-.13-1.47-.72-1.7-.81-.23-.08-.39-.13-.56.13-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.13-1.05-.39-2-1.23-.74-.66-1.24-1.47-1.38-1.72-.15-.25-.02-.38.11-.51.11-.11.25-.29.37-.44.12-.15.17-.25.25-.42.08-.17.04-.31-.02-.44-.06-.13-.56-1.35-.77-1.85-.2-.49-.41-.42-.56-.43h-.48c-.17 0-.44.06-.66.31-.23.25-.87.85-.87 2.07s.89 2.4 1.02 2.57c.12.17 1.75 2.67 4.24 3.74.59.26 1.05.41 1.41.53.6.19 1.14.16 1.57.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.08.15-1.18-.06-.1-.23-.17-.48-.29" />
                 </svg>
               </a>
             </div>
@@ -344,10 +328,10 @@ export default function Footer() {
         </div>
 
         {/* 5. FOOTER DIVIDER */}
-        <div style={dividerLineStyle} />
+        <div style={dividerLineStyle} className="footer-divider-line" />
 
         {/* 6. COPYRIGHT SECTION */}
-        <div style={copyrightRowStyle}>
+        <div style={copyrightRowStyle} className="footer-copyright-row">
           <p style={copyrightTextStyle}>
             © 2026 {settings?.store?.name || "Mellosoft"}. All rights reserved.
           </p>
@@ -432,11 +416,32 @@ export default function Footer() {
         @media (max-width: 1024px) {
           .footer-columns-grid {
             grid-template-columns: 1fr 1fr !important;
-            gap: 40px 32px !important;
+            gap: 32px 24px !important;
+            margin-bottom: 24px !important;
           }
         }
 
         @media (max-width: 640px) {
+          .storefront-footer {
+            padding: 20px 0 16px 0 !important;
+          }
+          .footer-inner-container {
+            padding: 0 16px !important;
+          }
+          .footer-columns-grid {
+            grid-template-columns: 1fr !important;
+            gap: 4px !important;
+            margin-bottom: 0 !important;
+          }
+          .footer-brand-col {
+            padding-bottom: 12px;
+            border-bottom: 1px solid #EAEAE5;
+          }
+          .footer-col-group {
+            border-bottom: 1px solid #EAEAE5;
+            padding-bottom: 8px;
+            margin-bottom: 0 !important;
+          }
           .footer-accordion-trigger {
             cursor: pointer;
             padding: 8px 0;
@@ -445,14 +450,11 @@ export default function Footer() {
           .footer-chevron {
             display: inline-block !important;
           }
-          .footer-col-group {
-            border-bottom: 1px solid #F1F1ED;
-            padding-bottom: 12px;
-          }
           .footer-links-list {
             display: none !important;
-            padding-top: 6px;
-            padding-bottom: 4px;
+            padding-top: 4px;
+            padding-bottom: 6px;
+            gap: 8px !important;
           }
           .footer-links-list.is-open {
             display: flex !important;
@@ -468,16 +470,12 @@ export default function Footer() {
               transform: translateY(0);
             }
           }
-          .footer-columns-grid {
-            grid-template-columns: 1fr !important;
-            gap: 16px !important;
+          .footer-divider-line {
+            display: none !important;
           }
-          .footer-brand-col {
-            padding-bottom: 12px;
-            border-bottom: 1px solid #F1F1ED;
-          }
-          .storefront-footer {
-            padding: 32px 0 24px 0 !important;
+          .footer-copyright-row {
+            padding-top: 14px !important;
+            margin-top: 0 !important;
           }
         }
       `}</style>
@@ -489,7 +487,7 @@ export default function Footer() {
 const footerWrapperStyle = {
   backgroundColor: "#FFFFFF",
   borderTop: "1px solid #E7E7E2",
-  padding: "56px 0 28px 0",
+  padding: "40px 0 20px 0",
   width: "100%",
   marginTop: "auto",
   boxSizing: "border-box"
@@ -499,16 +497,16 @@ const footerInnerContainerStyle = {
   width: "100%",
   maxWidth: "1440px",
   margin: "0 auto",
-  padding: "0 48px",
+  padding: "0 40px",
   boxSizing: "border-box"
 };
 
 const footerGridStyle = {
   display: "grid",
   gridTemplateColumns: "1.4fr 1fr 1fr 0.8fr",
-  gap: "48px",
+  gap: "36px",
   alignItems: "flex-start",
-  marginBottom: "48px"
+  marginBottom: "28px"
 };
 
 const brandColStyle = {
@@ -601,7 +599,7 @@ const dividerLineStyle = {
   height: "1px",
   backgroundColor: "#E7E7E2",
   width: "100%",
-  marginBottom: "24px"
+  marginBottom: "18px"
 };
 
 const copyrightRowStyle = {

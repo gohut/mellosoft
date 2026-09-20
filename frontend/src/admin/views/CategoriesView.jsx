@@ -86,7 +86,7 @@ function MainCategoryModal({ isOpen, onClose, onSave, editingCategory, existingC
       description: description.trim(),
       status,
       active: status === "Active",
-      image: imagePreview || "/assets/categories/memory-foam.jpg"
+      image: imagePreview || "/assets/categories/memory-foam.png"
     });
 
     onClose();
@@ -544,7 +544,7 @@ export default function CategoriesView() {
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", flexWrap: "wrap", paddingBottom: "16px", borderBottom: "1px solid #F0F0EC" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
                     <div style={{ width: "56px", height: "56px", borderRadius: "12px", overflow: "hidden", backgroundColor: "#F7F7F2", border: "1px solid #E7E7E2" }}>
-                      <img src={mainCat.image || "/assets/categories/memory-foam.jpg"} alt={mainCat.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      <img src={mainCat.image || "/assets/categories/memory-foam.png"} alt={mainCat.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                     </div>
                     <div>
                       <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>

@@ -9,7 +9,7 @@ import PromoBannerRenderer from "../../components/PromoBannerRenderer";
 import ShopByCategoryTab from "../components/ShopByCategoryTab";
 import {
   LayoutList, Image as ImageIcon, Plus, Edit2, Trash2,
-  CheckCircle2, XCircle, Search, GripVertical,
+  CheckCircle2, XCircle, Search, GripVertical, ArrowUp, ArrowDown,
   Eye, EyeOff, Check, ChevronRight, ChevronDown, Star, Tag, Zap, Package, Info, AlertTriangle, Award, X
 } from "lucide-react";
 import {
@@ -657,10 +657,66 @@ function HomepageLayoutTab({ homepageConfig, updateHomepageConfig, showToast, se
     showToast(`"${sec?.label}" ${sec?.visible ? "hidden" : "shown"} on homepage`);
   };
 
+  const moveUp = (index) => {
+    if (index <= 0) return;
+    const newSections = [...sections];
+    const [moved] = newSections.splice(index, 1);
+    newSections.splice(index - 1, 0, moved);
+    updateHomepageConfig({ ...homepageConfig, sections: newSections });
+    showToast("Section moved up");
+  };
+
+  const moveDown = (index) => {
+    if (index >= sections.length - 1) return;
+    const newSections = [...sections];
+    const [moved] = newSections.splice(index, 1);
+    newSections.splice(index + 1, 0, moved);
+    updateHomepageConfig({ ...homepageConfig, sections: newSections });
+    showToast("Section moved down");
+  };
+
   const visibleCount = sections.filter((s) => s.visible).length;
 
   return (
     <div>
+      <style>{`
+        .homepage-section-card {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 14px 16px;
+          border-radius: 12px;
+          cursor: default;
+          box-sizing: border-box;
+          width: 100%;
+        }
+        .homepage-card-desktop-row {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          width: 100%;
+        }
+        .homepage-card-mobile-layout {
+          display: none;
+        }
+
+        @media (max-width: 640px) {
+          .homepage-card-desktop-row {
+            display: none !important;
+          }
+          .homepage-card-mobile-layout {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 10px !important;
+            width: 100% !important;
+          }
+          .homepage-section-card {
+            padding: 12px 14px !important;
+            gap: 0 !important;
+          }
+        }
+      `}</style>
+
       {/* Stats row */}
       <div style={statsRowStyle} className="content-stats-grid admin-sliding-tabs">
         <div style={statCardStyle} className="content-stat-card">
@@ -706,6 +762,7 @@ function HomepageLayoutTab({ homepageConfig, updateHomepageConfig, showToast, se
               onDragOver={handleDragOver}
               onDrop={handleDrop}
               onDragEnd={handleDragEnd}
+              className="homepage-section-card"
               style={{
                 ...sectionCardStyle,
                 opacity: isDragging ? 0.45 : 1,
@@ -715,109 +772,268 @@ function HomepageLayoutTab({ homepageConfig, updateHomepageConfig, showToast, se
                 transition: "all 0.15s ease",
               }}
             >
-              {/* Drag handle */}
-              <div
-                style={dragHandleStyle}
-                title="Drag to reorder"
-              >
-                <GripVertical size={20} color="#9CA3AF" />
-              </div>
-
-              {/* Section number */}
-              <div style={sectionNumberStyle}>
-                <span style={sectionNumberBadgeStyle}>{index + 1}</span>
-              </div>
-
-              {/* Icon */}
-              <div style={{
-                ...sectionIconWrapStyle,
-                backgroundColor: section.visible ? "#EEF0FF" : "#F7F7F2",
-              }}>
-                <Icon size={18} color={section.visible ? "#1B1F8C" : "#9CA3AF"} />
-              </div>
-
-              {/* Info */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                  <strong style={{
-                    fontSize: "14px",
-                    fontWeight: 700,
-                    color: section.visible ? "#14151A" : "#9CA3AF",
-                  }}>
-                    {section.label}
-                  </strong>
-                  {(section.type === "promo-banner" || section.bannerId) && (
-                    <span style={{
-                      fontSize: "11px",
-                      fontWeight: "700",
-                      color: "#1B1F8C",
-                      backgroundColor: "#EEF0FF",
-                      padding: "2px 8px",
-                      borderRadius: "999px",
-                      letterSpacing: "0.02em"
-                    }}>
-                      Promo Banner • Promotion
-                    </span>
-                  )}
-                  {!section.visible && (
-                    <span style={hiddenBadgeStyle}>Hidden</span>
-                  )}
+              {/* ── DESKTOP ROW VIEW (> 640px) ── */}
+              <div className="homepage-card-desktop-row">
+                {/* Drag handle */}
+                <div
+                  style={dragHandleStyle}
+                  title="Drag to reorder"
+                >
+                  <GripVertical size={20} color="#9CA3AF" />
                 </div>
-                <p style={{
-                  fontSize: "12.5px",
-                  color: "#6B6B75",
-                  margin: 0,
-                  marginTop: "2px",
-                }}>
-                  {section.description || (section.type === "promo-banner" ? "Independent static banner block" : "")}
-                </p>
-              </div>
 
-              {/* Quick shortcut to Shop by Category editor */}
-              {section.id === "shop-by-category" && (
+                {/* Section number */}
+                <div style={sectionNumberStyle}>
+                  <span style={sectionNumberBadgeStyle}>{index + 1}</span>
+                </div>
+
+                {/* Icon */}
+                <div style={{
+                  ...sectionIconWrapStyle,
+                  backgroundColor: section.visible ? "#EEF0FF" : "#F7F7F2",
+                }}>
+                  <Icon size={18} color={section.visible ? "#1B1F8C" : "#9CA3AF"} />
+                </div>
+
+                {/* Info */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                    <strong style={{
+                      fontSize: "14px",
+                      fontWeight: 700,
+                      color: section.visible ? "#14151A" : "#9CA3AF",
+                    }}>
+                      {section.label}
+                    </strong>
+                    {(section.type === "promo-banner" || section.bannerId) && (
+                      <span style={{
+                        fontSize: "11px",
+                        fontWeight: "700",
+                        color: "#1B1F8C",
+                        backgroundColor: "#EEF0FF",
+                        padding: "2px 8px",
+                        borderRadius: "999px",
+                        letterSpacing: "0.02em"
+                      }}>
+                        Promo Banner • Promotion
+                      </span>
+                    )}
+                    {!section.visible && (
+                      <span style={hiddenBadgeStyle}>Hidden</span>
+                    )}
+                  </div>
+                  <p style={{
+                    fontSize: "12.5px",
+                    color: "#6B6B75",
+                    margin: 0,
+                    marginTop: "2px",
+                  }}>
+                    {section.description || (section.type === "promo-banner" ? "Independent static banner block" : "")}
+                  </p>
+                </div>
+
+                {/* Quick shortcut to Shop by Category editor */}
+                {section.id === "shop-by-category" && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (setActiveTab) setActiveTab("shop-by-category");
+                    }}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "5px",
+                      backgroundColor: "#EEF0FF",
+                      color: "#1B1F8C",
+                      border: "1px solid #C7CAF0",
+                      borderRadius: "8px",
+                      padding: "6px 12px",
+                      fontSize: "12px",
+                      fontWeight: "700",
+                      cursor: "pointer",
+                      marginRight: "8px",
+                      flexShrink: 0
+                    }}
+                    title="Configure Shop by Category tiles"
+                  >
+                    <Edit2 size={12} />
+                    <span>Edit Categories</span>
+                  </button>
+                )}
+
+                {/* Visibility toggle button only */}
                 <button
                   type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (setActiveTab) setActiveTab("shop-by-category");
-                  }}
+                  onClick={() => toggleVisibility(section.id)}
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "5px",
-                    backgroundColor: "#EEF0FF",
-                    color: "#1B1F8C",
-                    border: "1px solid #C7CAF0",
-                    borderRadius: "8px",
-                    padding: "6px 12px",
-                    fontSize: "12px",
-                    fontWeight: "700",
-                    cursor: "pointer",
-                    marginRight: "8px",
-                    flexShrink: 0
+                    ...toggleBtnStyle,
+                    backgroundColor: section.visible ? "#DCFCE7" : "#FEE2E2",
+                    color: section.visible ? "#16A34A" : "#DC2626",
+                    border: `1px solid ${section.visible ? "#86EFAC" : "#FCA5A5"}`,
                   }}
-                  title="Configure Shop by Category tiles"
+                  title={section.visible ? "Click to hide section" : "Click to show section"}
                 >
-                  <Edit2 size={12} />
-                  <span>Edit Categories</span>
+                  {section.visible ? <Eye size={14} /> : <EyeOff size={14} />}
+                  {section.visible ? "Visible" : "Hidden"}
                 </button>
-              )}
+              </div>
 
-              {/* Visibility toggle button only */}
-              <button
-                type="button"
-                onClick={() => toggleVisibility(section.id)}
-                style={{
-                  ...toggleBtnStyle,
-                  backgroundColor: section.visible ? "#DCFCE7" : "#FEE2E2",
-                  color: section.visible ? "#16A34A" : "#DC2626",
-                  border: `1px solid ${section.visible ? "#86EFAC" : "#FCA5A5"}`,
-                }}
-                title={section.visible ? "Click to hide section" : "Click to show section"}
-              >
-                {section.visible ? <Eye size={14} /> : <EyeOff size={14} />}
-                {section.visible ? "Visible" : "Hidden"}
-              </button>
+              {/* ── MOBILE CARD LAYOUT (<= 640px) ── */}
+              <div className="homepage-card-mobile-layout">
+                {/* Top Row: Index + Icon + Label + Status Toggle */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", width: "100%" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0, flex: 1 }}>
+                    <span style={sectionNumberBadgeStyle}>#{index + 1}</span>
+                    <div style={{
+                      ...sectionIconWrapStyle,
+                      width: "32px",
+                      height: "32px",
+                      backgroundColor: section.visible ? "#EEF0FF" : "#F7F7F2",
+                    }}>
+                      <Icon size={16} color={section.visible ? "#1B1F8C" : "#9CA3AF"} />
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", minWidth: 0, flex: 1 }}>
+                      <strong style={{
+                        fontSize: "14px",
+                        fontWeight: 700,
+                        color: section.visible ? "#14151A" : "#9CA3AF",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap"
+                      }}>
+                        {section.label}
+                      </strong>
+                      {(section.type === "promo-banner" || section.bannerId) && (
+                        <span style={{ fontSize: "10.5px", fontWeight: 700, color: "#1B1F8C" }}>
+                          Promo Banner
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Visibility Toggle Button */}
+                  <button
+                    type="button"
+                    onClick={() => toggleVisibility(section.id)}
+                    style={{
+                      ...toggleBtnStyle,
+                      backgroundColor: section.visible ? "#DCFCE7" : "#FEE2E2",
+                      color: section.visible ? "#16A34A" : "#DC2626",
+                      border: `1px solid ${section.visible ? "#86EFAC" : "#FCA5A5"}`,
+                      padding: "5px 10px",
+                      fontSize: "11.5px"
+                    }}
+                    title={section.visible ? "Click to hide section" : "Click to show section"}
+                  >
+                    {section.visible ? <Eye size={13} /> : <EyeOff size={13} />}
+                    <span>{section.visible ? "Visible" : "Hidden"}</span>
+                  </button>
+                </div>
+
+                {/* Description Row: Full Width, readable */}
+                {section.description && (
+                  <p style={{
+                    fontSize: "12px",
+                    color: "#6B6B75",
+                    margin: 0,
+                    lineHeight: 1.45,
+                    width: "100%"
+                  }}>
+                    {section.description}
+                  </p>
+                )}
+
+                {/* Bottom Controls Row: Reorder Arrows + Quick Actions */}
+                <div style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  paddingTop: "8px",
+                  borderTop: "1px solid #F3F4F6",
+                  width: "100%",
+                  gap: "8px"
+                }}>
+                  {/* Reorder Up / Down */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <button
+                      type="button"
+                      onClick={() => moveUp(index)}
+                      disabled={index === 0}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "4px",
+                        padding: "5px 9px",
+                        borderRadius: "6px",
+                        border: "1px solid #E5E7EB",
+                        backgroundColor: "#F9FAFB",
+                        color: "#4B5563",
+                        fontSize: "11.5px",
+                        fontWeight: 600,
+                        cursor: index === 0 ? "not-allowed" : "pointer",
+                        opacity: index === 0 ? 0.35 : 1
+                      }}
+                      title="Move section up"
+                    >
+                      <ArrowUp size={13} />
+                      <span>Up</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => moveDown(index)}
+                      disabled={index === sections.length - 1}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "4px",
+                        padding: "5px 9px",
+                        borderRadius: "6px",
+                        border: "1px solid #E5E7EB",
+                        backgroundColor: "#F9FAFB",
+                        color: "#4B5563",
+                        fontSize: "11.5px",
+                        fontWeight: 600,
+                        cursor: index === sections.length - 1 ? "not-allowed" : "pointer",
+                        opacity: index === sections.length - 1 ? 0.35 : 1
+                      }}
+                      title="Move section down"
+                    >
+                      <ArrowDown size={13} />
+                      <span>Down</span>
+                    </button>
+                  </div>
+
+                  {/* Quick Action Shortcut */}
+                  {section.id === "shop-by-category" && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (setActiveTab) setActiveTab("shop-by-category");
+                      }}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "5px",
+                        backgroundColor: "#EEF0FF",
+                        color: "#1B1F8C",
+                        border: "1px solid #C7CAF0",
+                        borderRadius: "6px",
+                        padding: "5px 10px",
+                        fontSize: "11.5px",
+                        fontWeight: 700,
+                        cursor: "pointer"
+                      }}
+                      title="Configure Shop by Category tiles"
+                    >
+                      <Edit2 size={12} />
+                      <span>Edit Categories</span>
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           );
         })}

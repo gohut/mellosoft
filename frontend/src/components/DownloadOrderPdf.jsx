@@ -384,7 +384,7 @@ async function generateOrderPdf(order, currentCustomer, settings) {
 export default function DownloadOrderPdf({
   order,
   variant = "primary",
-  label = "Download Order Copy",
+  label = "Download Copy",
   mobileLabel = "Download Copy",
   style = {},
   customBtnStyle = {},
@@ -443,7 +443,7 @@ export default function DownloadOrderPdf({
     justifyContent: "center",
     gap: "6px",
     height: "46px",
-    padding: "0 12px",
+    padding: "0 14px",
     borderRadius: "999px",
     border: isPrimary ? "none" : "1.5px solid #1B1F8C",
     backgroundColor: isPrimary ? "#1B1F8C" : "#F4F5FF",
@@ -455,13 +455,21 @@ export default function DownloadOrderPdf({
     transition: "all 0.18s ease",
     fontFamily: "inherit",
     whiteSpace: "nowrap",
-    width: "100%",
+    width: customBtnStyle.width || (style.width === "auto" ? "auto" : "100%"),
     boxSizing: "border-box",
     ...customBtnStyle
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", width: "100%", ...style }} className={className}>
+    <div style={{ display: "flex", flexDirection: "column", width: style.width || "100%", ...style }} className={className}>
+      <style>{`
+        .download-btn-mobile-text { display: none; }
+        .download-btn-desktop-text { display: inline; }
+        @media (max-width: 768px) {
+          .download-btn-desktop-text { display: none !important; }
+          .download-btn-mobile-text { display: inline !important; }
+        }
+      `}</style>
       <button
         onClick={handleDownload}
         style={defaultBtnStyle}
@@ -478,8 +486,14 @@ export default function DownloadOrderPdf({
         ) : (
           <>
             <Download size={15} style={{ flexShrink: 0 }} />
-            <span className="download-btn-desktop-text">{label}</span>
-            <span className="download-btn-mobile-text">{mobileLabel}</span>
+            {label === mobileLabel ? (
+              <span>{label}</span>
+            ) : (
+              <>
+                <span className="download-btn-desktop-text">{label}</span>
+                <span className="download-btn-mobile-text">{mobileLabel}</span>
+              </>
+            )}
           </>
         )}
       </button>

@@ -18,8 +18,8 @@ export const ACCESSORY_CATEGORIES = {
  * Canonical Bed Frame subcategory dictionary (Bed Frames is now its own main category).
  */
 export const BED_FRAME_CATEGORIES = {
-  "wooden-bed-frame": { id: "wooden-bed-frame", slug: "wooden-bed-frame", name: "Wooden Bed Frame", title: "Wooden Bed Frames", heading: "Wooden Bed Frames", description: "Handcrafted solid wooden bed frames for timeless style and stability.", tagline: "Handcrafted solid wooden bed frames for timeless style and stability.", image: "/assets/categories/bed-frames.jpg" },
-  "platform-bed": { id: "platform-bed", slug: "platform-bed", name: "Platform Bed", title: "Platform Beds", heading: "Platform Beds", description: "Sleek, low-profile platform beds with slatted support for modern bedrooms.", tagline: "Sleek, low-profile platform beds with slatted support for modern bedrooms.", image: "/assets/categories/bed-frames.jpg" }
+  "wooden-bed-frame": { id: "wooden-bed-frame", slug: "wooden-bed-frame", name: "Wooden Bed Frame", title: "Wooden Bed Frames", heading: "Wooden Bed Frames", description: "Handcrafted solid wooden bed frames for timeless style and stability.", tagline: "Handcrafted solid wooden bed frames for timeless style and stability.", image: "/assets/categories/bed-frames.png" },
+  "platform-bed": { id: "platform-bed", slug: "platform-bed", name: "Platform Bed", title: "Platform Beds", heading: "Platform Beds", description: "Sleek, low-profile platform beds with slatted support for modern bedrooms.", tagline: "Sleek, low-profile platform beds with slatted support for modern bedrooms.", image: "/assets/categories/bed-frames.png" }
 };
 
 export const MATTRESS_CATEGORIES = {
@@ -39,7 +39,7 @@ export const DEFAULT_CATEGORIES_TREE = [
     id: "CAT-MATTRESSES",
     name: "Mattresses",
     slug: "mattresses",
-    image: "/assets/categories/memory-foam.jpg",
+    image: "/assets/categories/memory-foam.png",
     description: "Premium sleep mattresses handcrafted for deep rest",
     type: "main",
     active: true,
@@ -57,7 +57,7 @@ export const DEFAULT_CATEGORIES_TREE = [
     id: "CAT-ACCESSORIES",
     name: "Accessories",
     slug: "accessories",
-    image: "/assets/categories/pillows.jpg",
+    image: "/assets/categories/pillows.png",
     description: "Luxury pillows, protectors & sleep essentials",
     type: "main",
     active: true,
@@ -77,7 +77,7 @@ export const DEFAULT_CATEGORIES_TREE = [
     id: "CAT-BED-FRAMES",
     name: "Bed Frames",
     slug: "bed-frames",
-    image: "/assets/categories/bed-frames.jpg",
+    image: "/assets/categories/bed-frames.png",
     description: "Bed frames designed for stylish and supportive sleep spaces.",
     type: "main",
     active: true,

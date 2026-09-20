@@ -38,11 +38,11 @@ export function StoreProvider({ children }) {
 
   const currentCustomerId = currentCustomer
     ? normalizeCustomerId(currentCustomer.customerId || currentCustomer.id)
-    : "CUS-0001";
+    : null;
 
   // User Commerce State
   const [cart, setCart] = useState([]);
-  const [wishlist, setWishlist] = useState(["foamcloud"]);
+  const [wishlist, setWishlist] = useState([]);
   // Products state is mutable so stock decrements can be applied
   const [products, setProducts] = useState(MOCK_PRODUCTS);
 
@@ -292,7 +292,16 @@ export function StoreProvider({ children }) {
         if (savedHPCats) {
           const parsed = JSON.parse(savedHPCats);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            setHomepageCategories((prev) => (JSON.stringify(prev) === JSON.stringify(parsed) ? prev : parsed));
+            const sanitized = parsed.map((cat) => {
+              if (cat && typeof cat.image === "string" && cat.image.startsWith("/assets/categories/") && cat.image.toLowerCase().endsWith(".jpg")) {
+                return { ...cat, image: cat.image.replace(/\.jpg$/i, ".png") };
+              }
+              return cat;
+            });
+            if (JSON.stringify(sanitized) !== JSON.stringify(parsed)) {
+              try { localStorage.setItem("mellosoft_homepage_categories", JSON.stringify(sanitized)); } catch (_) {}
+            }
+            setHomepageCategories((prev) => (JSON.stringify(prev) === JSON.stringify(sanitized) ? prev : sanitized));
           }
         } else {
           setHomepageCategories((prev) => (JSON.stringify(prev) === JSON.stringify(DEFAULT_HOMEPAGE_CATEGORIES) ? prev : DEFAULT_HOMEPAGE_CATEGORIES));
@@ -407,8 +416,19 @@ export function StoreProvider({ children }) {
       try {
         const savedOrders = localStorage.getItem("mellosoft_orders");
         if (savedOrders) {
-          const parsed = JSON.parse(savedOrders);
+          let parsed = JSON.parse(savedOrders);
           if (Array.isArray(parsed) && parsed.length > 0) {
+            if (typeof window !== "undefined" && !localStorage.getItem("mellosoft_refund_pending_init")) {
+              parsed = parsed.map((o) =>
+                (o.id === "MS-92840" && o.orderStatus === "Cancelled" && o.paymentStatus === "Refunded")
+                  ? { ...o, paymentStatus: "Refund Pending" }
+                  : o
+              );
+              try {
+                localStorage.setItem("mellosoft_orders", JSON.stringify(parsed));
+                localStorage.setItem("mellosoft_refund_pending_init", "true");
+              } catch {}
+            }
             setOrders((prev) => (JSON.stringify(prev) === JSON.stringify(parsed) ? prev : parsed));
           } else {
             setOrders((prev) => (JSON.stringify(prev) === JSON.stringify(MOCK_ORDERS) ? prev : MOCK_ORDERS));
@@ -447,9 +467,29 @@ export function StoreProvider({ children }) {
 
   // Sync customer-specific cart & wishlist whenever currentCustomerId changes
   useEffect(() => {
-    if (!currentCustomerId) return;
     try {
-      // Load Cart
+      if (!currentCustomerId) {
+        // Unauthenticated guest: empty wishlist by default (no demo products)
+        setWishlist([]);
+        try {
+          localStorage.removeItem("mellosoft_wishlist_guest");
+        } catch {}
+
+        // Load guest cart
+        const savedGuestCart = localStorage.getItem("mellosoft_cart_guest");
+        if (savedGuestCart) {
+          try {
+            setCart(JSON.parse(savedGuestCart));
+          } catch {
+            setCart([]);
+          }
+        } else {
+          setCart([]);
+        }
+        return;
+      }
+
+      // Authenticated Customer: Load Cart
       const savedCart = localStorage.getItem(`mellosoft_cart_${currentCustomerId}`);
       if (savedCart) {
         setCart(JSON.parse(savedCart));
@@ -473,15 +513,19 @@ export function StoreProvider({ children }) {
         setCart(mockCustomerCart.length > 0 ? mockCustomerCart : []);
       }
 
-      // Load Wishlist
+      // Authenticated Customer: Load Wishlist
       const savedWishlist = localStorage.getItem(`mellosoft_wishlist_${currentCustomerId}`);
       if (savedWishlist) {
-        setWishlist(JSON.parse(savedWishlist));
+        try {
+          setWishlist(JSON.parse(savedWishlist));
+        } catch {
+          setWishlist([]);
+        }
       } else {
         const mockCustomerWishlist = (MOCK_WISHLISTS || [])
           .filter((w) => w.customerId === currentCustomerId)
           .map((w) => w.productId);
-        setWishlist(mockCustomerWishlist.length > 0 ? mockCustomerWishlist : ["luxe-hybrid"]);
+        setWishlist(mockCustomerWishlist.length > 0 ? mockCustomerWishlist : []);
       }
     } catch (e) {
       console.error("Failed to load customer cart/wishlist:", e);
@@ -512,17 +556,17 @@ export function StoreProvider({ children }) {
     return () => window.removeEventListener("storage", handleStorage);
   }, []);
 
-  // Save cart changes per customerId
+  // Save cart changes per customerId or guest
   useEffect(() => {
-    if (!currentCustomerId) return;
     try {
-      localStorage.setItem(`mellosoft_cart_${currentCustomerId}`, JSON.stringify(cart));
+      const cartKey = currentCustomerId ? `mellosoft_cart_${currentCustomerId}` : "mellosoft_cart_guest";
+      localStorage.setItem(cartKey, JSON.stringify(cart));
     } catch (e) {
       console.error("Failed to save cart:", e);
     }
   }, [cart, currentCustomerId]);
 
-  // Save wishlist changes per customerId
+  // Save wishlist changes per customerId (authenticated users only)
   useEffect(() => {
     if (!currentCustomerId) return;
     try {
@@ -816,12 +860,69 @@ export function StoreProvider({ children }) {
     return orderWithSnapshot;
   };
 
+  const requestOrderCancellation = (orderId, reason = "Customer requested cancellation") => {
+    setOrders((prevOrders) => {
+      const updated = prevOrders.map((o) =>
+        o.id === orderId
+          ? {
+              ...o,
+              orderStatus: "Cancellation Requested",
+              cancellationRequested: true,
+              cancellationRequestedAt: new Date().toISOString(),
+              cancellationReason: reason,
+              cancellationStatus: "Pending Approval"
+            }
+          : o
+      );
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("mellosoft_orders", JSON.stringify(updated));
+          window.dispatchEvent(new CustomEvent("mellosoft_orders_updated"));
+
+          const savedNotifs = localStorage.getItem("mellosoft_admin_notifications");
+          const notifs = savedNotifs ? JSON.parse(savedNotifs) : [];
+          const newNotif = {
+            id: `notif-cancel-${orderId}-${Date.now()}`,
+            type: "cancellation_request",
+            title: "Cancellation Requested",
+            message: `Customer requested cancellation for Order #${orderId}`,
+            orderId,
+            timestamp: new Date().toISOString(),
+            read: false,
+            link: "orders"
+          };
+          localStorage.setItem("mellosoft_admin_notifications", JSON.stringify([newNotif, ...notifs]));
+          window.dispatchEvent(new CustomEvent("mellosoft_notifications_updated"));
+        } catch (e) {
+          console.error("Failed to request order cancellation:", e);
+        }
+      }
+      return updated;
+    });
+    return { success: true };
+  };
+
   const cancelOrder = (orderId) => {
-    setOrders((prevOrders) =>
-      prevOrders.map((o) =>
-        o.id === orderId ? { ...o, orderStatus: "Cancelled" } : o
-      )
-    );
+    setOrders((prevOrders) => {
+      const updated = prevOrders.map((o) =>
+        o.id === orderId
+          ? {
+              ...o,
+              orderStatus: "Cancelled",
+              paymentStatus: (o.paymentStatus || "").toLowerCase() === "paid" ? "Refund Pending" : o.paymentStatus,
+              cancellationRequested: false,
+              cancellationStatus: "Approved"
+            }
+          : o
+      );
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("mellosoft_orders", JSON.stringify(updated));
+          window.dispatchEvent(new CustomEvent("mellosoft_orders_updated"));
+        } catch (e) {}
+      }
+      return updated;
+    });
   };
 
   const getProductById = useCallback(
@@ -1005,6 +1106,7 @@ export function StoreProvider({ children }) {
         getProductById,
         placeOrder,
         cancelOrder,
+        requestOrderCancellation,
         refreshOrders,
         authModal,
         setAuthModal,

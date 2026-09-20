@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { useCustomerAuth } from "../context/CustomerAuthContext";
 import { useStore } from "../context/StoreContext";
 import { formatPrice } from "../utils/currency";
-import { LogOut, Edit3, X, CheckCircle, MapPin, Plus, Trash2, Star, User, Loader2 } from "lucide-react";
+import { LogOut, Edit3, X, CheckCircle, MapPin, Plus, Trash2, Star, User, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { ProfileSkeleton } from "../components/skeleton";
 
 // Phone validation: accepts Indian formats like 9876543210, +91 9876543210, +919876543210
@@ -51,6 +51,8 @@ export default function ProfileView() {
   const customerPhone = currentCustomer?.phone || "";
   const avatarChar = currentCustomer?.avatar || (customerName ? customerName.charAt(0).toUpperCase() : "U");
   const savedAddresses = Array.isArray(currentCustomer?.savedAddresses) ? currentCustomer.savedAddresses : [];
+  const [showAllAddresses, setShowAllAddresses] = useState(false);
+  const displayedAddresses = showAllAddresses ? savedAddresses : savedAddresses.slice(0, 2);
 
   const displayOrders = Array.isArray(customerOrders) ? customerOrders : [];
 
@@ -301,9 +303,17 @@ export default function ProfileView() {
         .profile-form-input.error { border-color: #DC2626; }
         .addr-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; width: 100%; min-width: 0; }
         .addr-form-grid .full-col { grid-column: 1 / -1; }
+        .profile-logout-btn {
+          align-self: flex-end !important;
+          margin-left: auto !important;
+        }
         @media (max-width: 768px) {
           .profile-page { padding: 24px 16px 60px 16px !important; }
-          .profile-header-card { padding: 20px !important; margin-bottom: 24px !important; gap: 16px !important; }
+          .profile-header-card { padding: 16px 18px !important; margin-bottom: 24px !important; gap: 12px !important; align-items: center !important; }
+          .profile-avatar { width: 52px !important; height: 52px !important; font-size: 22px !important; flex-shrink: 0 !important; }
+          .profile-user-name { font-size: 18px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
+          .profile-user-meta { font-size: 13px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
+          .profile-logout-btn { padding: 4px 0 !important; font-size: 12px !important; border: none !important; background: transparent !important; }
           .profile-content {
             display: grid !important; grid-template-columns: 1fr !important;
             gap: 20px !important; width: 100% !important; max-width: 100% !important; min-width: 0 !important;
@@ -326,29 +336,25 @@ export default function ProfileView() {
         }
         @media (max-width: 390px) {
           .profile-page { padding: 16px 12px 48px 12px !important; }
-          .profile-header-card { padding: 16px !important; gap: 14px !important; }
+          .profile-header-card { padding: 14px !important; gap: 10px !important; }
           .panel-card, .order-card { padding: 16px !important; }
-          .profile-avatar { width: 60px !important; height: 60px !important; font-size: 28px !important; flex-shrink: 0 !important; }
-          .profile-user-name { font-size: 20px !important; }
-          .profile-user-meta { font-size: 12.5px !important; }
+          .profile-avatar { width: 46px !important; height: 46px !important; font-size: 20px !important; flex-shrink: 0 !important; }
+          .profile-user-name { font-size: 16px !important; }
+          .profile-user-meta { font-size: 12px !important; }
         }
       `}</style>
 
       {/* Profile Header Card */}
       <div style={headerCardStyle} className="profile-card profile-header-card">
-        <div style={{ display: "flex", alignItems: "center", gap: "24px", flexWrap: "wrap", minWidth: 0, flex: 1 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "14px", minWidth: 0, flex: 1, overflow: "hidden" }}>
           <div style={avatarStyle} className="profile-avatar">{avatarChar}</div>
           <div style={headerInfoStyle} className="profile-info profile-user-info">
             <h2 style={userNameStyle} className="profile-user-name">{customerName}</h2>
-            <p style={userMetaStyle} className="profile-user-meta">{customerEmail} &bull; Mellosoft Sleep Member since 2026</p>
-            <div style={streakBadgeStyle}>
-              <span style={{ fontSize: "14px" }}>&#127942;</span>
-              <span style={streakTextStyle}>8-Night Perfect Sleep Streak</span>
-            </div>
+            <p style={userMetaStyle} className="profile-user-meta">{customerEmail}</p>
           </div>
         </div>
-        <button onClick={handleLogout} style={logoutBtnStyle} className="hover-lift">
-          <LogOut size={16} />
+        <button onClick={handleLogout} style={logoutBtnStyle} className="profile-logout-btn">
+          <LogOut size={13} />
           <span>Sign Out</span>
         </button>
       </div>
@@ -469,7 +475,7 @@ export default function ProfileView() {
               </div>
             )}
 
-            {!showAddressForm && savedAddresses.map((addr) => (
+            {!showAddressForm && displayedAddresses.map((addr) => (
               <div key={addr.id} style={addrCardStyle}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "6px", marginBottom: "8px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
@@ -511,6 +517,21 @@ export default function ProfileView() {
                 )}
               </div>
             ))}
+
+            {/* View All Button at the right bottom end */}
+            {!showAddressForm && savedAddresses.length > 2 && (
+              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "14px" }}>
+                <button
+                  type="button"
+                  onClick={() => setShowAllAddresses((prev) => !prev)}
+                  style={viewAllAddrBtnStyle}
+                  className="hover-lift"
+                >
+                  <span>{showAllAddresses ? "Show Less" : "View All"}</span>
+                  {showAllAddresses ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                </button>
+              </div>
+            )}
 
             {/* Address Add/Edit Form */}
             {showAddressForm && (
@@ -735,25 +756,26 @@ const containerStyle = {
 
 const headerCardStyle = {
   backgroundColor: "#FFFFFF", borderRadius: "16px", border: "1px solid #E7E7E2",
-  padding: "30px", display: "flex", alignItems: "center", justifyContent: "space-between",
-  gap: "24px", marginBottom: "36px", flexWrap: "wrap", width: "100%", boxSizing: "border-box", minWidth: 0
+  padding: "20px 24px", display: "flex", alignItems: "center", justifyContent: "space-between",
+  gap: "16px", marginBottom: "32px", width: "100%", boxSizing: "border-box", minWidth: 0
 };
 
 const logoutBtnStyle = {
-  display: "inline-flex", alignItems: "center", gap: "8px", backgroundColor: "#FAFAF7",
-  border: "1px solid #E7E7E2", color: "#DC2626", padding: "10px 18px",
-  borderRadius: "999px", fontSize: "13.5px", fontWeight: "700", cursor: "pointer", flexShrink: 0
+  display: "inline-flex", alignItems: "center", gap: "5px", backgroundColor: "transparent",
+  border: "none", color: "#DC2626", padding: "4px 6px",
+  borderRadius: "6px", fontSize: "12.5px", fontWeight: "600", cursor: "pointer", flexShrink: 0,
+  marginLeft: "auto", alignSelf: "center", boxShadow: "none"
 };
 
 const avatarStyle = {
-  width: "80px", height: "80px", borderRadius: "50%", backgroundColor: "#16A34A",
-  color: "#FFFFFF", fontSize: "36px", fontWeight: "800",
+  width: "68px", height: "68px", borderRadius: "50%", backgroundColor: "#16A34A",
+  color: "#FFFFFF", fontSize: "30px", fontWeight: "800",
   display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0
 };
 
-const headerInfoStyle = { display: "flex", flexDirection: "column", gap: "4px", minWidth: 0 };
-const userNameStyle = { fontSize: "24px", fontWeight: "800", color: "#1B1F8C" };
-const userMetaStyle = { fontSize: "13.5px", color: "#6B6B75" };
+const headerInfoStyle = { display: "flex", flexDirection: "column", gap: "3px", minWidth: 0, overflow: "hidden" };
+const userNameStyle = { fontSize: "22px", fontWeight: "800", color: "#1B1F8C", margin: 0, lineHeight: 1.25, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" };
+const userMetaStyle = { fontSize: "13.5px", color: "#6B6B75", margin: 0, lineHeight: 1.25, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" };
 const streakBadgeStyle = {
   display: "inline-flex", alignItems: "center", gap: "6px",
   backgroundColor: "rgba(22, 163, 74, 0.08)", borderRadius: "14px",
@@ -850,6 +872,21 @@ const deleteConfirmStyle = {
 const viewAllOrdersBtnStyle = {
   border: "none", background: "transparent", color: "#1B1F8C",
   fontSize: "13px", fontWeight: "700", cursor: "pointer", flexShrink: 0
+};
+
+const viewAllAddrBtnStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "6px",
+  backgroundColor: "#FAFAF7",
+  border: "1.5px solid #1B1F8C",
+  color: "#1B1F8C",
+  padding: "7px 16px",
+  borderRadius: "999px",
+  fontSize: "13px",
+  fontWeight: "700",
+  cursor: "pointer",
+  transition: "all 0.2s ease"
 };
 
 const ordersListStyle = { display: "flex", flexDirection: "column", gap: "24px", width: "100%", minWidth: 0 };

@@ -21,6 +21,7 @@ export default function Header() {
 
   const {
     view,
+    setView,
     navigateTo,
     cart,
     wishlist,
@@ -68,6 +69,24 @@ export default function Header() {
   const isBedFramesActive = pathname === "/bed-frames" || pathname.startsWith("/bed-frames/");
   const isAboutActive = pathname === "/about";
   const isContactActive = pathname === "/contact";
+  const isOrdersActive = !isHome && (pathname === "/orders" || pathname.startsWith("/orders/") || view === "orders");
+  const isProfileActive = !isHome && (pathname === "/profile" || pathname === "/login" || view === "profile" || view === "login");
+  const isWishlistActive = !isHome && (pathname === "/wishlist" || view === "wishlist");
+  const isCartActive = !isHome && (pathname === "/cart" || view === "cart");
+
+  useEffect(() => {
+    if (pathname === "/" && view !== "home" && typeof setView === "function") {
+      setView("home");
+    } else if (pathname.startsWith("/orders") && view !== "orders" && typeof setView === "function") {
+      setView("orders");
+    } else if (pathname === "/cart" && view !== "cart" && typeof setView === "function") {
+      setView("cart");
+    } else if (pathname === "/wishlist" && view !== "wishlist" && typeof setView === "function") {
+      setView("wishlist");
+    } else if (pathname === "/profile" && view !== "profile" && typeof setView === "function") {
+      setView("profile");
+    }
+  }, [pathname, view, setView]);
 
   // Dynamic Subcategory lists for Mattresses, Accessories, Bed Frames
   const mattressSubcategories = React.useMemo(() => {
@@ -431,18 +450,23 @@ export default function Header() {
 
             <button onClick={() => navigateTo("wishlist")} style={iconButtonStyle} aria-label="Open wishlist" title="Wishlist">
               <span style={{ position: "relative", display: "flex" }}>
-                <HeartIcon filled={displayWishlistCount > 0} />
+                <HeartIcon active={isWishlistActive} />
                 {displayWishlistCount > 0 && <span style={badgeStyle}>{displayWishlistCount}</span>}
               </span>
             </button>
-            <button onClick={() => navigateTo("orders")} style={iconButtonStyle} aria-label="My Orders" title="My Orders">
+            <button
+              onClick={() => navigateTo("orders")}
+              style={iconButtonStyle}
+              aria-label="My Orders"
+              title="My Orders"
+            >
               <span style={{ position: "relative", display: "flex" }}>
-                <OrdersIcon active={view === "orders"} />
+                <OrdersIcon active={isOrdersActive} />
               </span>
             </button>
             <button onClick={() => navigateTo("cart")} style={iconButtonStyle} aria-label="Open cart" title="Cart">
               <span style={{ position: "relative", display: "flex" }}>
-                <CartIcon />
+                <CartIcon active={isCartActive} />
                 {displayCartCount > 0 && <span style={greenBadgeStyle}>{displayCartCount}</span>}
               </span>
             </button>
@@ -452,7 +476,7 @@ export default function Header() {
               aria-label={isAuthenticated ? "Customer Account" : "LOGIN"}
               title={isAuthenticated ? (currentCustomer?.name || "Account") : "LOGIN"}
             >
-              <UserIcon active={view === "profile" || view === "login"} />
+              <UserIcon active={isProfileActive} />
             </button>
           </div>
         </div>
@@ -522,17 +546,29 @@ export default function Header() {
               </div>
             </div>
 
-            <button onClick={() => navigateTo("orders")} style={{ ...mobileIconButtonStyle, marginLeft: "6px" }} className="mobile-header-btn" aria-label="My Orders" title="My Orders">
-              <OrdersIcon active={view === "orders"} />
+            <button onClick={() => navigateTo("wishlist")} style={{ ...mobileIconButtonStyle, marginLeft: "6px" }} className="mobile-header-btn" aria-label="Open wishlist" title="Wishlist">
+              <span style={{ position: "relative", display: "flex" }}>
+                <HeartIcon active={isWishlistActive} />
+                {displayWishlistCount > 0 && <span style={mobileWishlistBadgeStyle}>{displayWishlistCount}</span>}
+              </span>
+            </button>
+            <button
+              onClick={() => navigateTo("orders")}
+              style={{ ...mobileIconButtonStyle, marginLeft: "6px" }}
+              className="mobile-header-btn"
+              aria-label="My Orders"
+              title="My Orders"
+            >
+              <OrdersIcon active={isOrdersActive} />
             </button>
             <button onClick={() => navigateTo("cart")} style={{ ...mobileIconButtonStyle, marginLeft: "6px" }} className="mobile-header-btn" aria-label="Open cart" title="Cart">
               <span style={{ position: "relative", display: "flex" }}>
-                <CartIcon />
+                <CartIcon active={isCartActive} />
                 {displayCartCount > 0 && <span style={mobileCartBadgeStyle}>{displayCartCount}</span>}
               </span>
             </button>
             <button onClick={() => navigateTo(isAuthenticated ? "profile" : "login")} style={{ ...mobileIconButtonStyle, marginLeft: "6px" }} className="mobile-header-btn" aria-label="Account" title="Account">
-              <UserIcon active={view === "profile" || view === "login"} />
+              <UserIcon active={isProfileActive} />
             </button>
           </div>
 
@@ -1003,14 +1039,14 @@ export default function Header() {
       <style>{`
         @media (max-width: 440px) {
           .mobile-search-trigger {
-            flex: 0 0 40px !important;
-            width: 40px !important;
-            min-width: 40px !important;
+            flex: 0 0 36px !important;
+            width: 36px !important;
+            min-width: 36px !important;
             margin-left: auto !important;
           }
           .mobile-search-pill {
-            width: 40px !important;
-            height: 40px !important;
+            width: 36px !important;
+            height: 36px !important;
             padding: 0 !important;
             justify-content: center !important;
             border-radius: 999px !important;
@@ -1021,33 +1057,38 @@ export default function Header() {
             display: none !important;
           }
           .mobile-search-icon {
-            width: 18px !important;
-            height: 18px !important;
+            width: 17px !important;
+            height: 17px !important;
             stroke: #1B1F8C !important;
           }
+          .mobile-header-btn {
+            width: 36px !important;
+            height: 36px !important;
+            margin-left: 4px !important;
+          }
+          .mobile-header-btn svg {
+            width: 18px !important;
+            height: 18px !important;
+          }
         }
-        @media (max-width: 290px) {
+        @media (max-width: 330px) {
           .mobile-search-trigger {
-            flex: 0 0 32px !important;
-            width: 32px !important;
-            min-width: 32px !important;
+            flex: 0 0 30px !important;
+            width: 30px !important;
+            min-width: 30px !important;
           }
           .mobile-search-pill {
-            width: 32px !important;
-            height: 32px !important;
-          }
-          .mobile-search-icon {
-            width: 15px !important;
-            height: 15px !important;
+            width: 30px !important;
+            height: 30px !important;
           }
           .mobile-header-btn {
-            width: 32px !important;
-            height: 32px !important;
+            width: 30px !important;
+            height: 30px !important;
             margin-left: 3px !important;
           }
           .mobile-header-btn svg {
-            width: 17px !important;
-            height: 17px !important;
+            width: 15px !important;
+            height: 15px !important;
           }
         }
       `}</style>
@@ -1112,9 +1153,9 @@ function ChevronDownIcon() {
   );
 }
 
-function CartIcon() {
+function CartIcon({ active }) {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1B1F8C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? "#16A34A" : "#1B1F8C"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="9" cy="21" r="1" />
       <circle cx="20" cy="21" r="1" />
       <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
@@ -1122,20 +1163,21 @@ function CartIcon() {
   );
 }
 
-function HeartIcon({ filled }) {
+function HeartIcon({ active }) {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill={filled ? "#16A34A" : "none"} stroke={filled ? "#16A34A" : "#1B1F8C"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? "#16A34A" : "#1B1F8C"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
     </svg>
   );
 }
 
 function OrdersIcon({ active }) {
+  const color = active ? "#16A34A" : "#1B1F8C";
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? "#16A34A" : "#1B1F8C"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
-      <line x1="3" y1="6" x2="21" y2="6" />
-      <path d="M16 10a4 4 0 0 1-8 0" />
+      <line x1="3" y1="6" x2="21" y2="6" stroke={color} strokeWidth="2" />
+      <path d="M16 10a4 4 0 0 1-8 0" stroke={color} strokeWidth="2" fill="none" />
     </svg>
   );
 }
@@ -1435,6 +1477,12 @@ const mobileIconButtonStyle = {
   alignItems: "center",
   justifyContent: "center",
   cursor: "pointer"
+};
+
+const mobileWishlistBadgeStyle = {
+  ...badgeStyle,
+  top: "-7px",
+  right: "-7px"
 };
 
 const mobileCartBadgeStyle = {

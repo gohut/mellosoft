@@ -110,6 +110,28 @@ export default function CartView() {
   return (
     <div style={containerStyle} className="cart-container">
       <style>{`
+        .cart-item-card {
+          background-color: #FFFFFF;
+          border-radius: 14px;
+          border: 1px solid #E7E7E2;
+          padding: 16px;
+          display: flex;
+          align-items: flex-start;
+          gap: 14px;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+          transition: all 0.2s ease;
+          width: 100%;
+          box-sizing: border-box;
+        }
+        .cart-item-thumb {
+          width: 80px;
+          height: 80px;
+          border-radius: 10px;
+          border: 1px solid #E7E7E2;
+          background-color: #F7F7F2;
+          object-fit: cover;
+          flex-shrink: 0;
+        }
         @media (max-width: 768px) {
           .cart-layout-grid {
             grid-template-columns: 1fr !important;
@@ -121,7 +143,24 @@ export default function CartView() {
         }
         @media (max-width: 640px) {
           .cart-container {
-            padding: 32px 12px 60px 12px !important;
+            padding: 20px 12px 60px 12px !important;
+          }
+          .cart-item-card {
+            padding: 12px !important;
+            gap: 12px !important;
+            border-radius: 12px !important;
+          }
+          .cart-item-thumb {
+            width: 68px !important;
+            height: 68px !important;
+            border-radius: 8px !important;
+          }
+          .cart-item-title {
+            font-size: 14.5px !important;
+          }
+          .cart-item-meta {
+            font-size: 12px !important;
+            margin-bottom: 8px !important;
           }
         }
       `}</style>
@@ -131,20 +170,24 @@ export default function CartView() {
         {/* Left: Line Items List */}
         <div style={itemsListColStyle}>
           {cart.map((item) => (
-            <div key={item.cartItemId} style={itemCardStyle}>
-              {/* Product Image */}
-              <div style={itemImageWrapperStyle}>
-                <img src={item.image} alt={item.name} style={itemImageStyle} />
-              </div>
+            <div key={item.cartItemId} style={itemCardStyle} className="cart-item-card">
+              {/* Product Image Thumbnail */}
+              <img
+                src={item.image || "/asset/img1.jpg"}
+                alt={item.name}
+                style={itemImageStyle}
+                className="cart-item-thumb"
+              />
 
               {/* Item Info */}
-              <div style={itemInfoStyle}>
+              <div style={itemInfoStyle} className="cart-item-info">
                 <div style={itemHeaderRowStyle}>
-                  <h4 style={itemNameStyle}>{item.name}</h4>
+                  <h4 style={itemNameStyle} className="cart-item-title">{item.name}</h4>
                   <button 
                     onClick={() => removeFromCart(item.cartItemId)}
                     style={removeBtnStyle}
-                    aria-label="Remove item"
+                    aria-label={`Remove ${item.name} from cart`}
+                    title="Remove item"
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B6B75" strokeWidth="2">
                       <polyline points="3 6 5 6 21 6" />
@@ -155,11 +198,11 @@ export default function CartView() {
                   </button>
                 </div>
                 
-                <p style={itemMetaStyle}>
+                <p style={itemMetaStyle} className="cart-item-meta">
                   Firmness: <strong>{item.firmness}</strong> • Size: <strong>{item.size}</strong>
                 </p>
 
-                <div style={itemFooterRowStyle}>
+                <div style={itemFooterRowStyle} className="cart-item-footer">
                   <QuantityStepper 
                     qty={item.qty} 
                     onChange={(newQty) => updateQty(item.cartItemId, newQty)} 
@@ -217,10 +260,6 @@ export default function CartView() {
             >
               Proceed to Checkout
             </button>
-
-            <p style={guaranteeTextStyle}>
-              🔒 Secure checkout. 100-Night risk-free trial is automatically applied to all mattress items.
-            </p>
           </div>
         </div>
       </div>
@@ -260,50 +299,50 @@ const itemsListColStyle = {
 // Item Card
 const itemCardStyle = {
   backgroundColor: "#FFFFFF",
-  borderRadius: "12px",
-  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)",
-  border: "1px solid #E2E8F0",
-  padding: 0,
+  borderRadius: "14px",
+  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.03)",
+  border: "1px solid #E7E7E2",
+  padding: "16px",
   display: "flex",
-  overflow: "hidden",
-  gap: 0,
-};
-
-const itemImageWrapperStyle = {
-  width: "140px",
-  alignSelf: "stretch",
-  borderRadius: 0,
-  overflow: "hidden",
-  backgroundColor: "#F3F3F0",
-  flexShrink: 0
+  alignItems: "flex-start",
+  gap: "14px",
+  boxSizing: "border-box",
+  width: "100%",
+  transition: "all 0.2s ease"
 };
 
 const itemImageStyle = {
-  width: "100%",
-  height: "100%",
+  width: "80px",
+  height: "80px",
+  borderRadius: "10px",
+  border: "1px solid #E7E7E2",
+  backgroundColor: "#F7F7F2",
   objectFit: "cover",
-  objectPosition: "center",
-  transform: "scale(1.35)"
+  flexShrink: 0
 };
 
 const itemInfoStyle = {
-  flexGrow: 1,
+  flex: 1,
+  minWidth: 0,
   display: "flex",
   flexDirection: "column",
-  padding: "16px 20px"
+  padding: 0
 };
 
 const itemHeaderRowStyle = {
   display: "flex",
   justifyContent: "space-between",
   alignItems: "flex-start",
-  marginBottom: "6px"
+  gap: "8px",
+  marginBottom: "4px"
 };
 
 const itemNameStyle = {
-  fontSize: "16px",
+  fontSize: "15.5px",
   fontWeight: "700",
-  color: "#1B1F8C"
+  color: "#1B1F8C",
+  margin: 0,
+  lineHeight: "1.3"
 };
 
 const removeBtnStyle = {
@@ -311,15 +350,20 @@ const removeBtnStyle = {
   background: "none",
   cursor: "pointer",
   padding: "4px",
-  color: "#6B6B75",
+  color: "#94A3B8",
   borderRadius: "50%",
-  transition: "all 0.2s ease"
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  transition: "all 0.2s ease",
+  flexShrink: 0
 };
 
 const itemMetaStyle = {
-  fontSize: "13px",
+  fontSize: "12.5px",
   color: "#6B6B75",
-  marginBottom: "16px"
+  margin: "0 0 10px 0",
+  lineHeight: "1.4"
 };
 
 const itemFooterRowStyle = {
@@ -415,14 +459,6 @@ const checkoutBtnStyle = {
   fontWeight: "700",
   cursor: "pointer",
   transition: "all 0.2s ease"
-};
-
-const guaranteeTextStyle = {
-  fontSize: "11px",
-  color: "#6B6B75",
-  textAlign: "center",
-  lineHeight: "1.4",
-  marginTop: "16px"
 };
 
 const emptyWrapperStyle = {

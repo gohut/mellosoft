@@ -11,12 +11,14 @@ const statusConfig = {
   "Shipped": { bg: "#EDE9FE", color: "#6D28D9", dot: "#7C3AED" },
   "Out for Delivery": { bg: "#FFEDD5", color: "#C2410C", dot: "#EA580C" },
   "Returned": { bg: "#FFEDD5", color: "#C2410C", dot: "#EA580C" },
+  "Cancellation Requested": { bg: "#FEF3C7", color: "#92400E", dot: "#F59E0B" },
   "Cancelled": { bg: "#FEE2E2", color: "#991B1B", dot: "#DC2626" },
   "Canceled": { bg: "#FEE2E2", color: "#991B1B", dot: "#DC2626" },
   // Payment statuses
   "Paid": { bg: "#DCFCE7", color: "#15803D", dot: "#16A34A" },
+  "Refund Pending": { bg: "#FEF3C7", color: "#92400E", dot: "#F59E0B" },
+  "Refunded": { bg: "#DCFCE7", color: "#15803D", dot: "#16A34A" },
   "Failed": { bg: "#FEE2E2", color: "#991B1B", dot: "#DC2626" },
-  "Refunded": { bg: "#FCE7F3", color: "#BE185D", dot: "#DB2777" },
   // Stock statuses
   "In Stock": { bg: "#DCFCE7", color: "#15803D", dot: "#16A34A" },
   "Low Stock": { bg: "#FEF3C7", color: "#92400E", dot: "#F59E0B" },

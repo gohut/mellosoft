@@ -118,12 +118,13 @@ const getOrderDeliveryLabel = (ord) => {
 };
 
 export default function OrdersView() {
-  const { customerOrders, products, cancelOrder, navigateTo, setAuthModal } = useStore();
+  const { customerOrders, products, cancelOrder, requestOrderCancellation, navigateTo, setAuthModal } = useStore();
   const { isAuthenticated, setIntendedView, currentCustomer, loading: authLoading } = useCustomerAuth();
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [activeTab, setActiveTab] = useState("orders"); // "orders" | "delivered"
   const [trackingOrderId, setTrackingOrderId] = useState(null);
   const [showTrackModal, setShowTrackModal] = useState(false);
+  const [cancelNotice, setCancelNotice] = useState(null);
 
   // Hydration guard — show skeleton during SSR→client mount
   const [mounted, setMounted] = useState(false);
@@ -590,17 +591,24 @@ export default function OrdersView() {
     </>
   );
 
-  // Handle order cancellation with confirmation prompt
+  // Handle order cancellation with confirmation prompt and admin approval request
   const handleCancelOrder = (orderId, e) => {
     if (e) e.stopPropagation();
-    if (window.confirm("Are you sure you want to cancel this order?")) {
-      cancelOrder(orderId);
+    if (window.confirm("Are you sure you want to cancel this order? Your request will be sent to the administrator to approve.")) {
+      if (requestOrderCancellation) {
+        requestOrderCancellation(orderId);
+      } else {
+        cancelOrder(orderId);
+      }
+      setCancelNotice(`Cancellation request for Order #${orderId} sent to administrator for approval.`);
+      setTimeout(() => setCancelNotice(null), 7000);
     }
   };
 
   // If viewing a specific order's detail view
   if (selectedOrder) {
-    const isCancellable = ["Pending", "Processing"].includes(selectedOrder.orderStatus);
+    const isCancellationPending = selectedOrder.orderStatus === "Cancellation Requested" || !!selectedOrder.cancellationRequested;
+    const isCancellable = ["Pending", "Processing", "Confirmed", "Order Confirmed", "Placed"].includes(selectedOrder.orderStatus) && !isCancellationPending;
 
     const resolvedHistory = buildInitialTrackingHistory(selectedOrder);
     const STAGES = [
@@ -687,7 +695,13 @@ export default function OrdersView() {
               width: 100% !important;
               flex-wrap: wrap !important;
               justify-content: flex-start !important;
-              gap: 8px !important;
+              gap: 10px !important;
+            }
+            .orders-detail-action-buttons-wrap {
+              display: inline-flex !important;
+              align-items: center !important;
+              gap: 10px !important;
+              flex-wrap: nowrap !important;
             }
             .orders-detail-grid {
               display: flex !important;
@@ -742,9 +756,10 @@ export default function OrdersView() {
             }
             .order-item-qty-row {
               display: flex !important;
-              flex-direction: column !important;
-              align-items: flex-start !important;
-              gap: 4px !important;
+              flex-direction: row !important;
+              justify-content: space-between !important;
+              align-items: center !important;
+              width: 100% !important;
             }
             .write-review-btn {
               width: 100% !important;
@@ -759,6 +774,46 @@ export default function OrdersView() {
           <span>Back to My Orders</span>
         </button>
 
+        {/* Notice Banners */}
+        {cancelNotice && (
+          <div style={cancelNoticeBannerStyle}>
+            <Clock size={16} color="#2563EB" style={{ flexShrink: 0 }} />
+            <span>{cancelNotice}</span>
+          </div>
+        )}
+
+        {isCancellationPending && (
+          <div style={cancellationPendingBannerStyle}>
+            <Clock size={16} color="#D97706" style={{ flexShrink: 0 }} />
+            <div>
+              <strong style={{ color: "#92400E" }}>Cancellation Requested:</strong>{" "}
+              <span style={{ color: "#B45309" }}>
+                Your cancellation request has been sent to the administrator to approve. Once approved, the order will be cancelled.
+              </span>
+            </div>
+          </div>
+        )}
+
+        {selectedOrder.paymentStatus === "Refund Pending" && (
+          <div style={refundPendingBannerStyle}>
+            <Clock size={16} color="#D97706" style={{ flexShrink: 0 }} />
+            <div>
+              <strong style={{ color: "#92400E" }}>Refund Pending:</strong>{" "}
+              <span style={{ color: "#B45309" }}>Payment will be refunded within 24 hours to your original payment method.</span>
+            </div>
+          </div>
+        )}
+
+        {selectedOrder.paymentStatus === "Refunded" && (
+          <div style={refundedBannerStyle}>
+            <CheckCircle size={16} color="#15803D" style={{ flexShrink: 0 }} />
+            <div>
+              <strong style={{ color: "#15803D" }}>Payment Refunded:</strong>{" "}
+              <span style={{ color: "#166534" }}>The refund has been successfully processed to your original payment method.</span>
+            </div>
+          </div>
+        )}
+
         {/* Order Details Header Card */}
         <div style={cardHeaderStyle}>
           <div className="orders-detail-header-top" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "16px" }}>
@@ -771,17 +826,54 @@ export default function OrdersView() {
               <StatusBadge status={selectedOrder.paymentStatus} type="payment" />
               <StatusBadge status={selectedOrder.orderStatus} type="order" />
 
-              <DownloadOrderPdf order={selectedOrder} variant="outline" />
+              <div className="orders-detail-action-buttons-wrap" style={{ display: "inline-flex", alignItems: "center", gap: "10px" }}>
+                <DownloadOrderPdf
+                  order={selectedOrder}
+                  variant="outline"
+                  label="Download Copy"
+                  mobileLabel="Download Copy"
+                  style={{ width: "auto" }}
+                  customBtnStyle={{
+                    height: "38px",
+                    padding: "0 14px",
+                    fontSize: "13px",
+                    borderRadius: "8px",
+                    border: "1.5px solid #1B1F8C",
+                    fontWeight: "700"
+                  }}
+                />
 
-              {isCancellable && (
-                <button
-                  onClick={(e) => handleCancelOrder(selectedOrder.id, e)}
-                  style={cancelBtnStyle}
-                  className="hover-lift"
-                >
-                  Cancel Order
-                </button>
-              )}
+                {isCancellable && (
+                  <button
+                    onClick={(e) => handleCancelOrder(selectedOrder.id, e)}
+                    style={cancelBtnStyle}
+                    className="hover-lift cancel-order-action-btn"
+                    title="Request order cancellation"
+                  >
+                    Cancel Order
+                  </button>
+                )}
+
+                {isCancellationPending && (
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "5px",
+                      padding: "8px 12px",
+                      borderRadius: "8px",
+                      backgroundColor: "#FEF3C7",
+                      color: "#92400E",
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      border: "1px solid #FCD34D",
+                      whiteSpace: "nowrap"
+                    }}
+                  >
+                    <Clock size={13} /> Pending Approval
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -838,9 +930,16 @@ export default function OrdersView() {
                           )}
                         </div>
 
-                        <div className="order-item-qty-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "12px", flexWrap: "wrap", gap: "8px" }}>
-                          <span style={qtyTextStyle}>Qty: <strong>{item.quantity || 1}</strong> × {formatPrice(itemPrice)}</span>
-                          <span style={itemTotalStyle}>Item Total: {formatPrice(itemTotal)}</span>
+                        <div className="order-item-qty-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", marginTop: "12px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                            <span style={qtyTextStyle}>Qty: <strong>{item.quantity || 1}</strong></span>
+                            {(item.quantity || 1) > 1 && (
+                              <span style={{ fontSize: "12px", color: "#6B6B75" }}>({formatPrice(itemPrice)} each)</span>
+                            )}
+                          </div>
+                          <span style={{ fontSize: "15px", fontWeight: 700, color: "#16A34A", textAlign: "right" }}>
+                            {formatPrice(itemTotal)}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -927,7 +1026,13 @@ export default function OrdersView() {
             <div style={summaryRowsWrapStyle}>
               <div style={summaryRowStyle}>
                 <span>Subtotal</span>
-                <span>{formatPrice(selectedOrder.subtotal || selectedOrder.totalAmount)}</span>
+                <span>
+                  {formatPrice(
+                    Number(selectedOrder.productDiscount) > 0 && selectedOrder.rawTotal
+                      ? selectedOrder.rawTotal
+                      : (selectedOrder.subtotal || selectedOrder.totalAmount)
+                  )}
+                </span>
               </div>
 
               {Number(selectedOrder.productDiscount) > 0 && (
@@ -937,10 +1042,10 @@ export default function OrdersView() {
                 </div>
               )}
 
-              {(Number(selectedOrder.couponDiscount) > 0 || Number(selectedOrder.discount) > 0) && (
+              {Number(selectedOrder.couponDiscount) > 0 && Boolean(selectedOrder.couponCode) && (
                 <div style={{ ...summaryRowStyle, color: "#16A34A" }}>
-                  <span>Coupon Discount {selectedOrder.couponCode ? `(${selectedOrder.couponCode})` : ""}</span>
-                  <span>-{formatPrice(selectedOrder.couponDiscount || selectedOrder.discount)}</span>
+                  <span>Coupon Discount ({selectedOrder.couponCode})</span>
+                  <span>-{formatPrice(selectedOrder.couponDiscount)}</span>
                 </div>
               )}
 
@@ -1115,7 +1220,24 @@ export default function OrdersView() {
               <div style={addressTextStyle}>
                 <strong>Method:</strong> {selectedOrder.paymentMethod || "UPI"}
                 <br />
-                <strong>Status:</strong> <span style={{ color: selectedOrder.paymentStatus === "Paid" ? "#16A34A" : "#D97706", fontWeight: 700 }}>{selectedOrder.paymentStatus || "Paid"}</span>
+                <strong>Status:</strong>{" "}
+                <span
+                  style={{
+                    color:
+                      selectedOrder.paymentStatus === "Paid"
+                        ? "#16A34A"
+                        : selectedOrder.paymentStatus === "Refunded"
+                        ? "#16A34A"
+                        : "#D97706",
+                    fontWeight: 700
+                  }}
+                >
+                  {selectedOrder.paymentStatus === "Refund Pending"
+                    ? "Refund Pending (Refunded in 24 hours)"
+                    : selectedOrder.paymentStatus === "Refunded"
+                    ? "Refunded"
+                    : selectedOrder.paymentStatus || "Paid"}
+                </span>
               </div>
             </div>
           </div>
@@ -1129,7 +1251,8 @@ export default function OrdersView() {
 
   const renderOrderCard = (ord) => {
     const itemCount = (ord.items || []).reduce((sum, item) => sum + (item.quantity || 1), 0);
-    const isCancellable = ["Pending", "Processing"].includes(ord.orderStatus);
+    const isCancellationPending = ord.orderStatus === "Cancellation Requested" || !!ord.cancellationRequested;
+    const isCancellable = ["Pending", "Processing", "Confirmed", "Order Confirmed", "Placed"].includes(ord.orderStatus) && !isCancellationPending;
 
     return (
       <div key={ord.id} style={orderCardStyle} className="hover-lift">
@@ -1194,8 +1317,29 @@ export default function OrdersView() {
                   style={cancelOutlineBtnStyle}
                   className="order-card-btn"
                 >
-                  Cancel
+                  Cancel Order
                 </button>
+              )}
+
+              {isCancellationPending && (
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "4px",
+                    padding: "8px 12px",
+                    borderRadius: "10px",
+                    backgroundColor: "#FEF3C7",
+                    color: "#92400E",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    textAlign: "center"
+                  }}
+                  title="Cancellation request sent to admin for approval"
+                >
+                  <Clock size={12} /> Pending Approval
+                </span>
               )}
             </div>
           </div>
@@ -1449,15 +1593,27 @@ function StatusBadge({ status, type = "order" }) {
     bg = "#DCFCE7";
     color = "#16A34A";
     icon = <CheckCircle size={12} />;
-  } else if (status === "Shipped" || status === "Processing") {
+  } else if (status === "Shipped" || status === "Processing" || status === "Confirmed" || status === "Order Confirmed") {
     bg = "#EFF6FF";
     color = "#2563EB";
     icon = <Truck size={12} />;
-  } else if (status === "Pending" || status === "Confirmed") {
+  } else if (status === "Cancellation Requested" || (status || "").toLowerCase().includes("cancellation")) {
+    bg = "#FEF3C7";
+    color = "#B45309";
+    icon = <Clock size={12} />;
+  } else if (status === "Refund Pending" || (status || "").toLowerCase().includes("refund pending")) {
     bg = "#FEF3C7";
     color = "#D97706";
     icon = <Clock size={12} />;
-  } else if (status === "Cancelled" || status === "Failed" || status === "Refunded") {
+  } else if (status === "Refunded") {
+    bg = "#DCFCE7";
+    color = "#15803D";
+    icon = <CheckCircle size={12} />;
+  } else if (status === "Pending") {
+    bg = "#FEF3C7";
+    color = "#D97706";
+    icon = <Clock size={12} />;
+  } else if (status === "Cancelled" || status === "Failed") {
     bg = "#FEE2E2";
     color = "#DC2626";
     icon = <XCircle size={12} />;
@@ -1643,14 +1799,73 @@ const orderDateStyle = {
 };
 
 const cancelBtnStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
   backgroundColor: "#FEE2E2",
   color: "#DC2626",
-  border: "none",
-  borderRadius: "10px",
-  padding: "8px 14px",
+  border: "1px solid #FECACA",
+  borderRadius: "8px",
+  height: "38px",
+  padding: "0 14px",
   fontSize: "13px",
   fontWeight: 700,
-  cursor: "pointer"
+  cursor: "pointer",
+  whiteSpace: "nowrap",
+  boxSizing: "border-box"
+};
+
+const cancelNoticeBannerStyle = {
+  backgroundColor: "#EFF6FF",
+  border: "1px solid #BFDBFE",
+  borderRadius: "12px",
+  padding: "12px 16px",
+  marginBottom: "16px",
+  color: "#1E40AF",
+  fontSize: "13px",
+  fontWeight: 600,
+  display: "flex",
+  alignItems: "center",
+  gap: "10px"
+};
+
+const cancellationPendingBannerStyle = {
+  backgroundColor: "#FFFBEB",
+  border: "1px solid #FCD34D",
+  borderRadius: "12px",
+  padding: "12px 16px",
+  marginBottom: "16px",
+  color: "#92400E",
+  fontSize: "13px",
+  display: "flex",
+  alignItems: "center",
+  gap: "10px"
+};
+
+const refundPendingBannerStyle = {
+  backgroundColor: "#FFFBEB",
+  border: "1px solid #FCD34D",
+  borderRadius: "12px",
+  padding: "12px 16px",
+  marginBottom: "16px",
+  color: "#92400E",
+  fontSize: "13px",
+  display: "flex",
+  alignItems: "center",
+  gap: "10px"
+};
+
+const refundedBannerStyle = {
+  backgroundColor: "#F0FDF4",
+  border: "1px solid #BBF7D0",
+  borderRadius: "12px",
+  padding: "12px 16px",
+  marginBottom: "16px",
+  color: "#15803D",
+  fontSize: "13px",
+  display: "flex",
+  alignItems: "center",
+  gap: "10px"
 };
 
 const detailGridStyle = {

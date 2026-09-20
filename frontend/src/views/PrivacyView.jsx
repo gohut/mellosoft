@@ -13,7 +13,7 @@ export default function PrivacyView() {
   };
 
   return (
-    <div style={pageWrapperStyle}>
+    <div style={pageWrapperStyle} className="privacy-page-wrapper">
       <div style={containerStyle}>
         
         {/* BREADCRUMB / BACK LINK */}
@@ -163,6 +163,11 @@ export default function PrivacyView() {
           color: #1B1F8C !important;
           transform: translateX(-3px);
         }
+        @media (max-width: 768px) {
+          .privacy-page-wrapper {
+            padding: 24px 16px 48px !important;
+          }
+        }
       `}</style>
     </div>
   );
@@ -177,7 +182,7 @@ const pageWrapperStyle = {
 };
 
 const containerStyle = {
-  maxWidth: "1000px",
+  maxWidth: "960px",
   margin: "0 auto",
   width: "100%"
 };
@@ -200,12 +205,9 @@ const backBtnStyle = {
 };
 
 const headerCardStyle = {
-  backgroundColor: "#FFFFFF",
-  borderRadius: "16px",
-  padding: "36px 40px",
-  marginBottom: "24px",
-  boxShadow: "0 2px 10px rgba(0, 0, 0, 0.04)",
-  border: "1px solid #E7E7E2"
+  backgroundColor: "transparent",
+  padding: "0 0 24px 0",
+  marginBottom: "28px"
 };
 
 const headerBadgeStyle = {
@@ -245,17 +247,13 @@ const introCopyStyle = {
 };
 
 const contentCardStyle = {
-  backgroundColor: "#FFFFFF",
-  borderRadius: "16px",
-  padding: "40px",
-  boxShadow: "0 2px 10px rgba(0, 0, 0, 0.04)",
-  border: "1px solid #E7E7E2"
+  backgroundColor: "transparent",
+  padding: 0
 };
 
 const sectionStyle = {
-  paddingBottom: "24px",
-  marginBottom: "24px",
-  borderBottom: "1px solid #E7E7E2"
+  paddingBottom: "16px",
+  marginBottom: "28px"
 };
 
 const sectionHeadingStyle = {
@@ -294,7 +292,6 @@ const contactBoxStyle = {
   backgroundColor: "#F9FAFB",
   padding: "16px 20px",
   borderRadius: "10px",
-  border: "1px solid #E5E7EB",
   display: "flex",
   flexDirection: "column",
   gap: "10px"

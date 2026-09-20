@@ -779,7 +779,7 @@ export default function AdminProductDetailView({ productId }) {
             {/* 4. Calculated Price Block */}
             <div style={{ backgroundColor: "#F7F8FF", padding: "16px 20px", borderRadius: "12px", border: "1px solid #DCE4FF", marginTop: "8px" }}>
               <span style={{ fontSize: "11px", fontWeight: 700, color: "#6B6B75", textTransform: "uppercase", display: "block", marginBottom: "4px" }}>
-                Calculated Price
+                Price
               </span>
               <div style={{ display: "flex", alignItems: "baseline", gap: "8px", marginBottom: "2px" }}>
                 {discountPct > 0 && selectedActualPrice > selectedDiscountedPrice && (

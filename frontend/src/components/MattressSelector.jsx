@@ -269,7 +269,7 @@ export default function MattressSelector({ product, onSelectionChange, onEnquire
       {/* 5. DYNAMIC PRICE DISPLAY */}
       <div style={priceCardStyle} className="mattress-price-card">
         <div>
-          <span style={priceLabelStyle}>Calculated Price</span>
+          <span style={priceLabelStyle}>Price</span>
           {price !== null && price !== undefined ? (() => {
             const pct = Number(discountPercent) || 0;
             const { hasDiscount, discountedPrice, discountedPrice: dp } = getEffectivePrice(price, pct);

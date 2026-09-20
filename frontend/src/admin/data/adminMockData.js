@@ -588,9 +588,9 @@ export const MOCK_COUPONS = [
 // Mock categories (Hierarchical Structure)
 export const MOCK_CATEGORIES = [
   // Top-Level Main Categories
-  { id: "CAT-MATTRESSES", name: "Mattresses", slug: "mattresses", parentId: null, isParent: true, type: "main", showInNavigation: true, active: true, order: 1, image: "/assets/categories/memory-foam.jpg", description: "Premium sleep mattresses handcrafted for deep rest" },
-  { id: "CAT-ACCESSORIES", name: "Accessories", slug: "accessories", parentId: null, isParent: true, type: "main", showInNavigation: true, active: true, order: 2, image: "/assets/categories/pillows.jpg", description: "Luxury pillows, protectors & sleep essentials" },
-  { id: "CAT-BED-FRAMES", name: "Bed Frames", slug: "bed-frames", parentId: null, isParent: true, type: "main", showInNavigation: true, active: true, order: 3, image: "/assets/categories/bed-frames.jpg", description: "Bed frames designed for stylish and supportive sleep spaces." },
+  { id: "CAT-MATTRESSES", name: "Mattresses", slug: "mattresses", parentId: null, isParent: true, type: "main", showInNavigation: true, active: true, order: 1, image: "/assets/categories/memory-foam.png", description: "Premium sleep mattresses handcrafted for deep rest" },
+  { id: "CAT-ACCESSORIES", name: "Accessories", slug: "accessories", parentId: null, isParent: true, type: "main", showInNavigation: true, active: true, order: 2, image: "/assets/categories/pillows.png", description: "Luxury pillows, protectors & sleep essentials" },
+  { id: "CAT-BED-FRAMES", name: "Bed Frames", slug: "bed-frames", parentId: null, isParent: true, type: "main", showInNavigation: true, active: true, order: 3, image: "/assets/categories/bed-frames.png", description: "Bed frames designed for stylish and supportive sleep spaces." },
 
   // Mattress Subcategories
   { id: "foam", name: "Foam Mattress", slug: "foam", parentId: "CAT-MATTRESSES", parentSlug: "mattresses", image: "/assets/categories/memory-foam.svg", description: "Simple, supportive comfort designed for everyday rest." },
