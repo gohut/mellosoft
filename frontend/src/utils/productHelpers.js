@@ -91,28 +91,48 @@ export const DEFAULT_CATEGORIES_TREE = [
 ];
 
 export function ensureRequiredCategories(existing = []) {
-  // Slugs/IDs that must NEVER appear as top-level main categories
-  const obsoleteMainSlugs = ["pillows", "cat-pillows", "protectors", "cat-protectors"];
+  // Slugs/IDs/Names that are subcategories and must NEVER appear as top-level main categories
+  const obsoleteOrSubcategorySlugs = [
+    "pillows", "cat-pillows", "protectors", "cat-protectors",
+    "foam", "ortho", "spring", "latex", "memory-foam",
+    "foam-mattress", "ortho-mattress", "spring-mattress", "latex-mattress", "memory-foam-mattress",
+    "sub-foam", "sub-ortho", "sub-spring", "sub-latex", "sub-memory-foam",
+    "memory-foam-pillow", "latex-pillow", "fiber-pillow",
+    "mattress-protector", "fitted-bedspread", "blanket-duvet", "travel-bed",
+    "sub-memory-foam-pillow", "sub-latex-pillow", "sub-fiber-pillow",
+    "sub-mattress-protector", "sub-fitted-bedspread", "sub-blanket-duvet", "sub-travel-bed",
+    "wooden-bed-frame", "platform-bed",
+    "sub-wooden-bed-frame", "sub-platform-bed"
+  ];
   // Remove any old top-level "bed-frames" that was a subcategory alias, but keep CAT-BED-FRAMES
   const obsoleteMainIds = ["cat-bed-frames-old"];
 
   let tree = [];
   if (Array.isArray(existing) && existing.length > 0) {
     tree = JSON.parse(JSON.stringify(existing)).filter((c) => {
-      const normId = (c.id || "").toLowerCase();
-      const normSlug = (c.slug || "").toLowerCase();
-      const normName = (c.name || "").toLowerCase();
+      if (!c) return false;
+      // An item with parentId or parentSlug is a subcategory, NEVER a top-level main category
+      if (c.parentId || c.parentSlug) return false;
+
+      const normId = (c.id || "").toLowerCase().trim();
+      const normSlug = (c.slug || "").toLowerCase().trim();
+      const normName = (c.name || "").toLowerCase().trim();
+
+      // Check against known subcategory slugs/names
+      if (
+        obsoleteOrSubcategorySlugs.includes(normId) ||
+        obsoleteOrSubcategorySlugs.includes(normSlug) ||
+        obsoleteOrSubcategorySlugs.includes(normName)
+      ) {
+        return false;
+      }
+
       // Filter out old bad entries (but allow CAT-BED-FRAMES which is the canonical new entry)
       if (normId === "cat-bed-frames" || normSlug === "bed-frames") {
-        // Keep only if it is a proper main category (has subcategories or isParent)
         return c.isParent === true || c.type === "main" || Array.isArray(c.subcategories);
       }
-      return (
-        !obsoleteMainSlugs.includes(normId) &&
-        !obsoleteMainSlugs.includes(normSlug) &&
-        !obsoleteMainSlugs.includes(normName) &&
-        !obsoleteMainIds.includes(normId)
-      );
+
+      return !obsoleteMainIds.includes(normId);
     });
 
     // Strip "bed-frames" from any persisted Accessories subcategory list

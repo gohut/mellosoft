@@ -3,12 +3,14 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useStore } from "../context/StoreContext";
-import { getResolvedImageUrlSync } from "../utils/imageStorage";
+import { getResolvedImageUrlSync, useResolvedImageUrl } from "../utils/imageStorage";
 import { X, ChevronDown } from "lucide-react";
 
 export default function Footer() {
   const { navigateTo, setActiveFilters, settings } = useStore();
   const router = useRouter();
+
+  const footerLogo = useResolvedImageUrl(settings?.website?.logo, "/asset/logo.png");
 
   // Info Modal state (for Contact, Policy, etc.)
   const [modalContent, setModalContent] = useState(null);
@@ -67,7 +69,7 @@ export default function Footer() {
               aria-label={`${settings?.store?.name || "Mellosoft"} Home`}
             >
               <img
-                src={getResolvedImageUrlSync(settings?.website?.logo, "/asset/logo.png")}
+                src={footerLogo}
                 alt={settings?.store?.name || "Mellosoft"}
                 style={logoImgStyle}
                 onError={(e) => { e.currentTarget.src = "/asset/logo.png"; }}
@@ -526,9 +528,12 @@ const logoButtonResetStyle = {
 };
 
 const logoImgStyle = {
-  height: "36px",
+  maxHeight: "42px",
+  maxWidth: "180px",
+  height: "auto",
   width: "auto",
-  objectFit: "contain"
+  objectFit: "contain",
+  display: "block"
 };
 
 const brandDescStyle = {

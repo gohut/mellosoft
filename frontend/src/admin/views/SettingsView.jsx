@@ -3,8 +3,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useAdmin } from "../context/AdminContext";
 import { Upload, Save, RotateCcw, CheckCircle2, AlertCircle, Trash2, Image as ImageIcon, Sparkles } from "lucide-react";
-import { DEFAULT_SETTINGS, validateSettings } from "../../utils/settingsHelpers";
-import { saveImageBlob, getResolvedImageUrlSync } from "../../utils/imageStorage";
+import { DEFAULT_SETTINGS, validateSettings, getSavedSettings } from "../../utils/settingsHelpers";
+import { saveImageBlob, getResolvedImageUrlSync, useResolvedImageUrl } from "../../utils/imageStorage";
 
 export default function SettingsView() {
   const { hasPermission, settings, updateSettings } = useAdmin();
@@ -28,6 +28,9 @@ export default function SettingsView() {
   const [saveStatus, setSaveStatus] = useState("idle"); // idle | saving | success | error
   const [statusMessage, setStatusMessage] = useState("");
   const [isDirty, setIsDirty] = useState(false);
+
+  const logoPreviewUrl = useResolvedImageUrl(form.logo, "/asset/logo.png");
+  const bannerPreviewUrl = useResolvedImageUrl(form.banner, "/asset/img2.jpg");
 
   const logoInputRef = useRef(null);
   const bannerInputRef = useRef(null);
@@ -87,6 +90,42 @@ export default function SettingsView() {
         const blobKey = `idb:setting-${type}-${Date.now()}`;
         await saveImageBlob(blobKey, dataUrl);
         updateField(type, blobKey);
+
+        // Auto-save branding immediately so changes reflect across the site without requiring the user to hunt for save buttons
+        const currentPayload = {
+          store: {
+            name: form.storeName.trim(),
+            email: form.email.trim(),
+            phone: form.phone.trim(),
+            gstNumber: form.gst.trim(),
+            address: form.address.trim()
+          },
+          website: {
+            logo: type === "logo" ? blobKey : (form.logo || DEFAULT_SETTINGS.website.logo),
+            banner: type === "banner" ? blobKey : (form.banner || "")
+          },
+          shipping: {
+            freeShippingAmount: Number(form.freeShippingAmount) || DEFAULT_SETTINGS.shipping.freeShippingAmount,
+            shippingCharge: Number(form.shippingCharge) || DEFAULT_SETTINGS.shipping.shippingCharge
+          },
+          payment: {
+            razorpay: Boolean(form.razorpay),
+            stripe: Boolean(form.stripe),
+            cod: Boolean(form.cod)
+          }
+        };
+
+        const validation = validateSettings(currentPayload);
+        if (validation.isValid) {
+          updateSettings(currentPayload);
+          setIsDirty(false);
+          setSaveStatus("success");
+          setStatusMessage(`${type === "logo" ? "Store Logo" : "Website Banner"} updated and published live across the site!`);
+          setTimeout(() => {
+            setSaveStatus("idle");
+            setStatusMessage("");
+          }, 4500);
+        }
       };
       reader.readAsDataURL(file);
     } catch (e) {
@@ -220,6 +259,51 @@ export default function SettingsView() {
         </div>
       )}
 
+      {/* Top Action Bar when dirty or canEdit */}
+      {canEdit && (
+        <div style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          backgroundColor: "#FFFFFF",
+          border: "1px solid #E7E7E2",
+          borderRadius: "14px",
+          padding: "14px 20px",
+          marginBottom: "20px",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+          flexWrap: "wrap",
+          gap: "12px"
+        }}>
+          <div>
+            <h2 style={{ fontSize: "16px", fontWeight: 700, color: "#14151A", margin: "0 0 2px 0" }}>Store Settings</h2>
+            <p style={{ fontSize: "12.5px", color: "#6B6B75", margin: 0 }}>Configure website branding, business details, shipping thresholds and payments.</p>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            {isDirty && (
+              <span style={{ fontSize: "12.5px", color: "#D97706", fontWeight: 600, display: "flex", alignItems: "center", gap: "4px" }}>
+                ● Unsaved changes
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saveStatus === "saving"}
+              style={{
+                ...saveBtnStyle,
+                padding: "8px 16px",
+                fontSize: "13px",
+                opacity: saveStatus === "saving" ? 0.7 : 1,
+                cursor: saveStatus === "saving" ? "not-allowed" : "pointer"
+              }}
+              className="admin-btn-hover"
+            >
+              <Save size={14} />
+              {saveStatus === "saving" ? "Saving..." : "Save Settings"}
+            </button>
+          </div>
+        </div>
+      )}
+
       <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
         
         {/* 1. Store Information */}
@@ -293,7 +377,7 @@ export default function SettingsView() {
               <div style={previewBoxStyle}>
                 <div style={logoPreviewInnerStyle}>
                   <img
-                    src={getResolvedImageUrlSync(form.logo, "/asset/logo.png")}
+                    src={logoPreviewUrl}
                     alt="Logo Preview"
                     style={{ maxHeight: "46px", maxWidth: "100%", objectFit: "contain" }}
                     onError={(e) => { e.currentTarget.src = "/asset/logo.png"; }}
@@ -314,7 +398,43 @@ export default function SettingsView() {
                     {form.logo && form.logo !== DEFAULT_SETTINGS.website.logo && (
                       <button
                         type="button"
-                        onClick={() => updateField("logo", DEFAULT_SETTINGS.website.logo)}
+                        onClick={() => {
+                          updateField("logo", DEFAULT_SETTINGS.website.logo);
+                          // Auto-save the reset
+                          const currentPayload = {
+                            store: {
+                              name: form.storeName.trim(),
+                              email: form.email.trim(),
+                              phone: form.phone.trim(),
+                              gstNumber: form.gst.trim(),
+                              address: form.address.trim()
+                            },
+                            website: {
+                              logo: DEFAULT_SETTINGS.website.logo,
+                              banner: form.banner || ""
+                            },
+                            shipping: {
+                              freeShippingAmount: Number(form.freeShippingAmount) || DEFAULT_SETTINGS.shipping.freeShippingAmount,
+                              shippingCharge: Number(form.shippingCharge) || DEFAULT_SETTINGS.shipping.shippingCharge
+                            },
+                            payment: {
+                              razorpay: Boolean(form.razorpay),
+                              stripe: Boolean(form.stripe),
+                              cod: Boolean(form.cod)
+                            }
+                          };
+                          const val = validateSettings(currentPayload);
+                          if (val.isValid) {
+                            updateSettings(currentPayload);
+                            setIsDirty(false);
+                            setSaveStatus("success");
+                            setStatusMessage("Website logo reset to default Mellosoft logo!");
+                            setTimeout(() => {
+                              setSaveStatus("idle");
+                              setStatusMessage("");
+                            }, 4500);
+                          }
+                        }}
                         style={removeActionBtnStyle}
                         title="Reset to default Mellosoft logo"
                       >
@@ -349,7 +469,7 @@ export default function SettingsView() {
                 {form.banner ? (
                   <div style={bannerPreviewInnerStyle}>
                     <img
-                      src={getResolvedImageUrlSync(form.banner, "/asset/img2.jpg")}
+                      src={bannerPreviewUrl}
                       alt="Banner Preview"
                       style={{ width: "100%", height: "80px", objectFit: "cover", borderRadius: "6px" }}
                     />
@@ -502,6 +622,52 @@ export default function SettingsView() {
           </div>
         )}
       </form>
+
+      {/* Floating Save Banner when there are unsaved changes */}
+      {isDirty && canEdit && (
+        <div style={{
+          position: "fixed",
+          bottom: "24px",
+          left: "50%",
+          transform: "translateX(-50%)",
+          zIndex: 9999,
+          backgroundColor: "#14151A",
+          color: "#FFFFFF",
+          padding: "10px 20px",
+          borderRadius: "999px",
+          boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
+          display: "flex",
+          alignItems: "center",
+          gap: "16px",
+          animation: "adminFadeIn 0.2s ease"
+        }}>
+          <span style={{ fontSize: "13px", fontWeight: 600, display: "flex", alignItems: "center", gap: "8px" }}>
+            <span style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#F59E0B" }} />
+            You have unsaved changes
+          </span>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saveStatus === "saving"}
+            style={{
+              backgroundColor: "#16A34A",
+              color: "#FFFFFF",
+              border: "none",
+              padding: "7px 16px",
+              borderRadius: "999px",
+              fontWeight: 700,
+              fontSize: "12.5px",
+              cursor: saveStatus === "saving" ? "not-allowed" : "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px"
+            }}
+          >
+            <Save size={13} />
+            {saveStatus === "saving" ? "Saving..." : "Save Settings"}
+          </button>
+        </div>
+      )}
 
       <style>{`
         @media (max-width: 768px) {

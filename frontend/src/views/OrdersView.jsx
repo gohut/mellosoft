@@ -258,10 +258,10 @@ export default function OrdersView() {
       productId: productId,
       product: productName,
       productName: productName,
-      customerId: selectedOrder?.customerId || selectedOrder?.userId || "C001",
-      customer: selectedOrder?.customerName || selectedOrder?.deliveryAddress?.fullName || "Rahul Sharma",
-      customerName: selectedOrder?.customerName || selectedOrder?.deliveryAddress?.fullName || "Rahul Sharma",
-      author: selectedOrder?.customerName || selectedOrder?.deliveryAddress?.fullName || "Rahul Sharma",
+      customerId: selectedOrder?.customerId || selectedOrder?.userId || "",
+      customer: selectedOrder?.customerName || selectedOrder?.deliveryAddress?.fullName || "Customer",
+      customerName: selectedOrder?.customerName || selectedOrder?.deliveryAddress?.fullName || "Customer",
+      author: selectedOrder?.customerName || selectedOrder?.deliveryAddress?.fullName || "Customer",
       rating: Number(reviewRating),
       comment: reviewFeedback.trim(),
       feedback: reviewFeedback.trim(),
@@ -1200,14 +1200,14 @@ export default function OrdersView() {
                 <span>Shipping Address</span>
               </h4>
               <div style={addressTextStyle}>
-                <strong>{selectedOrder.shippingAddress?.name || "Rahul Sharma"}</strong>
+                <strong>{selectedOrder.shippingAddress?.name || selectedOrder.customerName || selectedOrder.deliveryAddress?.fullName || "Customer"}</strong>
                 <br />
-                {selectedOrder.shippingAddress?.street || "123 Green Park Extension"}
+                {selectedOrder.shippingAddress?.street || selectedOrder.deliveryAddress?.addressLine1 || ""}
                 <br />
-                {selectedOrder.shippingAddress?.city || "New Delhi"}, {selectedOrder.shippingAddress?.state || "Delhi"} - {selectedOrder.shippingAddress?.zip || "110016"}
+                {selectedOrder.shippingAddress?.city || selectedOrder.deliveryAddress?.city || ""}, {selectedOrder.shippingAddress?.state || selectedOrder.deliveryAddress?.state || ""} - {selectedOrder.shippingAddress?.zip || selectedOrder.deliveryAddress?.pincode || ""}
                 <br />
                 <span style={{ color: "#6B6B75", fontSize: "12px", marginTop: "4px", display: "inline-block" }}>
-                  Phone: {selectedOrder.shippingAddress?.phone || "+91 98765 43210"}
+                  Phone: {selectedOrder.shippingAddress?.phone || selectedOrder.deliveryAddress?.phone || selectedOrder.phone || ""}
                 </span>
               </div>
             </div>

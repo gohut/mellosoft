@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useCustomerAuth } from "../context/CustomerAuthContext";
 import { useStore } from "../context/StoreContext";
-import { getResolvedImageUrlSync } from "../utils/imageStorage";
+import { getResolvedImageUrlSync, useResolvedImageUrl } from "../utils/imageStorage";
 import {
   Mail,
   Lock,
@@ -20,6 +20,8 @@ import {
 export default function AuthModal({ type = "login", onClose }) {
   const { login, signup, intendedView, setIntendedView } = useCustomerAuth();
   const { navigateTo, closeAuthModal, settings } = useStore();
+
+  const authLogo = useResolvedImageUrl(settings?.website?.logo, "/asset/logo.png");
 
   const [activeModal, setActiveModal] = useState(type); // "login" | "signup" | "forgot-password"
 
@@ -66,6 +68,7 @@ export default function AuthModal({ type = "login", onClose }) {
 
         {activeModal === "login" && (
           <LoginForm
+            authLogo={authLogo}
             onSwitchToSignup={() => setActiveModal("signup")}
             onSwitchToForgot={() => setActiveModal("forgot-password")}
             onSuccess={() => {
@@ -81,6 +84,7 @@ export default function AuthModal({ type = "login", onClose }) {
 
         {activeModal === "signup" && (
           <SignupForm
+            authLogo={authLogo}
             onSwitchToLogin={() => setActiveModal("login")}
             onSuccess={() => {
               handleClose();
@@ -95,6 +99,7 @@ export default function AuthModal({ type = "login", onClose }) {
 
         {activeModal === "forgot-password" && (
           <ForgotPasswordForm
+            authLogo={authLogo}
             onSwitchToLogin={() => setActiveModal("login")}
           />
         )}
@@ -147,9 +152,11 @@ export default function AuthModal({ type = "login", onClose }) {
 /* ─────────────────────────────────────────────────────────────
    LOGIN FORM COMPONENT (Popup Version)
    ───────────────────────────────────────────────────────────── */
-function LoginForm({ onSwitchToSignup, onSwitchToForgot, onSuccess }) {
+function LoginForm({ authLogo: propAuthLogo, onSwitchToSignup, onSwitchToForgot, onSuccess }) {
   const { login, loginWithGoogle } = useCustomerAuth();
   const { settings } = useStore();
+  const hookLogo = useResolvedImageUrl(settings?.website?.logo, "/asset/logo.png");
+  const authLogo = propAuthLogo || hookLogo;
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -199,21 +206,14 @@ function LoginForm({ onSwitchToSignup, onSwitchToForgot, onSuccess }) {
     }
   };
 
-  const fillDemoAccount = (demoEmail, demoPass) => {
-    setEmail(demoEmail);
-    setPassword(demoPass);
-    setErrorMessage("");
-    setEmailTouched(false);
-  };
-
   const handleGoogleSignIn = async () => {
     setGoogleSubmitting(true);
     setErrorMessage("");
     try {
       const res = await loginWithGoogle({
-        name: "Priya Patel",
-        email: "priya@example.com",
-        avatar: "P"
+        name: "Google Customer",
+        email: "customer@gmail.com",
+        avatar: "G"
       });
       if (res.success) {
         onSuccess();
@@ -232,7 +232,7 @@ function LoginForm({ onSwitchToSignup, onSwitchToForgot, onSuccess }) {
       {/* Header / Logo */}
       <div style={headerSectionStyle}>
         <img
-          src={getResolvedImageUrlSync(settings?.website?.logo, "/asset/logo.png")}
+          src={authLogo}
           alt={settings?.store?.name || "Mellosoft"}
           style={logoImageStyle}
           onError={(e) => { e.currentTarget.src = "/asset/logo.png"; }}
@@ -349,29 +349,6 @@ function LoginForm({ onSwitchToSignup, onSwitchToForgot, onSuccess }) {
         </button>
       </form>
 
-      {/* Quick Demo User Section */}
-      <div style={demoBoxStyle}>
-        <span style={demoLabelStyle}>Quick Demo Login:</span>
-        <div style={demoButtonsRowStyle}>
-          <button
-            type="button"
-            onClick={() => fillDemoAccount("rahul@example.com", "Password123")}
-            style={demoChipStyle}
-            className="auth-chip-btn"
-          >
-            Rahul Sharma (CUS-0001)
-          </button>
-          <button
-            type="button"
-            onClick={() => fillDemoAccount("priya@example.com", "Password123")}
-            style={demoChipStyle}
-            className="auth-chip-btn"
-          >
-            Priya Patel (CUS-0002)
-          </button>
-        </div>
-      </div>
-
       {/* Switch to Signup Footer */}
       <div style={footerStyle}>
         <span style={footerTextStyle}>Don't have an account? </span>
@@ -390,9 +367,11 @@ function LoginForm({ onSwitchToSignup, onSwitchToForgot, onSuccess }) {
 /* ─────────────────────────────────────────────────────────────
    SIGNUP FORM COMPONENT (Popup Version)
    ───────────────────────────────────────────────────────────── */
-function SignupForm({ onSwitchToLogin, onSuccess }) {
+function SignupForm({ authLogo: propAuthLogo, onSwitchToLogin, onSuccess }) {
   const { signup, loginWithGoogle } = useCustomerAuth();
   const { settings } = useStore();
+  const hookLogo = useResolvedImageUrl(settings?.website?.logo, "/asset/logo.png");
+  const authLogo = propAuthLogo || hookLogo;
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -461,7 +440,7 @@ function SignupForm({ onSwitchToLogin, onSuccess }) {
     <div>
       <div style={headerSectionStyle}>
         <img
-          src={getResolvedImageUrlSync(settings?.website?.logo, "/asset/logo.png")}
+          src={authLogo}
           alt={settings?.store?.name || "Mellosoft"}
           style={logoImageStyle}
           onError={(e) => { e.currentTarget.src = "/asset/logo.png"; }}
@@ -670,8 +649,10 @@ function SignupForm({ onSwitchToLogin, onSuccess }) {
 /* ─────────────────────────────────────────────────────────────
    FORGOT PASSWORD FORM COMPONENT (Popup Version)
    ───────────────────────────────────────────────────────────── */
-function ForgotPasswordForm({ onSwitchToLogin }) {
+function ForgotPasswordForm({ authLogo: propAuthLogo, onSwitchToLogin }) {
   const { settings } = useStore();
+  const hookLogo = useResolvedImageUrl(settings?.website?.logo, "/asset/logo.png");
+  const authLogo = propAuthLogo || hookLogo;
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -704,7 +685,7 @@ function ForgotPasswordForm({ onSwitchToLogin }) {
     <div>
       <div style={headerSectionStyle}>
         <img
-          src={getResolvedImageUrlSync(settings?.website?.logo, "/asset/logo.png")}
+          src={authLogo}
           alt={settings?.store?.name || "Mellosoft"}
           style={logoImageStyle}
           onError={(e) => { e.currentTarget.src = "/asset/logo.png"; }}
@@ -842,7 +823,9 @@ const headerSectionStyle = {
 };
 
 const logoImageStyle = {
-  width: "120px",
+  maxHeight: "48px",
+  maxWidth: "160px",
+  width: "auto",
   height: "auto",
   objectFit: "contain",
   margin: "0 auto 16px auto",
