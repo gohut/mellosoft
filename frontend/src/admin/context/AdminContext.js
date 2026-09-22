@@ -85,47 +85,148 @@ const CUSTOMER_CLEANUP_KEY = "mellosoft_customer_cleanup_v1";
 const REVIEW_CLEANUP_KEY = "mellosoft_review_cleanup_v1";
 const HOME_LAYOUT_CLEANUP_KEY = "mellosoft_home_layout_cleanup_v1";
 const HOME_LAYOUT_V2_KEY = "mellosoft_home_layout_v2";
+const DEMO_PURGE_V3_KEY = "mellosoft_demo_purge_v3";
+const DEMO_PURGE_V4_KEY = "mellosoft_demo_purge_v4";
+const CATEGORIES_CLEANUP_V2_KEY = "mellosoft_categories_cleanup_v2";
 
-// One-time safe reset and cleanup migrations
+const DEMO_CUSTOMER_IDS = new Set([
+  "C001", "C002", "C003", "C004", "C005", "C006", "C007", "C008",
+  "CUS-0001", "CUS-0002", "CUS-0003", "CUS-0004", "CUS-0005", "CUS-0006", "CUS-0007", "CUS-0008"
+]);
+const DEMO_EMAILS = new Set([
+  "rahul@example.com", "priya@example.com", "ankit@example.com", "sneha@example.com",
+  "vikram@example.com", "meera@example.com", "arjun@example.com", "kavitha@example.com"
+]);
+const DEMO_ORDER_ID_PREFIX = "MS-92";
+
 if (typeof window !== "undefined") {
   try {
+    // Sanitize categories to purge duplicate subcategories from top-level list
+    if (localStorage.getItem(CATEGORIES_CLEANUP_V2_KEY) !== "completed") {
+      const savedCats = localStorage.getItem(CATEGORIES_STORAGE_KEY);
+      if (savedCats) {
+        try {
+          const parsedCats = JSON.parse(savedCats);
+          if (Array.isArray(parsedCats) && parsedCats.length > 0) {
+            const cleanCats = ensureRequiredCategories(parsedCats);
+            localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(cleanCats));
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+      localStorage.setItem(CATEGORIES_CLEANUP_V2_KEY, "completed");
+    }
+
+    // Complete demo customer, order, notification, and role testing purge migration
+    if (localStorage.getItem(DEMO_PURGE_V3_KEY) !== "completed") {
+      // 1. Clean customers (remove all demo customer accounts)
+      const savedCusts = localStorage.getItem(CUSTOMERS_STORAGE_KEY);
+      let existingCusts = savedCusts ? JSON.parse(savedCusts) : [];
+      if (!Array.isArray(existingCusts)) existingCusts = [];
+      const cleanCustomers = existingCusts.filter((c) => {
+        if (!c) return false;
+        const id = c.customerId || c.id;
+        const email = (c.email || "").toLowerCase();
+        return !DEMO_CUSTOMER_IDS.has(id) && !DEMO_EMAILS.has(email);
+      });
+      localStorage.setItem(CUSTOMERS_STORAGE_KEY, JSON.stringify(cleanCustomers));
+
+      // 2. Clean orders (remove all demo orders)
+      const savedOrders = localStorage.getItem(ORDERS_STORAGE_KEY);
+      let existingOrders = savedOrders ? JSON.parse(savedOrders) : [];
+      if (!Array.isArray(existingOrders)) existingOrders = [];
+      const cleanOrders = existingOrders.filter((o) => {
+        if (!o) return false;
+        const custId = o.customerId || o.userId;
+        const email = (o.email || "").toLowerCase();
+        const orderId = o.id || "";
+        const isDemo = DEMO_CUSTOMER_IDS.has(custId) || DEMO_EMAILS.has(email) || orderId.startsWith(DEMO_ORDER_ID_PREFIX) || orderId === "MS-15680";
+        return !isDemo;
+      });
+      localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(cleanOrders));
+      localStorage.setItem("mellosoft_admin_orders", JSON.stringify(cleanOrders));
+
+      // 3. Clean current customer session if logged in as a demo user
+      try {
+        const session = JSON.parse(localStorage.getItem("mellosoft_customer_session") || "null");
+        if (session) {
+          const sId = session.customerId || session.id;
+          const sEmail = (session.email || "").toLowerCase();
+          if (DEMO_CUSTOMER_IDS.has(sId) || DEMO_EMAILS.has(sEmail)) {
+            localStorage.removeItem("mellosoft_customer_session");
+          }
+        }
+      } catch {}
+
+      // 4. Clean demo customer carts and wishlists from storage
+      DEMO_CUSTOMER_IDS.forEach((id) => {
+        try {
+          localStorage.removeItem(`mellosoft_cart_${id}`);
+          localStorage.removeItem(`mellosoft_wishlist_${id}`);
+        } catch {}
+      });
+
+      try {
+        const savedWishlists = localStorage.getItem(WISHLISTS_STORAGE_KEY);
+        if (savedWishlists) {
+          const parsedW = JSON.parse(savedWishlists);
+          if (Array.isArray(parsedW)) {
+            const cleanW = parsedW.filter((w) => !DEMO_CUSTOMER_IDS.has(w.customerId));
+            localStorage.setItem(WISHLISTS_STORAGE_KEY, JSON.stringify(cleanW));
+          }
+        }
+        const savedCarts = localStorage.getItem(CARTS_STORAGE_KEY);
+        if (savedCarts) {
+          const parsedC = JSON.parse(savedCarts);
+          if (Array.isArray(parsedC)) {
+            const cleanC = parsedC.filter((c) => !DEMO_CUSTOMER_IDS.has(c.customerId));
+            localStorage.setItem(CARTS_STORAGE_KEY, JSON.stringify(cleanC));
+          }
+        }
+      } catch {}
+
+      // 5. Clean demo notifications
+      localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify([]));
+
+      // 6. Reset any switched test demo role back to Super Admin
+      localStorage.setItem("mellosoft_current_user_id", "user-001");
+
+      localStorage.setItem(DEMO_PURGE_V3_KEY, "completed");
+    }
+
+    // Complete purge of non-super-admin demo users from localStorage
+    if (localStorage.getItem(DEMO_PURGE_V4_KEY) !== "completed") {
+      const demoAdminUserIds = new Set(["user-002", "user-003", "user-004", "user-005"]);
+      const demoAdminEmails = new Set(["priya@mellosoft.com", "ankit@mellosoft.com", "sneha@mellosoft.com", "vikram@mellosoft.com"]);
+
+      const savedUsers = localStorage.getItem(USERS_STORAGE_KEY);
+      if (savedUsers) {
+        try {
+          const parsedUsers = JSON.parse(savedUsers);
+          if (Array.isArray(parsedUsers)) {
+            const cleanUsers = parsedUsers.filter((u) => {
+              if (!u) return false;
+              const email = (u.email || "").toLowerCase();
+              return !demoAdminUserIds.has(u.id) && !demoAdminEmails.has(email);
+            });
+            localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(cleanUsers.length > 0 ? cleanUsers : DEFAULT_USERS));
+          }
+        } catch {}
+      } else {
+        localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(DEFAULT_USERS));
+      }
+
+      localStorage.setItem("mellosoft_current_user_id", "user-001");
+      localStorage.setItem(DEMO_PURGE_V4_KEY, "completed");
+    }
+
     const isReset = localStorage.getItem(ORDERS_RESET_KEY);
     if (isReset !== "completed") {
       localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify([]));
       localStorage.setItem("mellosoft_admin_orders", JSON.stringify([]));
       localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify([]));
       localStorage.setItem(ORDERS_RESET_KEY, "completed");
-    }
-
-    // Customer cleanup migration (removes demo seeded customers)
-    if (localStorage.getItem(CUSTOMER_CLEANUP_KEY) !== "completed") {
-      const savedCusts = localStorage.getItem(CUSTOMERS_STORAGE_KEY);
-      const currentOrders = JSON.parse(localStorage.getItem(ORDERS_STORAGE_KEY) || "[]");
-      const currentSession = JSON.parse(localStorage.getItem("mellosoft_customer_session") || "null");
-
-      let existing = savedCusts ? JSON.parse(savedCusts) : [];
-      if (!Array.isArray(existing)) existing = [];
-
-      const demoCustomerIds = new Set(["C001", "C002", "C003", "C004", "C005", "C006", "C007", "C008", "CUS-0001", "CUS-0002", "CUS-0003", "CUS-0004", "CUS-0005", "CUS-0006", "CUS-0007", "CUS-0008"]);
-      const demoEmails = new Set([
-        "rahul@example.com", "priya@example.com", "ankit@example.com", "sneha@example.com",
-        "vikram@example.com", "meera@example.com", "arjun@example.com", "kavitha@example.com"
-      ]);
-
-      const realCustomers = existing.filter((c) => {
-        if (!c) return false;
-        const hasOrder = currentOrders.some((o) =>
-          (o.customerId && (o.customerId === c.id || o.customerId === c.customerId)) ||
-          (o.userId && (o.userId === c.id || o.userId === c.customerId)) ||
-          (o.email && c.email && o.email.toLowerCase() === c.email.toLowerCase())
-        );
-        const isCurrentSession = currentSession && (currentSession.id === c.id || (currentSession.email && c.email && currentSession.email.toLowerCase() === c.email.toLowerCase()));
-        const isCustomAccount = c.isRegistered || Boolean(c.password) || Boolean(c.passwordHash) || (!demoCustomerIds.has(c.id) && !demoCustomerIds.has(c.customerId) && !demoEmails.has(c.email?.toLowerCase()));
-        return hasOrder || isCurrentSession || isCustomAccount;
-      });
-
-      localStorage.setItem(CUSTOMERS_STORAGE_KEY, JSON.stringify(realCustomers));
-      localStorage.setItem(CUSTOMER_CLEANUP_KEY, "completed");
     }
 
     // Review cleanup migration (removes demo reviews)
@@ -485,14 +586,22 @@ export function AdminProvider({ children }) {
         if (saved) {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            return ensureRequiredCategories(parsed);
+            const sanitized = ensureRequiredCategories(parsed);
+            localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(sanitized));
+            return sanitized;
           }
         }
       } catch (e) {
         console.error("Failed to load categories from localStorage:", e);
       }
     }
-    return ensureRequiredCategories(MOCK_CATEGORIES);
+    const defClean = ensureRequiredCategories(MOCK_CATEGORIES);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(defClean));
+      } catch (e) {}
+    }
+    return defClean;
   });
 
   const [roles, setRoles] = useState(() => {
@@ -525,15 +634,14 @@ export function AdminProvider({ children }) {
         if (saved) {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed.map((u) => {
-              if (u.id === "user-003" && (u.roleId === "role-order-manager" || u.roleId === "role-user" || !u.roleId)) {
-                return { ...u, roleId: "role-manager" };
-              }
-              if (u.id === "user-004" && (u.roleId === "role-content-manager" || !u.roleId)) {
-                return { ...u, roleId: "role-staff" };
-              }
-              return u;
+            const demoAdminUserIds = new Set(["user-002", "user-003", "user-004", "user-005"]);
+            const demoAdminEmails = new Set(["priya@mellosoft.com", "ankit@mellosoft.com", "sneha@mellosoft.com", "vikram@mellosoft.com"]);
+            const cleanUsers = parsed.filter((u) => {
+              if (!u) return false;
+              const email = (u.email || "").toLowerCase();
+              return !demoAdminUserIds.has(u.id) && !demoAdminEmails.has(email);
             });
+            if (cleanUsers.length > 0) return cleanUsers;
           }
         }
       } catch (e) {
@@ -550,15 +658,21 @@ export function AdminProvider({ children }) {
         const saved = localStorage.getItem(ORDERS_STORAGE_KEY);
         if (saved) {
           const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed;
+          if (Array.isArray(parsed)) {
+            return parsed.filter((o) => {
+              if (!o) return false;
+              const custId = o.customerId || o.userId;
+              const email = (o.email || "").toLowerCase();
+              const orderId = o.id || "";
+              return !DEMO_CUSTOMER_IDS.has(custId) && !DEMO_EMAILS.has(email) && !orderId.startsWith(DEMO_ORDER_ID_PREFIX);
+            });
           }
         }
       } catch (e) {
         console.error("Failed to load orders from localStorage:", e);
       }
     }
-    return MOCK_ORDERS;
+    return [];
   });
 
   // Hydrate customers from localStorage
@@ -568,35 +682,20 @@ export function AdminProvider({ children }) {
         const saved = localStorage.getItem(CUSTOMERS_STORAGE_KEY);
         if (saved) {
           const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            const mergedMap = new Map();
-            (MOCK_CUSTOMERS || []).forEach((mc) => {
-              const canonicalId = normalizeCustomerId(mc.customerId || mc.id);
-              mergedMap.set(mc.email.toLowerCase(), { ...mc, id: canonicalId, customerId: canonicalId });
+          if (Array.isArray(parsed)) {
+            return parsed.filter((c) => {
+              if (!c) return false;
+              const id = c.customerId || c.id;
+              const email = (c.email || "").toLowerCase();
+              return !DEMO_CUSTOMER_IDS.has(id) && !DEMO_EMAILS.has(email);
             });
-            parsed.forEach((c) => {
-              if (!c || !c.email) return;
-              const key = c.email.toLowerCase();
-              const canonicalId = normalizeCustomerId(c.customerId || c.id);
-              const existing = mergedMap.get(key);
-              mergedMap.set(key, {
-                ...existing,
-                ...c,
-                id: canonicalId,
-                customerId: canonicalId,
-                savedAddresses: (c.savedAddresses && c.savedAddresses.length > 0)
-                  ? c.savedAddresses
-                  : (existing?.savedAddresses || []),
-              });
-            });
-            return Array.from(mergedMap.values());
           }
         }
       } catch (e) {
         console.error("Failed to load customers from localStorage:", e);
       }
     }
-    return MOCK_CUSTOMERS;
+    return [];
   });
 
   // Hydrate wishlists from localStorage
@@ -806,7 +905,20 @@ export function AdminProvider({ children }) {
         const saved = localStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
         if (saved) {
           const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) return parsed;
+          if (Array.isArray(parsed)) {
+            return parsed.filter((n) => {
+              if (!n) return false;
+              const msg = (n.message || n.text || n.title || "").toLowerCase();
+              const isDemo =
+                DEMO_CUSTOMER_IDS.has(n.orderId) ||
+                (n.orderId && n.orderId.startsWith("MS-92")) ||
+                msg.includes("priya") ||
+                msg.includes("rahul") ||
+                msg.includes("ms-92840") ||
+                msg.includes("ms-15680");
+              return !isDemo;
+            });
+          }
         }
       } catch (e) {
         console.error("Failed to load notifications from localStorage:", e);
@@ -1007,12 +1119,13 @@ export function AdminProvider({ children }) {
   const auth = useAdminAuth();
   const [activeUserId, setActiveUserId] = useState(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("mellosoft_current_user_id") || "user-001";
+      localStorage.setItem("mellosoft_current_user_id", "user-001");
+      return "user-001";
     }
     return "user-001";
   });
 
-  const currentUserId = auth?.currentUserId || activeUserId || "user-001";
+  const currentUserId = "user-001";
   const currentUser = users.find((u) => u.id === currentUserId) || users[0];
   const currentUserRole = roles.find((r) => r.id === currentUser?.roleId) || roles[0];
 
@@ -1102,7 +1215,14 @@ export function AdminProvider({ children }) {
         if (savedOrders) {
           const parsed = JSON.parse(savedOrders);
           if (Array.isArray(parsed)) {
-            setOrders((prev) => (JSON.stringify(prev) === JSON.stringify(parsed) ? prev : parsed));
+            const cleanOrders = parsed.filter((o) => {
+              if (!o) return false;
+              const custId = o.customerId || o.userId;
+              const email = (o.email || "").toLowerCase();
+              const orderId = o.id || "";
+              return !DEMO_CUSTOMER_IDS.has(custId) && !DEMO_EMAILS.has(email) && !orderId.startsWith(DEMO_ORDER_ID_PREFIX);
+            });
+            setOrders((prev) => (JSON.stringify(prev) === JSON.stringify(cleanOrders) ? prev : cleanOrders));
           }
         }
       } catch (e) {
@@ -1114,28 +1234,13 @@ export function AdminProvider({ children }) {
         if (savedCustomers) {
           const parsed = JSON.parse(savedCustomers);
           if (Array.isArray(parsed)) {
-            const mergedMap = new Map();
-            (MOCK_CUSTOMERS || []).forEach((mc) => {
-              const canonicalId = normalizeCustomerId(mc.customerId || mc.id);
-              mergedMap.set(mc.email.toLowerCase(), { ...mc, id: canonicalId, customerId: canonicalId });
+            const cleanCusts = parsed.filter((c) => {
+              if (!c) return false;
+              const id = c.customerId || c.id;
+              const email = (c.email || "").toLowerCase();
+              return !DEMO_CUSTOMER_IDS.has(id) && !DEMO_EMAILS.has(email);
             });
-            parsed.forEach((c) => {
-              if (!c || !c.email) return;
-              const key = c.email.toLowerCase();
-              const canonicalId = normalizeCustomerId(c.customerId || c.id);
-              const existing = mergedMap.get(key);
-              mergedMap.set(key, {
-                ...existing,
-                ...c,
-                id: canonicalId,
-                customerId: canonicalId,
-                savedAddresses: (c.savedAddresses && c.savedAddresses.length > 0)
-                  ? c.savedAddresses
-                  : (existing?.savedAddresses || []),
-              });
-            });
-            const nextCustList = Array.from(mergedMap.values());
-            setCustomers((prev) => (JSON.stringify(prev) === JSON.stringify(nextCustList) ? prev : nextCustList));
+            setCustomers((prev) => (JSON.stringify(prev) === JSON.stringify(cleanCusts) ? prev : cleanCusts));
           }
         }
       } catch (e) {
@@ -1159,7 +1264,19 @@ export function AdminProvider({ children }) {
         if (savedNotifs) {
           const parsed = JSON.parse(savedNotifs);
           if (Array.isArray(parsed)) {
-            setNotifications((prev) => (JSON.stringify(prev) === JSON.stringify(parsed) ? prev : parsed));
+            const cleanNotifs = parsed.filter((n) => {
+              if (!n) return false;
+              const msg = (n.message || n.text || n.title || "").toLowerCase();
+              const isDemo =
+                DEMO_CUSTOMER_IDS.has(n.orderId) ||
+                (n.orderId && n.orderId.startsWith("MS-92")) ||
+                msg.includes("priya") ||
+                msg.includes("rahul") ||
+                msg.includes("ms-92840") ||
+                msg.includes("ms-15680");
+              return !isDemo;
+            });
+            setNotifications((prev) => (JSON.stringify(prev) === JSON.stringify(cleanNotifs) ? prev : cleanNotifs));
           }
         }
       } catch (e) {
@@ -1496,27 +1613,8 @@ export function AdminProvider({ children }) {
   }, []);
 
   const switchUser = useCallback((userId) => {
-    const targetUser = users.find((u) => u.id === userId);
-    if (!targetUser) return { success: false, error: "User not found" };
-
-    setActiveUserId(userId);
-    if (auth?.setCurrentUserId) {
-      auth.setCurrentUserId(userId);
-    }
-    try {
-      localStorage.setItem("mellosoft_current_user_id", userId);
-    } catch (e) {
-      console.error("Failed to save current user ID:", e);
-    }
-
-    const targetRole = roles.find((r) => r.id === targetUser.roleId) || roles[0];
-    if (!isViewAllowed(targetRole, adminView)) {
-      const firstAllowed = getFirstAllowedAdminView(targetRole);
-      navigateTo(firstAllowed || "dashboard");
-    }
-
-    return { success: true, user: targetUser, role: targetRole };
-  }, [users, roles, auth, adminView, navigateTo]);
+    return { success: false, error: "Role switching is disabled." };
+  }, []);
 
   /** Helper to persist products and notify storefront */
   const persistAndDispatchProducts = async (nextProducts) => {

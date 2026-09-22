@@ -208,15 +208,6 @@ export default function AdminHeader() {
     return { badgeBg: "#F3F4F6", badgeColor: "#4B5563", border: "#E5E7EB", scope: "Read-Only Auditor" };
   };
 
-  const handleSwitchRole = (targetUserId) => {
-    if (!switchUser) return;
-    const res = switchUser(targetUserId);
-    if (res?.success) {
-      setSwitchToast(`Switched active account to ${res.user.name} (${res.role.name})`);
-      setTimeout(() => setSwitchToast(null), 3000);
-    }
-    setShowProfileMenu(false);
-  };
 
   const handleLogout = () => {
     setShowProfileMenu(false);
@@ -857,75 +848,6 @@ export default function AdminHeader() {
                 </div>
               </div>
 
-              {/* Quick Role Switcher List */}
-              <div style={{ padding: "12px 14px", borderBottom: "1px solid #E7E7E2" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
-                  <Shield size={13} color="#1B1F8C" />
-                  <span style={{ fontSize: "11px", fontWeight: 700, color: "#1B1F8C", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                    Switch Role (Demo & Testing)
-                  </span>
-                </div>
-                <p style={{ fontSize: "11.5px", color: "#6B6B75", margin: "0 0 10px 0", lineHeight: 1.3 }}>
-                  Select an account to test live dynamic permissions:
-                </p>
-
-                <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxHeight: "200px", overflowY: "auto" }}>
-                  {users.map((u) => {
-                    const uRole = roles.find((r) => r.id === u.roleId) || { name: "User" };
-                    const isCurrent = u.id === currentUser?.id;
-                    const meta = getRoleMeta(uRole.name);
-
-                    return (
-                      <button
-                        key={u.id}
-                        type="button"
-                        onClick={() => handleSwitchRole(u.id)}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          padding: "8px 10px",
-                          borderRadius: "8px",
-                          border: `1px solid ${isCurrent ? "#1B1F8C" : "#E7E7E2"}`,
-                          backgroundColor: isCurrent ? "#EEF0FB" : "#FFFFFF",
-                          cursor: "pointer",
-                          textAlign: "left",
-                          transition: "all 0.15s ease",
-                        }}
-                        onMouseEnter={(e) => { if (!isCurrent) e.currentTarget.style.backgroundColor = "#F7F7F2"; }}
-                        onMouseLeave={(e) => { if (!isCurrent) e.currentTarget.style.backgroundColor = "#FFFFFF"; }}
-                      >
-                        <div style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0 }}>
-                          <div style={{
-                            width: "24px", height: "24px", borderRadius: "6px",
-                            backgroundColor: meta.badgeBg, color: meta.badgeColor,
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            fontSize: "11px", fontWeight: 700, flexShrink: 0
-                          }}>
-                            {u.name.charAt(0)}
-                          </div>
-                          <div style={{ minWidth: 0 }}>
-                            <div style={{ fontSize: "12px", fontWeight: isCurrent ? 700 : 600, color: "#14151A", display: "flex", alignItems: "center", gap: "6px" }}>
-                              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.name}</span>
-                            </div>
-                            <div style={{ fontSize: "10.5px", color: meta.badgeColor, fontWeight: 600 }}>
-                              {uRole.name} • {meta.scope}
-                            </div>
-                          </div>
-                        </div>
-
-                        {isCurrent ? (
-                          <div style={{ width: "18px", height: "18px", borderRadius: "50%", backgroundColor: "#1B1F8C", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                            <Check size={11} color="#FFFFFF" strokeWidth={3} />
-                          </div>
-                        ) : (
-                          <span style={{ fontSize: "11px", color: "#6B6B75", fontWeight: 500 }}>Switch</span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
 
               {/* Footer Links */}
               <div style={{ padding: "8px 10px", display: "flex", flexDirection: "column", gap: "2px" }}>

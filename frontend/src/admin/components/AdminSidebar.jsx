@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAdmin } from "../context/AdminContext";
 import { useAdminAuth } from "../../context/AdminAuthContext";
+import { useResolvedImageUrl } from "../../utils/imageStorage";
 import {
   LayoutDashboard,
   Package,
@@ -85,6 +86,8 @@ export default function AdminSidebar() {
   const { logout } = useAdminAuth();
   const router = useRouter();
   const [productsOpen, setProductsOpen] = useState(true);
+
+  const adminLogo = useResolvedImageUrl(settings?.website?.logo, "/asset/logo.png");
 
   const handleLogout = () => {
     logout();
@@ -206,11 +209,33 @@ export default function AdminSidebar() {
           height: "64px",
         }}
       >
-        {!sidebarCollapsed && (
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <span style={{ fontSize: "18px", fontWeight: 800, letterSpacing: "-0.02em", color: "#1B1F8C" }}>
+        {!sidebarCollapsed ? (
+          <div style={{ display: "flex", alignItems: "center", minWidth: 0, overflow: "hidden" }}>
+            <img
+              src={adminLogo}
+              alt={settings?.store?.name || "Store Logo"}
+              style={{ maxHeight: "38px", maxWidth: "150px", width: "auto", height: "auto", objectFit: "contain", display: "block" }}
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+                const fallbackSpan = e.currentTarget.parentElement?.querySelector(".admin-logo-fallback-text");
+                if (fallbackSpan) fallbackSpan.style.display = "inline";
+              }}
+            />
+            <span
+              className="admin-logo-fallback-text"
+              style={{ display: "none", fontSize: "18px", fontWeight: 800, letterSpacing: "-0.02em", color: "#1B1F8C", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+            >
               {settings?.store?.name || "Mellosoft"}
             </span>
+          </div>
+        ) : (
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
+            <img
+              src={adminLogo}
+              alt={settings?.store?.name || "Store Logo"}
+              style={{ maxHeight: "32px", maxWidth: "32px", objectFit: "contain" }}
+              onError={(e) => { e.currentTarget.style.display = "none"; }}
+            />
           </div>
         )}
         <button

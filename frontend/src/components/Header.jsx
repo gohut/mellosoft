@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useStore } from "../context/StoreContext";
 import { useCustomerAuth } from "../context/CustomerAuthContext";
 import { MOCK_PRODUCTS } from "../data/products";
-import { getResolvedImageUrlSync } from "../utils/imageStorage";
+import { getResolvedImageUrlSync, useResolvedImageUrl } from "../utils/imageStorage";
 import { getListingBackRoute } from "../utils/navigationHelpers";
 import {
   getSubcategoryUrl,
@@ -57,6 +57,8 @@ export default function Header() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const resolvedLogo = useResolvedImageUrl(settings?.website?.logo, "/asset/logo.png");
 
   const cartCount = cart.reduce((acc, item) => acc + (item.qty || item.quantity || 1), 0);
   const wishlistCount = wishlist.length;
@@ -257,7 +259,7 @@ export default function Header() {
         <div style={headerContainerStyle}>
           <button onClick={() => handleNavClick("/")} style={logoContainerStyle} aria-label={`${settings?.store?.name || "Mellosoft"} Home`}>
             <img
-              src={getResolvedImageUrlSync(settings?.website?.logo, "/asset/logo.png")}
+              src={resolvedLogo}
               alt={settings?.store?.name || "Mellosoft Mattress"}
               style={logoImageStyle}
               onError={(e) => { e.currentTarget.src = "/asset/logo.png"; }}
@@ -496,7 +498,7 @@ export default function Header() {
             >
               <button onClick={() => setMobileMenuOpen((open) => !open)} style={mobileLogoStyle} aria-label="Open menu">
                 <img
-                  src={getResolvedImageUrlSync(settings?.website?.logo, "/asset/logo.png")}
+                  src={resolvedLogo}
                   alt={settings?.store?.name || "Mellosoft"}
                   style={mobileLogoImageStyle}
                   onError={(e) => { e.currentTarget.src = "/asset/logo.png"; }}
@@ -1234,9 +1236,12 @@ const logoContainerStyle = {
 };
 
 const logoImageStyle = {
-  height: "36px",
+  maxHeight: "42px",
+  maxWidth: "180px",
+  height: "auto",
   width: "auto",
-  objectFit: "contain"
+  objectFit: "contain",
+  display: "block"
 };
 
 const navLinksStyle = {
@@ -1445,9 +1450,12 @@ const mobileLogoStyle = {
 };
 
 const mobileLogoImageStyle = {
-  height: "32px",
+  maxHeight: "36px",
+  maxWidth: "140px",
+  height: "auto",
   width: "auto",
-  objectFit: "contain"
+  objectFit: "contain",
+  display: "block"
 };
 
 const mobileLeftSlotStyle = {

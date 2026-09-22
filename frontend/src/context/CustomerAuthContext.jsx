@@ -33,7 +33,7 @@ export function CustomerAuthProvider({ children }) {
     }
   }, []);
 
-  // Retrieve real registered customers list from storage (merged with mock customers)
+  // Retrieve real registered customers list from storage (excluding demo accounts)
   const getAllCustomers = useCallback(() => {
     let list = [];
     if (typeof window !== "undefined") {
@@ -50,34 +50,30 @@ export function CustomerAuthProvider({ children }) {
       }
     }
 
-    // Merge with MOCK_CUSTOMERS ensuring canonical IDs and savedAddresses
-    const mergedMap = new Map();
-    (MOCK_CUSTOMERS || []).forEach((mc) => {
-      const canonicalId = normalizeCustomerId(mc.customerId || mc.id);
-      mergedMap.set(mc.email.toLowerCase(), {
-        ...mc,
-        id: canonicalId,
-        customerId: canonicalId,
-      });
-    });
+    const demoIds = new Set([
+      "C001", "C002", "C003", "C004", "C005", "C006", "C007", "C008",
+      "CUS-0001", "CUS-0002", "CUS-0003", "CUS-0004", "CUS-0005", "CUS-0006", "CUS-0007", "CUS-0008"
+    ]);
+    const demoEmails = new Set([
+      "rahul@example.com", "priya@example.com", "ankit@example.com", "sneha@example.com",
+      "vikram@example.com", "meera@example.com", "arjun@example.com", "kavitha@example.com"
+    ]);
 
+    const cleanMap = new Map();
     list.forEach((c) => {
       if (!c || !c.email) return;
       const key = c.email.toLowerCase();
       const canonicalId = normalizeCustomerId(c.customerId || c.id);
-      const existing = mergedMap.get(key);
-      mergedMap.set(key, {
-        ...existing,
+      if (demoIds.has(canonicalId) || demoEmails.has(key)) return;
+      cleanMap.set(key, {
         ...c,
         id: canonicalId,
         customerId: canonicalId,
-        savedAddresses: (c.savedAddresses && c.savedAddresses.length > 0)
-          ? c.savedAddresses
-          : (existing?.savedAddresses || []),
+        savedAddresses: c.savedAddresses || []
       });
     });
 
-    return Array.from(mergedMap.values());
+    return Array.from(cleanMap.values());
   }, []);
 
   // Customer Login logic
@@ -150,7 +146,15 @@ export function CustomerAuthProvider({ children }) {
       return { success: false, error: "An account with this email already exists." };
     }
 
-    const nextIndex = customers.length + 1;
+    let maxIdNum = 0;
+    customers.forEach((c) => {
+      const match = (c.customerId || c.id || "").match(/CUS-(\d+)/i);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (!isNaN(num) && num > maxIdNum) maxIdNum = num;
+      }
+    });
+    const nextIndex = maxIdNum > 0 ? maxIdNum + 1 : customers.length + 1;
     const formattedCustId = `CUS-${String(nextIndex).padStart(4, "0")}`;
     const newCustomer = {
       id: formattedCustId,
@@ -228,7 +232,15 @@ export function CustomerAuthProvider({ children }) {
       } catch {}
     } else {
       // First-time Google user: create new canonical customer record
-      const nextIndex = customers.length + 1;
+      let maxIdNum = 0;
+      customers.forEach((c) => {
+        const match = (c.customerId || c.id || "").match(/CUS-(\d+)/i);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          if (!isNaN(num) && num > maxIdNum) maxIdNum = num;
+        }
+      });
+      const nextIndex = maxIdNum > 0 ? maxIdNum + 1 : customers.length + 1;
       const formattedCustId = `CUS-${String(nextIndex).padStart(4, "0")}`;
       customerSession = {
         id: formattedCustId,

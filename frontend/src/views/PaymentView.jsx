@@ -60,13 +60,13 @@ export default function PaymentView() {
     }
     if (userAddresses && userAddresses[userId]) return userAddresses[userId];
     return {
-      fullName: currentCustomer?.name || "Rahul Sharma",
-      phone: currentCustomer?.phone || "+91 98765 43210",
-      addressLine1: "123 Indiranagar 100ft Road",
-      addressLine2: "Near Metro Station",
-      city: "Bengaluru",
-      state: "Karnataka",
-      pincode: "560038"
+      fullName: currentCustomer?.name || "",
+      phone: currentCustomer?.phone || "",
+      addressLine1: "",
+      addressLine2: "",
+      city: "",
+      state: "",
+      pincode: ""
     };
   }, [selectedAddress, userAddresses, userId, currentCustomer]);
 

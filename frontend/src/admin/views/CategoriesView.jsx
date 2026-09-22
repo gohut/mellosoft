@@ -424,7 +424,12 @@ export default function CategoriesView() {
 
   const q = searchQuery.trim().toLowerCase();
 
-  const filteredCategories = categories.filter((mainCat) => {
+  const validMainCategories = categories.filter((c) => {
+    if (!c || c.parentId || c.parentSlug) return false;
+    return true;
+  });
+
+  const filteredCategories = validMainCategories.filter((mainCat) => {
     if (!q) return true;
     const mainMatches = mainCat.name.toLowerCase().includes(q) || (mainCat.description && mainCat.description.toLowerCase().includes(q));
     const subMatches = (mainCat.subcategories || []).some((sub) => sub.name.toLowerCase().includes(q));
@@ -471,7 +476,7 @@ export default function CategoriesView() {
           <div>
             <h3 style={{ fontSize: "20px", fontWeight: 700, color: "#14151A", margin: 0 }}>Category & Subcategory Management</h3>
             <p style={{ fontSize: "13px", color: "#6B6B75", marginTop: "4px" }}>
-              {categories.length} Main Categories • {categories.reduce((acc, c) => acc + (c.subcategories?.length || 0), 0)} Subcategories
+              {validMainCategories.length} Main Categories • {validMainCategories.reduce((acc, c) => acc + (c.subcategories?.length || 0), 0)} Subcategories
             </p>
           </div>
 
@@ -479,7 +484,7 @@ export default function CategoriesView() {
             <div style={{ display: "flex", gap: "12px" }}>
               <button
                 onClick={() => {
-                  setSubModalParent(categories[0] || null);
+                  setSubModalParent(validMainCategories[0] || null);
                   setEditingSubCat(null);
                   setIsSubModalOpen(true);
                 }}

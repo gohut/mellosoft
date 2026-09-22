@@ -1,3 +1,5 @@
+import { useState, useEffect } from "react";
+
 /**
  * Mellosoft IndexedDB Persistent Image Storage Utility
  * 
@@ -96,6 +98,9 @@ export async function saveImageBlob(id, fileOrDataUrl) {
         try {
           const objectUrl = URL.createObjectURL(blob);
           objectUrlCache.set(id, objectUrl);
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("mellosoft_image_resolved", { detail: { id, url: objectUrl } }));
+          }
         } catch (e) {
           // Ignore
         }
@@ -164,6 +169,9 @@ export function getResolvedImageUrlSync(imageRef, fallback = "/asset/img1.jpg") 
           try {
             const url = URL.createObjectURL(blob);
             objectUrlCache.set(trimmed, url);
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(new CustomEvent("mellosoft_image_resolved", { detail: { id: trimmed, url } }));
+            }
             return url;
           } catch (e) {
             return fallback;
@@ -175,6 +183,75 @@ export function getResolvedImageUrlSync(imageRef, fallback = "/asset/img1.jpg") 
   }
 
   return fallback;
+}
+
+/**
+ * Reactive React hook to resolve an image reference (especially "idb:...")
+ * Automatically re-renders the component once the Blob is loaded from IndexedDB.
+ */
+export function useResolvedImageUrl(imageRef, fallback = "/asset/logo.png") {
+  const [resolvedUrl, setResolvedUrl] = useState(() => {
+    return getResolvedImageUrlSync(imageRef, fallback);
+  });
+
+  useEffect(() => {
+    let isCancelled = false;
+    const trimmed = typeof imageRef === "string" ? imageRef.trim() : "";
+
+    if (!trimmed) {
+      setResolvedUrl(fallback);
+      return;
+    }
+
+    if (!trimmed.startsWith("idb:")) {
+      setResolvedUrl(trimmed);
+      return;
+    }
+
+    // If already in memory cache, update state immediately
+    if (objectUrlCache.has(trimmed)) {
+      setResolvedUrl(objectUrlCache.get(trimmed));
+      return;
+    }
+
+    // Fetch from IndexedDB
+    getImageBlob(trimmed).then((blob) => {
+      if (isCancelled) return;
+      if (blob) {
+        try {
+          const url = URL.createObjectURL(blob);
+          objectUrlCache.set(trimmed, url);
+          setResolvedUrl(url);
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("mellosoft_image_resolved", { detail: { id: trimmed, url } }));
+          }
+        } catch (e) {
+          setResolvedUrl(fallback);
+        }
+      } else {
+        setResolvedUrl(fallback);
+      }
+    });
+
+    const handleResolved = (e) => {
+      if (!isCancelled && e.detail?.id === trimmed && e.detail?.url) {
+        setResolvedUrl(e.detail.url);
+      }
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("mellosoft_image_resolved", handleResolved);
+    }
+
+    return () => {
+      isCancelled = true;
+      if (typeof window !== "undefined") {
+        window.removeEventListener("mellosoft_image_resolved", handleResolved);
+      }
+    };
+  }, [imageRef, fallback]);
+
+  return resolvedUrl;
 }
 
 /**

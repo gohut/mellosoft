@@ -61,8 +61,8 @@ export default function CheckoutView() {
   // State for manual address form (new address or override)
   const [editingAddress, setEditingAddress] = useState(false);
   const [formAddress, setFormAddress] = useState({
-    fullName: currentCustomer?.name || "Rahul Sharma",
-    phone: currentCustomer?.phone || "+91 98765 43210",
+    fullName: currentCustomer?.name || "",
+    phone: currentCustomer?.phone || "",
     addressLine1: "",
     addressLine2: "",
     city: "",
@@ -825,7 +825,7 @@ export default function CheckoutView() {
                       type="text"
                       value={formAddress.fullName}
                       onChange={(e) => setFormAddress({ ...formAddress, fullName: e.target.value })}
-                      placeholder="e.g. Rahul Sharma"
+                      placeholder="e.g. Full Name"
                       style={inputStyle}
                       required
                     />

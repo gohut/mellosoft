@@ -416,25 +416,29 @@ export function StoreProvider({ children }) {
       try {
         const savedOrders = localStorage.getItem("mellosoft_orders");
         if (savedOrders) {
-          let parsed = JSON.parse(savedOrders);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            if (typeof window !== "undefined" && !localStorage.getItem("mellosoft_refund_pending_init")) {
-              parsed = parsed.map((o) =>
-                (o.id === "MS-92840" && o.orderStatus === "Cancelled" && o.paymentStatus === "Refunded")
-                  ? { ...o, paymentStatus: "Refund Pending" }
-                  : o
-              );
-              try {
-                localStorage.setItem("mellosoft_orders", JSON.stringify(parsed));
-                localStorage.setItem("mellosoft_refund_pending_init", "true");
-              } catch {}
-            }
-            setOrders((prev) => (JSON.stringify(prev) === JSON.stringify(parsed) ? prev : parsed));
+          const parsed = JSON.parse(savedOrders);
+          if (Array.isArray(parsed)) {
+            const demoIds = new Set([
+              "C001", "C002", "C003", "C004", "C005", "C006", "C007", "C008",
+              "CUS-0001", "CUS-0002", "CUS-0003", "CUS-0004", "CUS-0005", "CUS-0006", "CUS-0007", "CUS-0008"
+            ]);
+            const demoEmails = new Set([
+              "rahul@example.com", "priya@example.com", "ankit@example.com", "sneha@example.com",
+              "vikram@example.com", "meera@example.com", "arjun@example.com", "kavitha@example.com"
+            ]);
+            const cleanOrders = parsed.filter((o) => {
+              if (!o) return false;
+              const custId = o.customerId || o.userId;
+              const email = (o.email || "").toLowerCase();
+              const orderId = o.id || "";
+              return !demoIds.has(custId) && !demoEmails.has(email) && !orderId.startsWith("MS-92");
+            });
+            setOrders((prev) => (JSON.stringify(prev) === JSON.stringify(cleanOrders) ? prev : cleanOrders));
           } else {
-            setOrders((prev) => (JSON.stringify(prev) === JSON.stringify(MOCK_ORDERS) ? prev : MOCK_ORDERS));
+            setOrders([]);
           }
         } else {
-          setOrders((prev) => (JSON.stringify(prev) === JSON.stringify(MOCK_ORDERS) ? prev : MOCK_ORDERS));
+          setOrders([]);
         }
       } catch (e) {
         console.error("Failed to load orders from localStorage:", e);
