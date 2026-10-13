@@ -8,7 +8,6 @@ import React, {
   useCallback,
 } from "react";
 import { DEFAULT_USERS } from "../data/usersData";
-import { DEFAULT_ROLES } from "../data/rolesData";
 import { verifyPassword } from "../utils/security";
 
 const SESSION_KEY = "mellosoft_admin_session";
@@ -21,25 +20,59 @@ export function AdminAuthProvider({ children }) {
   const [currentUserId, setCurrentUserId] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Hydrate session from localStorage on mount
+  // Hydrate session from server / localStorage on mount
   useEffect(() => {
-    try {
-      const sessionToken = localStorage.getItem(SESSION_KEY);
-      const storedUserId = localStorage.getItem(CURRENT_USER_ID_KEY);
+    let isMounted = true;
+    async function checkAdminSession() {
+      try {
+        const res = await fetch("/api/auth/session");
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.success && data.admin) {
+            if (isMounted) {
+              setIsAuthenticated(true);
+              setCurrentUserId(data.admin.id);
+              try {
+                localStorage.setItem(SESSION_KEY, `session_${data.admin.id}`);
+                localStorage.setItem(CURRENT_USER_ID_KEY, data.admin.id);
+              } catch {}
+              setLoading(false);
+              return;
+            }
+          }
+        }
+      } catch (err) {}
 
-      if (sessionToken && storedUserId) {
-        setIsAuthenticated(true);
-        setCurrentUserId(storedUserId);
-      } else {
-        setIsAuthenticated(false);
-        setCurrentUserId(null);
+      // Fallback
+      try {
+        const sessionToken = localStorage.getItem(SESSION_KEY);
+        const storedUserId = localStorage.getItem(CURRENT_USER_ID_KEY);
+
+        if (sessionToken && storedUserId) {
+          if (isMounted) {
+            setIsAuthenticated(true);
+            setCurrentUserId(storedUserId);
+          }
+        } else {
+          if (isMounted) {
+            setIsAuthenticated(false);
+            setCurrentUserId(null);
+          }
+        }
+      } catch {
+        if (isMounted) {
+          setIsAuthenticated(false);
+          setCurrentUserId(null);
+        }
+      } finally {
+        if (isMounted) setLoading(false);
       }
-    } catch {
-      setIsAuthenticated(false);
-      setCurrentUserId(null);
-    } finally {
-      setLoading(false);
     }
+
+    checkAdminSession();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   /**
@@ -61,7 +94,7 @@ export function AdminAuthProvider({ children }) {
 
       if (res.ok && data.success) {
         try {
-          localStorage.setItem(SESSION_KEY, data.token);
+          localStorage.setItem(SESSION_KEY, data.token || `ms_session_${Date.now()}`);
           localStorage.setItem(CURRENT_USER_ID_KEY, data.user.id);
         } catch (e) {
           console.error("Failed to save session to localStorage:", e);
@@ -70,7 +103,7 @@ export function AdminAuthProvider({ children }) {
         setCurrentUserId(data.user.id);
         setIsAuthenticated(true);
         return { success: true, user: data.user };
-      } else if (data && data.error) {
+      } else if (data && data.error && !data.error.includes("offline") && !data.error.includes("Prisma")) {
         return { success: false, error: data.error };
       }
     } catch (e) {
@@ -97,8 +130,8 @@ export function AdminAuthProvider({ children }) {
       return { success: false, error: "Invalid email or password." };
     }
 
-    // Verify password hash or plain text password
-    const isValid = verifyPassword(password, user.passwordHash) || password === "Admin@123" || password === "Priya@123" || password === "Ankit@123" || password === "Sneha@123";
+    // Verify password hash safely
+    const isValid = verifyPassword(password, user.passwordHash);
     if (!isValid) {
       return { success: false, error: "Invalid email or password." };
     }
@@ -130,7 +163,11 @@ export function AdminAuthProvider({ children }) {
    * logout()
    * Clears auth session and storage.
    */
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {}
+
     try {
       localStorage.removeItem(SESSION_KEY);
       localStorage.removeItem(CURRENT_USER_ID_KEY);
@@ -164,4 +201,3 @@ export function useAdminAuth() {
   }
   return ctx;
 }
-

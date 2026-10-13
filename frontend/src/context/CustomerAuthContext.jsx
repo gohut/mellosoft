@@ -1,7 +1,6 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { MOCK_CUSTOMERS } from "../admin/data/adminMockData";
 import { normalizeCustomerId } from "../utils/customerHelpers";
 
 const CUSTOMER_SESSION_KEY = "mellosoft_customer_session";
@@ -15,25 +14,61 @@ export function CustomerAuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [intendedView, setIntendedView] = useState("home");
 
-  // Hydrate session safely after mount to prevent Next.js hydration mismatches
+  // Hydrate session safely: First check server session cookie, fall back to local storage
   useEffect(() => {
-    try {
-      const savedSession = localStorage.getItem(CUSTOMER_SESSION_KEY);
-      if (savedSession) {
-        const parsed = JSON.parse(savedSession);
-        if (parsed && parsed.id) {
-          setCurrentCustomer(parsed);
-          setIsAuthenticated(true);
+    let isMounted = true;
+    async function checkSession() {
+      try {
+        const res = await fetch("/api/auth/session", { method: "GET" });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.success && data.customer) {
+            if (isMounted) {
+              const cust = {
+                ...data.customer,
+                id: normalizeCustomerId(data.customer.id),
+                customerId: normalizeCustomerId(data.customer.id)
+              };
+              setCurrentCustomer(cust);
+              setIsAuthenticated(true);
+              try {
+                localStorage.setItem(CUSTOMER_SESSION_KEY, JSON.stringify(cust));
+              } catch {}
+              setLoading(false);
+              return;
+            }
+          }
         }
+      } catch (err) {
+        // Server unreachable or network error, proceed to fallback
       }
-    } catch (e) {
-      console.error("Failed to load customer session from localStorage:", e);
-    } finally {
-      setLoading(false);
+
+      // Fallback to localStorage session
+      try {
+        const savedSession = localStorage.getItem(CUSTOMER_SESSION_KEY);
+        if (savedSession) {
+          const parsed = JSON.parse(savedSession);
+          if (parsed && parsed.id) {
+            if (isMounted) {
+              setCurrentCustomer(parsed);
+              setIsAuthenticated(true);
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load customer session from localStorage:", e);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
     }
+
+    checkSession();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  // Retrieve real registered customers list from storage (excluding demo accounts)
+  // Retrieve registered customers list from storage (excluding demo accounts)
   const getAllCustomers = useCallback(() => {
     let list = [];
     if (typeof window !== "undefined") {
@@ -85,12 +120,42 @@ export function CustomerAuthProvider({ children }) {
       return { success: false, error: "Please enter both email and password." };
     }
 
-    // Email format validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(trimmedEmail)) {
       return { success: false, error: "Please enter a valid email address." };
     }
 
+    // 1. Try server API authentication
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: trimmedEmail, password: trimmedPassword })
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.user) {
+        const canonicalId = normalizeCustomerId(data.user.id);
+        const customerSession = {
+          ...data.user,
+          id: canonicalId,
+          customerId: canonicalId,
+          lastLogin: new Date().toISOString()
+        };
+        try {
+          localStorage.setItem(CUSTOMER_SESSION_KEY, JSON.stringify(customerSession));
+        } catch (e) {}
+
+        setCurrentCustomer(customerSession);
+        setIsAuthenticated(true);
+        return { success: true, customer: customerSession };
+      } else if (data && data.error && !data.error.includes("offline") && !data.error.includes("Prisma")) {
+        return { success: false, error: data.error };
+      }
+    } catch (err) {
+      console.warn("Server auth login unreachable, checking local fallback:", err);
+    }
+
+    // 2. Client fallback
     const customers = getAllCustomers();
     const customer = customers.find(
       (c) => (c.email || "").toLowerCase() === trimmedEmail
@@ -101,7 +166,6 @@ export function CustomerAuthProvider({ children }) {
     }
 
     const canonicalId = normalizeCustomerId(customer.customerId || customer.id);
-    // Store customer session
     const customerSession = {
       ...customer,
       id: canonicalId,
@@ -111,9 +175,7 @@ export function CustomerAuthProvider({ children }) {
 
     try {
       localStorage.setItem(CUSTOMER_SESSION_KEY, JSON.stringify(customerSession));
-    } catch (e) {
-      console.error("Failed to save customer session:", e);
-    }
+    } catch (e) {}
 
     setCurrentCustomer(customerSession);
     setIsAuthenticated(true);
@@ -137,6 +199,42 @@ export function CustomerAuthProvider({ children }) {
       return { success: false, error: "Please enter a valid email address." };
     }
 
+    // 1. Try server API registration
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: trimmedName,
+          email: trimmedEmail,
+          password: trimmedPassword,
+          phone: trimmedPhone
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.customer) {
+        const canonicalId = normalizeCustomerId(data.customer.id);
+        const customerSession = {
+          ...data.customer,
+          id: canonicalId,
+          customerId: canonicalId,
+          lastLogin: new Date().toISOString()
+        };
+        try {
+          localStorage.setItem(CUSTOMER_SESSION_KEY, JSON.stringify(customerSession));
+        } catch (e) {}
+
+        setCurrentCustomer(customerSession);
+        setIsAuthenticated(true);
+        return { success: true, customer: customerSession };
+      } else if (data && data.error && !data.error.includes("Prisma")) {
+        return { success: false, error: data.error };
+      }
+    } catch (err) {
+      console.warn("Server auth register unreachable, checking local fallback:", err);
+    }
+
+    // 2. Client fallback
     const customers = getAllCustomers();
     const exists = customers.some(
       (c) => (c.email || "").toLowerCase() === trimmedEmail
@@ -181,9 +279,7 @@ export function CustomerAuthProvider({ children }) {
           window.dispatchEvent(new CustomEvent("mellosoft_customers_updated"));
         }, 0);
       }
-    } catch (e) {
-      console.error("Failed to save new customer to localStorage:", e);
-    }
+    } catch (e) {}
 
     setCurrentCustomer(newCustomer);
     setIsAuthenticated(true);
@@ -191,7 +287,7 @@ export function CustomerAuthProvider({ children }) {
     return { success: true, customer: newCustomer };
   }, [getAllCustomers]);
 
-  // Customer Google Login logic (handles first-time registration and returning logins)
+  // Customer Google Login logic
   const loginWithGoogle = useCallback(async (googleProfile) => {
     const email = (googleProfile?.email || "").trim().toLowerCase();
     const name = (googleProfile?.name || "").trim() || email.split("@")[0] || "Google User";
@@ -208,7 +304,6 @@ export function CustomerAuthProvider({ children }) {
 
     let customerSession;
     if (existing) {
-      // Returning Google user: reuse existing canonical customer record
       const canonicalId = normalizeCustomerId(existing.customerId || existing.id);
       customerSession = {
         ...existing,
@@ -218,7 +313,6 @@ export function CustomerAuthProvider({ children }) {
         lastLogin: new Date().toISOString()
       };
 
-      // Update in storage if needed
       try {
         const saved = localStorage.getItem(CUSTOMERS_KEY);
         let list = saved ? JSON.parse(saved) : [];
@@ -231,7 +325,6 @@ export function CustomerAuthProvider({ children }) {
         }
       } catch {}
     } else {
-      // First-time Google user: create new canonical customer record
       let maxIdNum = 0;
       customers.forEach((c) => {
         const match = (c.customerId || c.id || "").match(/CUS-(\d+)/i);
@@ -261,9 +354,7 @@ export function CustomerAuthProvider({ children }) {
         const parsed = saved ? JSON.parse(saved) : [];
         parsed.push(customerSession);
         localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(parsed));
-      } catch (e) {
-        console.error("Failed to save Google customer:", e);
-      }
+      } catch (e) {}
     }
 
     try {
@@ -274,9 +365,7 @@ export function CustomerAuthProvider({ children }) {
           window.dispatchEvent(new CustomEvent("mellosoft_customers_updated"));
         }, 0);
       }
-    } catch (e) {
-      console.error("Failed to save Google customer session:", e);
-    }
+    } catch (e) {}
 
     setCurrentCustomer(customerSession);
     setIsAuthenticated(true);
@@ -284,10 +373,35 @@ export function CustomerAuthProvider({ children }) {
     return { success: true, customer: customerSession };
   }, [getAllCustomers]);
 
-  // Update profile logic — persists to customer record and fires admin sync
+  // Update profile logic
   const updateProfile = useCallback(async (updatedFields) => {
     if (!currentCustomer) return { success: false, error: "Not logged in" };
 
+    // 1. Try server API update
+    try {
+      const res = await fetch("/api/customer/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedFields)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.success && data.customer) {
+          const updated = {
+            ...currentCustomer,
+            ...data.customer,
+            updatedAt: new Date().toISOString()
+          };
+          setCurrentCustomer(updated);
+          try {
+            localStorage.setItem(CUSTOMER_SESSION_KEY, JSON.stringify(updated));
+          } catch {}
+          return { success: true, customer: updated };
+        }
+      }
+    } catch (err) {}
+
+    // 2. Client fallback
     const updatedCustomer = {
       ...currentCustomer,
       ...updatedFields,
@@ -323,12 +437,29 @@ export function CustomerAuthProvider({ children }) {
     setCurrentCustomer(updatedCustomer);
     return { success: true, customer: updatedCustomer };
   }, [currentCustomer]);
-  // Address CRUD
 
-  // Add a new address to savedAddresses[]
+  // Address CRUD
   const addAddress = useCallback(async (address) => {
     if (!currentCustomer) return { success: false, error: "Not logged in" };
 
+    // 1. Try server API address creation
+    try {
+      const res = await fetch("/api/customer/addresses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(address)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.success && data.address) {
+          const existingAddresses = currentCustomer.savedAddresses || [];
+          const updatedAddresses = [...existingAddresses, data.address];
+          return updateProfile({ savedAddresses: updatedAddresses });
+        }
+      }
+    } catch (err) {}
+
+    // 2. Fallback
     const existingAddresses = currentCustomer.savedAddresses || [];
     const isFirst = existingAddresses.length === 0;
     const custId = currentCustomer.customerId || currentCustomer.id;
@@ -339,7 +470,6 @@ export function CustomerAuthProvider({ children }) {
       isDefault: isFirst ? true : (address.isDefault || false)
     };
 
-    // If this is being set as default, unset others
     let updatedAddresses;
     if (newAddress.isDefault) {
       updatedAddresses = [
@@ -353,33 +483,43 @@ export function CustomerAuthProvider({ children }) {
     return updateProfile({ savedAddresses: updatedAddresses });
   }, [currentCustomer, updateProfile]);
 
-  // Edit an existing address by id
   const editAddress = useCallback(async (id, updatedFields) => {
     if (!currentCustomer) return { success: false, error: "Not logged in" };
+
+    try {
+      await fetch(`/api/customer/addresses/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedFields)
+      });
+    } catch (err) {}
 
     const existingAddresses = currentCustomer.savedAddresses || [];
     const setAsDefault = updatedFields.isDefault === true;
 
     const updatedAddresses = existingAddresses.map((a) => {
       if (a.id === id) {
-        return { ...a, ...updatedFields, id }; // preserve original id
+        return { ...a, ...updatedFields, id };
       }
-      // If setting new default, clear others
       return setAsDefault ? { ...a, isDefault: false } : a;
     });
 
     return updateProfile({ savedAddresses: updatedAddresses });
   }, [currentCustomer, updateProfile]);
 
-  // Delete an address by id
   const deleteAddress = useCallback(async (id) => {
     if (!currentCustomer) return { success: false, error: "Not logged in" };
+
+    try {
+      await fetch(`/api/customer/addresses/${id}`, {
+        method: "DELETE"
+      });
+    } catch (err) {}
 
     const existingAddresses = currentCustomer.savedAddresses || [];
     const wasDefault = existingAddresses.find((a) => a.id === id)?.isDefault;
     let filtered = existingAddresses.filter((a) => a.id !== id);
 
-    // If deleted address was default, promote first remaining
     if (wasDefault && filtered.length > 0) {
       filtered = [{ ...filtered[0], isDefault: true }, ...filtered.slice(1)];
     }
@@ -387,7 +527,6 @@ export function CustomerAuthProvider({ children }) {
     return updateProfile({ savedAddresses: filtered });
   }, [currentCustomer, updateProfile]);
 
-  // Set an address as the default
   const setDefaultAddress = useCallback(async (id) => {
     if (!currentCustomer) return { success: false, error: "Not logged in" };
 
@@ -401,7 +540,11 @@ export function CustomerAuthProvider({ children }) {
   }, [currentCustomer, updateProfile]);
 
   // Logout logic
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch (e) {}
+
     try {
       localStorage.removeItem(CUSTOMER_SESSION_KEY);
     } catch (e) {
@@ -442,4 +585,3 @@ export function useCustomerAuth() {
   }
   return ctx;
 }
-

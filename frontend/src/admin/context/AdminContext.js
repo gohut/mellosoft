@@ -1551,7 +1551,6 @@ export function AdminProvider({ children }) {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
-            "x-user-id": currentUserId,
           },
           body: JSON.stringify(updatedFields),
         }).catch((err) => console.warn("Background API order sync warning:", err));
@@ -1561,7 +1560,7 @@ export function AdminProvider({ children }) {
 
       return { success: true, order: updatedOrderObj };
     },
-    [currentUserId]
+    []
   );
 
   // Check if current user has permission
@@ -1666,6 +1665,16 @@ export function AdminProvider({ children }) {
       persistAndDispatchProducts(next);
       return next;
     });
+
+    try {
+      fetch("/api/admin/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(normalized)
+      }).catch(() => {});
+    } catch {}
+
+    return { success: true, product: normalized };
   }, []);
 
   const updateProduct = useCallback((updatedProduct) => {
@@ -1697,6 +1706,17 @@ export function AdminProvider({ children }) {
       persistAndDispatchProducts(next);
       return next;
     });
+
+    try {
+      const pId = normalized.id || normalized.Product_Id || normalized.slug;
+      if (pId) {
+        fetch(`/api/admin/products/${encodeURIComponent(pId)}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(normalized)
+        }).catch(() => {});
+      }
+    } catch {}
   }, []);
 
   const deleteProduct = useCallback((targetProductOrId) => {
@@ -1731,6 +1751,15 @@ export function AdminProvider({ children }) {
       return filtered.map((item, idx) => ({ ...item, displayOrder: idx + 1 }));
     });
 
+    try {
+      const pId = targetId || targetProdId || targetSlug;
+      if (pId) {
+        fetch(`/api/admin/products/${encodeURIComponent(pId)}`, {
+          method: "DELETE"
+        }).catch(() => {});
+      }
+    } catch {}
+
     if (typeof window !== "undefined") {
       setTimeout(() => {
         window.dispatchEvent(new Event("storage"));
@@ -1761,7 +1790,6 @@ export function AdminProvider({ children }) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": currentUserId,
         },
         body: JSON.stringify({
           ...userData,
@@ -1773,7 +1801,7 @@ export function AdminProvider({ children }) {
     }
 
     return { success: true, user: newUser };
-  }, [currentUserId]);
+  }, []);
 
   const updateUser = useCallback((userId, updatedData) => {
     const targetUser = users.find((u) => u.id === userId);
@@ -1819,7 +1847,6 @@ export function AdminProvider({ children }) {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": currentUserId,
         },
         body: JSON.stringify(updatedData),
       }).catch((err) => console.warn("Background API user update warning:", err));
@@ -1828,7 +1855,7 @@ export function AdminProvider({ children }) {
     }
 
     return { success: true, user: updatedUserObj };
-  }, [users, currentUserId]);
+  }, [users]);
 
   const toggleUserStatus = useCallback((userId) => {
     const targetUser = users.find((u) => u.id === userId);
@@ -1852,7 +1879,6 @@ export function AdminProvider({ children }) {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": currentUserId,
         },
         body: JSON.stringify({ status: nextStatus }),
       }).catch((err) => console.warn("Background API user status toggle warning:", err));
@@ -1861,16 +1887,12 @@ export function AdminProvider({ children }) {
     }
 
     return { success: true, status: nextStatus };
-  }, [users, currentUserId]);
+  }, [users]);
 
   const deleteUser = useCallback(
     (userId) => {
       const targetUser = users.find((u) => u.id === userId);
       if (!targetUser) return { success: false, error: "User not found." };
-
-      if (userId === currentUserId) {
-        return { success: false, error: "You cannot delete your own account." };
-      }
 
       if (targetUser.roleId === "role-super-admin") {
         const activeSuperAdmins = users.filter((u) => u.roleId === "role-super-admin" && u.status === "Active");
@@ -1885,9 +1907,6 @@ export function AdminProvider({ children }) {
       try {
         fetch(`/api/admin/users/${userId}`, {
           method: "DELETE",
-          headers: {
-            "x-user-id": currentUserId,
-          },
         }).catch((err) => console.warn("Background API user delete warning:", err));
       } catch {
         // Ignore offline
@@ -1895,7 +1914,7 @@ export function AdminProvider({ children }) {
 
       return { success: true };
     },
-    [users, currentUserId]
+    [users]
   );
 
   /** Role Handlers */
@@ -1927,7 +1946,6 @@ export function AdminProvider({ children }) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": currentUserId,
         },
         body: JSON.stringify(roleData),
       }).catch((err) => console.warn("Background API role create warning:", err));
@@ -1936,7 +1954,7 @@ export function AdminProvider({ children }) {
     }
 
     return { success: true, role: newRole };
-  }, [currentUserId]);
+  }, []);
 
   const updateRole = useCallback((roleId, updatedData) => {
     let updatedRoleObj = null;
@@ -1961,7 +1979,6 @@ export function AdminProvider({ children }) {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": currentUserId,
         },
         body: JSON.stringify(updatedData),
       }).catch((err) => console.warn("Background API role sync warning:", err));
@@ -1970,7 +1987,7 @@ export function AdminProvider({ children }) {
     }
 
     return { success: true, role: updatedRoleObj };
-  }, [currentUserId]);
+  }, []);
 
   const deleteRole = useCallback(
     (roleId) => {
@@ -1995,9 +2012,6 @@ export function AdminProvider({ children }) {
       try {
         fetch(`/api/admin/roles/${roleId}`, {
           method: "DELETE",
-          headers: {
-            "x-user-id": currentUserId,
-          },
         }).catch((err) => console.warn("Background API role delete warning:", err));
       } catch {
         // Ignore offline
@@ -2005,7 +2019,7 @@ export function AdminProvider({ children }) {
 
       return { success: true };
     },
-    [roles, users, currentUserId]
+    [roles, users]
   );
 
   const addBanner = useCallback((bannerData) => {

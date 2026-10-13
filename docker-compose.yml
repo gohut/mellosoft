@@ -1,0 +1,100 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: mellosoft_postgres
+    restart: unless-stopped
+    command: >
+      postgres
+      -c shared_buffers=128MB
+      -c max_connections=50
+      -c work_mem=4MB
+      -c effective_cache_size=256MB
+      -c maintenance_work_mem=32MB
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-mellosoft}
+      POSTGRES_USER: ${POSTGRES_USER:-mellosoft_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Database password required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - mellosoft_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mellosoft_user} -d ${POSTGRES_DB:-mellosoft}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+        reservations:
+          memory: 128M
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: mellosoft_web
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-mellosoft_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-mellosoft}?schema=public
+      SESSION_SECRET: ${SESSION_SECRET:?Session secret required}
+      APP_URL: ${APP_URL:-http://localhost}
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
+      STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+    volumes:
+      - uploads_data:/app/public/uploads
+    networks:
+      - mellosoft_net
+    expose:
+      - "3000"
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+        reservations:
+          memory: 256M
+
+  nginx:
+    image: nginx:alpine
+    container_name: mellosoft_nginx
+    restart: unless-stopped
+    depends_on:
+      - web
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - certbot_conf:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+      - uploads_data:/var/www/uploads:ro
+    networks:
+      - mellosoft_net
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+networks:
+  mellosoft_net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  uploads_data:
+    driver: local
+  certbot_conf:
+    driver: local
+  certbot_www:
+    driver: local

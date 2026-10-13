@@ -91,7 +91,7 @@ export default function PaymentView() {
     finalTotal
   } = useMemo(() => calculateOrderTotals(items, settings), [items, settings]);
 
-  const handleCompleteOrder = () => {
+  const handleCompleteOrder = async () => {
     if (isProcessing) return;
 
     if (paymentMethod === "upi") {
@@ -115,7 +115,87 @@ export default function PaymentView() {
     setPaymentError("");
 
     try {
-      // Generate Order ID
+      // 1. Try real server checkout API
+      try {
+        const checkoutPayload = {
+          items: items.map((item) => ({
+            productId: item.productId || item.id,
+            variantId: item.variantId,
+            size: item.size || "Queen",
+            firmness: item.firmness || "Medium",
+            quantity: item.qty || item.quantity || 1
+          })),
+          deliveryAddress: {
+            fullName: address.fullName,
+            phone: address.phone,
+            addressLine1: address.addressLine1,
+            addressLine2: address.addressLine2 || "",
+            city: address.city,
+            state: address.state,
+            pincode: address.pincode
+          },
+          paymentMethod: paymentMethod === "upi" ? "UPI" : "COD",
+          notes: paymentMethod === "upi" ? `UPI ID: ${upiId.trim()}` : "Cash on delivery"
+        };
+
+        const res = await fetch("/api/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(checkoutPayload)
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success && data.order) {
+          // If UPI, verify simulated or gateway payment
+          if (paymentMethod === "upi") {
+            try {
+              await fetch("/api/payments/verify", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  orderId: data.order.id,
+                  paymentMethod: "UPI",
+                  reference: `UPI-${Date.now()}`
+                })
+              });
+            } catch (err) {}
+          }
+
+          const confirmedOrder = {
+            ...data.order,
+            id: data.order.id,
+            orderId: data.order.id,
+            customerName: address.fullName,
+            phone: address.phone,
+            deliveryAddress: address,
+            shippingAddress: address,
+            paymentMethod: paymentMethod === "upi" ? `UPI (${upiId.trim()})` : "COD",
+            totalAmount: Number(data.order.totalAmount || finalTotal),
+            total: Number(data.order.totalAmount || finalTotal),
+            storeSnapshot: {
+              storeName: settings?.store?.name || "Mellosoft",
+              email: settings?.store?.email || "admin@mellosoft.in",
+              phone: settings?.store?.phone || "+91 98765 43210",
+              gstNumber: settings?.store?.gstNumber || "07AABCM1234A1Z5",
+              address: settings?.store?.address || "42, MG Road, Bengaluru, Karnataka 560001",
+              logo: settings?.website?.logo || "/asset/logo.png"
+            }
+          };
+
+          placeOrder(confirmedOrder);
+          setSelectedOrderId(confirmedOrder.id);
+          navigateTo("confirmation", confirmedOrder.id);
+          return;
+        } else if (data && data.error && !data.error.includes("offline") && !data.error.includes("Prisma")) {
+          setPaymentError(data.error);
+          setIsProcessing(false);
+          return;
+        }
+      } catch (err) {
+        console.warn("Server checkout API call failed, falling back to local order placement:", err);
+      }
+
+      // 2. Client fallback for offline development
       const randNum = Math.floor(10000 + Math.random() * 90000);
       const generatedOrderId = `MS-${randNum}`;
 
@@ -123,7 +203,6 @@ export default function PaymentView() {
       const paymentStatusVal = paymentMethod === "cod" ? "Pending" : "Paid";
       const orderStatusVal = paymentMethod === "cod" ? "Confirmed" : "Processing";
 
-      // Build complete order payload locally
       const newOrder = {
         id: generatedOrderId,
         orderId: generatedOrderId,

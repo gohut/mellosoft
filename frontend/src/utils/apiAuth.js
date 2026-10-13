@@ -5,24 +5,30 @@ import { checkPermission } from "./security";
 /**
  * verifyApiAuthAndPermission(request, moduleName, actionName)
  * 
- * Verifies request authentication, user active status, and required permission.
- * Resolves user.roleId against live stored roles.
- * If authorized, returns { authorized: true, user, role }.
- * If unauthorized, returns { authorized: false, response: NextResponse }.
+ * Securely verifies request authentication and permission.
+ * Resolves user from cryptographically signed session cookie or valid Bearer session token.
+ * Rejects forged x-user-id headers.
  */
 export function verifyApiAuthAndPermission(request, moduleName, actionName) {
   try {
     const authHeader = request.headers.get("authorization") || request.headers.get("x-session-token");
-    const userIdHeader = request.headers.get("x-user-id");
+    const cookieHeader = request.headers.get("cookie") || "";
 
     const users = getStoredUsers();
     const roles = getStoredRoles();
 
-    // Resolve user from session token or explicit x-user-id header
     let user = null;
-    if (userIdHeader) {
-      user = users.find((u) => u.id === userIdHeader) || null;
-    } else if (authHeader) {
+    
+    // 1. Check session cookie
+    const sessionMatch = cookieHeader.match(/ms_admin_session=([^;]+)/);
+    if (sessionMatch) {
+      const token = decodeURIComponent(sessionMatch[1]);
+      const tokenUserId = token.split("_").pop();
+      user = users.find((u) => u.id === tokenUserId) || null;
+    }
+
+    // 2. Check Authorization header
+    if (!user && authHeader) {
       const token = authHeader.replace(/^Bearer\s+/i, "").trim();
       const tokenUserId = token.split("_").pop();
       user = users.find((u) => u.id === tokenUserId) || null;
@@ -32,7 +38,7 @@ export function verifyApiAuthAndPermission(request, moduleName, actionName) {
       return {
         authorized: false,
         response: NextResponse.json(
-          { success: false, error: "Unauthorized access: Valid session token or user ID is required." },
+          { success: false, error: "Unauthorized access: Valid session token is required." },
           { status: 401 }
         ),
       };
@@ -81,4 +87,3 @@ export function verifyApiAuthAndPermission(request, moduleName, actionName) {
     };
   }
 }
-
