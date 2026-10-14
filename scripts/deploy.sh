@@ -6,7 +6,7 @@
 set -euo pipefail
 
 APP_DIR="${APP_DIR:-/opt/mellosoft}"
-BRANCH="Backend_hostinger"
+BRANCH="${BRANCH:-mellosoft-production-ready}"
 
 echo "======================================================================"
 echo "Starting Mellosoft VPS Deployment [$(date -u +"%Y-%m-%d %H:%M:%SZ")]"
