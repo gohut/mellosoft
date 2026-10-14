@@ -49,9 +49,22 @@ export const addressSchema = z.object({
   landmark: z.string().trim().optional().or(z.literal("")),
   city: z.string().trim().min(2, "City is required"),
   state: z.string().trim().min(2, "State is required"),
-  postalCode: z.string().trim().regex(/^\d{6}$/, "Valid 6-digit PIN code is required"),
+  postalCode: z.string().trim().optional(),
+  pincode: z.string().trim().optional(),
   country: z.string().trim().default("India"),
   isDefault: z.boolean().default(false),
+}).refine((data) => {
+  const pin = (data.postalCode || data.pincode || "").toString().replace(/\s+/g, "");
+  return /^\d{6}$/.test(pin);
+}, {
+  message: "Valid 6-digit PIN code is required",
+  path: ["postalCode"],
+}).transform((data) => {
+  const pin = (data.postalCode || data.pincode || "").toString().replace(/\s+/g, "");
+  return {
+    ...data,
+    postalCode: pin,
+  };
 });
 
 // 3. Cart & Wishlist Schemas
@@ -76,8 +89,9 @@ export const toggleWishlistSchema = z.object({
 
 // 4. Checkout & Order Placement Schemas
 export const checkoutItemSchema = z.object({
-  productId: z.string().min(1),
-  variantId: z.string().optional(),
+  productId: z.string().optional(),
+  id: z.string().optional(),
+  variantId: z.string().optional().nullable(),
   productName: z.string().optional(),
   name: z.string().optional(),
   sku: z.string().optional(),
@@ -85,16 +99,35 @@ export const checkoutItemSchema = z.object({
   firmness: z.string().optional(),
   dimension: z.string().optional(),
   thickness: z.string().optional(),
-  quantity: z.number().int().min(1).max(50),
-});
+  price: z.number().optional(),
+  quantity: z.number().int().min(1).max(50).optional(),
+  qty: z.number().int().min(1).max(50).optional(),
+}).refine((item) => Boolean(item.productId || item.id), {
+  message: "Product ID is required",
+  path: ["productId"],
+}).refine((item) => Boolean((item.quantity && item.quantity >= 1) || (item.qty && item.qty >= 1)), {
+  message: "Quantity must be at least 1",
+  path: ["quantity"],
+}).transform((item) => ({
+  ...item,
+  productId: item.productId || item.id,
+  quantity: item.quantity || item.qty || 1,
+}));
 
 export const checkoutOrderSchema = z.object({
   items: z.array(checkoutItemSchema).min(1, "Order must contain at least one item"),
-  shippingAddress: addressSchema,
+  shippingAddress: addressSchema.optional(),
+  deliveryAddress: addressSchema.optional(),
   paymentMethod: z.enum(["COD", "UPI", "RAZORPAY", "STRIPE"]),
   notes: z.string().max(500).optional(),
   couponCode: z.string().trim().toUpperCase().optional().or(z.literal("")),
-});
+}).refine((data) => Boolean(data.shippingAddress || data.deliveryAddress), {
+  message: "Delivery address is required",
+  path: ["shippingAddress"],
+}).transform((data) => ({
+  ...data,
+  shippingAddress: data.shippingAddress || data.deliveryAddress,
+}));
 
 // 5. Payment Schemas
 export const createPaymentIntentSchema = z.object({

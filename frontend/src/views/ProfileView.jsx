@@ -56,6 +56,26 @@ export default function ProfileView() {
 
   const displayOrders = Array.isArray(customerOrders) ? customerOrders : [];
 
+  // Synchronize fresh profile and saved addresses from PostgreSQL on mount
+  React.useEffect(() => {
+    let isMounted = true;
+    if (isAuthenticated) {
+      fetch("/api/customer/profile")
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (isMounted && data?.success && data?.customer) {
+            updateProfile({
+              savedAddresses: data.customer.savedAddresses || [],
+              name: data.customer.name,
+              phone: data.customer.phone
+            });
+          }
+        })
+        .catch(() => {});
+    }
+    return () => { isMounted = false; };
+  }, [isAuthenticated, updateProfile]);
+
   const handleLogout = () => {
     logout();
     navigateTo("login");

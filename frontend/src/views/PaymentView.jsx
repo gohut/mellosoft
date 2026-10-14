@@ -117,6 +117,22 @@ export default function PaymentView() {
     try {
       // 1. Try real server checkout API
       try {
+        const cleanPincode = (address.pincode || address.postalCode || "").toString().replace(/\s+/g, "");
+        const shippingAddressObj = {
+          label: address.label || "Home",
+          fullName: address.fullName,
+          phone: address.phone,
+          addressLine1: address.addressLine1,
+          addressLine2: address.addressLine2 || "",
+          landmark: address.landmark || "",
+          city: address.city,
+          state: address.state,
+          postalCode: cleanPincode,
+          pincode: cleanPincode,
+          country: address.country || "India",
+          isDefault: Boolean(address.isDefault),
+        };
+
         const checkoutPayload = {
           items: items.map((item) => ({
             productId: item.productId || item.id,
@@ -125,17 +141,11 @@ export default function PaymentView() {
             firmness: item.firmness || "Medium",
             quantity: item.qty || item.quantity || 1
           })),
-          deliveryAddress: {
-            fullName: address.fullName,
-            phone: address.phone,
-            addressLine1: address.addressLine1,
-            addressLine2: address.addressLine2 || "",
-            city: address.city,
-            state: address.state,
-            pincode: address.pincode
-          },
+          shippingAddress: shippingAddressObj,
+          deliveryAddress: shippingAddressObj,
           paymentMethod: paymentMethod === "upi" ? "UPI" : "COD",
-          notes: paymentMethod === "upi" ? `UPI ID: ${upiId.trim()}` : "Cash on delivery"
+          notes: paymentMethod === "upi" ? `UPI ID: ${upiId.trim()}` : "Cash on delivery",
+          couponCode: coupon?.code || "",
         };
 
         const res = await fetch("/api/checkout", {

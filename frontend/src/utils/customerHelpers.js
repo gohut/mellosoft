@@ -1,27 +1,25 @@
 /**
- * Normalizes any customer identifier variant (e.g. "C002", "C2", "CUS-0002", "CUS-2")
+ * Normalizes sequential customer identifier variants (e.g. "C002", "C2", "CUS-0002", "CUS-2")
  * to the canonical format: "CUS-XXXX" (e.g. "CUS-0002").
+ * Does NOT corrupt UUIDs/CUIDs that happen to start with 'c' followed by digits.
  */
 export function normalizeCustomerId(id) {
-  if (!id) return "CUS-0001";
-  const str = String(id).trim().toUpperCase();
-  if (str.startsWith("CUS-")) {
-    const numPart = str.substring(4);
-    const num = parseInt(numPart, 10);
-    if (!isNaN(num)) {
-      return `CUS-${String(num).padStart(4, "0")}`;
+  if (!id) return "";
+  const str = String(id).trim();
+  const upper = str.toUpperCase();
+  if (upper.startsWith("CUS-")) {
+    const numPart = upper.substring(4);
+    if (/^\d+$/.test(numPart)) {
+      return `CUS-${String(parseInt(numPart, 10)).padStart(4, "0")}`;
     }
     return str;
   }
-  if (str.startsWith("C")) {
-    const numPart = str.substring(1);
-    const num = parseInt(numPart, 10);
-    if (!isNaN(num)) {
-      return `CUS-${String(num).padStart(4, "0")}`;
-    }
+  if (upper.startsWith("C") && /^\d+$/.test(upper.substring(1))) {
+    const num = parseInt(upper.substring(1), 10);
+    return `CUS-${String(num).padStart(4, "0")}`;
   }
-  const directNum = parseInt(str, 10);
-  if (!isNaN(directNum)) {
+  if (/^\d+$/.test(str)) {
+    const directNum = parseInt(str, 10);
     return `CUS-${String(directNum).padStart(4, "0")}`;
   }
   return str;
@@ -29,28 +27,35 @@ export function normalizeCustomerId(id) {
 
 /**
  * Robust relational matching between an order/cart/wishlist record and a customer record.
- * Matches by canonical customerId, raw id, userId, or normalized email.
+ * Matches by direct ID, canonical customerId, or normalized email.
  */
 export function matchCustomer(record, customer) {
   if (!record || !customer) return false;
 
-  const targetCustId = normalizeCustomerId(customer.customerId || customer.id);
-  const targetEmail = (customer.email || "").trim().toLowerCase();
+  const targetId = customer.id ? String(customer.id).trim() : null;
+  const targetCustId = customer.customerId ? String(customer.customerId).trim() : null;
+  const targetEmail = customer.email ? customer.email.trim().toLowerCase() : null;
+
+  const normTargetCustId = (targetCustId || targetId) ? normalizeCustomerId(targetCustId || targetId) : null;
 
   // Match record's customerId or userId
-  const recordCustId = record.customerId ? normalizeCustomerId(record.customerId) : null;
-  const recordUserId = record.userId ? normalizeCustomerId(record.userId) : null;
+  const recordCustId = record.customerId ? String(record.customerId).trim() : null;
+  const recordUserId = record.userId ? String(record.userId).trim() : null;
 
-  if (recordCustId && recordCustId === targetCustId) return true;
-  if (recordUserId && recordUserId === targetCustId) return true;
+  // 1. Direct ID match
+  if (targetId && (recordCustId === targetId || recordUserId === targetId || record.id === targetId)) return true;
+  if (targetCustId && (recordCustId === targetCustId || recordUserId === targetCustId)) return true;
 
-  // Direct raw id comparison
-  if (record.customerId && (record.customerId === customer.id || record.customerId === customer.customerId)) return true;
-  if (record.userId && (record.userId === customer.id || record.userId === customer.customerId)) return true;
+  // 2. Normalized customerId match (only if valid non-empty)
+  if (normTargetCustId) {
+    if (recordCustId && normalizeCustomerId(recordCustId) === normTargetCustId) return true;
+    if (recordUserId && normalizeCustomerId(recordUserId) === normTargetCustId) return true;
+  }
 
-  // Normalized email matching
+  // 3. Normalized email matching
   const recordEmail = (record.email || record.customerEmail || "").trim().toLowerCase();
   if (targetEmail && recordEmail && targetEmail === recordEmail) return true;
 
   return false;
 }
+

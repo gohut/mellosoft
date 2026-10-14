@@ -195,29 +195,8 @@ if (typeof window !== "undefined") {
       localStorage.setItem(DEMO_PURGE_V3_KEY, "completed");
     }
 
-    // Complete purge of non-super-admin demo users from localStorage
+    // State initialization completed
     if (localStorage.getItem(DEMO_PURGE_V4_KEY) !== "completed") {
-      const demoAdminUserIds = new Set(["user-002", "user-003", "user-004", "user-005"]);
-      const demoAdminEmails = new Set(["priya@mellosoft.com", "ankit@mellosoft.com", "sneha@mellosoft.com", "vikram@mellosoft.com"]);
-
-      const savedUsers = localStorage.getItem(USERS_STORAGE_KEY);
-      if (savedUsers) {
-        try {
-          const parsedUsers = JSON.parse(savedUsers);
-          if (Array.isArray(parsedUsers)) {
-            const cleanUsers = parsedUsers.filter((u) => {
-              if (!u) return false;
-              const email = (u.email || "").toLowerCase();
-              return !demoAdminUserIds.has(u.id) && !demoAdminEmails.has(email);
-            });
-            localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(cleanUsers.length > 0 ? cleanUsers : DEFAULT_USERS));
-          }
-        } catch {}
-      } else {
-        localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(DEFAULT_USERS));
-      }
-
-      localStorage.setItem("mellosoft_current_user_id", "user-001");
       localStorage.setItem(DEMO_PURGE_V4_KEY, "completed");
     }
 
@@ -634,14 +613,7 @@ export function AdminProvider({ children }) {
         if (saved) {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            const demoAdminUserIds = new Set(["user-002", "user-003", "user-004", "user-005"]);
-            const demoAdminEmails = new Set(["priya@mellosoft.com", "ankit@mellosoft.com", "sneha@mellosoft.com", "vikram@mellosoft.com"]);
-            const cleanUsers = parsed.filter((u) => {
-              if (!u) return false;
-              const email = (u.email || "").toLowerCase();
-              return !demoAdminUserIds.has(u.id) && !demoAdminEmails.has(email);
-            });
-            if (cleanUsers.length > 0) return cleanUsers;
+            return parsed;
           }
         }
       } catch (e) {
@@ -1117,17 +1089,68 @@ export function AdminProvider({ children }) {
   }, []);
 
   const auth = useAdminAuth();
-  const [activeUserId, setActiveUserId] = useState(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("mellosoft_current_user_id", "user-001");
-      return "user-001";
-    }
-    return "user-001";
-  });
+  const currentUserId = auth.user?.id || auth.currentUserId || "user-super-admin";
+  const currentUser = users.find((u) => u.id === currentUserId || u.email?.toLowerCase() === auth.user?.email?.toLowerCase()) || auth.user || users[0];
+  const currentUserRole = roles.find((r) => r.id === currentUser?.roleId || r.name === currentUser?.roleName) || auth.role || roles[0];
 
-  const currentUserId = "user-001";
-  const currentUser = users.find((u) => u.id === currentUserId) || users[0];
-  const currentUserRole = roles.find((r) => r.id === currentUser?.roleId) || roles[0];
+  // Synchronize live users, roles, customers, and orders from PostgreSQL API
+  useEffect(() => {
+    let isMounted = true;
+
+    // 1. Fetch Users
+    fetch("/api/admin/users")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (isMounted && data?.success && Array.isArray(data.users) && data.users.length > 0) {
+          setUsers(data.users);
+          try {
+            localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(data.users));
+          } catch {}
+        }
+      })
+      .catch(() => {});
+
+    // 2. Fetch Roles
+    fetch("/api/admin/roles")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (isMounted && data?.success && Array.isArray(data.roles) && data.roles.length > 0) {
+          setRoles(data.roles);
+          try {
+            localStorage.setItem(ROLES_STORAGE_KEY, JSON.stringify(data.roles));
+          } catch {}
+        }
+      })
+      .catch(() => {});
+
+    // 3. Fetch Customers
+    fetch("/api/admin/customers")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (isMounted && data?.success && Array.isArray(data.customers)) {
+          setCustomers(data.customers);
+          try {
+            localStorage.setItem(CUSTOMERS_STORAGE_KEY, JSON.stringify(data.customers));
+          } catch {}
+        }
+      })
+      .catch(() => {});
+
+    // 4. Fetch Orders
+    fetch("/api/admin/orders")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (isMounted && data?.success && Array.isArray(data.orders)) {
+          setOrders(data.orders);
+          try {
+            localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(data.orders));
+          } catch {}
+        }
+      })
+      .catch(() => {});
+
+    return () => { isMounted = false; };
+  }, []);
 
   const isFirstProductsRef = useRef(true);
   const isFirstOrdersRef = useRef(true);

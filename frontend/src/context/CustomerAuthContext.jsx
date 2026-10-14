@@ -19,15 +19,16 @@ export function CustomerAuthProvider({ children }) {
     let isMounted = true;
     async function checkSession() {
       try {
-        const res = await fetch("/api/auth/session", { method: "GET" });
+        const res = await fetch("/api/auth/session?type=customer", { method: "GET" });
         if (res.ok) {
           const data = await res.json();
           if (data && data.success && data.customer) {
             if (isMounted) {
               const cust = {
                 ...data.customer,
-                id: normalizeCustomerId(data.customer.id),
-                customerId: normalizeCustomerId(data.customer.id)
+                id: normalizeCustomerId(data.customer.customerId || data.customer.id),
+                customerId: normalizeCustomerId(data.customer.customerId || data.customer.id),
+                savedAddresses: data.customer.savedAddresses || data.customer.addresses || []
               };
               setCurrentCustomer(cust);
               setIsAuthenticated(true);
@@ -133,12 +134,14 @@ export function CustomerAuthProvider({ children }) {
         body: JSON.stringify({ email: trimmedEmail, password: trimmedPassword })
       });
       const data = await res.json();
-      if (res.ok && data.success && data.user) {
-        const canonicalId = normalizeCustomerId(data.user.id);
+      if (res.ok && data.success && (data.customer || data.user)) {
+        const rawCust = data.customer || data.user;
+        const canonicalId = normalizeCustomerId(rawCust.customerId || rawCust.id);
         const customerSession = {
-          ...data.user,
+          ...rawCust,
           id: canonicalId,
           customerId: canonicalId,
+          savedAddresses: rawCust.savedAddresses || rawCust.addresses || [],
           lastLogin: new Date().toISOString()
         };
         try {

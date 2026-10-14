@@ -27,13 +27,29 @@ export async function POST(request) {
     const variantStockChecks = [];
 
     for (const item of clientItems) {
-      const product = await prisma.product.findUnique({
+      let product = await prisma.product.findUnique({
         where: { id: item.productId },
         include: {
           variants: true,
           images: { take: 1, orderBy: { displayOrder: "asc" } },
         },
       });
+
+      if (!product) {
+        product = await prisma.product.findFirst({
+          where: {
+            OR: [
+              { productId: item.productId },
+              { slug: item.productId },
+              { id: item.productId.toLowerCase() },
+            ],
+          },
+          include: {
+            variants: true,
+            images: { take: 1, orderBy: { displayOrder: "asc" } },
+          },
+        });
+      }
 
       if (!product || !product.active) {
         return NextResponse.json(

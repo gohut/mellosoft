@@ -82,6 +82,29 @@ export function StoreProvider({ children }) {
     return success;
   }, []);
 
+  const refreshOrders = useCallback(async () => {
+    try {
+      const res = await fetch("/api/orders");
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.success && Array.isArray(data.orders)) {
+          setOrders(data.orders);
+          try {
+            localStorage.setItem("mellosoft_orders", JSON.stringify(data.orders));
+          } catch {}
+          return;
+        }
+      }
+    } catch {}
+
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("mellosoft_orders");
+        if (saved) setOrders(JSON.parse(saved));
+      } catch {}
+    }
+  }, []);
+
   // Categories — loaded from localStorage (set by AdminContext) or fall back to defaults
   const [categories, setCategories] = useState(() => ensureRequiredCategories(MOCK_CATEGORIES));
 
@@ -499,24 +522,25 @@ export function StoreProvider({ children }) {
         const cartRes = await fetch("/api/cart");
         if (cartRes.ok) {
           const cartData = await cartRes.json();
-          if (cartData && cartData.success && Array.isArray(cartData.cart?.items)) {
+          const rawItems = cartData?.items || cartData?.cart?.items;
+          if (cartData && cartData.success && Array.isArray(rawItems)) {
             if (isMounted) {
-              const formattedCart = cartData.cart.items.map((item) => ({
-                cartItemId: item.id,
-                id: item.productId,
-                productId: item.productId,
+              const formattedCart = rawItems.map((item) => ({
+                cartItemId: item.id || item.cartItemId,
+                id: item.productId || item.id,
+                productId: item.productId || item.id,
                 variantId: item.variantId,
-                name: item.product?.name || item.productId,
-                productName: item.product?.name || item.productId,
-                tagline: item.product?.tagline || "",
-                firmness: item.variant?.firmness || item.firmness || "Medium",
-                size: item.variant?.size || item.size || "Queen",
-                price: (item.price || 0) / 100,
-                discountPrice: (item.price || 0) / 100,
-                actualPrice: (item.price || 0) / 100,
-                qty: item.quantity,
-                quantity: item.quantity,
-                image: item.product?.images?.[0]?.url || item.image || "/asset/img1.jpg"
+                name: item.name || item.product?.name || item.productId,
+                productName: item.productName || item.product?.name || item.name || item.productId,
+                tagline: item.tagline || item.product?.tagline || "",
+                firmness: item.firmness || item.variant?.firmness || "Medium",
+                size: item.size || item.variant?.size || "Queen",
+                price: Number(item.price || 0),
+                discountPrice: Number(item.price || 0),
+                actualPrice: Number(item.actualPrice || item.price || 0),
+                qty: item.quantity || item.qty || 1,
+                quantity: item.quantity || item.qty || 1,
+                image: item.image || item.product?.images?.[0]?.url || "/asset/img1.jpg"
               }));
               setCart(formattedCart);
             }
@@ -558,13 +582,18 @@ export function StoreProvider({ children }) {
       } catch (e) {
         console.error("Failed to load customer cart/wishlist:", e);
       }
+
+      // 4. Fetch server orders for authenticated customer
+      try {
+        await refreshOrders();
+      } catch (err) {}
     }
 
     syncUserData();
     return () => {
       isMounted = false;
     };
-  }, [currentCustomerId]);
+  }, [currentCustomerId, refreshOrders]);
 
   // Window storage sync for cross-tab / Admin updates
   useEffect(() => {
@@ -618,30 +647,6 @@ export function StoreProvider({ children }) {
       console.error("Failed to save orders:", e);
     }
   }, [orders]);
-
-  // Actions & Handlers
-  const refreshOrders = useCallback(async () => {
-    try {
-      const res = await fetch("/api/orders");
-      if (res.ok) {
-        const data = await res.json();
-        if (data && data.success && Array.isArray(data.orders)) {
-          setOrders(data.orders);
-          try {
-            localStorage.setItem("mellosoft_orders", JSON.stringify(data.orders));
-          } catch {}
-          return;
-        }
-      }
-    } catch {}
-
-    if (typeof window !== "undefined") {
-      try {
-        const saved = localStorage.getItem("mellosoft_orders");
-        if (saved) setOrders(JSON.parse(saved));
-      } catch {}
-    }
-  }, []);
 
   // Auth Popup Modal State ("login" | "signup" | "forgot-password" | null)
   const [authModal, setAuthModal] = useState(null);

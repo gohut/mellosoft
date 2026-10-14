@@ -118,7 +118,7 @@ const getOrderDeliveryLabel = (ord) => {
 };
 
 export default function OrdersView() {
-  const { customerOrders, products, cancelOrder, requestOrderCancellation, navigateTo, setAuthModal } = useStore();
+  const { customerOrders, products, cancelOrder, requestOrderCancellation, navigateTo, setAuthModal, refreshOrders } = useStore();
   const { isAuthenticated, setIntendedView, currentCustomer, loading: authLoading } = useCustomerAuth();
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [activeTab, setActiveTab] = useState("orders"); // "orders" | "delivered"
@@ -128,7 +128,12 @@ export default function OrdersView() {
 
   // Hydration guard — show skeleton during SSR→client mount
   const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    setMounted(true);
+    if (typeof refreshOrders === "function") {
+      refreshOrders();
+    }
+  }, [refreshOrders]);
 
   // ─── REVIEW STATE ────────────────────────────────────────────────────────────
   const [allReviews, setAllReviews] = useState(() => {
