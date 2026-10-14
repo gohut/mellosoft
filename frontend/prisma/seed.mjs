@@ -49,43 +49,66 @@ async function main() {
     }
   }
 
-  // 2. SEED DEFAULT SUPER ADMIN USER
-  console.log("-> Seeding default super admin user...");
-  const adminEmail = (process.env.ADMIN_EMAIL || "admin@mellosoft.com").toLowerCase().trim();
-  const existingAdmin = await prisma.adminUser.findUnique({ where: { email: adminEmail } });
+  // 2. SEED DEFAULT ADMINISTRATIVE USERS (Super Admin, Admin, Manager, Staff)
+  console.log("-> Seeding administrative staff users...");
+  const defaultAdminPass = process.env.BOOTSTRAP_ADMIN_PASSWORD || "Admin@123";
+  const defaultStaffUsers = [
+    {
+      id: "user-super-admin",
+      name: "Rahul Sharma",
+      email: (process.env.ADMIN_EMAIL || "admin@mellosoft.com").toLowerCase().trim(),
+      phone: "+91 98765 43210",
+      rawPass: defaultAdminPass,
+      roleId: "role-super-admin",
+      status: "Active",
+    },
+    {
+      id: "user-admin-priya",
+      name: "Priya Nair",
+      email: "priya@mellosoft.com",
+      phone: "+91 98765 43211",
+      rawPass: "Priya@123",
+      roleId: "role-admin",
+      status: "Active",
+    },
+    {
+      id: "user-manager-ankit",
+      name: "Ankit Patel",
+      email: "ankit@mellosoft.com",
+      phone: "+91 98765 43212",
+      rawPass: "Ankit@123",
+      roleId: "role-manager",
+      status: "Active",
+    },
+    {
+      id: "user-staff-sneha",
+      name: "Sneha Reddy",
+      email: "sneha@mellosoft.com",
+      phone: "+91 98765 43213",
+      rawPass: "Sneha@123",
+      roleId: "role-staff",
+      status: "Active",
+    },
+  ];
 
-  if (existingAdmin) {
-    console.log(`✔ Super admin already exists (${adminEmail}). Preserving existing credentials.`);
-  } else {
-    // Generate secure random bootstrap password if not explicitly supplied in environment
-    let rawAdminPass = process.env.BOOTSTRAP_ADMIN_PASSWORD;
-    let isGenerated = false;
-
-    if (!rawAdminPass) {
-      rawAdminPass = crypto.randomBytes(16).toString("hex");
-      isGenerated = true;
-    }
-
-    const passwordHash = await bcrypt.hash(rawAdminPass, 12);
-
-    await prisma.adminUser.create({
-      data: {
-        id: "user-super-admin",
-        name: "Rahul Sharma",
-        email: adminEmail,
-        phone: "+91 98765 43210",
-        passwordHash,
-        roleId: "role-super-admin",
-        status: "Active",
-      },
-    });
-
-    if (isGenerated) {
-      console.log(`✔ Super admin created: ${adminEmail}`);
-      console.log(`🔑 One-time generated bootstrap password: ${rawAdminPass}`);
-      console.log(`   (Save this password immediately or configure BOOTSTRAP_ADMIN_PASSWORD in .env)`);
+  for (const staff of defaultStaffUsers) {
+    const existing = await prisma.adminUser.findUnique({ where: { email: staff.email } });
+    if (existing) {
+      console.log(`✔ Admin user already exists (${staff.email}). Preserving existing credentials.`);
     } else {
-      console.log(`✔ Super admin created: ${adminEmail} with configured environment password.`);
+      const passwordHash = await bcrypt.hash(staff.rawPass, 12);
+      await prisma.adminUser.create({
+        data: {
+          id: staff.id,
+          name: staff.name,
+          email: staff.email,
+          phone: staff.phone,
+          passwordHash,
+          roleId: staff.roleId,
+          status: staff.status,
+        },
+      });
+      console.log(`✔ Administrative user created: ${staff.email} (Role: ${staff.roleId})`);
     }
   }
 

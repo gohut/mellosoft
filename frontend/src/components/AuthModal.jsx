@@ -73,6 +73,10 @@ export default function AuthModal({ type = "login", onClose }) {
             onSwitchToForgot={() => setActiveModal("forgot-password")}
             onSuccess={() => {
               handleClose();
+              if (typeof window !== "undefined" && (window.location.pathname === "/login" || window.location.pathname === "/signup")) {
+                window.location.href = "/";
+                return;
+              }
               const destination = intendedView && intendedView !== "login" && intendedView !== "signup" && intendedView !== "profile" ? intendedView : null;
               setIntendedView("home");
               if (destination) {
@@ -88,6 +92,10 @@ export default function AuthModal({ type = "login", onClose }) {
             onSwitchToLogin={() => setActiveModal("login")}
             onSuccess={() => {
               handleClose();
+              if (typeof window !== "undefined" && (window.location.pathname === "/login" || window.location.pathname === "/signup")) {
+                window.location.href = "/";
+                return;
+              }
               const destination = intendedView && intendedView !== "login" && intendedView !== "signup" && intendedView !== "profile" ? intendedView : null;
               setIntendedView("home");
               if (destination) {
@@ -205,26 +213,74 @@ function LoginForm({ authLogo: propAuthLogo, onSwitchToSignup, onSwitchToForgot,
       setSubmitting(false);
     }
   };
+  const handleGoogleSignIn = () => {
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+    if (!clientId) {
+      setErrorMessage(
+        "Google Sign-In is not configured yet. Set NEXT_PUBLIC_GOOGLE_CLIENT_ID in your environment (.env) with your Google Cloud OAuth Client ID."
+      );
+      return;
+    }
 
-  const handleGoogleSignIn = async () => {
     setGoogleSubmitting(true);
     setErrorMessage("");
-    try {
-      const res = await loginWithGoogle({
-        name: "Google Customer",
-        email: "customer@gmail.com",
-        avatar: "G"
-      });
-      if (res.success) {
-        onSuccess();
-      } else {
-        setErrorMessage(res.error || "Google sign-in failed.");
+
+    const loadAndPrompt = () => {
+      try {
+        if (!window.google?.accounts?.id) {
+          const script = document.createElement("script");
+          script.src = "https://accounts.google.com/gsi/client";
+          script.async = true;
+          script.defer = true;
+          script.onload = () => runGooglePrompt();
+          script.onerror = () => {
+            setGoogleSubmitting(false);
+            setErrorMessage("Failed to load Google Sign-In SDK. Check your internet connection.");
+          };
+          document.body.appendChild(script);
+        } else {
+          runGooglePrompt();
+        }
+      } catch (err) {
+        setGoogleSubmitting(false);
+        setErrorMessage("Google Sign-In initialization failed: " + (err?.message || err));
       }
-    } catch {
-      setErrorMessage("Google sign-in could not be completed.");
-    } finally {
-      setGoogleSubmitting(false);
-    }
+    };
+
+    const runGooglePrompt = () => {
+      try {
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: async (response) => {
+            if (response?.credential) {
+              const res = await loginWithGoogle({ credential: response.credential });
+              if (res.success) {
+                onSuccess();
+              } else {
+                setErrorMessage(res.error || "Google authentication failed.");
+              }
+            } else {
+              setErrorMessage("No Google credentials returned.");
+            }
+            setGoogleSubmitting(false);
+          },
+        });
+
+        window.google.accounts.id.prompt((notification) => {
+          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+            setGoogleSubmitting(false);
+            setErrorMessage(
+              "Google prompt could not display. Ensure third-party cookies or popups are not blocked in your browser."
+            );
+          }
+        });
+      } catch (e) {
+        setGoogleSubmitting(false);
+        setErrorMessage("Google Sign-In error: " + (e?.message || e));
+      }
+    };
+
+    loadAndPrompt();
   };
 
   return (
@@ -603,25 +659,74 @@ function SignupForm({ authLogo: propAuthLogo, onSwitchToLogin, onSuccess }) {
         {/* Google Sign In Button */}
         <button
           type="button"
-          onClick={async () => {
+          onClick={() => {
+            const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+            if (!clientId) {
+              setErrorMessage(
+                "Google Sign-In is not configured yet. Set NEXT_PUBLIC_GOOGLE_CLIENT_ID in your environment (.env) with your Google Cloud OAuth Client ID."
+              );
+              return;
+            }
+
             setGoogleSubmitting(true);
             setErrorMessage("");
-            try {
-              const res = await loginWithGoogle({
-                name: name || "Google User",
-                email: email || "googleuser@example.com",
-                avatar: "G"
-              });
-              if (res.success) {
-                onSuccess();
-              } else {
-                setErrorMessage(res.error || "Google sign-in failed.");
+
+            const loadAndPrompt = () => {
+              try {
+                if (!window.google?.accounts?.id) {
+                  const script = document.createElement("script");
+                  script.src = "https://accounts.google.com/gsi/client";
+                  script.async = true;
+                  script.defer = true;
+                  script.onload = () => runGooglePrompt();
+                  script.onerror = () => {
+                    setGoogleSubmitting(false);
+                    setErrorMessage("Failed to load Google Sign-In SDK. Check your internet connection.");
+                  };
+                  document.body.appendChild(script);
+                } else {
+                  runGooglePrompt();
+                }
+              } catch (err) {
+                setGoogleSubmitting(false);
+                setErrorMessage("Google Sign-In initialization failed: " + (err?.message || err));
               }
-            } catch {
-              setErrorMessage("Google sign-in could not be completed.");
-            } finally {
-              setGoogleSubmitting(false);
-            }
+            };
+
+            const runGooglePrompt = () => {
+              try {
+                window.google.accounts.id.initialize({
+                  client_id: clientId,
+                  callback: async (response) => {
+                    if (response?.credential) {
+                      const res = await loginWithGoogle({ credential: response.credential });
+                      if (res.success) {
+                        onSuccess();
+                      } else {
+                        setErrorMessage(res.error || "Google authentication failed.");
+                      }
+                    } else {
+                      setErrorMessage("No Google credentials returned.");
+                    }
+                    setGoogleSubmitting(false);
+                  },
+                });
+
+                window.google.accounts.id.prompt((notification) => {
+                  if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+                    setGoogleSubmitting(false);
+                    setErrorMessage(
+                      "Google prompt could not display. Ensure third-party cookies or popups are not blocked in your browser."
+                    );
+                  }
+                });
+              } catch (e) {
+                setGoogleSubmitting(false);
+                setErrorMessage("Google Sign-In error: " + (e?.message || e));
+              }
+            };
+
+            loadAndPrompt();
           }}
           disabled={googleSubmitting || submitting}
           style={googleBtnStyle}

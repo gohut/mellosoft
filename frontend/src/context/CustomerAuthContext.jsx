@@ -289,6 +289,44 @@ export function CustomerAuthProvider({ children }) {
 
   // Customer Google Login logic
   const loginWithGoogle = useCallback(async (googleProfile) => {
+    // 1. If real Google credential provided, authenticate via /api/auth/google
+    if (googleProfile?.credential) {
+      try {
+        const res = await fetch("/api/auth/google", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ credential: googleProfile.credential }),
+        });
+        const data = await res.json();
+        if (res.ok && data.success && data.customer) {
+          const canonicalId = normalizeCustomerId(data.customer.id || data.customer.customerId);
+          const customerSession = {
+            ...data.customer,
+            id: canonicalId,
+            customerId: canonicalId,
+            authProvider: "google",
+            lastLogin: new Date().toISOString(),
+          };
+          try {
+            localStorage.setItem(CUSTOMER_SESSION_KEY, JSON.stringify(customerSession));
+            if (typeof window !== "undefined") {
+              setTimeout(() => {
+                window.dispatchEvent(new Event("storage"));
+                window.dispatchEvent(new CustomEvent("mellosoft_customers_updated"));
+              }, 0);
+            }
+          } catch {}
+          setCurrentCustomer(customerSession);
+          setIsAuthenticated(true);
+          return { success: true, customer: customerSession };
+        } else if (data?.error) {
+          return { success: false, error: data.error };
+        }
+      } catch (e) {
+        console.warn("Failed to contact /api/auth/google:", e);
+      }
+    }
+
     const email = (googleProfile?.email || "").trim().toLowerCase();
     const name = (googleProfile?.name || "").trim() || email.split("@")[0] || "Google User";
     const avatar = googleProfile?.avatar || googleProfile?.picture || name.charAt(0).toUpperCase();
