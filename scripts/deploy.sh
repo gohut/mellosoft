@@ -36,9 +36,9 @@ docker compose up -d postgres
 echo "Waiting for PostgreSQL database readiness..."
 docker compose exec -T postgres sh -c 'until pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"; do sleep 1; done'
 
-# 4. Run Prisma database schema push and seed
-echo "Executing database schema sync (Prisma db push)..."
-docker compose run --rm web ./node_modules/.bin/prisma db push --skip-generate
+# 4. Run Prisma database schema migration and seed
+echo "Executing database migrations..."
+docker compose run --rm web ./node_modules/.bin/prisma migrate deploy || docker compose run --rm web ./node_modules/.bin/prisma db push --skip-generate
 echo "Seeding database with catalog and system roles..."
 docker compose run --rm web node prisma/seed.mjs || true
 

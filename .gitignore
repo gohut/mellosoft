@@ -22,6 +22,7 @@ backups/
 *.sql
 *.dump
 *.tar.gz
+!**/prisma/migrations/**/*.sql
 
 # Logs
 npm-debug.log*
