@@ -43,7 +43,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      DATABASE_URL: postgresql://${POSTGRES_USER:-mellosoft_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-mellosoft}?schema=public
+      DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-mellosoft_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-mellosoft}?schema=public}
       SESSION_SECRET: ${SESSION_SECRET:?Session secret required}
       APP_URL: ${APP_URL:-http://localhost}
       RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
@@ -54,6 +54,8 @@ services:
       - uploads_data:/app/public/uploads
     networks:
       - mellosoft_net
+    ports:
+      - "127.0.0.1:3000:3000"
     expose:
       - "3000"
     deploy:

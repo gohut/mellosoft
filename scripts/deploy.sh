@@ -36,9 +36,9 @@ docker compose up -d postgres
 echo "Waiting for PostgreSQL database readiness..."
 docker compose exec -T postgres sh -c 'until pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"; do sleep 1; done'
 
-# 4. Run Prisma database migrations and seed
-echo "Executing database migrations..."
-docker compose run --rm web ./node_modules/.bin/prisma migrate deploy
+# 4. Run Prisma database schema push and seed
+echo "Executing database schema sync (Prisma db push)..."
+docker compose run --rm web ./node_modules/.bin/prisma db push --skip-generate
 echo "Seeding database with catalog and system roles..."
 docker compose run --rm web node prisma/seed.mjs || true
 
@@ -59,15 +59,16 @@ docker compose run --rm --entrypoint "" nginx sh -c '
 # 6. Start application and proxy
 docker compose up -d --remove-orphans web nginx
 
-# 6. Verify health check
+# 7. Verify health check
 echo "Performing application health verification..."
 sleep 5
-for i in {1..10}; do
-    if curl -f http://localhost:3000/api/health > /dev/null 2>&1; then
+for i in {1..15}; do
+    if curl -fsSL http://127.0.0.1:3000/api/health > /dev/null 2>&1 || curl -fsSL http://localhost/api/health > /dev/null 2>&1; then
         echo "SUCCESS: Mellosoft health check passed! (HTTP 200 OK)"
+        echo "Storefront is live at: http://$(hostname -I | awk '{print $1}')"
         exit 0
     fi
-    echo "Waiting for application startup (attempt ${i}/10)..."
+    echo "Waiting for application startup (attempt ${i}/15)..."
     sleep 3
 done
 
