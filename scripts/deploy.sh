@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # Mellosoft Zero-Downtime Hostinger VPS Deployment Script
-# Branch: Backend_hostinger
+# Branch: mellosoft-production-ready
 # ==============================================================================
 set -euo pipefail
 
@@ -36,18 +36,31 @@ docker compose up -d postgres
 echo "Waiting for PostgreSQL database readiness..."
 docker compose exec -T postgres sh -c 'until pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"; do sleep 1; done'
 
-# 4. Run Prisma database schema migration and seed
-echo "Executing database migrations..."
-docker compose run --rm web ./node_modules/.bin/prisma migrate deploy || docker compose run --rm web ./node_modules/.bin/prisma db push --skip-generate
-echo "Seeding database with catalog and system roles..."
-docker compose run --rm web node prisma/seed.mjs || true
+# 4. Run Prisma database migrations
+echo "Executing database migrations (Prisma migrate deploy)..."
+if ! docker compose run --rm web ./node_modules/.bin/prisma migrate deploy; then
+    echo "ERROR: Database migration failed! Aborting deployment immediately to protect data integrity."
+    echo "Check database connection, volume health, or migration syntax."
+    exit 1
+fi
+echo "✔ Database migrations applied successfully."
 
-# 5. Ensure SSL certificate volume has certificates so Nginx starts cleanly
+# 5. Run idempotent database seeding
+echo "Executing database seed (idempotent catalog & roles)..."
+if ! docker compose run --rm web node prisma/seed.mjs; then
+    echo "ERROR: Database seeding failed! Aborting deployment."
+    echo "Check seed script logs above for details."
+    exit 1
+fi
+echo "✔ Database seeding completed successfully."
+
+# 6. Ensure SSL certificate volume has certificates so Nginx starts cleanly
 echo "Verifying SSL certificate presence for Nginx..."
 docker compose run --rm --entrypoint "" nginx sh -c '
   mkdir -p /etc/letsencrypt/live/default
   if [ ! -f /etc/letsencrypt/live/default/fullchain.pem ]; then
-    echo "Creating placeholder self-signed SSL certificate..."
+    echo "Notice: Creating internal placeholder SSL certificate to allow Nginx startup."
+    echo "Notice: Public IP traffic is served over standard HTTP on Port 80."
     apk add --no-cache openssl > /dev/null 2>&1
     openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
       -keyout /etc/letsencrypt/live/default/privkey.pem \
@@ -56,10 +69,10 @@ docker compose run --rm --entrypoint "" nginx sh -c '
   fi
 '
 
-# 6. Start application and proxy
+# 7. Start application and proxy
 docker compose up -d --remove-orphans web nginx
 
-# 7. Verify health check
+# 8. Verify health check
 echo "Performing application health verification..."
 sleep 5
 for i in {1..15}; do

@@ -204,18 +204,22 @@ async function main() {
       },
     });
 
-    // Seed primary image
+    // Seed primary image idempotently
     const imageUrl = raw.image || (raw.images && raw.images[0]) || "/asset/img1.jpg";
-    await prisma.productImage.deleteMany({ where: { productId: slug } });
-    await prisma.productImage.create({
-      data: {
-        productId: slug,
-        url: imageUrl,
-        alt: raw.name,
-        isPrimary: true,
-        displayOrder: 1,
-      },
+    const existingImg = await prisma.productImage.findFirst({
+      where: { productId: slug, isPrimary: true },
     });
+    if (!existingImg) {
+      await prisma.productImage.create({
+        data: {
+          productId: slug,
+          url: imageUrl,
+          alt: raw.name,
+          isPrimary: true,
+          displayOrder: 1,
+        },
+      });
+    }
 
     // Seed default variants
     if (raw.parentCategory === "mattresses") {

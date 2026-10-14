@@ -84,11 +84,24 @@ docker compose exec -T postgres pg_dump -U mellosoft_user mellosoft > /opt/mello
 ls -lh /opt/mellosoft/backups/
 ```
 
-Verify that the backup file size is greater than 0 bytes.
+Verify that the backup file exists and is preserved alongside any previous backup files without overwriting.
 
 ---
 
-## 5. Deployment Execution
+## 5. Database State & Migration Strategy
+
+### Case A: Fresh / Unmigrated Database (Current VPS State)
+* **Inspection Findings:** The current PostgreSQL volume contains only an empty `_prisma_migrations` table with 0 applied migration records and 0 business tables.
+* **Migration Mechanism:** `prisma migrate deploy` reads `prisma/migrations/20261013000000_init/migration.sql`. It creates all 24 models (including `"Customer"`, `"Product"`, `"Order"`, `"AdminUser"`), records `20261013000000_init` in `_prisma_migrations`, and completes without modifying volume mounts.
+* **Seeding:** `node prisma/seed.mjs` executes immediately after migration, populating default system roles, categories, and master mattress catalog using idempotent `upsert` queries.
+
+### Case B: Existing Database with Live Customer Data (Future Updates)
+* **Preservation Policy:** `prisma migrate deploy` never drops or truncates existing tables. It checks `_prisma_migrations` and only applies newly added, unapplied migration folders in chronological order.
+* **Seeding Safety:** `node prisma/seed.mjs` checks `findUnique` on existing admin users and `findFirst` on product images, ensuring existing user passwords and uploaded files are never overwritten.
+
+---
+
+## 6. Deployment Execution
 
 To pull the production-ready branch and execute the deployment:
 
@@ -110,14 +123,14 @@ git pull origin mellosoft-production-ready
 1. Validates `.env` presence.
 2. Builds the Next.js standalone container using BuildKit cache.
 3. Starts the PostgreSQL container and waits for `pg_isready`.
-4. Executes `prisma migrate deploy` (applying `20261013000000_init/migration.sql` to create `Customer` and all 24 models).
-5. Runs idempotent database seeding (`node prisma/seed.mjs`) to seed roles, categories, and products.
+4. Executes `prisma migrate deploy` with strict exit-on-error (aborting immediately if migration fails).
+5. Runs idempotent database seeding (`node prisma/seed.mjs`) with strict error reporting.
 6. Starts Nginx with direct HTTP port 80 proxying.
-7. Executes 15 health checks against `http://127.0.0.1:3000/api/health` and `http://localhost/api/health`.
+7. Probes `http://127.0.0.1:3000/api/health` and `http://localhost/api/health` until HTTP 200 OK is confirmed.
 
 ---
 
-## 6. Verification & Health Monitoring
+## 7. Verification & Health Monitoring
 
 ### 1. Check Container States
 ```bash
@@ -156,9 +169,27 @@ Expected response:
 
 ---
 
-## 7. Rollback & Disaster Recovery
+## 8. HTTP vs. HTTPS Policy & Domain Transition
 
-If an issue occurs after an update, rollback to the previous commit or restore the database backup:
+* **Initial Mode (IP Testing):** 
+  Traffic runs strictly over HTTP on Port 80 (`http://200.97.163.121`). 
+  The self-signed certificate on Port 443 is strictly an internal placeholder to allow Nginx's TLS engine to boot without crashing. **Do not use `https://200.97.163.121` for testing**, as browsers will correctly reject self-signed certificates on IP addresses.
+* **Production HTTPS Mode (With Custom Domain):**
+  Once your domain DNS A-record (e.g., `mellosoft.in`) points to `200.97.163.121`:
+  1. Update `APP_URL=https://mellosoft.in` in `.env`.
+  2. Issue a real Let's Encrypt certificate:
+     ```bash
+     docker compose run --rm certbot certonly --webroot -w /var/www/certbot -d mellosoft.in -d www.mellosoft.in --email admin@mellosoft.in --agree-tos --no-eff-email
+     ```
+  3. Symlink the live certificates into `/etc/letsencrypt/live/default/`:
+     ```bash
+     docker compose exec nginx sh -c 'ln -sf /etc/letsencrypt/live/mellosoft.in/* /etc/letsencrypt/live/default/'
+     docker compose exec nginx nginx -s reload
+     ```
+
+---
+
+## 9. Rollback & Disaster Recovery
 
 ### Rollback Code Version:
 ```bash
@@ -169,7 +200,7 @@ git checkout <previous_commit_hash>
 
 ### Restore Database Backup:
 ```bash
-# Drop current schema and restore from backup file
+# Drop current schema and restore from verified backup file
 docker compose exec -T postgres psql -U mellosoft_user -d mellosoft -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
 cat /opt/mellosoft/backups/<backup_filename>.sql | docker compose exec -T postgres psql -U mellosoft_user -d mellosoft
 ```
