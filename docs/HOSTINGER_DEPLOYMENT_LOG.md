@@ -46,3 +46,13 @@ Historical operational log capturing all deployment events, diagnostics, discove
   - Added `!**/prisma/migrations/**/*.sql` exception to `.gitignore`.
   - Added and committed `frontend/prisma/migrations/20261013000000_init/migration.sql` (630 lines creating all 24 models including `Customer`).
   - Updated `scripts/deploy.sh` to run `prisma migrate deploy || prisma db push --skip-generate` as a robust dual-stage schema initialization.
+
+### [2026-10-14 12:00 UTC+05:30] — Seed ESM Import Resolution & Dedicated Seed Module
+* **Action:** Resolved production seed failure: `ERR_MODULE_NOT_FOUND: Cannot find module '/app/src/data/products' imported from /app/src/admin/data/adminMockData.js`.
+* **Root Cause:** `adminMockData.js` used an extensionless import (`../../data/products`), which fails under Node 24 native ESM resolution. Moreover, `seed.mjs` only required coupons and banners from `adminMockData.js`, inadvertently pulling in frontend mock product fixtures.
+* **Fix Applied:**
+  - Decoupled database seeding by creating `frontend/src/data/seedData.js` containing `SEED_COUPONS` and `SEED_BANNERS`.
+  - Updated `seed.mjs` to import exclusively from `seedData.js`.
+  - Added explicit `.js` extensions across `adminMockData.js`, `AdminContext.js`, `products.js`, and `productHelpers.js`.
+  - Secured administrator bootstrap password handling: preserves existing admin credentials, supports `BOOTSTRAP_ADMIN_PASSWORD` from `.env`, and generates a secure random 32-character hex key if empty.
+  - Added regression test suite `frontend/tests/seed-dependency.test.mjs` (32/32 tests pass).

@@ -72,6 +72,8 @@ check_var "STRIPE_PUBLISHABLE_KEY" "false"
 check_var "STRIPE_SECRET_KEY" "false"
 check_var "SMTP_HOST" "false"
 check_var "SMTP_USER" "false"
+check_var "ADMIN_EMAIL" "false"
+check_var "BOOTSTRAP_ADMIN_PASSWORD" "false"
 
 echo ""
 echo "--- 4. Docker & Host Readiness ---"

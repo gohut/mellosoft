@@ -2,7 +2,8 @@ import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { DEFAULT_ROLES } from "../src/data/rolesData.js";
 import { MATTRESS_PRODUCTS, ACCESSORY_PRODUCTS, BED_FRAME_PRODUCTS } from "../src/data/mattressData.js";
-import { MOCK_COUPONS, MOCK_BANNERS } from "../src/admin/data/adminMockData.js";
+import { SEED_COUPONS, SEED_BANNERS } from "../src/data/seedData.js";
+import crypto from "crypto";
 
 const prisma = new PrismaClient();
 
@@ -51,11 +52,22 @@ async function main() {
   // 2. SEED DEFAULT SUPER ADMIN USER
   console.log("-> Seeding default super admin user...");
   const adminEmail = (process.env.ADMIN_EMAIL || "admin@mellosoft.com").toLowerCase().trim();
-  const rawAdminPass = process.env.BOOTSTRAP_ADMIN_PASSWORD || "Admin@Mellosoft2026!";
-  const passwordHash = await bcrypt.hash(rawAdminPass, 12);
-
   const existingAdmin = await prisma.adminUser.findUnique({ where: { email: adminEmail } });
-  if (!existingAdmin) {
+
+  if (existingAdmin) {
+    console.log(`✔ Super admin already exists (${adminEmail}). Preserving existing credentials.`);
+  } else {
+    // Generate secure random bootstrap password if not explicitly supplied in environment
+    let rawAdminPass = process.env.BOOTSTRAP_ADMIN_PASSWORD;
+    let isGenerated = false;
+
+    if (!rawAdminPass) {
+      rawAdminPass = crypto.randomBytes(16).toString("hex");
+      isGenerated = true;
+    }
+
+    const passwordHash = await bcrypt.hash(rawAdminPass, 12);
+
     await prisma.adminUser.create({
       data: {
         id: "user-super-admin",
@@ -67,7 +79,14 @@ async function main() {
         status: "Active",
       },
     });
-    console.log(`✔ Super admin created: ${adminEmail}`);
+
+    if (isGenerated) {
+      console.log(`✔ Super admin created: ${adminEmail}`);
+      console.log(`🔑 One-time generated bootstrap password: ${rawAdminPass}`);
+      console.log(`   (Save this password immediately or configure BOOTSTRAP_ADMIN_PASSWORD in .env)`);
+    } else {
+      console.log(`✔ Super admin created: ${adminEmail} with configured environment password.`);
+    }
   }
 
   // 3. SEED CATEGORIES
@@ -277,7 +296,7 @@ async function main() {
 
   // 5. SEED COUPONS
   console.log("-> Seeding coupons...");
-  for (const c of MOCK_COUPONS) {
+  for (const c of SEED_COUPONS) {
     const val = parseInt(String(c.discount).replace(/[^0-9]/g, ""), 10) || 10;
     await prisma.coupon.upsert({
       where: { code: c.code },
@@ -296,7 +315,7 @@ async function main() {
 
   // 6. SEED BANNERS
   console.log("-> Seeding promotional banners...");
-  for (const b of MOCK_BANNERS) {
+  for (const b of SEED_BANNERS) {
     await prisma.banner.upsert({
       where: { id: b.id },
       update: {},

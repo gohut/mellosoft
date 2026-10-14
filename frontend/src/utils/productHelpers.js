@@ -1,8 +1,8 @@
 /**
  * Authoritative Central Product Lookup & Routing Utilities for Mellosoft
  */
-export { getMinimumProductPrice, formatPrice } from "./currency";
-import { getResolvedImageUrlSync } from "./imageStorage";
+export { getMinimumProductPrice, formatPrice } from "./currency.js";
+import { getResolvedImageUrlSync } from "./imageStorage.js";
 
 export const ACCESSORY_CATEGORIES = {
   "memory-foam-pillow": { id: "memory-foam-pillow", slug: "memory-foam-pillow", name: "Memory Foam Pillow", title: "Memory Foam Pillows", heading: "Memory Foam Pillows", description: "Adaptive comfort designed to support your head and neck.", tagline: "Adaptive comfort designed to support your head and neck.", image: "/images/accessories/pillows/cloud-contour.jpg" },

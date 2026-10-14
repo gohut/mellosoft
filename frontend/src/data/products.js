@@ -1,6 +1,6 @@
-import { MATTRESS_PRODUCTS, ACCESSORY_PRODUCTS, ACCESSORIES_CATEGORIES, BED_FRAME_PRODUCTS } from "./mattressData";
-import { ensureProductPricing } from "../utils/pricingEngine";
-import { getProductCategoryLabel } from "../utils/productHelpers";
+import { MATTRESS_PRODUCTS, ACCESSORY_PRODUCTS, ACCESSORIES_CATEGORIES, BED_FRAME_PRODUCTS } from "./mattressData.js";
+import { ensureProductPricing } from "../utils/pricingEngine.js";
+import { getProductCategoryLabel } from "../utils/productHelpers.js";
 
 // Helper to convert MATTRESS_PRODUCTS to full MOCK_PRODUCTS format
 const mattressProductsFormatted = MATTRESS_PRODUCTS.map((rawProd) => {

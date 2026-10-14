@@ -1,4 +1,4 @@
-import { MOCK_PRODUCTS } from "../../data/products";
+import { MOCK_PRODUCTS } from "../../data/products.js";
 
 // Sales chart data for different time filters
 export const SALES_CHART_DATA = {

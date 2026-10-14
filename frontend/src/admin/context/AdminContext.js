@@ -2,10 +2,10 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { MOCK_PRODUCTS } from "../../data/products";
-import { MOCK_CATEGORIES, MOCK_ORDERS, MOCK_CUSTOMERS, MOCK_WISHLISTS, MOCK_CARTS, MOCK_REVIEWS, MOCK_BANNERS } from "../data/adminMockData";
-import { DEFAULT_ROLES } from "../../data/rolesData";
-import { DEFAULT_USERS } from "../../data/usersData";
+import { MOCK_PRODUCTS } from "../../data/products.js";
+import { MOCK_CATEGORIES, MOCK_ORDERS, MOCK_CUSTOMERS, MOCK_WISHLISTS, MOCK_CARTS, MOCK_REVIEWS, MOCK_BANNERS } from "../data/adminMockData.js";
+import { DEFAULT_ROLES } from "../../data/rolesData.js";
+import { DEFAULT_USERS } from "../../data/usersData.js";
 import { hashPassword, checkPermission } from "../../utils/security";
 import { useAdminAuth } from "../../context/AdminAuthContext";
 import { buildInitialTrackingHistory } from "../../utils/trackingHelpers";
