@@ -1,10 +1,10 @@
 # MELLOSOFT HOSTINGER KVM 1 DEPLOYMENT STATUS
 
-Last Updated: 2026-10-14 10:20:00 UTC+05:30  
+Last Updated: 2026-10-14 10:37:00 UTC+05:30  
 Target Host: Hostinger KVM 1 VPS (Ubuntu 24.04 LTS, IP: 200.97.163.121)  
 Working Branch: `Backend_hostinger`  
 Repository: `https://github.com/gohut/mellosoft.git`  
-Current Commit: `58447e8`
+Current Commit: `bc26943`
 
 ---
 
@@ -12,17 +12,17 @@ Current Commit: `58447e8`
 
 | Phase | Description | Status | Evidence / Blockers |
 |---|---|---|---|
-| **Phase 1** | Audit Current State | **IN PROGRESS** | Local audit PASS (commit `58447e8`, 27/27 tests pass). VPS read-only audit awaiting operator terminal verification. |
-| **Phase 2** | Verify & Fix Source Code | **PASS** | Fixed: Runner missing `src/`, deterministic `prisma db push`, direct HTTP port 80 proxy, and `127.0.0.1:3000` mapping. |
-| **Phase 3** | Validate Application Locally | **PASS** | 27/27 tests passing across 6 suites (password, payments, pricing, rbac, uploads, validators). |
-| **Phase 4** | Check Hostinger Readiness | **BLOCKED** | Requires read-only verification of RAM, swap, disk, docker, and listening ports via operator SSH session. |
-| **Phase 5** | Prepare Production Configuration | **IN PROGRESS** | Production `.env.example` verified; VPS `.env` contains valid DB credentials. |
-| **Phase 6** | Verify Database Persistence | **NOT STARTED** | Awaiting schema push & initial volume check on VPS. |
-| **Phase 7** | Deploy to VPS | **NOT STARTED** | Pending Phase 1 & 4 confirmation. |
-| **Phase 8** | Make Application Accessible | **NOT STARTED** | Dependent on Phase 7 completion. |
-| **Phase 9** | Optional Domain & HTTPS | **NOT APPLICABLE** | Initial launch is on VPS IPv4 (`http://200.97.163.121`). Domain configuration deferred. |
+| **Phase 1** | Audit Current State | **PASS** | Local audit PASS (commit `bc26943`, 27/27 tests pass). VPS audit verified: Ubuntu 24.04, 1 CPU, 3.8 GiB RAM, 2 GiB swap, Docker installed, ports 80/443 open. |
+| **Phase 2** | Verify & Fix Source Code | **PASS** | Root cause identified & resolved: `.gitignore` had `*.sql` which ignored `prisma/migrations/**/migration.sql`. Migration file now tracked in Git (commit `bc26943`). |
+| **Phase 3** | Validate Application Locally | **PASS** | 27/27 unit & integration tests passing across 6 suites (password, payments, pricing, rbac, uploads, validators). |
+| **Phase 4** | Check Hostinger Readiness | **PASS** | VPS has 3.8 GiB RAM, 2 GiB swap, 1 CPU. Resources comfortably exceed requirements. |
+| **Phase 5** | Prepare Production Configuration | **PASS** | VPS `.env` exists with valid credentials. Untracked backup copies (`.env.save*`) intact. |
+| **Phase 6** | Verify Database Persistence | **IN PROGRESS** | Database backup and table verification before migration execution. |
+| **Phase 7** | Deploy to VPS | **READY** | Fast-forward merge is safe. Ready to apply migration and seed. |
+| **Phase 8** | Make Application Accessible | **NOT STARTED** | Awaiting Phase 7 completion. |
+| **Phase 9** | Optional Domain & HTTPS | **NOT APPLICABLE** | Initial launch verified via IPv4 (`http://200.97.163.121`). |
 | **Phase 10** | Production Smoke Tests | **NOT STARTED** | To be executed on live deployed IP. |
-| **Phase 11** | Backups, Monitoring & Recovery | **NOT STARTED** | Backup script in `scripts/backup.sh` ready for verification. |
+| **Phase 11** | Backups, Monitoring & Recovery | **NOT STARTED** | `scripts/backup.sh` ready for execution. |
 | **Phase 12** | Final Release Gate | **NOT STARTED** | Final sign-off pending live smoke test verification. |
 
 ---
@@ -32,15 +32,16 @@ Current Commit: `58447e8`
 ### Phase 1 — Current State Audit
 - [x] Current Git Branch is `Backend_hostinger` (`PASS`)
 - [x] Local working tree clean (`PASS`)
-- [x] Latest commit pushed to `origin/Backend_hostinger` (`58447e8`) (`PASS`)
+- [x] Latest commit pushed to `origin/Backend_hostinger` (`bc26943`) (`PASS`)
 - [x] No sensitive files committed (`.env` protected by `.gitignore`) (`PASS`)
-- [x] Local Node.js (`v24.11.1`) and npm (`11.6.2`) verified (`PASS`)
-- [ ] VPS SSH connectivity and system resources inspected (`BLOCKED` - operator terminal action required)
-- [ ] VPS existing containers & volumes inspected (`BLOCKED` - operator terminal action required)
+- [x] VPS system resources verified: 1 vCPU, 3.8 GiB RAM, 2 GiB swap (`PASS`)
+- [x] VPS Docker and Compose verified installed and running (`PASS`)
 
 ### Phase 2 — Source Code Fixes
+- [x] Unignored `frontend/prisma/migrations/**/*.sql` in `.gitignore` (`PASS`)
+- [x] Tracked `frontend/prisma/migrations/20261013000000_init/migration.sql` creating `Customer` and all 24 models (`PASS`)
 - [x] Runner container includes `src/` for `prisma/seed.mjs` (`PASS`)
-- [x] Deterministic schema synchronization via `prisma db push` (`PASS`)
+- [x] Dual-stage schema initialization: `prisma migrate deploy || prisma db push` (`PASS`)
 - [x] Direct HTTP proxying on Nginx port 80 for IP testing (`PASS`)
 - [x] Host-level port 3000 loopback binding for local health verification (`PASS`)
 - [x] Deployment script with strict error handling (`PASS`)

@@ -38,3 +38,11 @@ Historical operational log capturing all deployment events, diagnostics, discove
   - `docs/HOSTINGER_DEPLOYMENT_ROADMAP.md`
   - `docs/HOSTINGER_DEPLOYMENT_LOG.md`
 * **Test Verification:** Executed `npm test` on local repository. All 27 tests across 6 test suites passed (0 failures).
+
+### [2026-10-14 10:35 UTC+05:30] — Root Cause Discovered: Missing Customer Table & Migrations
+* **Action:** Investigated why `public.Customer` table was missing and Prisma reported "No migration found".
+* **Root Cause:** `.gitignore` line 22 contained `*.sql`. This ignored `frontend/prisma/migrations/20261013000000_init/migration.sql`, preventing it from ever being committed to GitHub. When the VPS ran `prisma migrate deploy`, no SQL migration existed to execute, leaving PostgreSQL without any tables.
+* **Fix Applied:** Commit `bc26943`:
+  - Added `!**/prisma/migrations/**/*.sql` exception to `.gitignore`.
+  - Added and committed `frontend/prisma/migrations/20261013000000_init/migration.sql` (630 lines creating all 24 models including `Customer`).
+  - Updated `scripts/deploy.sh` to run `prisma migrate deploy || prisma db push --skip-generate` as a robust dual-stage schema initialization.
