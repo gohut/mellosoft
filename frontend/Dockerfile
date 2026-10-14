@@ -43,6 +43,9 @@ RUN adduser --system --uid 1001 nextjs
 COPY --from=builder /app/public ./public
 RUN mkdir -p ./public/uploads && chown -R nextjs:nodejs ./public/uploads
 
+# Copy dependencies so prisma CLI 6.4.1 is present for migrations
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules ./node_modules
+
 # Standalone output from Next.js
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
