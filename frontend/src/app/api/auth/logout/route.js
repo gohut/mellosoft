@@ -3,13 +3,20 @@ import { destroyCustomerSession, destroyAdminSession } from "../../../../lib/aut
 
 export async function POST(request) {
   try {
-    const custRes = await destroyCustomerSession(request);
-    const adminRes = await destroyAdminSession(request);
+    const { searchParams } = new URL(request.url);
+    const type = searchParams.get("type"); // "customer" | "admin" | null
 
     const response = NextResponse.json({ success: true, message: "Logged out successfully" });
 
-    response.cookies.set(custRes.cookieName, "", custRes.cookieOptions);
-    response.cookies.set(adminRes.cookieName, "", adminRes.cookieOptions);
+    if (type !== "admin") {
+      const custRes = await destroyCustomerSession(request);
+      response.cookies.set(custRes.cookieName, "", custRes.cookieOptions);
+    }
+
+    if (type !== "customer") {
+      const adminRes = await destroyAdminSession(request);
+      response.cookies.set(adminRes.cookieName, "", adminRes.cookieOptions);
+    }
 
     return response;
   } catch (error) {

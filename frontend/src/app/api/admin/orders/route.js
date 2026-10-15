@@ -20,6 +20,7 @@ export async function GET(request) {
       const q = search.trim();
       where.OR = [
         { id: { contains: q, mode: "insensitive" } },
+        { orderNumber: { contains: q, mode: "insensitive" } },
         { customerName: { contains: q, mode: "insensitive" } },
         { email: { contains: q, mode: "insensitive" } },
         { phone: { contains: q, mode: "insensitive" } },

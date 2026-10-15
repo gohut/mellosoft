@@ -41,19 +41,22 @@ export async function GET(request) {
     // 2. Specific admin session query
     if (requestedType === "admin") {
       if (adminCheck.authenticated && adminCheck.user) {
+        const adminUserData = {
+          id: adminCheck.user.id,
+          name: adminCheck.user.name,
+          email: adminCheck.user.email,
+          phone: adminCheck.user.phone,
+          roleId: adminCheck.user.roleId,
+          roleName: adminCheck.role?.name,
+          status: adminCheck.user.status,
+        };
         return NextResponse.json({
           success: true,
           authenticated: true,
           type: "admin",
-          user: {
-            id: adminCheck.user.id,
-            name: adminCheck.user.name,
-            email: adminCheck.user.email,
-            phone: adminCheck.user.phone,
-            roleId: adminCheck.user.roleId,
-            roleName: adminCheck.role?.name,
-            status: adminCheck.user.status,
-          },
+          admin: adminUserData,
+          adminUser: adminUserData,
+          user: adminUserData,
           role: adminCheck.role,
           permissions: adminCheck.role?.permissions || {},
         });
@@ -98,6 +101,7 @@ export async function GET(request) {
       type: adminPayload && !customerPayload ? "admin" : customerPayload && !adminPayload ? "customer" : adminPayload && customerPayload ? "dual" : "none",
       user: customerPayload ? { id: customerPayload.id, name: customerPayload.name, email: customerPayload.email } : adminPayload,
       adminUser: adminPayload,
+      admin: adminPayload,
       customer: customerPayload,
       role: adminCheck.role || null,
       permissions: adminCheck.role?.permissions || {},

@@ -89,15 +89,9 @@ const DEMO_PURGE_V3_KEY = "mellosoft_demo_purge_v3";
 const DEMO_PURGE_V4_KEY = "mellosoft_demo_purge_v4";
 const CATEGORIES_CLEANUP_V2_KEY = "mellosoft_categories_cleanup_v2";
 
-const DEMO_CUSTOMER_IDS = new Set([
-  "C001", "C002", "C003", "C004", "C005", "C006", "C007", "C008",
-  "CUS-0001", "CUS-0002", "CUS-0003", "CUS-0004", "CUS-0005", "CUS-0006", "CUS-0007", "CUS-0008"
-]);
-const DEMO_EMAILS = new Set([
-  "rahul@example.com", "priya@example.com", "ankit@example.com", "sneha@example.com",
-  "vikram@example.com", "meera@example.com", "arjun@example.com", "kavitha@example.com"
-]);
-const DEMO_ORDER_ID_PREFIX = "MS-92";
+const DEMO_CUSTOMER_IDS = new Set();
+const DEMO_EMAILS = new Set();
+const DEMO_ORDER_ID_PREFIX = "DEMO_NONE_";
 
 if (typeof window !== "undefined") {
   try {
@@ -118,77 +112,8 @@ if (typeof window !== "undefined") {
       localStorage.setItem(CATEGORIES_CLEANUP_V2_KEY, "completed");
     }
 
-    // Complete demo customer, order, notification, and role testing purge migration
+    // Mark demo purge as completed without wiping real database-backed records
     if (localStorage.getItem(DEMO_PURGE_V3_KEY) !== "completed") {
-      // 1. Clean customers (remove all demo customer accounts)
-      const savedCusts = localStorage.getItem(CUSTOMERS_STORAGE_KEY);
-      let existingCusts = savedCusts ? JSON.parse(savedCusts) : [];
-      if (!Array.isArray(existingCusts)) existingCusts = [];
-      const cleanCustomers = existingCusts.filter((c) => {
-        if (!c) return false;
-        const id = c.customerId || c.id;
-        const email = (c.email || "").toLowerCase();
-        return !DEMO_CUSTOMER_IDS.has(id) && !DEMO_EMAILS.has(email);
-      });
-      localStorage.setItem(CUSTOMERS_STORAGE_KEY, JSON.stringify(cleanCustomers));
-
-      // 2. Clean orders (remove all demo orders)
-      const savedOrders = localStorage.getItem(ORDERS_STORAGE_KEY);
-      let existingOrders = savedOrders ? JSON.parse(savedOrders) : [];
-      if (!Array.isArray(existingOrders)) existingOrders = [];
-      const cleanOrders = existingOrders.filter((o) => {
-        if (!o) return false;
-        const custId = o.customerId || o.userId;
-        const email = (o.email || "").toLowerCase();
-        const orderId = o.id || "";
-        const isDemo = DEMO_CUSTOMER_IDS.has(custId) || DEMO_EMAILS.has(email) || orderId.startsWith(DEMO_ORDER_ID_PREFIX) || orderId === "MS-15680";
-        return !isDemo;
-      });
-      localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(cleanOrders));
-      localStorage.setItem("mellosoft_admin_orders", JSON.stringify(cleanOrders));
-
-      // 3. Clean current customer session if logged in as a demo user
-      try {
-        const session = JSON.parse(localStorage.getItem("mellosoft_customer_session") || "null");
-        if (session) {
-          const sId = session.customerId || session.id;
-          const sEmail = (session.email || "").toLowerCase();
-          if (DEMO_CUSTOMER_IDS.has(sId) || DEMO_EMAILS.has(sEmail)) {
-            localStorage.removeItem("mellosoft_customer_session");
-          }
-        }
-      } catch {}
-
-      // 4. Clean demo customer carts and wishlists from storage
-      DEMO_CUSTOMER_IDS.forEach((id) => {
-        try {
-          localStorage.removeItem(`mellosoft_cart_${id}`);
-          localStorage.removeItem(`mellosoft_wishlist_${id}`);
-        } catch {}
-      });
-
-      try {
-        const savedWishlists = localStorage.getItem(WISHLISTS_STORAGE_KEY);
-        if (savedWishlists) {
-          const parsedW = JSON.parse(savedWishlists);
-          if (Array.isArray(parsedW)) {
-            const cleanW = parsedW.filter((w) => !DEMO_CUSTOMER_IDS.has(w.customerId));
-            localStorage.setItem(WISHLISTS_STORAGE_KEY, JSON.stringify(cleanW));
-          }
-        }
-        const savedCarts = localStorage.getItem(CARTS_STORAGE_KEY);
-        if (savedCarts) {
-          const parsedC = JSON.parse(savedCarts);
-          if (Array.isArray(parsedC)) {
-            const cleanC = parsedC.filter((c) => !DEMO_CUSTOMER_IDS.has(c.customerId));
-            localStorage.setItem(CARTS_STORAGE_KEY, JSON.stringify(cleanC));
-          }
-        }
-      } catch {}
-
-      // 5. Clean demo notifications
-      localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify([]));
-
       localStorage.setItem(DEMO_PURGE_V3_KEY, "completed");
     }
 
@@ -628,13 +553,7 @@ export function AdminProvider({ children }) {
         if (saved) {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed)) {
-            return parsed.filter((o) => {
-              if (!o) return false;
-              const custId = o.customerId || o.userId;
-              const email = (o.email || "").toLowerCase();
-              const orderId = o.id || "";
-              return !DEMO_CUSTOMER_IDS.has(custId) && !DEMO_EMAILS.has(email) && !orderId.startsWith(DEMO_ORDER_ID_PREFIX);
-            });
+            return parsed;
           }
         }
       } catch (e) {
@@ -643,6 +562,8 @@ export function AdminProvider({ children }) {
     }
     return [];
   });
+  const [ordersLoading, setOrdersLoading] = useState(true);
+  const [ordersError, setOrdersError] = useState(null);
 
   // Hydrate customers from localStorage
   const [customers, setCustomers] = useState(() => {
@@ -652,12 +573,7 @@ export function AdminProvider({ children }) {
         if (saved) {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed)) {
-            return parsed.filter((c) => {
-              if (!c) return false;
-              const id = c.customerId || c.id;
-              const email = (c.email || "").toLowerCase();
-              return !DEMO_CUSTOMER_IDS.has(id) && !DEMO_EMAILS.has(email);
-            });
+            return parsed;
           }
         }
       } catch (e) {
@@ -666,6 +582,8 @@ export function AdminProvider({ children }) {
     }
     return [];
   });
+  const [customersLoading, setCustomersLoading] = useState(true);
+  const [customersError, setCustomersError] = useState(null);
 
   // Hydrate wishlists from localStorage
   const [wishlists, setWishlists] = useState(() => {
@@ -1090,6 +1008,62 @@ export function AdminProvider({ children }) {
   const currentUser = users.find((u) => u.id === currentUserId || u.email?.toLowerCase() === auth.user?.email?.toLowerCase()) || auth.user || users[0];
   const currentUserRole = roles.find((r) => r.id === currentUser?.roleId || r.name === currentUser?.roleName) || auth.role || roles[0];
 
+  const loadCustomers = useCallback(async () => {
+    setCustomersLoading(true);
+    setCustomersError(null);
+    try {
+      const res = await fetch("/api/admin/customers");
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.success && Array.isArray(data.customers)) {
+          setCustomers(data.customers);
+          setCustomersError(null);
+          try {
+            localStorage.setItem(CUSTOMERS_STORAGE_KEY, JSON.stringify(data.customers));
+          } catch {}
+        } else {
+          setCustomersError(data?.error || "Failed to load customers from server.");
+        }
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        setCustomersError(errData?.error || `Failed to fetch customers (HTTP ${res.status})`);
+      }
+    } catch (err) {
+      console.error("Admin customers fetch error:", err);
+      setCustomersError(err.message || "Network error loading customers.");
+    } finally {
+      setCustomersLoading(false);
+    }
+  }, []);
+
+  const loadOrders = useCallback(async () => {
+    setOrdersLoading(true);
+    setOrdersError(null);
+    try {
+      const res = await fetch("/api/admin/orders");
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.success && Array.isArray(data.orders)) {
+          setOrders(data.orders);
+          setOrdersError(null);
+          try {
+            localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(data.orders));
+          } catch {}
+        } else {
+          setOrdersError(data?.error || "Failed to load orders from server.");
+        }
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        setOrdersError(errData?.error || `Failed to fetch orders (HTTP ${res.status})`);
+      }
+    } catch (err) {
+      console.error("Admin orders fetch error:", err);
+      setOrdersError(err.message || "Network error loading orders.");
+    } finally {
+      setOrdersLoading(false);
+    }
+  }, []);
+
   // Synchronize live users, roles, customers, and orders from PostgreSQL API
   useEffect(() => {
     let isMounted = true;
@@ -1121,33 +1095,13 @@ export function AdminProvider({ children }) {
       .catch(() => {});
 
     // 3. Fetch Customers
-    fetch("/api/admin/customers")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (isMounted && data?.success && Array.isArray(data.customers)) {
-          setCustomers(data.customers);
-          try {
-            localStorage.setItem(CUSTOMERS_STORAGE_KEY, JSON.stringify(data.customers));
-          } catch {}
-        }
-      })
-      .catch(() => {});
+    loadCustomers();
 
     // 4. Fetch Orders
-    fetch("/api/admin/orders")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (isMounted && data?.success && Array.isArray(data.orders)) {
-          setOrders(data.orders);
-          try {
-            localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(data.orders));
-          } catch {}
-        }
-      })
-      .catch(() => {});
+    loadOrders();
 
     return () => { isMounted = false; };
-  }, []);
+  }, [loadCustomers, loadOrders]);
 
   const isFirstProductsRef = useRef(true);
   const isFirstOrdersRef = useRef(true);
@@ -1235,14 +1189,7 @@ export function AdminProvider({ children }) {
         if (savedOrders) {
           const parsed = JSON.parse(savedOrders);
           if (Array.isArray(parsed)) {
-            const cleanOrders = parsed.filter((o) => {
-              if (!o) return false;
-              const custId = o.customerId || o.userId;
-              const email = (o.email || "").toLowerCase();
-              const orderId = o.id || "";
-              return !DEMO_CUSTOMER_IDS.has(custId) && !DEMO_EMAILS.has(email) && !orderId.startsWith(DEMO_ORDER_ID_PREFIX);
-            });
-            setOrders((prev) => (JSON.stringify(prev) === JSON.stringify(cleanOrders) ? prev : cleanOrders));
+            setOrders((prev) => (JSON.stringify(prev) === JSON.stringify(parsed) ? prev : parsed));
           }
         }
       } catch (e) {
@@ -1254,13 +1201,7 @@ export function AdminProvider({ children }) {
         if (savedCustomers) {
           const parsed = JSON.parse(savedCustomers);
           if (Array.isArray(parsed)) {
-            const cleanCusts = parsed.filter((c) => {
-              if (!c) return false;
-              const id = c.customerId || c.id;
-              const email = (c.email || "").toLowerCase();
-              return !DEMO_CUSTOMER_IDS.has(id) && !DEMO_EMAILS.has(email);
-            });
-            setCustomers((prev) => (JSON.stringify(prev) === JSON.stringify(cleanCusts) ? prev : cleanCusts));
+            setCustomers((prev) => (JSON.stringify(prev) === JSON.stringify(parsed) ? prev : parsed));
           }
         }
       } catch (e) {
@@ -1506,81 +1447,102 @@ export function AdminProvider({ children }) {
 
   /** Order Handlers */
   const updateOrder = useCallback(
-    (orderId, updatedFields) => {
-      let updatedOrderObj = null;
-      setOrders((prev) => {
-        const nextOrders = prev.map((o) => {
-          if (o.id === orderId || o.orderId === orderId) {
-            let history = Array.isArray(o.trackingHistory) && o.trackingHistory.length > 0
-              ? [...o.trackingHistory]
-              : buildInitialTrackingHistory(o);
+    async (orderId, updatedFields) => {
+      // 1. Resolve order in current state to obtain both internal Prisma ID and public orderNumber
+      const currentOrder = (orders || []).find(
+        (o) => o.id === orderId || o.orderNumber === orderId || o.orderId === orderId
+      );
 
-            if (updatedFields.orderStatus && o.orderStatus !== updatedFields.orderStatus) {
-              const newStatus = updatedFields.orderStatus;
-              const lastEntry = history[history.length - 1];
-              if (!lastEntry || lastEntry.status.toLowerCase() !== newStatus.toLowerCase()) {
-                const descMap = {
-                  "Confirmed": "Your order has been placed & confirmed.",
-                  "Order Confirmed": "Your order has been placed & confirmed.",
-                  "Processing": "Your order is being prepared and quality inspected.",
-                  "Packed": "Package packed and ready for carrier dispatch.",
-                  "Shipped": "Package handed over to courier. In transit.",
-                  "Out for Delivery": "Out for delivery with local courier agent.",
-                  "Delivered": "Package delivered to destination address.",
-                  "Cancellation Requested": "Customer requested cancellation. Awaiting admin approval.",
-                  "Cancelled": "Order has been cancelled."
-                };
-                history.push({
-                  status: newStatus,
-                  timestamp: new Date().toISOString(),
-                  description: updatedFields.description || descMap[newStatus] || `Order status updated to ${newStatus}.`
-                });
-              }
-            }
+      // Prefer database internal id if known, otherwise orderId
+      const targetId = currentOrder?.id || currentOrder?.orderNumber || orderId;
 
-            updatedOrderObj = {
-              ...o,
-              ...updatedFields,
-              updatedAt: new Date().toISOString(),
-              trackingHistory: history
-            };
-            return updatedOrderObj;
-          }
-          return o;
-        });
-
-        // Persist to localStorage for real-time customer UI sync
-        try {
-          localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(nextOrders));
-          if (typeof window !== "undefined") {
-            setTimeout(() => {
-              window.dispatchEvent(new Event("storage"));
-              window.dispatchEvent(new CustomEvent("mellosoft_orders_updated"));
-            }, 0);
-          }
-        } catch (e) {
-          console.error("Failed to save orders to localStorage:", e);
-        }
-
-        return nextOrders;
-      });
-
-      // Sync with backend API
       try {
-        fetch(`/api/admin/orders/${orderId}`, {
+        const res = await fetch(`/api/admin/orders/${encodeURIComponent(targetId)}`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify(updatedFields),
-        }).catch((err) => console.warn("Background API order sync warning:", err));
-      } catch {
-        // Ignore
-      }
+        });
 
-      return { success: true, order: updatedOrderObj };
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok || !data.success) {
+          const errorMsg = data?.error || `Failed to update order status (HTTP ${res.status})`;
+          return { success: false, error: errorMsg };
+        }
+
+        const serverOrder = data.order;
+        let updatedOrderObj = null;
+
+        // 2. Only update state on server success
+        setOrders((prev) => {
+          const nextOrders = prev.map((o) => {
+            if (o.id === targetId || o.orderNumber === targetId || o.id === orderId || o.orderNumber === orderId) {
+              let history = Array.isArray(o.trackingHistory) && o.trackingHistory.length > 0
+                ? [...o.trackingHistory]
+                : buildInitialTrackingHistory(o);
+
+              if (serverOrder.orderStatus && o.orderStatus !== serverOrder.orderStatus) {
+                const newStatus = serverOrder.orderStatus;
+                const lastEntry = history[history.length - 1];
+                if (!lastEntry || lastEntry.status.toLowerCase() !== newStatus.toLowerCase()) {
+                  const descMap = {
+                    "Confirmed": "Your order has been placed & confirmed.",
+                    "Order Confirmed": "Your order has been placed & confirmed.",
+                    "Processing": "Your order is being prepared and quality inspected.",
+                    "Packed": "Package packed and ready for carrier dispatch.",
+                    "Shipped": "Package handed over to courier. In transit.",
+                    "Out for Delivery": "Out for delivery with local courier agent.",
+                    "Delivered": "Package delivered to destination address.",
+                    "Cancellation Requested": "Customer requested cancellation. Awaiting admin approval.",
+                    "Cancelled": "Order has been cancelled."
+                  };
+                  history.push({
+                    status: newStatus,
+                    timestamp: new Date().toISOString(),
+                    description: updatedFields.description || descMap[newStatus] || `Order status updated to ${newStatus}.`
+                  });
+                }
+              }
+
+              updatedOrderObj = {
+                ...o,
+                ...serverOrder,
+                updatedAt: serverOrder.updatedAt || new Date().toISOString(),
+                trackingHistory: history
+              };
+              return updatedOrderObj;
+            }
+            return o;
+          });
+
+          // Persist to localStorage for real-time customer UI sync
+          try {
+            localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(nextOrders));
+            if (typeof window !== "undefined") {
+              setTimeout(() => {
+                window.dispatchEvent(new Event("storage"));
+                window.dispatchEvent(new CustomEvent("mellosoft_orders_updated"));
+              }, 0);
+            }
+          } catch (e) {
+            console.error("Failed to save orders to localStorage:", e);
+          }
+
+          return nextOrders;
+        });
+
+        // 3. Re-fetch orders from API to ensure complete authoritative sync
+        loadOrders().catch((e) => console.warn("Background order reload warning:", e));
+
+        return { success: true, order: updatedOrderObj || serverOrder };
+      } catch (networkError) {
+        console.error("Network error updating order:", networkError);
+        return { success: false, error: networkError.message || "Network error updating order status." };
+      }
     },
-    []
+    [orders, loadOrders]
   );
 
   // Check if current user has permission
@@ -2652,8 +2614,14 @@ export function AdminProvider({ children }) {
         updateRole,
         deleteRole,
         orders,
+        ordersLoading,
+        ordersError,
+        reloadOrders: loadOrders,
         updateOrder,
         customers,
+        customersLoading,
+        customersError,
+        reloadCustomers: loadCustomers,
         updateCustomerStatus,
         wishlists,
         carts,

@@ -14,7 +14,7 @@ export function CustomerAuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [intendedView, setIntendedView] = useState("home");
 
-  // Hydrate session safely: First check server session cookie, fall back to local storage
+  // Hydrate session strictly from server session endpoint
   useEffect(() => {
     let isMounted = true;
     async function checkSession() {
@@ -22,7 +22,7 @@ export function CustomerAuthProvider({ children }) {
         const res = await fetch("/api/auth/session?type=customer", { method: "GET" });
         if (res.ok) {
           const data = await res.json();
-          if (data && data.success && data.customer) {
+          if (data && data.success && data.authenticated && data.customer) {
             if (isMounted) {
               const cust = {
                 ...data.customer,
@@ -41,25 +41,17 @@ export function CustomerAuthProvider({ children }) {
           }
         }
       } catch (err) {
-        // Server unreachable or network error, proceed to fallback
+        console.error("Customer session verification network error:", err);
       }
 
-      // Fallback to localStorage session
-      try {
-        const savedSession = localStorage.getItem(CUSTOMER_SESSION_KEY);
-        if (savedSession) {
-          const parsed = JSON.parse(savedSession);
-          if (parsed && parsed.id) {
-            if (isMounted) {
-              setCurrentCustomer(parsed);
-              setIsAuthenticated(true);
-            }
-          }
-        }
-      } catch (e) {
-        console.error("Failed to load customer session from localStorage:", e);
-      } finally {
-        if (isMounted) setLoading(false);
+      // If server session check fails or is unauthenticated, invalidate client auth state
+      if (isMounted) {
+        try {
+          localStorage.removeItem(CUSTOMER_SESSION_KEY);
+        } catch {}
+        setCurrentCustomer(null);
+        setIsAuthenticated(false);
+        setLoading(false);
       }
     }
 
@@ -69,7 +61,7 @@ export function CustomerAuthProvider({ children }) {
     };
   }, []);
 
-  // Retrieve registered customers list from storage (excluding demo accounts)
+  // Retrieve registered customers list from storage (excluding obsolete demo accounts)
   const getAllCustomers = useCallback(() => {
     let list = [];
     if (typeof window !== "undefined") {
@@ -87,8 +79,7 @@ export function CustomerAuthProvider({ children }) {
     }
 
     const demoIds = new Set([
-      "C001", "C002", "C003", "C004", "C005", "C006", "C007", "C008",
-      "CUS-0001", "CUS-0002", "CUS-0003", "CUS-0004", "CUS-0005", "CUS-0006", "CUS-0007", "CUS-0008"
+      "C001", "C002", "C003", "C004", "C005", "C006", "C007", "C008"
     ]);
     const demoEmails = new Set([
       "rahul@example.com", "priya@example.com", "ankit@example.com", "sneha@example.com",
@@ -126,7 +117,6 @@ export function CustomerAuthProvider({ children }) {
       return { success: false, error: "Please enter a valid email address." };
     }
 
-    // 1. Try server API authentication
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
@@ -151,40 +141,14 @@ export function CustomerAuthProvider({ children }) {
         setCurrentCustomer(customerSession);
         setIsAuthenticated(true);
         return { success: true, customer: customerSession };
-      } else if (data && data.error && !data.error.includes("offline") && !data.error.includes("Prisma")) {
-        return { success: false, error: data.error };
       }
+
+      return { success: false, error: data?.error || "Invalid email or password." };
     } catch (err) {
-      console.warn("Server auth login unreachable, checking local fallback:", err);
+      console.error("Customer login error:", err);
+      return { success: false, error: "Network error during login. Please try again." };
     }
-
-    // 2. Client fallback
-    const customers = getAllCustomers();
-    const customer = customers.find(
-      (c) => (c.email || "").toLowerCase() === trimmedEmail
-    );
-
-    if (!customer) {
-      return { success: false, error: "Invalid email or password." };
-    }
-
-    const canonicalId = normalizeCustomerId(customer.customerId || customer.id);
-    const customerSession = {
-      ...customer,
-      id: canonicalId,
-      customerId: canonicalId,
-      lastLogin: new Date().toISOString()
-    };
-
-    try {
-      localStorage.setItem(CUSTOMER_SESSION_KEY, JSON.stringify(customerSession));
-    } catch (e) {}
-
-    setCurrentCustomer(customerSession);
-    setIsAuthenticated(true);
-
-    return { success: true, customer: customerSession };
-  }, [getAllCustomers]);
+  }, []);
 
   // Customer Signup logic
   const signup = useCallback(async ({ name, email, password, phone }) => {
@@ -202,7 +166,6 @@ export function CustomerAuthProvider({ children }) {
       return { success: false, error: "Please enter a valid email address." };
     }
 
-    // 1. Try server API registration
     try {
       const res = await fetch("/api/auth/register", {
         method: "POST",
@@ -216,11 +179,12 @@ export function CustomerAuthProvider({ children }) {
       });
       const data = await res.json();
       if (res.ok && data.success && data.customer) {
-        const canonicalId = normalizeCustomerId(data.customer.id);
+        const canonicalId = normalizeCustomerId(data.customer.customerId || data.customer.id);
         const customerSession = {
           ...data.customer,
           id: canonicalId,
           customerId: canonicalId,
+          savedAddresses: data.customer.savedAddresses || data.customer.addresses || [],
           lastLogin: new Date().toISOString()
         };
         try {
@@ -230,65 +194,14 @@ export function CustomerAuthProvider({ children }) {
         setCurrentCustomer(customerSession);
         setIsAuthenticated(true);
         return { success: true, customer: customerSession };
-      } else if (data && data.error && !data.error.includes("Prisma")) {
-        return { success: false, error: data.error };
       }
+
+      return { success: false, error: data?.error || "Registration failed." };
     } catch (err) {
-      console.warn("Server auth register unreachable, checking local fallback:", err);
+      console.error("Customer registration error:", err);
+      return { success: false, error: "Network error during registration. Please try again." };
     }
-
-    // 2. Client fallback
-    const customers = getAllCustomers();
-    const exists = customers.some(
-      (c) => (c.email || "").toLowerCase() === trimmedEmail
-    );
-
-    if (exists) {
-      return { success: false, error: "An account with this email already exists." };
-    }
-
-    let maxIdNum = 0;
-    customers.forEach((c) => {
-      const match = (c.customerId || c.id || "").match(/CUS-(\d+)/i);
-      if (match) {
-        const num = parseInt(match[1], 10);
-        if (!isNaN(num) && num > maxIdNum) maxIdNum = num;
-      }
-    });
-    const nextIndex = maxIdNum > 0 ? maxIdNum + 1 : customers.length + 1;
-    const formattedCustId = `CUS-${String(nextIndex).padStart(4, "0")}`;
-    const newCustomer = {
-      id: formattedCustId,
-      customerId: formattedCustId,
-      name: trimmedName,
-      email: trimmedEmail,
-      phone: trimmedPhone || "+91 98765 43210",
-      status: "Active",
-      avatar: trimmedName.charAt(0).toUpperCase(),
-      createdAt: new Date().toISOString().split("T")[0],
-      lastLogin: new Date().toISOString(),
-      savedAddresses: []
-    };
-
-    try {
-      const saved = localStorage.getItem(CUSTOMERS_KEY);
-      const parsed = saved ? JSON.parse(saved) : [];
-      parsed.push(newCustomer);
-      localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(parsed));
-      localStorage.setItem(CUSTOMER_SESSION_KEY, JSON.stringify(newCustomer));
-      if (typeof window !== "undefined") {
-        setTimeout(() => {
-          window.dispatchEvent(new Event("storage"));
-          window.dispatchEvent(new CustomEvent("mellosoft_customers_updated"));
-        }, 0);
-      }
-    } catch (e) {}
-
-    setCurrentCustomer(newCustomer);
-    setIsAuthenticated(true);
-
-    return { success: true, customer: newCustomer };
-  }, [getAllCustomers]);
+  }, []);
 
   // Customer Google Login logic
   const loginWithGoogle = useCallback(async (googleProfile) => {
@@ -583,7 +496,7 @@ export function CustomerAuthProvider({ children }) {
   // Logout logic
   const logout = useCallback(async () => {
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
+      await fetch("/api/auth/logout?type=customer", { method: "POST" });
     } catch (e) {}
 
     try {

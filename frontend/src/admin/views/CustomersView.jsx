@@ -49,7 +49,17 @@ const statSkeletonCardStyle = {
 };
 
 export default function CustomersView() {
-  const { customers, orders, products, wishlists, updateCustomerStatus, hasPermission } = useAdmin();
+  const {
+    customers,
+    customersLoading,
+    customersError,
+    reloadCustomers,
+    orders,
+    products,
+    wishlists,
+    updateCustomerStatus,
+    hasPermission
+  } = useAdmin();
   const [selectedCustomerId, setSelectedCustomerId] = useState(null);
 
   // Filter States
@@ -230,7 +240,9 @@ export default function CustomersView() {
       <div>
         <h3 style={{ fontSize: "18px", fontWeight: 700, color: "#14151A", margin: 0 }}>Customer Management</h3>
         <p style={{ fontSize: "13px", color: "#6B6B75", marginTop: "4px" }}>
-          {hasActiveFilters ? (
+          {customersLoading && (!customers || customers.length === 0) ? (
+            <>Loading registered customers...</>
+          ) : hasActiveFilters ? (
             <>Showing <strong style={{ color: "#1B1F8C" }}>{filteredCustomers.length}</strong> of {customerTableRows.length} registered customers</>
           ) : (
             <>{customerTableRows.length} registered customers</>
@@ -238,9 +250,44 @@ export default function CustomersView() {
         </p>
       </div>
 
+      {/* API Error Alert */}
+      {customersError && (
+        <div style={{
+          backgroundColor: "#FEF2F2",
+          border: "1px solid #FCA5A5",
+          borderRadius: "12px",
+          padding: "14px 18px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          color: "#991B1B",
+          fontSize: "13px",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.05)"
+        }}>
+          <div>
+            <strong>Error loading customers:</strong> {customersError}
+          </div>
+          <button
+            onClick={reloadCustomers}
+            style={{
+              backgroundColor: "#DC2626",
+              color: "#FFFFFF",
+              border: "none",
+              borderRadius: "6px",
+              padding: "6px 14px",
+              fontWeight: 600,
+              fontSize: "12px",
+              cursor: "pointer"
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
       {/* Customer Summary Statistics Cards */}
       <div className="customer-stats-grid" style={statsRowStyle}>
-        {!customers ? (
+        {customersLoading && (!customers || customers.length === 0) ? (
           [1, 2, 3, 4].map((i) => (
             <div key={i} style={statSkeletonCardStyle}>
               <Skeleton width="55%" height={13} borderRadius={4} />
@@ -400,8 +447,28 @@ export default function CustomersView() {
         )}
       </div>
 
-      {/* Relational Customers Table with Empty State */}
-      {filteredCustomers.length === 0 ? (
+      {/* Relational Customers Table with Loading and Empty States */}
+      {customersLoading && (!customers || customers.length === 0) ? (
+        <div style={{
+          backgroundColor: "#FFFFFF",
+          borderRadius: "14px",
+          border: "1px solid #E7E7E2",
+          padding: "32px 24px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "16px"
+        }}>
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} style={{ display: "flex", gap: "16px", alignItems: "center" }}>
+              <Skeleton width="90px" height={22} borderRadius={6} />
+              <Skeleton width="180px" height={22} borderRadius={6} />
+              <Skeleton width="220px" height={22} borderRadius={6} />
+              <Skeleton width="120px" height={22} borderRadius={6} />
+              <Skeleton width="80px" height={22} borderRadius={6} />
+            </div>
+          ))}
+        </div>
+      ) : filteredCustomers.length === 0 ? (
         <div style={{
           backgroundColor: "#FFFFFF",
           borderRadius: "14px",
@@ -412,31 +479,35 @@ export default function CustomersView() {
         }}>
           <Search size={36} color="#9CA3AF" style={{ marginBottom: "12px" }} />
           <h4 style={{ fontSize: "16px", fontWeight: 700, color: "#14151A", margin: "0 0 6px" }}>
-            No matching customers found
+            {hasActiveFilters ? "No matching customers found" : "No registered customers found"}
           </h4>
           <p style={{ fontSize: "13px", color: "#6B6B75", margin: "0 0 16px" }}>
-            Try changing or resetting your filters.
+            {hasActiveFilters
+              ? "Try changing or resetting your filters."
+              : "When customers register an account, they will automatically appear here."}
           </p>
-          <button
-            type="button"
-            onClick={handleResetFilters}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "8px 16px",
-              borderRadius: "8px",
-              fontSize: "13px",
-              fontWeight: 700,
-              border: "1px solid #1B1F8C",
-              backgroundColor: "#EEF0FF",
-              color: "#1B1F8C",
-              cursor: "pointer"
-            }}
-          >
-            <RotateCcw size={14} />
-            Reset Filters
-          </button>
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "8px 16px",
+                borderRadius: "8px",
+                fontSize: "13px",
+                fontWeight: 700,
+                border: "1px solid #1B1F8C",
+                backgroundColor: "#EEF0FF",
+                color: "#1B1F8C",
+                cursor: "pointer"
+              }}
+            >
+              <RotateCcw size={14} />
+              Reset Filters
+            </button>
+          )}
         </div>
       ) : (
         <DataTable

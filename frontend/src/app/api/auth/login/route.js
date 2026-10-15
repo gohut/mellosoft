@@ -106,54 +106,7 @@ export async function POST(request) {
       },
     });
 
-    // If customer doesn't exist, check if an admin user is logging in without explicit isAdmin flag
     if (!customer) {
-      const fallbackAdmin = await prisma.adminUser.findUnique({
-        where: { email: emailTrimmed },
-        include: {
-          role: {
-            include: {
-              permissions: true,
-            },
-          },
-        },
-      });
-
-      if (fallbackAdmin) {
-        const isAdminPass = await verifyPassword(password, fallbackAdmin.passwordHash);
-        if (isAdminPass && fallbackAdmin.status === "Active") {
-          const sessionData = await createAdminSession(fallbackAdmin.id, request);
-          const permissionsMap = {};
-          if (fallbackAdmin.role?.permissions) {
-            for (const p of fallbackAdmin.role.permissions) {
-              if (!permissionsMap[p.module]) permissionsMap[p.module] = [];
-              permissionsMap[p.module].push(p.action);
-            }
-          }
-          const response = NextResponse.json({
-            success: true,
-            isAdmin: true,
-            token: sessionData.token,
-            user: {
-              id: fallbackAdmin.id,
-              name: fallbackAdmin.name,
-              email: fallbackAdmin.email,
-              roleId: fallbackAdmin.roleId,
-              roleName: fallbackAdmin.role.name,
-              status: fallbackAdmin.status,
-            },
-            role: {
-              id: fallbackAdmin.role.id,
-              name: fallbackAdmin.role.name,
-              permissions: permissionsMap,
-            },
-            permissions: permissionsMap,
-          });
-          response.cookies.set(sessionData.cookieName, sessionData.token, sessionData.cookieOptions);
-          return response;
-        }
-      }
-
       return NextResponse.json(
         { success: false, error: "Invalid email or password." },
         { status: 401 }

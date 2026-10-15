@@ -455,8 +455,7 @@ export function StoreProvider({ children }) {
           const parsed = JSON.parse(savedOrders);
           if (Array.isArray(parsed)) {
             const demoIds = new Set([
-              "C001", "C002", "C003", "C004", "C005", "C006", "C007", "C008",
-              "CUS-0001", "CUS-0002", "CUS-0003", "CUS-0004", "CUS-0005", "CUS-0006", "CUS-0007", "CUS-0008"
+              "C001", "C002", "C003", "C004", "C005", "C006", "C007", "C008"
             ]);
             const demoEmails = new Set([
               "rahul@example.com", "priya@example.com", "ankit@example.com", "sneha@example.com",
@@ -466,8 +465,7 @@ export function StoreProvider({ children }) {
               if (!o) return false;
               const custId = o.customerId || o.userId;
               const email = (o.email || "").toLowerCase();
-              const orderId = o.id || "";
-              return !demoIds.has(custId) && !demoEmails.has(email) && !orderId.startsWith("MS-92");
+              return !demoIds.has(custId) && !demoEmails.has(email);
             });
             setOrders((prev) => (JSON.stringify(prev) === JSON.stringify(cleanOrders) ? prev : cleanOrders));
           } else {

@@ -16,6 +16,9 @@ const ORDER_STATUS_OPTIONS = ["Pending", "Processing", "Cancellation Requested",
 export default function OrdersView() {
   const {
     orders,
+    ordersLoading,
+    ordersError,
+    reloadOrders,
     customers,
     products,
     updateOrder,
@@ -36,9 +39,9 @@ export default function OrdersView() {
 
   const canEditOrders = hasPermission("orders", "updateStatus") || hasPermission("orders", "update") || hasPermission("orders", "edit");
 
-  const showToast = (msg) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 3000);
+  const showToast = (msg, type = "success") => {
+    setToast({ message: msg, type });
+    setTimeout(() => setToast(null), 3500);
   };
 
   const filteredOrders = useMemo(() => {
@@ -132,9 +135,9 @@ export default function OrdersView() {
     { key: "createdAt", label: "DATE", nowrap: true, render: (val, row) => val || row.date },
   ];
 
-  const handleSaveOrder = (orderId, newPaymentStatus, newOrderStatus) => {
+  const handleSaveOrder = async (orderId, newPaymentStatus, newOrderStatus) => {
     const isNowCancelled = newOrderStatus === "Cancelled";
-    const res = updateOrder(orderId, {
+    const res = await updateOrder(orderId, {
       paymentStatus: newPaymentStatus,
       orderStatus: newOrderStatus,
       cancellationRequested: isNowCancelled ? false : (newOrderStatus === "Cancellation Requested"),
@@ -148,6 +151,8 @@ export default function OrdersView() {
       }
       setSelectedOrderId(null);
       if (setAdminSelectedOrderId) setAdminSelectedOrderId(null);
+    } else {
+      showToast(res?.error || "Failed to update order status.", "error");
     }
   };
 
@@ -162,11 +167,47 @@ export default function OrdersView() {
       {toast && (
         <div style={{
           position: "fixed", top: "80px", right: "24px", zIndex: 99999,
-          backgroundColor: "#16A34A", color: "#FFF", padding: "12px 20px",
+          backgroundColor: toast.type === "error" ? "#DC2626" : "#16A34A",
+          color: "#FFF", padding: "12px 20px",
           borderRadius: "10px", fontWeight: 600, fontSize: "14px",
           boxShadow: "0 4px 20px rgba(0,0,0,0.15)", animation: "adminFadeIn 0.25s ease",
         }}>
-          {toast}
+          {toast.message}
+        </div>
+      )}
+
+      {/* Orders API Error Alert */}
+      {ordersError && (
+        <div style={{
+          backgroundColor: "#FEF2F2",
+          border: "1px solid #FCA5A5",
+          borderRadius: "12px",
+          padding: "14px 18px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          color: "#991B1B",
+          fontSize: "13px",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.05)"
+        }}>
+          <div>
+            <strong>Error loading orders:</strong> {ordersError}
+          </div>
+          <button
+            onClick={reloadOrders}
+            style={{
+              backgroundColor: "#DC2626",
+              color: "#FFFFFF",
+              border: "none",
+              borderRadius: "6px",
+              padding: "6px 14px",
+              fontWeight: 600,
+              fontSize: "12px",
+              cursor: "pointer"
+            }}
+          >
+            Retry
+          </button>
         </div>
       )}
 
@@ -286,11 +327,18 @@ function OrderDetailsModal({ orderId, canEdit, onClose, onSave }) {
   const { orders, customers, products } = useAdmin();
 
   const order = useMemo(() => {
-    return (orders || []).find((o) => o.id === orderId);
+    return (orders || []).find((o) => o.id === orderId || o.orderNumber === orderId || o.orderId === orderId);
   }, [orders, orderId]);
 
-  const [paymentStatus, setPaymentStatus] = useState(order?.paymentStatus || "Paid");
-  const [orderStatus, setOrderStatus] = useState(order?.orderStatus || "Delivered");
+  const [paymentStatus, setPaymentStatus] = useState(order?.paymentStatus || "Pending");
+  const [orderStatus, setOrderStatus] = useState(order?.orderStatus || "Pending");
+
+  useEffect(() => {
+    if (order) {
+      setPaymentStatus(order.paymentStatus || "Pending");
+      setOrderStatus(order.orderStatus || "Pending");
+    }
+  }, [order]);
 
   // Lookup Customer by customerId
   const customer = useMemo(() => {

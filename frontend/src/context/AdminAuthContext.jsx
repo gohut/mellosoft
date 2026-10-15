@@ -20,52 +20,41 @@ export function AdminAuthProvider({ children }) {
   const [currentUserId, setCurrentUserId] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Hydrate session from server / localStorage on mount
+  // Hydrate session strictly from server session endpoint
   useEffect(() => {
     let isMounted = true;
     async function checkAdminSession() {
       try {
-        const res = await fetch("/api/auth/session");
+        const res = await fetch("/api/auth/session?type=admin");
         if (res.ok) {
           const data = await res.json();
-          if (data && data.success && data.admin) {
+          if (data && data.success && data.authenticated && (data.user || data.adminUser || data.admin)) {
+            const adminData = data.user || data.adminUser || data.admin;
             if (isMounted) {
               setIsAuthenticated(true);
-              setCurrentUserId(data.admin.id);
+              setCurrentUserId(adminData.id);
               try {
-                localStorage.setItem(SESSION_KEY, `session_${data.admin.id}`);
-                localStorage.setItem(CURRENT_USER_ID_KEY, data.admin.id);
+                localStorage.setItem(SESSION_KEY, `session_${adminData.id}`);
+                localStorage.setItem(CURRENT_USER_ID_KEY, adminData.id);
               } catch {}
               setLoading(false);
               return;
             }
           }
         }
-      } catch (err) {}
+      } catch (err) {
+        console.error("Admin session verification network error:", err);
+      }
 
-      // Fallback
-      try {
-        const sessionToken = localStorage.getItem(SESSION_KEY);
-        const storedUserId = localStorage.getItem(CURRENT_USER_ID_KEY);
-
-        if (sessionToken && storedUserId) {
-          if (isMounted) {
-            setIsAuthenticated(true);
-            setCurrentUserId(storedUserId);
-          }
-        } else {
-          if (isMounted) {
-            setIsAuthenticated(false);
-            setCurrentUserId(null);
-          }
-        }
-      } catch {
-        if (isMounted) {
-          setIsAuthenticated(false);
-          setCurrentUserId(null);
-        }
-      } finally {
-        if (isMounted) setLoading(false);
+      // If server session check fails or is unauthenticated, invalidate client auth state
+      if (isMounted) {
+        try {
+          localStorage.removeItem(SESSION_KEY);
+          localStorage.removeItem(CURRENT_USER_ID_KEY);
+        } catch {}
+        setIsAuthenticated(false);
+        setCurrentUserId(null);
+        setLoading(false);
       }
     }
 
@@ -77,12 +66,11 @@ export function AdminAuthProvider({ children }) {
 
   /**
    * login(email, password)
-   * Authenticates user via /api/auth/login API or local fallback, checks status, and creates session.
+   * Authenticates administrative user via /api/auth/login API.
    */
   const login = useCallback(async (email, password) => {
     const emailTrimmed = email.trim().toLowerCase();
 
-    // 1. Try server API authentication endpoint
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
@@ -92,7 +80,7 @@ export function AdminAuthProvider({ children }) {
 
       const data = await res.json();
 
-      if (res.ok && data.success) {
+      if (res.ok && data.success && data.user) {
         try {
           localStorage.setItem(SESSION_KEY, data.token || `ms_session_${Date.now()}`);
           localStorage.setItem(CURRENT_USER_ID_KEY, data.user.id);
@@ -103,77 +91,28 @@ export function AdminAuthProvider({ children }) {
         setCurrentUserId(data.user.id);
         setIsAuthenticated(true);
         return { success: true, user: data.user };
-      } else if (data && data.error && !data.error.includes("offline") && !data.error.includes("Prisma")) {
-        return { success: false, error: data.error };
       }
+
+      return { success: false, error: data?.error || "Invalid administrative credentials." };
     } catch (e) {
-      console.warn("API login endpoint unreachable, proceeding with client fallback:", e);
+      console.error("Administrative login error:", e);
+      return { success: false, error: "Network error during administrative login." };
     }
-
-    // 2. Fallback to local storage / default users validation
-    let usersList = DEFAULT_USERS;
-    try {
-      const savedUsers = localStorage.getItem("mellosoft_users");
-      if (savedUsers) {
-        const parsed = JSON.parse(savedUsers);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          usersList = parsed;
-        }
-      }
-    } catch (e) {
-      console.error("Failed to read users from storage during login:", e);
-    }
-
-    const user = usersList.find((u) => u.email.toLowerCase() === emailTrimmed);
-
-    if (!user) {
-      return { success: false, error: "Invalid email or password." };
-    }
-
-    // Verify password hash safely
-    const isValid = verifyPassword(password, user.passwordHash);
-    if (!isValid) {
-      return { success: false, error: "Invalid email or password." };
-    }
-
-    // Check account status
-    if (user.status !== "Active") {
-      return {
-        success: false,
-        error: "Your account is inactive. Please contact the administrator.",
-      };
-    }
-
-    // Create authenticated session
-    const token = `ms_session_${Date.now()}_${user.id}`;
-    try {
-      localStorage.setItem(SESSION_KEY, token);
-      localStorage.setItem(CURRENT_USER_ID_KEY, user.id);
-    } catch (e) {
-      console.error("Failed to save session to localStorage:", e);
-    }
-
-    setCurrentUserId(user.id);
-    setIsAuthenticated(true);
-
-    return { success: true, user };
   }, []);
 
   /**
    * logout()
-   * Clears auth session and storage.
+   * Clears auth session on server and client storage.
    */
   const logout = useCallback(async () => {
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
+      await fetch("/api/auth/logout?type=admin", { method: "POST" });
     } catch {}
 
     try {
       localStorage.removeItem(SESSION_KEY);
       localStorage.removeItem(CURRENT_USER_ID_KEY);
-    } catch {
-      // ignore
-    }
+    } catch {}
     setIsAuthenticated(false);
     setCurrentUserId(null);
   }, []);

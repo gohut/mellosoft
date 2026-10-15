@@ -51,14 +51,17 @@ export async function PUT(request, { params }) {
     if (orderStatus) updateData.orderStatus = orderStatus;
     if (paymentStatus) updateData.paymentStatus = paymentStatus;
 
-    const existing = await prisma.order.findUnique({ where: { id } });
+    // Resolve order by either internal database ID or public orderNumber
+    const existing = await prisma.order.findFirst({
+      where: { OR: [{ id }, { orderNumber: id }] },
+    });
     if (!existing) {
       return NextResponse.json({ success: false, error: "Order not found." }, { status: 404 });
     }
 
     const updated = await prisma.$transaction(async (tx) => {
       const ord = await tx.order.update({
-        where: { id },
+        where: { id: existing.id },
         data: updateData,
         include: { items: true, payments: true },
       });
@@ -68,7 +71,7 @@ export async function PUT(request, { params }) {
           adminUserId: auth.user.id,
           action: "UPDATE_ORDER_STATUS",
           resource: "orders",
-          resourceId: id,
+          resourceId: existing.id,
           details: {
             oldOrderStatus: existing.orderStatus,
             newOrderStatus: ord.orderStatus,

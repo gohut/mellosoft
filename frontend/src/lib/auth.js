@@ -153,6 +153,7 @@ export async function destroyCustomerSession(request) {
     cookieOptions: {
       ...getCookieOptions(0),
       maxAge: 0,
+      expires: new Date(0),
     },
   };
 }
@@ -266,6 +267,7 @@ export async function destroyAdminSession(request) {
     cookieOptions: {
       ...getCookieOptions(0),
       maxAge: 0,
+      expires: new Date(0),
     },
   };
 }
