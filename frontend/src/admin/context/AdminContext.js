@@ -189,9 +189,6 @@ if (typeof window !== "undefined") {
       // 5. Clean demo notifications
       localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify([]));
 
-      // 6. Reset any switched test demo role back to Super Admin
-      localStorage.setItem("mellosoft_current_user_id", "user-001");
-
       localStorage.setItem(DEMO_PURGE_V3_KEY, "completed");
     }
 

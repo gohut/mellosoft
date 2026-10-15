@@ -11,18 +11,20 @@ export default function OrderConfirmationPage({ params }) {
   const resolvedParams = use(params);
   const { setSelectedOrderId, setView, authModal } = useStore();
 
+  const orderId = resolvedParams?.orderId;
+
   useEffect(() => {
-    if (resolvedParams?.orderId) {
-      setSelectedOrderId(resolvedParams.orderId);
+    if (orderId) {
+      setSelectedOrderId(orderId);
       setView("confirmation");
     }
-  }, [resolvedParams, setSelectedOrderId, setView]);
+  }, [orderId, setSelectedOrderId, setView]);
 
   return (
     <>
       <Header />
       <main style={{ flexGrow: 1, display: "flex", flexDirection: "column", width: "100%", backgroundColor: "#FFFFFF" }}>
-        <OrderConfirmationView />
+        <OrderConfirmationView orderId={orderId} />
       </main>
       <Footer />
       {authModal && <AuthModal type={authModal} />}

@@ -16,10 +16,17 @@ export async function GET(request) {
       return NextResponse.json({ success: true, orders });
     }
 
-    // If Customer, strictly filter by customer ID
+    // If Customer, filter by customer ID, canonical customerId, or matching email
     if (customerAuth.authenticated && customerAuth.customer) {
+      const c = customerAuth.customer;
       const orders = await prisma.order.findMany({
-        where: { customerId: customerAuth.customer.id },
+        where: {
+          OR: [
+            { customerId: c.id },
+            ...(c.customerId ? [{ customerId: c.customerId }] : []),
+            ...(c.email ? [{ email: { equals: c.email, mode: "insensitive" } }] : []),
+          ],
+        },
         orderBy: { createdAt: "desc" },
         include: { items: true },
       });

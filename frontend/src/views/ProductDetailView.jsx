@@ -340,13 +340,6 @@ export default function ProductDetailView({ productId: initialProductId }) {
 
   const handleAddToCart = () => {
     if (!product || isVariantOutOfStock) return;
-    if (!isAuthenticated) {
-      if (typeof window !== "undefined") {
-        setIntendedView(window.location.pathname);
-      }
-      setAuthModal("login");
-      return;
-    }
     addToCart(product, selectedFirmness, selectedSize, quantity);
   };
 

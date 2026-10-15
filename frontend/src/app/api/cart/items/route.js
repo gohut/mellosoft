@@ -20,11 +20,24 @@ export async function POST(request) {
 
     const { productId, variantId, size, firmness, dimension, thickness, sku, quantity } = validation.data;
 
-    // Verify product exists and is active
-    const product = await prisma.product.findUnique({
+    // Verify product exists and is active (supporting both slug and canonical productId)
+    let product = await prisma.product.findUnique({
       where: { id: productId },
       include: { variants: true },
     });
+
+    if (!product) {
+      product = await prisma.product.findFirst({
+        where: {
+          OR: [
+            { productId: productId },
+            { id: productId.toLowerCase() },
+            { productId: productId.toUpperCase() },
+          ],
+        },
+        include: { variants: true },
+      });
+    }
 
     if (!product || !product.active) {
       return NextResponse.json({ success: false, error: "Product unavailable." }, { status: 404 });
@@ -73,11 +86,11 @@ export async function POST(request) {
       });
     }
 
-    // Check if matching item already exists in cart
+    // Check if matching item already exists in cart using canonical product.id
     const existingItem = await prisma.cartItem.findFirst({
       where: {
         cartId: cart.id,
-        productId,
+        productId: product.id,
         variantId: resolvedVariant?.id || null,
         size: size || resolvedVariant?.size || null,
         firmness: firmness || resolvedVariant?.firmness || null,
@@ -94,7 +107,7 @@ export async function POST(request) {
       savedItem = await prisma.cartItem.create({
         data: {
           cartId: cart.id,
-          productId,
+          productId: product.id,
           variantId: resolvedVariant?.id || null,
           size: size || resolvedVariant?.size || null,
           firmness: firmness || resolvedVariant?.firmness || null,

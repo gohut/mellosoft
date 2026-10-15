@@ -1,28 +1,108 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import { useParams } from "next/navigation";
 import { useStore } from "../context/StoreContext";
 import { formatPrice } from "../utils/currency";
-import { CheckCircle2, Package, MapPin, Calendar, ArrowRight, ShoppingBag } from "lucide-react";
+import { CheckCircle2, Package, MapPin, Calendar, ArrowRight, ShoppingBag, ShieldAlert, LogIn } from "lucide-react";
 import DownloadOrderPdf from "../components/DownloadOrderPdf";
 
-export default function OrderConfirmationView() {
-  const { selectedOrderId, orders, navigateTo, settings } = useStore();
+export default function OrderConfirmationView({ orderId: propOrderId }) {
+  const params = useParams();
+  const routeOrderId = params?.orderId ? String(params.orderId).trim() : null;
+  const targetOrderId = (propOrderId ? String(propOrderId).trim() : null) || routeOrderId;
+
+  const { selectedOrderId, orders, navigateTo, settings, setAuthModal } = useStore();
+  const effectiveOrderId = targetOrderId || selectedOrderId || null;
+
   const [mounted, setMounted] = useState(false);
+  const [order, setOrder] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [errorInfo, setErrorInfo] = useState(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const currentOrder = useMemo(() => {
-    if (!orders || orders.length === 0) return null;
-    if (selectedOrderId) {
-      return orders.find((o) => o.id === selectedOrderId || o.orderId === selectedOrderId) || null;
-    }
-    return orders[0];
-  }, [orders, selectedOrderId]);
+  useEffect(() => {
+    let isMounted = true;
 
-  if (!mounted) {
+    async function loadOrder() {
+      const ordRef = effectiveOrderId || (orders && orders[0] ? (orders[0].id || orders[0].orderNumber) : null);
+
+      if (!ordRef) {
+        if (isMounted) {
+          setLoading(false);
+          setErrorInfo({ status: 404, message: "No order reference was provided." });
+        }
+        return;
+      }
+
+      // Check optimistic in-memory order first to prevent UI flash
+      if (orders && orders.length > 0) {
+        const optimistic = orders.find(
+          (o) =>
+            o.id === ordRef ||
+            o.orderId === ordRef ||
+            o.orderNumber === ordRef ||
+            (o.id && String(o.id).toUpperCase() === String(ordRef).toUpperCase()) ||
+            (o.orderNumber && String(o.orderNumber).toUpperCase() === String(ordRef).toUpperCase())
+        );
+        if (optimistic && isMounted) {
+          setOrder(optimistic);
+        }
+      }
+
+      // Authoritative database fetch
+      try {
+        setLoading(true);
+        const res = await fetch(`/api/orders/${encodeURIComponent(ordRef)}`);
+        const data = await res.json();
+
+        if (!isMounted) return;
+
+        if (res.ok && data.success && data.order) {
+          setOrder(data.order);
+          setErrorInfo(null);
+        } else if (res.status === 401) {
+          setErrorInfo({
+            status: 401,
+            message: data.error || "Please sign in to view this order.",
+          });
+        } else if (res.status === 403) {
+          setErrorInfo({
+            status: 403,
+            message: data.error || "You do not have permission to view this order.",
+          });
+        } else if (res.status === 404) {
+          setErrorInfo({
+            status: 404,
+            message: `Order "${ordRef}" was not found.`,
+          });
+        } else {
+          setErrorInfo({
+            status: res.status || 500,
+            message: data.error || "Unable to retrieve order details.",
+          });
+        }
+      } catch (err) {
+        console.error("Failed to fetch order details:", err);
+        if (isMounted) {
+          setErrorInfo({ status: 500, message: "Network error loading order. Please try again." });
+        }
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+
+    loadOrder();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [effectiveOrderId]);
+
+  if (!mounted || (loading && !order)) {
     return (
       <div style={containerStyle}>
         <div style={bannerCardStyle}>
@@ -30,23 +110,80 @@ export default function OrderConfirmationView() {
             <Package size={36} color="#6B6B75" />
           </div>
           <h1 style={titleStyle}>Order Confirmation</h1>
-          <p style={subtitleStyle}>Loading order details...</p>
+          <p style={subtitleStyle}>Loading order details from database...</p>
         </div>
       </div>
     );
   }
 
-  if (!currentOrder) {
+  if (errorInfo && !order) {
+    if (errorInfo.status === 401) {
+      return (
+        <div style={emptyContainerStyle}>
+          <div style={emptyCardStyle}>
+            <div style={{ width: "56px", height: "56px", borderRadius: "50%", backgroundColor: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+              <LogIn size={28} color="#1D4ED8" />
+            </div>
+            <h2 style={{ fontSize: "24px", color: "#1B1F8C", margin: "0 0 12px 0" }}>Sign In to View Order</h2>
+            <p style={{ color: "#6B6B75", marginBottom: "24px", lineHeight: 1.6 }}>
+              This order belongs to an authenticated customer account. Please sign in to verify your ownership and view complete order details.
+            </p>
+            <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
+              <button
+                onClick={() => setAuthModal && setAuthModal("login")}
+                style={primaryBtnStyle}
+                type="button"
+              >
+                Sign In to Account
+              </button>
+              <button onClick={() => navigateTo("catalog")} style={continueBtnStyle} type="button">
+                Return to Store
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (errorInfo.status === 403) {
+      return (
+        <div style={emptyContainerStyle}>
+          <div style={emptyCardStyle}>
+            <div style={{ width: "56px", height: "56px", borderRadius: "50%", backgroundColor: "#FEF2F2", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+              <ShieldAlert size={28} color="#DC2626" />
+            </div>
+            <h2 style={{ fontSize: "24px", color: "#DC2626", margin: "0 0 12px 0" }}>Access Denied</h2>
+            <p style={{ color: "#6B6B75", marginBottom: "24px", lineHeight: 1.6 }}>
+              You do not have permission to view this order. Please sign in with the account that placed this order.
+            </p>
+            <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
+              <button onClick={() => navigateTo("orders")} style={primaryBtnStyle} type="button">
+                View My Orders
+              </button>
+              <button onClick={() => navigateTo("catalog")} style={continueBtnStyle} type="button">
+                Return to Store
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div style={emptyContainerStyle}>
         <div style={emptyCardStyle}>
+          <div style={{ width: "56px", height: "56px", borderRadius: "50%", backgroundColor: "#F3F4F6", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+            <Package size={28} color="#6B6B75" />
+          </div>
           <h2 style={{ fontSize: "24px", color: "#1B1F8C", margin: "0 0 12px 0" }}>Order Not Found</h2>
-          <p style={{ color: "#6B6B75", marginBottom: "20px" }}>We couldn't find the order you are looking for.</p>
+          <p style={{ color: "#6B6B75", marginBottom: "24px", lineHeight: 1.6 }}>
+            {errorInfo.message || "We couldn't find the order you are looking for."}
+          </p>
           <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
             <button onClick={() => navigateTo("orders")} style={primaryBtnStyle} type="button">
               View My Orders
             </button>
-            <button onClick={() => navigateTo("catalog")} style={primaryBtnStyle} type="button">
+            <button onClick={() => navigateTo("catalog")} style={continueBtnStyle} type="button">
               Return to Store
             </button>
           </div>
@@ -55,8 +192,14 @@ export default function OrderConfirmationView() {
     );
   }
 
-  const items = currentOrder.items || [];
-  const address = currentOrder.deliveryAddress || currentOrder.shippingAddress || {};
+  const currentOrder = order;
+  if (!currentOrder) {
+    return null;
+  }
+
+  const items = Array.isArray(currentOrder.items) ? currentOrder.items : [];
+  const rawAddress = currentOrder.deliveryAddress || currentOrder.shippingAddress || {};
+  const address = typeof rawAddress === "string" ? (() => { try { return JSON.parse(rawAddress); } catch { return {}; } })() : (rawAddress || {});
 
   // Estimated delivery date (3-5 days from creation)
   const orderDate = new Date(currentOrder.createdAt || Date.now());

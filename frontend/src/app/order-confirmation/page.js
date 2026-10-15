@@ -8,7 +8,7 @@ import OrderConfirmationView from "../../views/OrderConfirmationView";
 import AuthModal from "../../components/AuthModal";
 
 export default function OrderConfirmationRootPage() {
-  const { setView, authModal } = useStore();
+  const { setView, authModal, selectedOrderId } = useStore();
 
   useEffect(() => {
     setView("confirmation");
@@ -18,7 +18,7 @@ export default function OrderConfirmationRootPage() {
     <>
       <Header />
       <main style={{ flexGrow: 1, display: "flex", flexDirection: "column", width: "100%", backgroundColor: "#FFFFFF" }}>
-        <OrderConfirmationView />
+        <OrderConfirmationView orderId={selectedOrderId} />
       </main>
       <Footer />
       {authModal && <AuthModal type={authModal} />}

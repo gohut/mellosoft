@@ -49,48 +49,15 @@ export default function CartView() {
         sessionStorage.setItem("mellosoft_checkout_items", JSON.stringify(enrichedItems));
       } catch {}
     }
+
+    if (!isAuthenticated) {
+      if (setIntendedView) setIntendedView("checkout");
+      if (setAuthModal) setAuthModal("login");
+      return;
+    }
+
     navigateTo("checkout");
   };
-
-  if (!isAuthenticated) {
-    return (
-      <div style={emptyWrapperStyle}>
-        <div style={{
-          maxWidth: "480px",
-          margin: "40px auto",
-          backgroundColor: "#FAFAF7",
-          border: "1px solid #E7E7E2",
-          borderRadius: "16px",
-          padding: "40px 24px",
-          textAlign: "center"
-        }}>
-          <h3 style={{ fontSize: "20px", fontWeight: 800, color: "#14151A", marginBottom: "8px" }}>Sign In to View Your Cart</h3>
-          <p style={{ fontSize: "14px", color: "#6B6B75", marginBottom: "24px", lineHeight: 1.6 }}>
-            Please sign in to access your saved shopping cart and proceed to checkout.
-          </p>
-          <button
-            onClick={() => {
-              if (setIntendedView) setIntendedView("/cart");
-              if (setAuthModal) setAuthModal("login");
-            }}
-            style={{
-              padding: "12px 28px",
-              backgroundColor: "#1B1F8C",
-              color: "#FFFFFF",
-              border: "none",
-              borderRadius: "24px",
-              fontSize: "14px",
-              fontWeight: 700,
-              cursor: "pointer"
-            }}
-            className="hover-lift"
-          >
-            Sign In to Account
-          </button>
-        </div>
-      </div>
-    );
-  }
 
 
   if (cart.length === 0) {

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { MOCK_PRODUCTS } from "../data/products";
 import { MOCK_CATEGORIES, MOCK_ORDERS, MOCK_WISHLISTS, MOCK_CARTS, MOCK_REVIEWS, MOCK_BANNERS } from "../admin/data/adminMockData";
@@ -40,8 +40,21 @@ export function StoreProvider({ children }) {
     ? normalizeCustomerId(currentCustomer.customerId || currentCustomer.id)
     : null;
 
-  // User Commerce State
-  const [cart, setCart] = useState([]);
+  const isCartHydratedRef = useRef(false);
+  // User Commerce State — lazily initialized from localStorage to prevent wiping on mount
+  const [cart, setCart] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const initialKey = currentCustomerId ? `mellosoft_cart_${currentCustomerId}` : "mellosoft_cart_guest";
+        const saved = localStorage.getItem(initialKey) || localStorage.getItem("mellosoft_cart_guest");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch {}
+    }
+    return [];
+  });
   const [wishlist, setWishlist] = useState([]);
   // Products state is mutable so stock decrements can be applied
   const [products, setProducts] = useState(MOCK_PRODUCTS);
@@ -503,18 +516,45 @@ export function StoreProvider({ children }) {
           localStorage.removeItem("mellosoft_wishlist_guest");
         } catch {}
 
-        // Load guest cart
+        // Load guest cart safely
         const savedGuestCart = localStorage.getItem("mellosoft_cart_guest");
         if (savedGuestCart) {
           try {
-            setCart(JSON.parse(savedGuestCart));
+            const parsed = JSON.parse(savedGuestCart);
+            if (Array.isArray(parsed)) {
+              setCart(parsed);
+            }
           } catch {
             setCart([]);
           }
-        } else {
-          setCart([]);
         }
         return;
+      }
+
+      // Check if there is an anonymous guest cart to reconcile on login
+      try {
+        const savedGuestCart = localStorage.getItem("mellosoft_cart_guest");
+        if (savedGuestCart) {
+          const guestItems = JSON.parse(savedGuestCart);
+          if (Array.isArray(guestItems) && guestItems.length > 0) {
+            for (const gItem of guestItems) {
+              await fetch("/api/cart/items", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  productId: gItem.productId || gItem.id,
+                  variantId: gItem.variantId,
+                  size: gItem.size || "Queen",
+                  firmness: gItem.firmness || "Medium",
+                  quantity: gItem.qty || gItem.quantity || 1,
+                }),
+              }).catch(() => {});
+            }
+            localStorage.removeItem("mellosoft_cart_guest");
+          }
+        }
+      } catch (err) {
+        console.warn("Guest cart reconciliation warning:", err);
       }
 
       // 1. Fetch server cart if authenticated
@@ -619,8 +659,12 @@ export function StoreProvider({ children }) {
     return () => window.removeEventListener("storage", handleStorage);
   }, []);
 
-  // Save cart changes per customerId or guest
+  // Save cart changes per customerId or guest (guarded to avoid wiping storage before hydration)
   useEffect(() => {
+    if (!isCartHydratedRef.current) {
+      isCartHydratedRef.current = true;
+      return;
+    }
     try {
       const cartKey = currentCustomerId ? `mellosoft_cart_${currentCustomerId}` : "mellosoft_cart_guest";
       localStorage.setItem(cartKey, JSON.stringify(cart));
@@ -694,8 +738,8 @@ export function StoreProvider({ children }) {
       return;
     }
 
-    // Auth protection for customer-specific pages if accessing while logged out
-    const protectedViews = ["orders", "profile", "cart", "wishlist", "checkout", "payment"];
+    // Auth protection for customer-specific pages if accessing while logged out (cart is open to guests)
+    const protectedViews = ["orders", "profile", "wishlist", "checkout", "payment"];
     if (protectedViews.includes(newView) && !isAuthenticated) {
       setIntendedView(newView);
       setAuthModal("login");
@@ -1064,18 +1108,37 @@ export function StoreProvider({ children }) {
       }
     });
 
-    // 2. Server API sync
+    // 2. Server API sync with guest token support
     try {
+      let guestToken = null;
+      if (!currentCustomerId && typeof window !== "undefined") {
+        guestToken = localStorage.getItem("mellosoft_guest_token");
+        if (!guestToken) {
+          guestToken = `guest_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+          localStorage.setItem("mellosoft_guest_token", guestToken);
+        }
+      }
+
       fetch("/api/cart/items", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(guestToken ? { "x-guest-token": guestToken } : {}),
+        },
         body: JSON.stringify({
           productId: product.id,
           size: size || "Queen",
           firmness: firmness || "Medium",
           quantity: qty || 1
         })
-      }).catch(() => {});
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (data?.guestToken && typeof window !== "undefined") {
+            localStorage.setItem("mellosoft_guest_token", data.guestToken);
+          }
+        })
+        .catch(() => {});
     } catch {}
   };
 
@@ -1083,8 +1146,10 @@ export function StoreProvider({ children }) {
     setCart((prevCart) => prevCart.filter((item) => item.cartItemId !== cartItemId));
 
     try {
+      const guestToken = !currentCustomerId && typeof window !== "undefined" ? localStorage.getItem("mellosoft_guest_token") : null;
       fetch(`/api/cart/items/${encodeURIComponent(cartItemId)}`, {
-        method: "DELETE"
+        method: "DELETE",
+        headers: guestToken ? { "x-guest-token": guestToken } : {},
       }).catch(() => {});
     } catch {}
   };
@@ -1101,9 +1166,13 @@ export function StoreProvider({ children }) {
     );
 
     try {
+      const guestToken = !currentCustomerId && typeof window !== "undefined" ? localStorage.getItem("mellosoft_guest_token") : null;
       fetch(`/api/cart/items/${encodeURIComponent(cartItemId)}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(guestToken ? { "x-guest-token": guestToken } : {}),
+        },
         body: JSON.stringify({ quantity: newQty })
       }).catch(() => {});
     } catch {}
@@ -1113,7 +1182,11 @@ export function StoreProvider({ children }) {
     setCart([]);
 
     try {
-      fetch("/api/cart", { method: "DELETE" }).catch(() => {});
+      const guestToken = !currentCustomerId && typeof window !== "undefined" ? localStorage.getItem("mellosoft_guest_token") : null;
+      fetch("/api/cart", {
+        method: "DELETE",
+        headers: guestToken ? { "x-guest-token": guestToken } : {},
+      }).catch(() => {});
     } catch {}
   };
 
