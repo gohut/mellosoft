@@ -22,12 +22,13 @@ export const PAYMENT_METHODS = {
  * @param {string} method
  * @returns {Promise<{ success: boolean, payment: object, clientPayload?: object, error?: string }>}
  */
-export async function createPaymentOrder(order, method) {
+export async function createPaymentOrder(order, method, db = prisma) {
+  const client = db || prisma;
   const normalizedMethod = (method || "COD").toUpperCase();
 
   // 1. CASH ON DELIVERY
   if (normalizedMethod === PAYMENT_METHODS.COD) {
-    const payment = await prisma.payment.create({
+    const payment = await client.payment.create({
       data: {
         orderId: order.id,
         provider: PAYMENT_METHODS.COD,
@@ -47,7 +48,7 @@ export async function createPaymentOrder(order, method) {
 
   // 2. UPI DIRECT
   if (normalizedMethod === PAYMENT_METHODS.UPI) {
-    const payment = await prisma.payment.create({
+    const payment = await client.payment.create({
       data: {
         orderId: order.id,
         provider: PAYMENT_METHODS.UPI,
@@ -99,7 +100,7 @@ export async function createPaymentOrder(order, method) {
         throw new Error(rzpOrder.error?.description || "Razorpay order creation failed");
       }
 
-      const payment = await prisma.payment.create({
+      const payment = await client.payment.create({
         data: {
           orderId: order.id,
           provider: PAYMENT_METHODS.RAZORPAY,
@@ -159,7 +160,7 @@ export async function createPaymentOrder(order, method) {
         throw new Error(intent.error?.message || "Stripe payment intent creation failed");
       }
 
-      const payment = await prisma.payment.create({
+      const payment = await client.payment.create({
         data: {
           orderId: order.id,
           provider: PAYMENT_METHODS.STRIPE,
@@ -239,11 +240,11 @@ export async function verifyPaymentConfirmation({
       return { success: false, error: "A valid UPI ID / VPA is required." };
     }
 
-    // In production without auto-reconciliation aggregator, UPI orders are set to Confirmed / Pending Verification
+    // In production without auto-reconciliation aggregator, UPI orders remain Pending until bank confirmation
     await prisma.$transaction([
       prisma.order.update({
         where: { id: orderId },
-        data: { orderStatus: "Processing", paymentStatus: "Paid" },
+        data: { orderStatus: "Confirmed", paymentStatus: "Pending" },
       }),
       prisma.payment.create({
         data: {
@@ -252,13 +253,13 @@ export async function verifyPaymentConfirmation({
           providerPaymentId: upiVpa.trim(),
           amount: order.totalAmount,
           currency: order.currency,
-          status: "Successful",
-          rawResponse: { vpa: upiVpa.trim(), verifiedAt: new Date().toISOString() },
+          status: "Pending",
+          rawResponse: { vpa: upiVpa.trim(), recordedAt: new Date().toISOString(), note: "Awaiting UPI payment verification" },
         },
       }),
     ]);
 
-    return { success: true, orderStatus: "Processing", paymentStatus: "Paid" };
+    return { success: true, orderStatus: "Confirmed", paymentStatus: "Pending" };
   }
 
   // 3. RAZORPAY VERIFICATION

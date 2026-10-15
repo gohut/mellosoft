@@ -27,8 +27,9 @@ export async function POST(request) {
     const variantStockChecks = [];
 
     for (const item of clientItems) {
+      const lookup = String(item.productId || item.id || "").trim();
       let product = await prisma.product.findUnique({
-        where: { id: item.productId },
+        where: { id: lookup },
         include: {
           variants: true,
           images: { take: 1, orderBy: { displayOrder: "asc" } },
@@ -39,9 +40,10 @@ export async function POST(request) {
         product = await prisma.product.findFirst({
           where: {
             OR: [
-              { productId: item.productId },
-              { slug: item.productId },
-              { id: item.productId.toLowerCase() },
+              { productId: lookup },
+              { productId: lookup.toUpperCase() },
+              { id: lookup.toLowerCase() },
+              { id: lookup },
             ],
           },
           include: {
@@ -53,7 +55,7 @@ export async function POST(request) {
 
       if (!product || !product.active) {
         return NextResponse.json(
-          { success: false, error: `Product "${item.name || item.productId}" is no longer available.` },
+          { success: false, error: `Product "${item.name || item.productName || lookup}" is no longer available.` },
           { status: 400 }
         );
       }
@@ -136,14 +138,57 @@ export async function POST(request) {
     const randPart = Math.floor(1000 + Math.random() * 9000);
     const generatedOrderId = `MS-${timestampSuffix}${randPart}`;
 
-    const customerEmail = auth.customer?.email || shippingAddress.fullName ? `${shippingAddress.phone}@mellosoft.com` : "customer@mellosoft.com";
+    const customerEmail =
+      auth.customer?.email ||
+      validation.data.email ||
+      (shippingAddress.phone ? `${shippingAddress.phone.replace(/\D/g, "")}@mellosoft.com` : "customer@mellosoft.com");
     const customerName = shippingAddress.fullName || auth.customer?.name || "Customer";
     const customerPhone = shippingAddress.phone || auth.customer?.phone || "";
 
-    // 6. Execute Atomic Transaction (Stock Decrement + Order Creation)
-    const result = await prisma.$transaction(async (tx) => {
-      // Decrement stock atomically
+    // 6. Execute Atomic Transaction (Stock Decrement + Order Creation + Payment Intent)
+    const { newOrder, paymentResult } = await prisma.$transaction(async (tx) => {
+      // Idempotency: Prevent duplicate submissions within 5 seconds for the same customer/phone/email and total
+      const recentDuplicate = await tx.order.findFirst({
+        where: {
+          OR: [
+            ...(auth.customer?.id ? [{ customerId: auth.customer.id }] : []),
+            { phone: customerPhone },
+            { email: customerEmail },
+          ],
+          totalAmount: Math.round(totals.finalTotal),
+          createdAt: { gte: new Date(Date.now() - 5000) },
+        },
+        include: {
+          items: true,
+          payments: true,
+        },
+      });
+
+      if (recentDuplicate) {
+        return {
+          newOrder: recentDuplicate,
+          paymentResult: {
+            success: true,
+            clientPayload: {
+              method: recentDuplicate.paymentMethod,
+              orderId: recentDuplicate.id,
+              status: recentDuplicate.paymentStatus,
+            },
+          },
+        };
+      }
+
+      // Decrement stock atomically after verifying current stock level in transaction
       for (const check of variantStockChecks) {
+        const currentVariant = await tx.productVariant.findUnique({
+          where: { id: check.variantId },
+          select: { stock: true, sku: true },
+        });
+        if (!currentVariant || currentVariant.stock < check.qty) {
+          throw new Error(
+            `Insufficient stock for item (${currentVariant?.sku || check.variantId}). Only ${currentVariant?.stock ?? 0} remaining, requested: ${check.qty}.`
+          );
+        }
         await tx.productVariant.update({
           where: { id: check.variantId },
           data: { stock: { decrement: check.qty } },
@@ -151,7 +196,7 @@ export async function POST(request) {
       }
 
       // Create Order
-      const newOrder = await tx.order.create({
+      const createdOrder = await tx.order.create({
         data: {
           id: generatedOrderId,
           orderNumber: generatedOrderId,
@@ -161,15 +206,15 @@ export async function POST(request) {
           phone: customerPhone,
           shippingAddress: shippingAddress,
           paymentMethod,
-          paymentStatus: paymentMethod === "COD" ? "Pending" : "Pending",
+          paymentStatus: "Pending", // Always Pending until genuine payment proof (even for COD / UPI)
           orderStatus: paymentMethod === "COD" ? "Confirmed" : "Pending",
-          subtotal: totals.subtotal,
-          discountAmount: totals.discountSavings,
+          subtotal: Math.round(totals.subtotal),
+          discountAmount: Math.round(totals.discountSavings),
           couponCode: verifiedCoupon ? verifiedCoupon.code : null,
-          couponDiscount: totals.couponDiscount,
-          taxAmount: totals.tax,
-          shippingAmount: totals.shipping,
-          totalAmount: totals.finalTotal,
+          couponDiscount: Math.round(totals.couponDiscount),
+          taxAmount: Math.round(totals.tax),
+          shippingAmount: Math.round(totals.shipping),
+          totalAmount: Math.round(totals.finalTotal),
           currency: "INR",
           notes: notes || null,
           expectedDeliveryStart: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
@@ -184,12 +229,12 @@ export async function POST(request) {
               firmness: item.firmness,
               dimension: item.dimension,
               thickness: item.thickness,
-              quantity: item.quantity,
-              price: item.price,
-              actualPrice: item.actualPrice,
-              discountPercent: item.discountPercent,
+              quantity: Math.round(item.quantity),
+              price: Math.round(item.price),
+              actualPrice: Math.round(item.actualPrice),
+              discountPercent: Math.round(item.discountPercent),
               image: item.image,
-              total: item.price * item.quantity,
+              total: Math.round(item.price * item.quantity),
             })),
           },
         },
@@ -197,6 +242,12 @@ export async function POST(request) {
           items: true,
         },
       });
+
+      // Create Payment Record atomically inside transaction
+      const pResult = await createPaymentOrder(createdOrder, paymentMethod, tx);
+      if (!pResult.success) {
+        throw new Error(pResult.error || "Payment initialization failed");
+      }
 
       // Clear customer cart if authenticated
       if (auth.customer) {
@@ -206,37 +257,44 @@ export async function POST(request) {
         }
       }
 
-      return newOrder;
-    });
+      // Clear guest cart if guest session token header provided
+      const guestToken = request.headers.get("x-guest-token");
+      if (guestToken) {
+        const guestCart = await tx.cart.findUnique({ where: { guestSessionToken: guestToken } });
+        if (guestCart) {
+          await tx.cartItem.deleteMany({ where: { cartId: guestCart.id } });
+        }
+      }
 
-    // 7. Initialize Payment Provider Intent
-    const paymentResult = await createPaymentOrder(result, paymentMethod);
+      return { newOrder: createdOrder, paymentResult: pResult };
+    });
 
     return NextResponse.json({
       success: true,
       order: {
-        id: result.id,
-        orderId: result.id,
-        orderNumber: result.orderNumber,
-        totalAmount: result.totalAmount,
-        subtotal: result.subtotal,
-        tax: result.taxAmount,
-        shipping: result.shippingAmount,
-        discount: result.discountAmount,
-        paymentStatus: result.paymentStatus,
-        orderStatus: result.orderStatus,
-        paymentMethod: result.paymentMethod,
-        items: result.items,
-        shippingAddress: result.shippingAddress,
-        createdAt: result.createdAt,
+        id: newOrder.id,
+        orderId: newOrder.id,
+        orderNumber: newOrder.orderNumber,
+        totalAmount: newOrder.totalAmount,
+        subtotal: newOrder.subtotal,
+        tax: newOrder.taxAmount,
+        shipping: newOrder.shippingAmount,
+        discount: newOrder.discountAmount,
+        paymentStatus: newOrder.paymentStatus,
+        orderStatus: newOrder.orderStatus,
+        paymentMethod: newOrder.paymentMethod,
+        items: newOrder.items,
+        shippingAddress: newOrder.shippingAddress,
+        createdAt: newOrder.createdAt,
       },
-      payment: paymentResult.clientPayload || null,
+      payment: paymentResult?.clientPayload || null,
     }, { status: 201 });
   } catch (error) {
     console.error("Checkout transaction error:", error);
+    const isConflict = error.message && error.message.includes("Insufficient stock");
     return NextResponse.json(
       { success: false, error: error.message || "Checkout failed. Please try again." },
-      { status: 500 }
+      { status: isConflict ? 409 : 500 }
     );
   }
 }

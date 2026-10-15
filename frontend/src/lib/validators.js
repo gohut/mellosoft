@@ -121,6 +121,7 @@ export const checkoutOrderSchema = z.object({
   paymentMethod: z.enum(["COD", "UPI", "RAZORPAY", "STRIPE"]),
   notes: z.string().max(500).optional(),
   couponCode: z.string().trim().toUpperCase().optional().or(z.literal("")),
+  email: z.string().trim().toLowerCase().email().optional().or(z.literal("")),
 }).refine((data) => Boolean(data.shippingAddress || data.deliveryAddress), {
   message: "Delivery address is required",
   path: ["shippingAddress"],

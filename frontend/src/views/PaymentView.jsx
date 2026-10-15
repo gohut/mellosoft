@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useStore } from "../context/StoreContext";
 import { useCustomerAuth } from "../context/CustomerAuthContext";
 import { formatPrice } from "../utils/currency";
@@ -77,6 +77,7 @@ export default function PaymentView() {
   const [upiId, setUpiId] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentError, setPaymentError] = useState("");
+  const isSubmittingRef = useRef(false);
 
   // Price calculations from settings
   const {
@@ -92,7 +93,7 @@ export default function PaymentView() {
   } = useMemo(() => calculateOrderTotals(items, settings), [items, settings]);
 
   const handleCompleteOrder = async () => {
-    if (isProcessing) return;
+    if (isSubmittingRef.current || isProcessing) return;
 
     if (paymentMethod === "upi") {
       const trimmedUpi = upiId.trim();
@@ -111,170 +112,102 @@ export default function PaymentView() {
       return;
     }
 
+    const cleanPincode = (address.pincode || address.postalCode || "").toString().replace(/\s+/g, "");
+    if (!address.fullName || !address.addressLine1 || !address.city || !cleanPincode) {
+      setPaymentError("Incomplete delivery address. Please return to address step and verify details.");
+      return;
+    }
+
+    isSubmittingRef.current = true;
     setIsProcessing(true);
     setPaymentError("");
 
     try {
-      // 1. Try real server checkout API
-      try {
-        const cleanPincode = (address.pincode || address.postalCode || "").toString().replace(/\s+/g, "");
-        const shippingAddressObj = {
-          label: address.label || "Home",
-          fullName: address.fullName,
-          phone: address.phone,
-          addressLine1: address.addressLine1,
-          addressLine2: address.addressLine2 || "",
-          landmark: address.landmark || "",
-          city: address.city,
-          state: address.state,
-          postalCode: cleanPincode,
-          pincode: cleanPincode,
-          country: address.country || "India",
-          isDefault: Boolean(address.isDefault),
-        };
+      const cleanPhone = (address.phone || "").toString().replace(/[\s\-]/g, "");
+      const shippingAddressObj = {
+        label: address.label || "Home",
+        fullName: address.fullName.trim(),
+        phone: cleanPhone,
+        addressLine1: address.addressLine1.trim(),
+        addressLine2: address.addressLine2 ? address.addressLine2.trim() : "",
+        landmark: address.landmark ? address.landmark.trim() : "",
+        city: address.city.trim(),
+        state: address.state.trim(),
+        postalCode: cleanPincode,
+        pincode: cleanPincode,
+        country: address.country || "India",
+        isDefault: Boolean(address.isDefault),
+      };
 
-        const checkoutPayload = {
-          items: items.map((item) => ({
-            productId: item.productId || item.id,
-            variantId: item.variantId,
-            size: item.size || "Queen",
-            firmness: item.firmness || "Medium",
-            quantity: item.qty || item.quantity || 1
-          })),
-          shippingAddress: shippingAddressObj,
-          deliveryAddress: shippingAddressObj,
-          paymentMethod: paymentMethod === "upi" ? "UPI" : "COD",
-          notes: paymentMethod === "upi" ? `UPI ID: ${upiId.trim()}` : "Cash on delivery",
-          couponCode: coupon?.code || "",
-        };
-
-        const res = await fetch("/api/checkout", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(checkoutPayload)
-        });
-
-        const data = await res.json();
-        if (res.ok && data.success && data.order) {
-          // If UPI, verify simulated or gateway payment
-          if (paymentMethod === "upi") {
-            try {
-              await fetch("/api/payments/verify", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  orderId: data.order.id,
-                  paymentMethod: "UPI",
-                  reference: `UPI-${Date.now()}`
-                })
-              });
-            } catch (err) {}
-          }
-
-          const confirmedOrder = {
-            ...data.order,
-            id: data.order.id,
-            orderId: data.order.id,
-            customerName: address.fullName,
-            phone: address.phone,
-            deliveryAddress: address,
-            shippingAddress: address,
-            paymentMethod: paymentMethod === "upi" ? `UPI (${upiId.trim()})` : "COD",
-            totalAmount: Number(data.order.totalAmount || finalTotal),
-            total: Number(data.order.totalAmount || finalTotal),
-            storeSnapshot: {
-              storeName: settings?.store?.name || "Mellosoft",
-              email: settings?.store?.email || "admin@mellosoft.in",
-              phone: settings?.store?.phone || "+91 98765 43210",
-              gstNumber: settings?.store?.gstNumber || "07AABCM1234A1Z5",
-              address: settings?.store?.address || "42, MG Road, Bengaluru, Karnataka 560001",
-              logo: settings?.website?.logo || "/asset/logo.png"
-            }
-          };
-
-          placeOrder(confirmedOrder);
-          setSelectedOrderId(confirmedOrder.id);
-          navigateTo("confirmation", confirmedOrder.id);
-          return;
-        } else if (data && data.error && !data.error.includes("offline") && !data.error.includes("Prisma")) {
-          setPaymentError(data.error);
-          setIsProcessing(false);
-          return;
-        }
-      } catch (err) {
-        console.warn("Server checkout API call failed, falling back to local order placement:", err);
+      let savedCouponCode = "";
+      if (typeof window !== "undefined") {
+        try {
+          savedCouponCode = sessionStorage.getItem("mellosoft_applied_coupon") || "";
+        } catch {}
       }
 
-      // 2. Client fallback for offline development
-      const randNum = Math.floor(10000 + Math.random() * 90000);
-      const generatedOrderId = `MS-${randNum}`;
-
-      const paymentMethodLabel = paymentMethod === "upi" ? `UPI (${upiId.trim()})` : "COD";
-      const paymentStatusVal = paymentMethod === "cod" ? "Pending" : "Paid";
-      const orderStatusVal = paymentMethod === "cod" ? "Confirmed" : "Processing";
-
-      const newOrder = {
-        id: generatedOrderId,
-        orderId: generatedOrderId,
-        customerId: userId,
-        userId: userId,
-        customerName: address.fullName,
-        email: currentCustomer?.email || "customer@mellosoft.com",
-        phone: address.phone,
+      const checkoutPayload = {
         items: items.map((item) => ({
           productId: item.productId || item.id,
-          productName: item.productName || item.name,
-          name: item.name || item.productName,
-          category: item.category || "mattress",
-          size: item.size || "Queen",
-          firmness: item.firmness || "Medium",
-          variantSize: item.size || "Queen",
-          variantFirmness: item.firmness || "Medium",
-          sku: item.sku || `MEL-${(item.size || "QUEEN").toUpperCase()}-${(item.firmness || "MEDIUM").toUpperCase()}`,
-          variantSKU: item.sku || `MEL-${(item.size || "QUEEN").toUpperCase()}-${(item.firmness || "MEDIUM").toUpperCase()}`,
-          quantity: item.qty || item.quantity || 1,
-          price: item.price || item.discountPrice,
-          actualPrice: item.actualPrice || item.price,
-          discountPercent: 10,
-          image: item.image || "/asset/img1.jpg"
+          variantId: item.variantId || null,
+          size: item.size || item.variantSize || "Queen",
+          firmness: item.firmness || item.variantFirmness || "Medium",
+          quantity: Number(item.qty || item.quantity || 1),
         })),
+        shippingAddress: shippingAddressObj,
+        deliveryAddress: shippingAddressObj,
+        paymentMethod: paymentMethod === "upi" ? "UPI" : "COD",
+        notes: paymentMethod === "upi" ? `UPI ID: ${upiId.trim()}` : "Cash on delivery",
+        couponCode: savedCouponCode || "",
+      };
+
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(checkoutPayload),
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || !data?.success || !data?.order?.id) {
+        const errorMsg = data?.error || `Checkout failed (${res.status}). Please verify your order details and try again.`;
+        setPaymentError(errorMsg);
+        return;
+      }
+
+      // Real server-created order verified in PostgreSQL
+      const serverOrder = data.order;
+      const confirmedOrder = {
+        ...serverOrder,
+        id: serverOrder.id,
+        orderId: serverOrder.id,
+        orderNumber: serverOrder.orderNumber || serverOrder.id,
+        customerName: address.fullName,
+        phone: cleanPhone,
         deliveryAddress: address,
         shippingAddress: address,
-        paymentMethod: paymentMethodLabel,
-        paymentStatus: paymentStatusVal,
-        orderStatus: orderStatusVal,
-        subtotal: subtotal,
-        productDiscount: discountSavings,
-        couponDiscount: 0,
-        couponCode: null,
-        discount: discountSavings,
-        gst: tax,
-        tax: tax,
-        gstRate: 18,
-        shipping: shipping,
-        delivery: shipping,
-        totalAmount: finalTotal,
-        total: finalTotal,
-        createdAt: new Date().toISOString().split("T")[0],
-        expectedDeliveryStart: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-        expectedDeliveryEnd: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+        paymentMethod: serverOrder.paymentMethod || (paymentMethod === "upi" ? "UPI" : "COD"),
+        totalAmount: Number(serverOrder.totalAmount || finalTotal),
+        total: Number(serverOrder.totalAmount || finalTotal),
         storeSnapshot: {
           storeName: settings?.store?.name || "Mellosoft",
           email: settings?.store?.email || "admin@mellosoft.in",
           phone: settings?.store?.phone || "+91 98765 43210",
           gstNumber: settings?.store?.gstNumber || "07AABCM1234A1Z5",
           address: settings?.store?.address || "42, MG Road, Bengaluru, Karnataka 560001",
-          logo: settings?.website?.logo || "/asset/logo.png"
-        }
+          logo: settings?.website?.logo || "/asset/logo.png",
+        },
       };
 
-      const createdOrder = placeOrder(newOrder);
-      const targetId = createdOrder?.id || generatedOrderId;
-      setSelectedOrderId(targetId);
-      navigateTo("confirmation", targetId);
+      // Real server confirmation: sync store state, clear cart, and navigate to confirmation
+      placeOrder(confirmedOrder);
+      setSelectedOrderId(confirmedOrder.id);
+      navigateTo("confirmation", confirmedOrder.id);
     } catch (err) {
-      console.error("Order placement error:", err);
-      setPaymentError("An error occurred while creating your order. Please try again.");
+      console.error("Order placement network or execution error:", err);
+      setPaymentError("A network error occurred while communicating with the checkout service. Please check your connection and try again.");
+    } finally {
+      isSubmittingRef.current = false;
       setIsProcessing(false);
     }
   };
@@ -310,19 +243,6 @@ export default function PaymentView() {
     );
   }
 
-  if (isProcessing) {
-    return (
-      <div style={emptyContainerStyle}>
-        <div style={emptyCardStyle}>
-          <div style={{ display: "inline-flex", padding: "16px", borderRadius: "50%", backgroundColor: "#F4F5FF", marginBottom: "16px" }}>
-            <CheckCircle2 size={40} color="#1B1F8C" />
-          </div>
-          <h2 style={{ fontSize: "22px", color: "#1B1F8C", margin: "0 0 8px 0" }}>Placing Your Order...</h2>
-          <p style={{ color: "#6B6B75", margin: 0 }}>Please wait while your order is being confirmed.</p>
-        </div>
-      </div>
-    );
-  }
 
   if (!items || items.length === 0) {
     return (
@@ -671,7 +591,7 @@ export default function PaymentView() {
                   borderColor: paymentMethod === "upi" ? "#1B1F8C" : "#E7E7E2",
                   backgroundColor: paymentMethod === "upi" ? "#F4F5FF" : "#FFFFFF"
                 }}
-                onClick={() => setPaymentMethod("upi")}
+                onClick={() => !isProcessing && setPaymentMethod("upi")}
                 className="payment-option-card"
               >
                 <div style={optionRadioRowStyle} className="payment-option-radio-row">
@@ -680,6 +600,7 @@ export default function PaymentView() {
                     name="payment"
                     checked={paymentMethod === "upi"}
                     onChange={() => setPaymentMethod("upi")}
+                    disabled={isProcessing}
                     style={radioInputStyle}
                   />
                   <div style={optionTitleWrapStyle} className="payment-option-title-wrap">
@@ -695,8 +616,13 @@ export default function PaymentView() {
                       type="text"
                       value={upiId}
                       onChange={(e) => setUpiId(e.target.value)}
+                      disabled={isProcessing}
                       placeholder="Example: name@okaxis"
-                      style={inputStyle}
+                      style={{
+                        ...inputStyle,
+                        opacity: isProcessing ? 0.7 : 1,
+                        cursor: isProcessing ? "not-allowed" : "text",
+                      }}
                     />
                     <span style={{ fontSize: "12px", color: "#6B6B75" }}>
                       Instant payment verification via UPI app request.
@@ -712,7 +638,7 @@ export default function PaymentView() {
                   borderColor: paymentMethod === "cod" ? "#1B1F8C" : "#E7E7E2",
                   backgroundColor: paymentMethod === "cod" ? "#F4F5FF" : "#FFFFFF"
                 }}
-                onClick={() => setPaymentMethod("cod")}
+                onClick={() => !isProcessing && setPaymentMethod("cod")}
                 className="payment-option-card"
               >
                 <div style={optionRadioRowStyle} className="payment-option-radio-row">
@@ -721,6 +647,7 @@ export default function PaymentView() {
                     name="payment"
                     checked={paymentMethod === "cod"}
                     onChange={() => setPaymentMethod("cod")}
+                    disabled={isProcessing}
                     style={radioInputStyle}
                   />
                   <div style={optionTitleWrapStyle} className="payment-option-title-wrap">
@@ -786,6 +713,12 @@ export default function PaymentView() {
               <span style={totalValStyle}>{formatPrice(finalTotal)}</span>
             </div>
 
+            {paymentError && (
+              <div style={{ ...errorAlertStyle, marginTop: "16px", marginBottom: "8px" }}>
+                <span>⚠️ {paymentError}</span>
+              </div>
+            )}
+
             <button
               onClick={handleCompleteOrder}
               disabled={isProcessing}
@@ -796,14 +729,21 @@ export default function PaymentView() {
               }}
               className="payment-pay-btn"
             >
-              <Lock size={18} />
-              <span>
-                {isProcessing
-                  ? "Processing Order..."
-                  : paymentMethod === "cod"
-                  ? `Place Order (COD ${formatPrice(finalTotal)})`
-                  : `Pay ${formatPrice(finalTotal)}`}
-              </span>
+              {isProcessing ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" />
+                  <span>Placing Order...</span>
+                </>
+              ) : (
+                <>
+                  <Lock size={18} />
+                  <span>
+                    {paymentMethod === "cod"
+                      ? `Place Order (COD ${formatPrice(finalTotal)})`
+                      : `Pay ${formatPrice(finalTotal)}`}
+                  </span>
+                </>
+              )}
             </button>
 
             <div style={securityFooterNoteStyle}>

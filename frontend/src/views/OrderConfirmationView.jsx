@@ -65,21 +65,25 @@ export default function OrderConfirmationView({ orderId: propOrderId }) {
           setOrder(data.order);
           setErrorInfo(null);
         } else if (res.status === 401) {
+          setOrder(null);
           setErrorInfo({
             status: 401,
             message: data.error || "Please sign in to view this order.",
           });
         } else if (res.status === 403) {
+          setOrder(null);
           setErrorInfo({
             status: 403,
             message: data.error || "You do not have permission to view this order.",
           });
         } else if (res.status === 404) {
+          setOrder(null);
           setErrorInfo({
             status: 404,
-            message: `Order "${ordRef}" was not found.`,
+            message: `Order "${ordRef}" was not found in database.`,
           });
         } else {
+          setOrder(null);
           setErrorInfo({
             status: res.status || 500,
             message: data.error || "Unable to retrieve order details.",
@@ -88,6 +92,7 @@ export default function OrderConfirmationView({ orderId: propOrderId }) {
       } catch (err) {
         console.error("Failed to fetch order details:", err);
         if (isMounted) {
+          setOrder(null);
           setErrorInfo({ status: 500, message: "Network error loading order. Please try again." });
         }
       } finally {
@@ -116,7 +121,7 @@ export default function OrderConfirmationView({ orderId: propOrderId }) {
     );
   }
 
-  if (errorInfo && !order) {
+  if (errorInfo) {
     if (errorInfo.status === 401) {
       return (
         <div style={emptyContainerStyle}>
